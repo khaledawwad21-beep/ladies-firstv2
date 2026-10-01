@@ -2356,3 +2356,360 @@ textarea:focus-visible{
     gap:9px;
   }
 }
+/* =========================================================
+   FINAL INTEGRATION OVERRIDES
+   Ladies First - current index.html
+   ========================================================= */
+
+/* =========================
+   PAGE VISIBILITY
+========================= */
+
+.page{
+  display:none;
+}
+
+.page.active{
+  display:block;
+}
+
+
+/* =========================
+   MOBILE MENU
+========================= */
+
+.mobile-menu{
+  display:block;
+}
+
+.mobile-menu.hidden{
+  display:none !important;
+}
+
+.page-overlay.hidden{
+  display:none !important;
+}
+
+.page-overlay{
+  display:block;
+}
+
+
+/* =========================
+   NAYA ASSISTANT
+   Matches current index.html
+========================= */
+
+.naya-assistant{
+  position:fixed;
+  right:20px;
+  bottom:92px;
+  z-index:1200;
+  width:min(410px,calc(100vw - 30px));
+  height:min(650px,calc(100vh - 120px));
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:22px;
+  box-shadow:0 25px 70px rgba(45,25,34,.22);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+.naya-assistant.hidden{
+  display:none !important;
+}
+
+.naya-header{
+  min-height:64px;
+  padding:10px 14px;
+  background:linear-gradient(135deg,#7c435b,#a96884);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.naya-header > div{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.naya-header strong{
+  font-size:18px;
+  font-weight:800;
+}
+
+.naya-header button{
+  width:36px;
+  height:36px;
+  border:0;
+  border-radius:50%;
+  background:rgba(255,255,255,.14);
+  color:#fff;
+  font-size:26px;
+  line-height:1;
+}
+
+.naya-header button:hover{
+  background:rgba(255,255,255,.24);
+}
+
+.naya-status{
+  font-size:11px;
+  opacity:.9;
+}
+
+.naya-stage{
+  position:relative;
+  min-height:230px;
+  background:#f5e9ee;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+
+.naya-video{
+  width:100%;
+  height:100%;
+  min-height:230px;
+  object-fit:cover;
+  display:block;
+}
+
+.naya-placeholder{
+  width:100%;
+  min-height:230px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  background:
+    radial-gradient(circle at center,rgba(255,255,255,.85),rgba(245,233,238,.95));
+}
+
+.naya-placeholder-name{
+  width:76px;
+  height:76px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--primary);
+  color:#fff;
+  font-size:22px;
+  font-weight:800;
+  box-shadow:0 12px 30px rgba(60,35,47,.18);
+  margin-bottom:12px;
+}
+
+.naya-placeholder-text{
+  color:var(--muted);
+  font-size:13px;
+}
+
+.naya-loading{
+  position:absolute;
+  inset:0;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(245,233,238,.95);
+  color:var(--muted);
+  font-size:13px;
+}
+
+.naya-loading.hidden{
+  display:none !important;
+}
+
+.naya-conversation{
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  padding:14px;
+  background:#fbf7f8;
+}
+
+.naya-message{
+  max-width:86%;
+  padding:10px 12px;
+  border-radius:14px;
+  margin-bottom:9px;
+  font-size:13px;
+  line-height:1.7;
+  word-break:break-word;
+}
+
+.naya-message.user{
+  margin-right:auto;
+  margin-left:0;
+  background:var(--primary);
+  color:#fff;
+  border-top-left-radius:5px;
+}
+
+.naya-message.naya{
+  margin-left:auto;
+  margin-right:0;
+  background:#fff;
+  border:1px solid var(--border);
+  border-top-right-radius:5px;
+  color:var(--text);
+}
+
+.naya-input{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:10px;
+  border-top:1px solid var(--border);
+  background:#fff;
+}
+
+.naya-input input{
+  flex:1;
+  min-width:0;
+  height:42px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  padding:0 11px;
+  background:#fff;
+  color:var(--text);
+  outline:none;
+  font:inherit;
+}
+
+.naya-input input:focus{
+  border-color:var(--primary);
+}
+
+.naya-input button{
+  flex:0 0 auto;
+  min-width:58px;
+  height:42px;
+  border:0;
+  border-radius:11px;
+  background:var(--primary);
+  color:#fff;
+  font:inherit;
+  font-weight:700;
+}
+
+.naya-input button:hover{
+  background:var(--dark);
+}
+
+.naya-launcher{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  z-index:1190;
+  width:62px;
+  height:62px;
+  border:0;
+  border-radius:50%;
+  background:var(--primary);
+  color:#fff;
+  font:inherit;
+  font-weight:800;
+  box-shadow:0 12px 30px rgba(60,35,47,.25);
+}
+
+.naya-launcher:hover{
+  transform:scale(1.04);
+  background:var(--dark);
+}
+
+
+/* =========================
+   MOBILE NAYA
+========================= */
+
+@media(max-width:600px){
+
+  .naya-assistant{
+    right:10px;
+    left:10px;
+    bottom:82px;
+    width:auto;
+    height:min(620px,calc(100vh - 105px));
+    border-radius:18px;
+  }
+
+  .naya-stage{
+    min-height:190px;
+  }
+
+  .naya-video{
+    min-height:190px;
+  }
+
+  .naya-placeholder{
+    min-height:190px;
+  }
+
+  .naya-launcher{
+    right:14px;
+    bottom:14px;
+    width:56px;
+    height:56px;
+  }
+
+}
+
+
+/* =========================
+   MOBILE PAGE SPACING
+========================= */
+
+@media(max-width:768px){
+
+  .page > .container{
+    padding-top:16px;
+    padding-bottom:30px;
+  }
+
+  .page-header{
+    gap:10px;
+  }
+
+  .hero-content{
+    padding:24px;
+  }
+
+}
+
+
+/* =========================
+   SMALL MOBILE
+========================= */
+
+@media(max-width:420px){
+
+  .naya-assistant{
+    right:7px;
+    left:7px;
+    bottom:76px;
+  }
+
+  .naya-placeholder-name{
+    width:66px;
+    height:66px;
+    font-size:19px;
+  }
+
+  .naya-input{
+    padding:8px;
+  }
+
+  .naya-input button{
+    min-width:54px;
+  }
+
+}
