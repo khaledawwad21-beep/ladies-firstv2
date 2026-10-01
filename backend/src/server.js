@@ -7682,7 +7682,7 @@ app.get(
    ========================================================= */
 
 app.get(
-  "*",
+  "/{*splat}",
   (req, res, next) => {
     /*
      * لا نعيد index.html
@@ -7807,10 +7807,6 @@ app.use(
    SERVER START
    ========================================================= */
 
-const PORT =
-  Number(
-    process.env.PORT || 10000
-  );
 
 async function startServer() {
   try {
