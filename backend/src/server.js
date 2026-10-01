@@ -4,30 +4,32 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const { Pool } = require("pg");
+
+const {
+  db,
+  transaction,
+  getDatabaseStatus,
+  closeDatabase
+} = require("./db");
+
+const {
+  hashPassword,
+  verifyPassword,
+  createToken,
+  optionalAuth,
+  requireAuth,
+  requireAdmin,
+  requireOwner,
+  normalizeEmail,
+  normalizePhone,
+  normalizeContact,
+  sanitizeUser,
+  getGenderGreeting
+} = require("./auth");
 
 const app = express();
 
 const PORT = Number(process.env.PORT || 10000);
-const JWT_SECRET =
-  process.env.JWT_SECRET || "CHANGE_THIS_SECRET_IN_RENDER";
-
-const DATABASE_URL = process.env.DATABASE_URL || "";
-
-if (!DATABASE_URL) {
-  console.warn("WARNING: DATABASE_URL is not configured.");
-}
-
-const pool = new Pool({
-  connectionString: DATABASE_URL || undefined,
-  ssl: DATABASE_URL
-    ? {
-        rejectUnauthorized: false
-      }
-    : false
-});
 
 app.use(
   cors({
@@ -36,19 +38,66 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: "2mb" }));
+app.use(
+  express.json({
+    limit: "2mb"
+  })
+);
 
 /* =========================================================
-   DATABASE
+   HELPERS
 ========================================================= */
 
-async function db(query, params = []) {
-  const result = await pool.query(query, params);
-  return result;
+function number(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 }
 
+function integer(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isInteger(n) ? n : fallback;
+}
+
+function cleanText(value) {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  return String(value).trim();
+}
+
+function slugify(value) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function publicUser(user) {
+  return sanitizeUser(user);
+}
+
+function productIdFromRequest(req) {
+  const id = integer(req.params.id, NaN);
+
+  if (!Number.isInteger(id)) {
+    return null;
+  }
+
+  return id;
+}
+
+/* =========================================================
+   DATABASE INITIALIZATION
+========================================================= */
+
 async function initDatabase() {
-  if (!DATABASE_URL) {
+  const status = await getDatabaseStatus();
+
+  if (!status.configured) {
+    console.warn(
+      "[DB] DATABASE_URL is not configured."
+    );
     return;
   }
 
@@ -98,6 +147,7 @@ async function initDatabase() {
       description TEXT,
       price NUMERIC(12,2) NOT NULL DEFAULT 0,
       old_price NUMERIC(12,2),
+      stock INTEGER NOT NULL DEFAULT 0,
       image_url TEXT,
       category_id BIGINT REFERENCES categories(id) ON DELETE SET NULL,
       brand_id BIGINT REFERENCES brands(id) ON DELETE SET NULL,
@@ -109,10 +159,21 @@ async function initDatabase() {
     )
   `);
 
+  /*
+     Existing installations may already have products.
+     Add stock safely if the table existed before.
+  */
+  await db(`
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS stock INTEGER NOT NULL DEFAULT 0
+  `);
+
   await db(`
     CREATE TABLE IF NOT EXISTS product_variants (
       id BIGSERIAL PRIMARY KEY,
-      product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      product_id BIGINT NOT NULL
+        REFERENCES products(id)
+        ON DELETE CASCADE,
       sku TEXT UNIQUE,
       color TEXT,
       size TEXT,
@@ -127,7 +188,9 @@ async function initDatabase() {
   await db(`
     CREATE TABLE IF NOT EXISTS product_images (
       id BIGSERIAL PRIMARY KEY,
-      product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      product_id BIGINT NOT NULL
+        REFERENCES products(id)
+        ON DELETE CASCADE,
       image_url TEXT NOT NULL,
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -137,7 +200,9 @@ async function initDatabase() {
   await db(`
     CREATE TABLE IF NOT EXISTS orders (
       id BIGSERIAL PRIMARY KEY,
-      user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+      user_id BIGINT
+        REFERENCES users(id)
+        ON DELETE SET NULL,
       status TEXT NOT NULL DEFAULT 'pending',
       subtotal NUMERIC(12,2) NOT NULL DEFAULT 0,
       discount NUMERIC(12,2) NOT NULL DEFAULT 0,
@@ -152,9 +217,15 @@ async function initDatabase() {
   await db(`
     CREATE TABLE IF NOT EXISTS order_items (
       id BIGSERIAL PRIMARY KEY,
-      order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-      product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
-      variant_id BIGINT REFERENCES product_variants(id) ON DELETE RESTRICT,
+      order_id BIGINT NOT NULL
+        REFERENCES orders(id)
+        ON DELETE CASCADE,
+      product_id BIGINT NOT NULL
+        REFERENCES products(id)
+        ON DELETE RESTRICT,
+      variant_id BIGINT
+        REFERENCES product_variants(id)
+        ON DELETE RESTRICT,
       product_name TEXT NOT NULL,
       variant_name TEXT,
       quantity INTEGER NOT NULL,
@@ -181,18 +252,36 @@ async function initDatabase() {
   await db(`
     CREATE TABLE IF NOT EXISTS inventory_movements (
       id BIGSERIAL PRIMARY KEY,
-      variant_id BIGINT REFERENCES product_variants(id) ON DELETE SET NULL,
+      variant_id BIGINT
+        REFERENCES product_variants(id)
+        ON DELETE SET NULL,
+      product_id BIGINT
+        REFERENCES products(id)
+        ON DELETE SET NULL,
       quantity_change INTEGER NOT NULL,
       reason TEXT,
-      order_id BIGINT REFERENCES orders(id) ON DELETE SET NULL,
+      order_id BIGINT
+        REFERENCES orders(id)
+        ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 
   await db(`
+    ALTER TABLE inventory_movements
+    ADD COLUMN IF NOT EXISTS product_id BIGINT
+    REFERENCES products(id)
+    ON DELETE SET NULL
+  `);
+
+  await db(`
     CREATE TABLE IF NOT EXISTS favorites (
-      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      user_id BIGINT NOT NULL
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+      product_id BIGINT NOT NULL
+        REFERENCES products(id)
+        ON DELETE CASCADE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (user_id, product_id)
     )
@@ -206,80 +295,7 @@ async function initDatabase() {
     )
   `);
 
-  console.log("Database initialized.");
-}
-
-/* =========================================================
-   AUTH HELPERS
-========================================================= */
-
-function createToken(user) {
-  return jwt.sign(
-    {
-      id: user.id,
-      role: user.role
-    },
-    JWT_SECRET,
-    {
-      expiresIn: "30d"
-    }
-  );
-}
-
-function getTokenFromRequest(req) {
-  const auth = req.headers.authorization || "";
-
-  if (auth.startsWith("Bearer ")) {
-    return auth.slice(7);
-  }
-
-  if (req.headers.cookie) {
-    const match = req.headers.cookie.match(
-      /(?:^|;\s*)token=([^;]+)/
-    );
-
-    if (match) {
-      return decodeURIComponent(match[1]);
-    }
-  }
-
-  return null;
-}
-
-function optionalAuth(req, res, next) {
-  const token = getTokenFromRequest(req);
-
-  if (!token) {
-    req.user = null;
-    return next();
-  }
-
-  try {
-    req.user = jwt.verify(token, JWT_SECRET);
-  } catch {
-    req.user = null;
-  }
-
-  next();
-}
-
-function requireAuth(req, res, next) {
-  const token = getTokenFromRequest(req);
-
-  if (!token) {
-    return res.status(401).json({
-      message: "يجب تسجيل الدخول أولاً"
-    });
-  }
-
-  try {
-    req.user = jwt.verify(token, JWT_SECRET);
-    next();
-  } catch {
-    return res.status(401).json({
-      message: "جلسة الدخول غير صالحة"
-    });
-  }
+  console.log("[DB] Database initialized.");
 }
 
 /* =========================================================
@@ -288,24 +304,17 @@ function requireAuth(req, res, next) {
 
 app.get("/api/health", async (req, res) => {
   try {
-    if (!DATABASE_URL) {
-      return res.json({
-        ok: true,
-        server: true,
-        database: false,
-        message: "Server is running. DATABASE_URL is not configured."
-      });
-    }
-
-    await db("SELECT 1");
+    const status = await getDatabaseStatus();
 
     res.json({
       ok: true,
       server: true,
-      database: true
+      database: status.connected,
+      databaseConfigured: status.configured,
+      serverTime: status.serverTime || null
     });
   } catch (error) {
-    console.error("Health error:", error);
+    console.error("[HEALTH]", error);
 
     res.status(503).json({
       ok: false,
@@ -316,7 +325,7 @@ app.get("/api/health", async (req, res) => {
 });
 
 /* =========================================================
-   AUTH
+   AUTH - REGISTER
 ========================================================= */
 
 app.post("/api/auth/register", async (req, res) => {
@@ -330,52 +339,70 @@ app.post("/api/auth/register", async (req, res) => {
       age
     } = req.body || {};
 
-    if (!name || !password) {
+    const cleanName = cleanText(name);
+    const cleanEmail = normalizeEmail(email);
+    const cleanPhone = normalizePhone(phone);
+
+    if (!cleanName || !password) {
       return res.status(400).json({
+        ok: false,
         message: "الاسم وكلمة المرور مطلوبان"
       });
     }
 
-    if (!email && !phone) {
+    if (!cleanEmail && !cleanPhone) {
       return res.status(400).json({
-        message: "أدخلي البريد الإلكتروني أو رقم الهاتف"
+        ok: false,
+        message:
+          "أدخلي البريد الإلكتروني أو رقم الهاتف"
       });
     }
-
-    const cleanEmail = email
-      ? String(email).trim().toLowerCase()
-      : null;
-
-    const cleanPhone = phone
-      ? String(phone).trim()
-      : null;
 
     const existing = await db(
       `
       SELECT id
       FROM users
-      WHERE ($1::text IS NOT NULL AND email = $1)
-         OR ($2::text IS NOT NULL AND phone = $2)
+      WHERE
+        ($1::text IS NOT NULL AND email = $1)
+        OR
+        ($2::text IS NOT NULL AND phone = $2)
       LIMIT 1
       `,
-      [cleanEmail, cleanPhone]
+      [
+        cleanEmail,
+        cleanPhone
+      ]
     );
 
     if (existing.rows.length) {
       return res.status(409).json({
-        message: "هذا البريد أو رقم الهاتف مسجل مسبقاً"
+        ok: false,
+        message:
+          "هذا البريد أو رقم الهاتف مسجل مسبقاً"
       });
     }
 
-    const passwordHash = await bcrypt.hash(
-      String(password),
-      12
-    );
+    const passwordHash =
+      await hashPassword(password);
+
+    const ageNumber =
+      age === undefined ||
+      age === null ||
+      age === ""
+        ? null
+        : integer(age, null);
 
     const result = await db(
       `
       INSERT INTO users
-        (name, email, phone, password_hash, gender, age)
+        (
+          name,
+          email,
+          phone,
+          password_hash,
+          gender,
+          age
+        )
       VALUES
         ($1,$2,$3,$4,$5,$6)
       RETURNING
@@ -387,35 +414,50 @@ app.post("/api/auth/register", async (req, res) => {
         age,
         role,
         loyalty_points,
-        created_at
+        is_active,
+        created_at,
+        updated_at
       `,
       [
-        String(name).trim(),
+        cleanName,
         cleanEmail,
         cleanPhone,
         passwordHash,
-        gender ? String(gender) : null,
-        age ? Number(age) : null
+        cleanText(gender) || null,
+        ageNumber
       ]
     );
 
-    const user = result.rows[0];
-    const token = createToken(user);
+    const user =
+      result.rows[0];
 
-    res.cookie = res.cookie || (() => {});
+    const token =
+      createToken(user);
 
     res.status(201).json({
-      user,
-      token
+      ok: true,
+      user: publicUser(user),
+      token,
+      greeting:
+        getGenderGreeting(user.gender)
     });
   } catch (error) {
-    console.error("Register error:", error);
+    console.error(
+      "[REGISTER]",
+      error
+    );
 
     res.status(500).json({
-      message: "تعذر إنشاء الحساب حالياً"
+      ok: false,
+      message:
+        "تعذر إنشاء الحساب حالياً"
     });
   }
 });
+
+/* =========================================================
+   AUTH - LOGIN
+========================================================= */
 
 app.post("/api/auth/login", async (req, res) => {
   try {
@@ -424,112 +466,157 @@ app.post("/api/auth/login", async (req, res) => {
       password
     } = req.body || {};
 
-    if (!contact || !password) {
+    const value =
+      normalizeContact(contact);
+
+    if (!value || !password) {
       return res.status(400).json({
-        message: "بيانات الدخول غير مكتملة"
+        ok: false,
+        message:
+          "بيانات الدخول غير مكتملة"
       });
     }
-
-    const value = String(contact).trim();
 
     const result = await db(
       `
       SELECT *
       FROM users
-      WHERE email = $1
-         OR phone = $1
+      WHERE
+        email = $1
+        OR phone = $1
       LIMIT 1
       `,
-      [value.toLowerCase()]
+      [value]
     );
 
     if (!result.rows.length) {
       return res.status(401).json({
-        message: "بيانات الدخول غير صحيحة"
+        ok: false,
+        message:
+          "بيانات الدخول غير صحيحة"
       });
     }
 
-    const user = result.rows[0];
+    const user =
+      result.rows[0];
 
     if (!user.is_active) {
       return res.status(403).json({
-        message: "هذا الحساب غير مفعل"
+        ok: false,
+        message:
+          "هذا الحساب غير مفعل"
       });
     }
 
-    const valid = await bcrypt.compare(
-      String(password),
-      user.password_hash
-    );
+    const valid =
+      await verifyPassword(
+        password,
+        user.password_hash
+      );
 
     if (!valid) {
       return res.status(401).json({
-        message: "بيانات الدخول غير صحيحة"
+        ok: false,
+        message:
+          "بيانات الدخول غير صحيحة"
       });
     }
 
-    delete user.password_hash;
-
-    const token = createToken(user);
+    const token =
+      createToken(user);
 
     res.json({
-      user,
-      token
+      ok: true,
+      user: publicUser(user),
+      token,
+      greeting:
+        getGenderGreeting(user.gender)
     });
   } catch (error) {
-    console.error("Login error:", error);
-
-    res.status(500).json({
-      message: "تعذر تسجيل الدخول حالياً"
-    });
-  }
-});
-
-app.get("/api/auth/me", optionalAuth, async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.json({
-        user: null
-      });
-    }
-
-    const result = await db(
-      `
-      SELECT
-        id,
-        name,
-        email,
-        phone,
-        gender,
-        age,
-        role,
-        loyalty_points,
-        created_at
-      FROM users
-      WHERE id = $1
-        AND is_active = TRUE
-      LIMIT 1
-      `,
-      [req.user.id]
+    console.error(
+      "[LOGIN]",
+      error
     );
 
-    if (!result.rows.length) {
-      return res.json({
-        user: null
-      });
-    }
-
-    res.json({
-      user: result.rows[0]
-    });
-  } catch (error) {
-    console.error("Auth me error:", error);
-
     res.status(500).json({
-      message: "تعذر تحميل الحساب"
+      ok: false,
+      message:
+        "تعذر تسجيل الدخول حالياً"
     });
   }
 });
+
+/* =========================================================
+   AUTH - CURRENT USER
+========================================================= */
+
+app.get(
+  "/api/auth/me",
+  optionalAuth,
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.json({
+          ok: true,
+          user: null
+        });
+      }
+
+      const result = await db(
+        `
+        SELECT
+          id,
+          name,
+          email,
+          phone,
+          gender,
+          age,
+          role,
+          loyalty_points,
+          is_active,
+          created_at,
+          updated_at
+        FROM users
+        WHERE
+          id = $1
+          AND is_active = TRUE
+        LIMIT 1
+        `,
+        [req.user.id]
+      );
+
+      if (!result.rows.length) {
+        return res.json({
+          ok: true,
+          user: null
+        });
+      }
+
+      const user =
+        result.rows[0];
+
+      res.json({
+        ok: true,
+        user: publicUser(user),
+        greeting:
+          getGenderGreeting(
+            user.gender
+          )
+      });
+    } catch (error) {
+      console.error(
+        "[AUTH ME]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تحميل الحساب"
+      });
+    }
+  }
+);
 
 /* =========================================================
    CATEGORIES
@@ -549,13 +636,19 @@ app.get("/api/categories", async (req, res) => {
     `);
 
     res.json({
+      ok: true,
       categories: result.rows
     });
   } catch (error) {
-    console.error("Categories error:", error);
+    console.error(
+      "[CATEGORIES]",
+      error
+    );
 
     res.status(500).json({
-      message: "تعذر تحميل الأقسام"
+      ok: false,
+      message:
+        "تعذر تحميل الأقسام"
     });
   }
 });
@@ -578,22 +671,32 @@ app.get("/api/brands", async (req, res) => {
     `);
 
     res.json({
+      ok: true,
       brands: result.rows
     });
   } catch (error) {
-    console.error("Brands error:", error);
+    console.error(
+      "[BRANDS]",
+      error
+    );
 
     res.status(500).json({
-      message: "تعذر تحميل الماركات"
+      ok: false,
+      message:
+        "تعذر تحميل الماركات"
     });
   }
 });
 
 /* =========================================================
-   PRODUCTS
+   PRODUCT QUERY
 ========================================================= */
 
-async function getProducts(where = "", params = []) {
+async function getProducts(
+  where = "",
+  params = [],
+  order = "p.created_at DESC"
+) {
   const result = await db(
     `
     SELECT
@@ -602,6 +705,7 @@ async function getProducts(where = "", params = []) {
       p.description,
       p.price,
       p.old_price AS "oldPrice",
+      p.stock,
       p.image_url AS "imageUrl",
       p.category_id AS "categoryId",
       p.brand_id AS "brandId",
@@ -623,7 +727,8 @@ async function getProducts(where = "", params = []) {
             ORDER BY v.id
           )
           FROM product_variants v
-          WHERE v.product_id = p.id
+          WHERE
+            v.product_id = p.id
             AND v.is_active = TRUE
         ),
         '[]'::json
@@ -633,18 +738,24 @@ async function getProducts(where = "", params = []) {
         (
           SELECT json_agg(
             pi.image_url
-            ORDER BY pi.sort_order, pi.id
+            ORDER BY
+              pi.sort_order,
+              pi.id
           )
           FROM product_images pi
-          WHERE pi.product_id = p.id
+          WHERE
+            pi.product_id = p.id
         ),
         '[]'::json
       ) AS images
 
     FROM products p
-    WHERE p.is_active = TRUE
-    ${where}
-    ORDER BY p.created_at DESC
+
+    WHERE
+      p.is_active = TRUE
+      ${where}
+
+    ORDER BY ${order}
     `,
     params
   );
@@ -652,431 +763,328 @@ async function getProducts(where = "", params = []) {
   return result.rows;
 }
 
+/* =========================================================
+   PRODUCTS
+========================================================= */
+
 app.get("/api/products", async (req, res) => {
   try {
     const {
       search,
       category,
-      brand
+      brand,
+      sort
     } = req.query;
 
     const conditions = [];
     const params = [];
 
     if (search) {
-      params.push(`%${String(search).trim()}%`);
+      params.push(
+        `%${cleanText(search)}%`
+      );
+
       conditions.push(`
         (
           p.name ILIKE $${params.length}
-          OR p.description ILIKE $${params.length}
+          OR
+          p.description ILIKE $${params.length}
         )
       `);
     }
 
-    if (category) {
-      params.push(Number(category));
+    if (
+      category &&
+      Number.isInteger(Number(category))
+    ) {
+      params.push(
+        Number(category)
+      );
+
       conditions.push(
         `p.category_id = $${params.length}`
       );
     }
 
-    if (brand) {
-      params.push(Number(brand));
+    if (
+      brand &&
+      Number.isInteger(Number(brand))
+    ) {
+      params.push(
+        Number(brand)
+      );
+
       conditions.push(
         `p.brand_id = $${params.length}`
       );
     }
 
-    const where = conditions.length
-      ? `AND ${conditions.join(" AND ")}`
-      : "";
+    const where =
+      conditions.length
+        ? `AND ${conditions.join(" AND ")}`
+        : "";
 
-    const products = await getProducts(where, params);
+    let order =
+      "p.created_at DESC";
 
-    res.json({
-      products
-    });
-  } catch (error) {
-    console.error("Products error:", error);
-
-    res.status(500).json({
-      message: "تعذر تحميل المنتجات"
-    });
-  }
-});
-
-app.get("/api/products/:id", async (req, res) => {
-  try {
-    const products = await getProducts(
-      "AND p.id = $1",
-      [Number(req.params.id)]
-    );
-
-    if (!products.length) {
-      return res.status(404).json({
-        message: "المنتج غير موجود"
-      });
+    if (sort === "price_asc") {
+      order =
+        "p.price ASC";
     }
 
-    res.json({
-      product: products[0]
-    });
-  } catch (error) {
-    console.error("Product error:", error);
-
-    res.status(500).json({
-      message: "تعذر تحميل المنتج"
-    });
-  }
-});
-
-/* =========================================================
-   HOME
-========================================================= */
-
-app.get("/api/store/home", async (req, res) => {
-  try {
-    const [
-      featured,
-      bestSellers,
-      products
-    ] = await Promise.all([
-      getProducts(
-        "AND p.is_featured = TRUE",
-        []
-      ),
-      getProducts(
-        "AND p.is_best_seller = TRUE",
-        []
-      ),
-      getProducts("", [])
-    ]);
-
-    res.json({
-      featured,
-      bestSellers,
-      products
-    });
-  } catch (error) {
-    console.error("Home error:", error);
-
-    res.status(500).json({
-      message: "تعذر تحميل الصفحة الرئيسية"
-    });
-  }
-});
-
-/* =========================================================
-   ORDERS
-========================================================= */
-
-app.post("/api/orders", requireAuth, async (req, res) => {
-  const client = await pool.connect();
-
-  try {
-    const items = Array.isArray(req.body?.items)
-      ? req.body.items
-      : [];
-
-    if (!items.length) {
-      return res.status(400).json({
-        message: "السلة فارغة"
-      });
+    if (sort === "price_desc") {
+      order =
+        "p.price DESC";
     }
 
-    await client.query("BEGIN");
+    if (sort === "name") {
+      order =
+        "p.name ASC";
+    }
 
-    let subtotal = 0;
-    const orderItems = [];
-
-    for (const item of items) {
-      const productId = Number(item.productId);
-      const variantId = item.variantId
-        ? Number(item.variantId)
-        : null;
-      const quantity = Number(item.quantity);
-
-      if (
-        !Number.isInteger(productId) ||
-        !Number.isInteger(quantity) ||
-        quantity <= 0
-      ) {
-        throw new Error("بيانات المنتج غير صحيحة");
-      }
-
-      const productResult = await client.query(
-        `
-        SELECT
-          p.id,
-          p.name,
-          p.price
-        FROM products p
-        WHERE p.id = $1
-          AND p.is_active = TRUE
-        FOR UPDATE
-        `,
-        [productId]
+    const products =
+      await getProducts(
+        where,
+        params,
+        order
       );
 
-      if (!productResult.rows.length) {
-        throw new Error("المنتج غير موجود");
-      }
-
-      const product = productResult.rows[0];
-
-      let unitPrice = Number(product.price);
-      let variantName = null;
-
-      if (variantId) {
-        const variantResult = await client.query(
-          `
-          SELECT
-            id,
-            color,
-            size,
-            price,
-            stock
-          FROM product_variants
-          WHERE id = $1
-            AND product_id = $2
-            AND is_active = TRUE
-          FOR UPDATE
-          `,
-          [variantId, productId]
-        );
-
-        if (!variantResult.rows.length) {
-          throw new Error("الخيار المطلوب غير موجود");
-        }
-
-        const variant = variantResult.rows[0];
-
-        if (Number(variant.stock) < quantity) {
-          throw new Error(
-            "الكمية خلصت، حقك علينا"
-          );
-        }
-
-        if (variant.price !== null) {
-          unitPrice = Number(variant.price);
-        }
-
-        variantName = [
-          variant.color,
-          variant.size
-        ]
-          .filter(Boolean)
-          .join(" / ");
-
-        await client.query(
-          `
-          UPDATE product_variants
-          SET
-            stock = stock - $1,
-            updated_at = NOW()
-          WHERE id = $2
-            AND stock >= $1
-          `,
-          [quantity, variantId]
-        );
-      } else {
-        const variantsResult = await client.query(
-          `
-          SELECT
-            COALESCE(SUM(stock), 0) AS total_stock
-          FROM product_variants
-          WHERE product_id = $1
-            AND is_active = TRUE
-          `,
-          [productId]
-        );
-
-        const totalStock = Number(
-          variantsResult.rows[0]?.total_stock || 0
-        );
-
-        if (totalStock > 0 && totalStock < quantity) {
-          throw new Error(
-            "الكمية خلصت، حقك علينا"
-          );
-        }
-      }
-
-      const totalPrice = unitPrice * quantity;
-
-      subtotal += totalPrice;
-
-      orderItems.push({
-        productId,
-        variantId,
-        productName: product.name,
-        variantName,
-        quantity,
-        unitPrice,
-        totalPrice
-      });
-    }
-
-    const shipping = 0;
-    const packaging = 0;
-    const discount = 0;
-    const total =
-      subtotal +
-      shipping +
-      packaging -
-      discount;
-
-    const orderResult = await client.query(
-      `
-      INSERT INTO orders
-        (
-          user_id,
-          status,
-          subtotal,
-          discount,
-          shipping,
-          packaging,
-          total
-        )
-      VALUES
-        ($1,'pending',$2,$3,$4,$5,$6)
-      RETURNING *
-      `,
-      [
-        req.user.id,
-        subtotal,
-        discount,
-        shipping,
-        packaging,
-        total
-      ]
+    res.json({
+      ok: true,
+      products
+    });
+  } catch (error) {
+    console.error(
+      "[PRODUCTS]",
+      error
     );
 
-    const order = orderResult.rows[0];
+    res.status(500).json({
+      ok: false,
+      message:
+        "تعذر تحميل المنتجات"
+    });
+  }
+});
 
-    for (const item of orderItems) {
-      await client.query(
-        `
-        INSERT INTO order_items
-          (
-            order_id,
-            product_id,
-            variant_id,
-            product_name,
-            variant_name,
-            quantity,
-            unit_price,
-            total_price
+/* =========================================================
+   SINGLE PRODUCT
+========================================================= */
+
+app.get(
+  "/api/products/:id",
+  async (req, res) => {
+    try {
+      const id =
+        productIdFromRequest(req);
+
+      if (!id) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "رقم المنتج غير صحيح"
+        });
+      }
+
+      const products =
+        await getProducts(
+          "AND p.id = $1",
+          [id]
+        );
+
+      if (!products.length) {
+        return res.status(404).json({
+          ok: false,
+          message:
+            "المنتج غير موجود"
+        });
+      }
+
+      const product =
+        products[0];
+
+      /*
+         Recommended products:
+         same category first,
+         then same brand.
+      */
+      const recommendations =
+        await getProducts(
+          `
+          AND p.id <> $1
+          AND (
+            p.category_id = $2
+            OR p.brand_id = $3
           )
-        VALUES
-          ($1,$2,$3,$4,$5,$6,$7,$8)
-        `,
-        [
-          order.id,
-          item.productId,
-          item.variantId,
-          item.productName,
-          item.variantName,
-          item.quantity,
-          item.unitPrice,
-          item.totalPrice
-        ]
-      );
-
-      if (item.variantId) {
-        await client.query(
-          `
-          INSERT INTO inventory_movements
-            (
-              variant_id,
-              quantity_change,
-              reason,
-              order_id
-            )
-          VALUES
-            ($1,$2,$3,$4)
           `,
           [
-            item.variantId,
-            -item.quantity,
-            "order",
-            order.id
-          ]
+            id,
+            product.categoryId,
+            product.brandId
+          ],
+          "p.created_at DESC"
         );
-      }
+
+      res.json({
+        ok: true,
+        product,
+        recommendations:
+          recommendations.slice(0, 8)
+      });
+    } catch (error) {
+      console.error(
+        "[PRODUCT]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تحميل المنتج"
+      });
     }
-
-    await client.query("COMMIT");
-
-    res.status(201).json({
-      order
-    });
-  } catch (error) {
-    await client.query("ROLLBACK");
-
-    console.error("Create order error:", error);
-
-    res.status(400).json({
-      message:
-        error.message ||
-        "تعذر إنشاء الطلب"
-    });
-  } finally {
-    client.release();
   }
-});
+);
 
-app.get("/api/orders", requireAuth, async (req, res) => {
-  try {
-    const result = await db(
-      `
-      SELECT
-        o.id,
-        o.status,
-        o.subtotal,
-        o.discount,
-        o.shipping,
-        o.packaging,
-        o.total,
-        o.created_at AS "createdAt",
+/* =========================================================
+   HOME DATA
+========================================================= */
 
-        COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object(
-                'productId', oi.product_id,
-                'variantId', oi.variant_id,
-                'productName', oi.product_name,
-                'variantName', oi.variant_name,
-                'quantity', oi.quantity,
-                'unitPrice', oi.unit_price,
-                'totalPrice', oi.total_price
-              )
+app.get(
+  "/api/store/home",
+  async (req, res) => {
+    try {
+      const featured =
+        await getProducts(
+          "AND p.is_featured = TRUE",
+          [],
+          "p.created_at DESC"
+        );
+
+      /*
+         Real best sellers:
+         cancelled orders are excluded.
+      */
+      const bestResult =
+        await db(`
+          SELECT
+            oi.product_id AS id,
+            SUM(oi.quantity)::INTEGER AS sold_quantity
+          FROM order_items oi
+          INNER JOIN orders o
+            ON o.id = oi.order_id
+          WHERE
+            LOWER(o.status) NOT IN (
+              'cancelled',
+              'canceled'
             )
-            FROM order_items oi
-            WHERE oi.order_id = o.id
-          ),
-          '[]'::json
-        ) AS items
+          GROUP BY
+            oi.product_id
+          ORDER BY
+            sold_quantity DESC
+          LIMIT 20
+        `);
 
-      FROM orders o
-      WHERE o.user_id = $1
-      ORDER BY o.created_at DESC
-      `,
-      [req.user.id]
-    );
+      let bestSellers = [];
 
-    res.json({
-      orders: result.rows
-    });
-  } catch (error) {
-    console.error("Orders error:", error);
+      if (bestResult.rows.length) {
+        const ids =
+          bestResult.rows.map(
+            (row) =>
+              Number(row.id)
+          );
 
-    res.status(500).json({
-      message: "تعذر تحميل الطلبات"
-    });
+        const products =
+          await getProducts(
+            `
+            AND p.id = ANY($1::bigint[])
+            `,
+            [ids]
+          );
+
+        const byId =
+          new Map(
+            products.map(
+              (product) => [
+                Number(product.id),
+                product
+              ]
+            )
+          );
+
+        bestSellers =
+          ids
+            .map((id) =>
+              byId.get(id)
+            )
+            .filter(Boolean);
+      }
+
+      if (!bestSellers.length) {
+        bestSellers =
+          await getProducts(
+            "AND p.is_best_seller = TRUE",
+            [],
+            "p.created_at DESC"
+          );
+      }
+
+      const offers =
+        await getProducts(
+          `
+          AND p.old_price IS NOT NULL
+          AND p.old_price > p.price
+          `,
+          [],
+          "(p.old_price - p.price) DESC"
+        );
+
+      const products =
+        await getProducts(
+          "",
+          [],
+          "p.created_at DESC"
+        );
+
+      const topFive =
+        products.slice(0, 5);
+
+      res.json({
+        ok: true,
+
+        featured,
+
+        topFive,
+
+        bestSellers:
+          bestSellers.slice(0, 20),
+
+        offers:
+          offers.slice(0, 20),
+
+        products,
+
+        /*
+           Frontend can use this for
+           "بيلبق معه / بكمل اللوك".
+        */
+        completeLook:
+          bestSellers.slice(0, 8)
+      });
+    } catch (error) {
+      console.error(
+        "[HOME]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تحميل الصفحة الرئيسية"
+      });
+    }
   }
-});
+);
 
 /* =========================================================
    FAVORITES
@@ -1087,24 +1095,33 @@ app.get(
   requireAuth,
   async (req, res) => {
     try {
-      const result = await db(
-        `
-        SELECT product_id AS "productId"
-        FROM favorites
-        WHERE user_id = $1
-        ORDER BY created_at DESC
-        `,
-        [req.user.id]
-      );
+      const result =
+        await db(
+          `
+          SELECT
+            product_id AS "productId"
+          FROM favorites
+          WHERE user_id = $1
+          ORDER BY created_at DESC
+          `,
+          [req.user.id]
+        );
 
       res.json({
-        favorites: result.rows
+        ok: true,
+        favorites:
+          result.rows
       });
     } catch (error) {
-      console.error("Favorites error:", error);
+      console.error(
+        "[FAVORITES]",
+        error
+      );
 
       res.status(500).json({
-        message: "تعذر تحميل المفضلة"
+        ok: false,
+        message:
+          "تعذر تحميل المفضلة"
       });
     }
   }
@@ -1115,17 +1132,34 @@ app.post(
   requireAuth,
   async (req, res) => {
     try {
+      const productId =
+        integer(
+          req.params.productId,
+          NaN
+        );
+
+      if (!Number.isInteger(productId)) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "رقم المنتج غير صحيح"
+        });
+      }
+
       await db(
         `
         INSERT INTO favorites
-          (user_id, product_id)
+          (
+            user_id,
+            product_id
+          )
         VALUES
           ($1,$2)
         ON CONFLICT DO NOTHING
         `,
         [
           req.user.id,
-          Number(req.params.productId)
+          productId
         ]
       );
 
@@ -1133,10 +1167,15 @@ app.post(
         ok: true
       });
     } catch (error) {
-      console.error("Favorite add error:", error);
+      console.error(
+        "[FAVORITE ADD]",
+        error
+      );
 
       res.status(500).json({
-        message: "تعذر إضافة المنتج للمفضلة"
+        ok: false,
+        message:
+          "تعذر إضافة المنتج للمفضلة"
       });
     }
   }
@@ -1147,15 +1186,22 @@ app.delete(
   requireAuth,
   async (req, res) => {
     try {
+      const productId =
+        integer(
+          req.params.productId,
+          NaN
+        );
+
       await db(
         `
         DELETE FROM favorites
-        WHERE user_id = $1
+        WHERE
+          user_id = $1
           AND product_id = $2
         `,
         [
           req.user.id,
-          Number(req.params.productId)
+          productId
         ]
       );
 
@@ -1164,42 +1210,1359 @@ app.delete(
       });
     } catch (error) {
       console.error(
-        "Favorite delete error:",
+        "[FAVORITE DELETE]",
         error
       );
 
       res.status(500).json({
-        message: "تعذر إزالة المنتج من المفضلة"
+        ok: false,
+        message:
+          "تعذر إزالة المنتج من المفضلة"
       });
     }
   }
 );
 
 /* =========================================================
-   404
+   CREATE ORDER
 ========================================================= */
 
-app.use("/api", (req, res) => {
-  res.status(404).json({
-    message: "API endpoint not found"
-  });
-});
+app.post(
+  "/api/orders",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const items =
+        Array.isArray(
+          req.body?.items
+        )
+          ? req.body.items
+          : [];
+
+      if (!items.length) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "السلة فارغة"
+        });
+      }
+
+      const result =
+        await transaction(
+          async (client) => {
+            let subtotal = 0;
+
+            const orderItems = [];
+
+            for (const item of items) {
+              const productId =
+                integer(
+                  item.productId,
+                  NaN
+                );
+
+              const variantId =
+                item.variantId
+                  ? integer(
+                      item.variantId,
+                      NaN
+                    )
+                  : null;
+
+              const quantity =
+                integer(
+                  item.quantity,
+                  NaN
+                );
+
+              if (
+                !Number.isInteger(
+                  productId
+                ) ||
+                !Number.isInteger(
+                  quantity
+                ) ||
+                quantity <= 0
+              ) {
+                throw new Error(
+                  "بيانات المنتج غير صحيحة"
+                );
+              }
+
+              const productResult =
+                await client.query(
+                  `
+                  SELECT
+                    p.*
+                  FROM products p
+                  WHERE
+                    p.id = $1
+                    AND p.is_active = TRUE
+                  FOR UPDATE
+                  `,
+                  [productId]
+                );
+
+              if (
+                !productResult.rows.length
+              ) {
+                throw new Error(
+                  "المنتج غير موجود"
+                );
+              }
+
+              const product =
+                productResult.rows[0];
+
+              let unitPrice =
+                Number(
+                  product.price
+                );
+
+              let variantName =
+                null;
+
+              /*
+                 Check whether this product
+                 actually uses variants.
+              */
+              const variantsResult =
+                await client.query(
+                  `
+                  SELECT
+                    COUNT(*)::INTEGER AS count
+                  FROM product_variants
+                  WHERE
+                    product_id = $1
+                    AND is_active = TRUE
+                  `,
+                  [productId]
+                );
+
+              const hasVariants =
+                Number(
+                  variantsResult
+                    .rows[0]
+                    ?.count || 0
+                ) > 0;
+
+              if (hasVariants) {
+                if (
+                  !Number.isInteger(
+                    variantId
+                  )
+                ) {
+                  throw new Error(
+                    "اختاري اللون أو المقاس أولاً"
+                  );
+                }
+
+                const variantResult =
+                  await client.query(
+                    `
+                    SELECT
+                      id,
+                      color,
+                      size,
+                      price,
+                      stock
+                    FROM product_variants
+                    WHERE
+                      id = $1
+                      AND product_id = $2
+                      AND is_active = TRUE
+                    FOR UPDATE
+                    `,
+                    [
+                      variantId,
+                      productId
+                    ]
+                  );
+
+                if (
+                  !variantResult.rows.length
+                ) {
+                  throw new Error(
+                    "الخيار المطلوب غير موجود"
+                  );
+                }
+
+                const variant =
+                  variantResult.rows[0];
+
+                if (
+                  Number(
+                    variant.stock
+                  ) < quantity
+                ) {
+                  throw new Error(
+                    "الكمية خلصت، حقك علينا"
+                  );
+                }
+
+                if (
+                  variant.price !== null
+                ) {
+                  unitPrice =
+                    Number(
+                      variant.price
+                    );
+                }
+
+                variantName =
+                  [
+                    variant.color,
+                    variant.size
+                  ]
+                    .filter(Boolean)
+                    .join(" / ");
+
+                const updateResult =
+                  await client.query(
+                    `
+                    UPDATE product_variants
+                    SET
+                      stock =
+                        stock - $1,
+                      updated_at =
+                        NOW()
+                    WHERE
+                      id = $2
+                      AND stock >= $1
+                    RETURNING stock
+                    `,
+                    [
+                      quantity,
+                      variantId
+                    ]
+                  );
+
+                if (
+                  !updateResult.rows.length
+                ) {
+                  throw new Error(
+                    "الكمية خلصت، حقك علينا"
+                  );
+                }
+
+                await client.query(
+                  `
+                  INSERT INTO inventory_movements
+                    (
+                      variant_id,
+                      product_id,
+                      quantity_change,
+                      reason
+                    )
+                  VALUES
+                    ($1,$2,$3,$4)
+                  `,
+                  [
+                    variantId,
+                    productId,
+                    -quantity,
+                    "order"
+                  ]
+                );
+              } else {
+                /*
+                   Products without variants
+                   use products.stock.
+                */
+                if (
+                  Number(
+                    product.stock
+                  ) < quantity
+                ) {
+                  throw new Error(
+                    "الكمية خلصت، حقك علينا"
+                  );
+                }
+
+                const updateResult =
+                  await client.query(
+                    `
+                    UPDATE products
+                    SET
+                      stock =
+                        stock - $1,
+                      updated_at =
+                        NOW()
+                    WHERE
+                      id = $2
+                      AND stock >= $1
+                    RETURNING stock
+                    `,
+                    [
+                      quantity,
+                      productId
+                    ]
+                  );
+
+                if (
+                  !updateResult.rows.length
+                ) {
+                  throw new Error(
+                    "الكمية خلصت، حقك علينا"
+                  );
+                }
+
+                await client.query(
+                  `
+                  INSERT INTO inventory_movements
+                    (
+                      product_id,
+                      quantity_change,
+                      reason
+                    )
+                  VALUES
+                    ($1,$2,$3)
+                  `,
+                  [
+                    productId,
+                    -quantity,
+                    "order"
+                  ]
+                );
+              }
+
+              const totalPrice =
+                unitPrice *
+                quantity;
+
+              subtotal +=
+                totalPrice;
+
+              orderItems.push({
+                productId,
+                variantId,
+                productName:
+                  product.name,
+                variantName,
+                quantity,
+                unitPrice,
+                totalPrice
+              });
+            }
+
+            const shipping =
+              number(
+                req.body?.shipping,
+                0
+              );
+
+            const packaging =
+              number(
+                req.body?.packaging,
+                0
+              );
+
+            const discount = 0;
+
+            const total =
+              subtotal +
+              shipping +
+              packaging -
+              discount;
+
+            const orderResult =
+              await client.query(
+                `
+                INSERT INTO orders
+                  (
+                    user_id,
+                    status,
+                    subtotal,
+                    discount,
+                    shipping,
+                    packaging,
+                    total
+                  )
+                VALUES
+                  (
+                    $1,
+                    'pending',
+                    $2,
+                    $3,
+                    $4,
+                    $5,
+                    $6
+                  )
+                RETURNING
+                  id,
+                  user_id AS "userId",
+                  status,
+                  subtotal,
+                  discount,
+                  shipping,
+                  packaging,
+                  total,
+                  created_at AS "createdAt"
+                `,
+                [
+                  req.user.id,
+                  subtotal,
+                  discount,
+                  shipping,
+                  packaging,
+                  total
+                ]
+              );
+
+            const order =
+              orderResult.rows[0];
+
+            for (
+              const item of orderItems
+            ) {
+              await client.query(
+                `
+                INSERT INTO order_items
+                  (
+                    order_id,
+                    product_id,
+                    variant_id,
+                    product_name,
+                    variant_name,
+                    quantity,
+                    unit_price,
+                    total_price
+                  )
+                VALUES
+                  (
+                    $1,$2,$3,$4,
+                    $5,$6,$7,$8
+                  )
+                `,
+                [
+                  order.id,
+                  item.productId,
+                  item.variantId,
+                  item.productName,
+                  item.variantName,
+                  item.quantity,
+                  item.unitPrice,
+                  item.totalPrice
+                ]
+              );
+
+              /*
+                 Attach order id to inventory movement.
+              */
+              if (item.variantId) {
+                await client.query(
+                  `
+                  UPDATE inventory_movements
+                  SET order_id = $1
+                  WHERE
+                    variant_id = $2
+                    AND order_id IS NULL
+                    AND reason = 'order'
+                    AND created_at =
+                      (
+                        SELECT MAX(created_at)
+                        FROM inventory_movements
+                        WHERE
+                          variant_id = $2
+                          AND order_id IS NULL
+                          AND reason = 'order'
+                      )
+                  `,
+                  [
+                    order.id,
+                    item.variantId
+                  ]
+                );
+              } else {
+                await client.query(
+                  `
+                  UPDATE inventory_movements
+                  SET order_id = $1
+                  WHERE
+                    product_id = $2
+                    AND order_id IS NULL
+                    AND reason = 'order'
+                    AND created_at =
+                      (
+                        SELECT MAX(created_at)
+                        FROM inventory_movements
+                        WHERE
+                          product_id = $2
+                          AND order_id IS NULL
+                          AND reason = 'order'
+                      )
+                  `,
+                  [
+                    order.id,
+                    item.productId
+                  ]
+                );
+              }
+            }
+
+            return order;
+          }
+        );
+
+      res.status(201).json({
+        ok: true,
+        order: result
+      });
+    } catch (error) {
+      console.error(
+        "[CREATE ORDER]",
+        error
+      );
+
+      res.status(400).json({
+        ok: false,
+        message:
+          error.message ||
+          "تعذر إنشاء الطلب"
+      });
+    }
+  }
+);
 
 /* =========================================================
-   ERROR HANDLER
+   CUSTOMER ORDERS
 ========================================================= */
 
-app.use((error, req, res, next) => {
-  console.error("Unhandled error:", error);
+app.get(
+  "/api/orders",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const result =
+        await db(
+          `
+          SELECT
+            o.id,
+            o.status,
+            o.subtotal,
+            o.discount,
+            o.shipping,
+            o.packaging,
+            o.total,
+            o.created_at AS "createdAt",
 
-  if (res.headersSent) {
-    return next(error);
+            COALESCE(
+              (
+                SELECT json_agg(
+                  json_build_object(
+                    'productId',
+                    oi.product_id,
+                    'variantId',
+                    oi.variant_id,
+                    'productName',
+                    oi.product_name,
+                    'variantName',
+                    oi.variant_name,
+                    'quantity',
+                    oi.quantity,
+                    'unitPrice',
+                    oi.unit_price,
+                    'totalPrice',
+                    oi.total_price
+                  )
+                  ORDER BY oi.id
+                )
+                FROM order_items oi
+                WHERE
+                  oi.order_id = o.id
+              ),
+              '[]'::json
+            ) AS items
+
+          FROM orders o
+
+          WHERE
+            o.user_id = $1
+
+          ORDER BY
+            o.created_at DESC
+          `,
+          [req.user.id]
+        );
+
+      res.json({
+        ok: true,
+        orders:
+          result.rows
+      });
+    } catch (error) {
+      console.error(
+        "[ORDERS]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تحميل الطلبات"
+      });
+    }
   }
+);
 
-  res.status(500).json({
-    message: "حدث خطأ في السيرفر"
-  });
-});
+/* =========================================================
+   ADMIN - USERS
+========================================================= */
+
+app.get(
+  "/api/admin/users",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const result =
+        await db(`
+          SELECT
+            id,
+            name,
+            email,
+            phone,
+            gender,
+            age,
+            role,
+            loyalty_points,
+            is_active,
+            created_at,
+            updated_at
+          FROM users
+          ORDER BY created_at DESC
+        `);
+
+      res.json({
+        ok: true,
+        users:
+          result.rows.map(
+            publicUser
+          )
+      });
+    } catch (error) {
+      console.error(
+        "[ADMIN USERS]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تحميل المستخدمين"
+      });
+    }
+  }
+);
+
+/* =========================================================
+   ADMIN - UPDATE USER
+========================================================= */
+
+app.patch(
+  "/api/admin/users/:id",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const id =
+        integer(
+          req.params.id,
+          NaN
+        );
+
+      if (!Number.isInteger(id)) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "رقم المستخدم غير صحيح"
+        });
+      }
+
+      const {
+        name,
+        email,
+        phone,
+        gender,
+        age,
+        isActive
+      } = req.body || {};
+
+      const result =
+        await db(
+          `
+          UPDATE users
+          SET
+            name =
+              COALESCE(
+                $1,
+                name
+              ),
+
+            email =
+              COALESCE(
+                $2,
+                email
+              ),
+
+            phone =
+              COALESCE(
+                $3,
+                phone
+              ),
+
+            gender =
+              COALESCE(
+                $4,
+                gender
+              ),
+
+            age =
+              COALESCE(
+                $5,
+                age
+              ),
+
+            is_active =
+              COALESCE(
+                $6,
+                is_active
+              ),
+
+            updated_at =
+              NOW()
+
+          WHERE
+            id = $7
+
+          RETURNING
+            id,
+            name,
+            email,
+            phone,
+            gender,
+            age,
+            role,
+            loyalty_points,
+            is_active,
+            created_at,
+            updated_at
+          `,
+          [
+            name !== undefined
+              ? cleanText(name)
+              : null,
+
+            email !== undefined
+              ? normalizeEmail(email)
+              : null,
+
+            phone !== undefined
+              ? normalizePhone(phone)
+              : null,
+
+            gender !== undefined
+              ? cleanText(gender)
+              : null,
+
+            age !== undefined
+              ? integer(age, null)
+              : null,
+
+            isActive !== undefined
+              ? Boolean(isActive)
+              : null,
+
+            id
+          ]
+        );
+
+      if (!result.rows.length) {
+        return res.status(404).json({
+          ok: false,
+          message:
+            "المستخدم غير موجود"
+        });
+      }
+
+      const user =
+        result.rows[0];
+
+      res.json({
+        ok: true,
+        user:
+          publicUser(user),
+        greeting:
+          getGenderGreeting(
+            user.gender
+          )
+      });
+    } catch (error) {
+      console.error(
+        "[ADMIN UPDATE USER]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تعديل بيانات المستخدم"
+      });
+    }
+  }
+);
+
+/* =========================================================
+   ADMIN - ORDERS
+========================================================= */
+
+app.get(
+  "/api/admin/orders",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const result =
+        await db(`
+          SELECT
+            o.id,
+            o.user_id AS "userId",
+            u.name AS "userName",
+            u.email AS "userEmail",
+            u.phone AS "userPhone",
+            o.status,
+            o.subtotal,
+            o.discount,
+            o.shipping,
+            o.packaging,
+            o.total,
+            o.created_at AS "createdAt"
+          FROM orders o
+          LEFT JOIN users u
+            ON u.id = o.user_id
+          ORDER BY
+            o.created_at DESC
+        `);
+
+      res.json({
+        ok: true,
+        orders:
+          result.rows
+      });
+    } catch (error) {
+      console.error(
+        "[ADMIN ORDERS]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تحميل الطلبات"
+      });
+    }
+  }
+);
+
+/* =========================================================
+   ADMIN - CANCEL ORDER
+========================================================= */
+
+app.patch(
+  "/api/admin/orders/:id/cancel",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const orderId =
+        integer(
+          req.params.id,
+          NaN
+        );
+
+      if (!Number.isInteger(orderId)) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "رقم الطلب غير صحيح"
+        });
+      }
+
+      const result =
+        await transaction(
+          async (client) => {
+            const orderResult =
+              await client.query(
+                `
+                SELECT
+                  id,
+                  status
+                FROM orders
+                WHERE id = $1
+                FOR UPDATE
+                `,
+                [orderId]
+              );
+
+            if (
+              !orderResult.rows.length
+            ) {
+              throw new Error(
+                "الطلب غير موجود"
+              );
+            }
+
+            const order =
+              orderResult.rows[0];
+
+            if (
+              [
+                "cancelled",
+                "canceled"
+              ].includes(
+                String(
+                  order.status
+                ).toLowerCase()
+              )
+            ) {
+              return order;
+            }
+
+            const itemsResult =
+              await client.query(
+                `
+                SELECT
+                  product_id,
+                  variant_id,
+                  quantity
+                FROM order_items
+                WHERE order_id = $1
+                `,
+                [orderId]
+              );
+
+            for (
+              const item of
+                itemsResult.rows
+            ) {
+              if (
+                item.variant_id
+              ) {
+                await client.query(
+                  `
+                  UPDATE product_variants
+                  SET
+                    stock =
+                      stock + $1,
+                    updated_at =
+                      NOW()
+                  WHERE
+                    id = $2
+                  `,
+                  [
+                    item.quantity,
+                    item.variant_id
+                  ]
+                );
+
+                await client.query(
+                  `
+                  INSERT INTO inventory_movements
+                    (
+                      variant_id,
+                      product_id,
+                      quantity_change,
+                      reason,
+                      order_id
+                    )
+                  VALUES
+                    (
+                      $1,$2,$3,
+                      'cancelled_order',
+                      $4
+                    )
+                  `,
+                  [
+                    item.variant_id,
+                    item.product_id,
+                    item.quantity,
+                    orderId
+                  ]
+                );
+              } else {
+                await client.query(
+                  `
+                  UPDATE products
+                  SET
+                    stock =
+                      stock + $1,
+                    updated_at =
+                      NOW()
+                  WHERE
+                    id = $2
+                  `,
+                  [
+                    item.quantity,
+                    item.product_id
+                  ]
+                );
+
+                await client.query(
+                  `
+                  INSERT INTO inventory_movements
+                    (
+                      product_id,
+                      quantity_change,
+                      reason,
+                      order_id
+                    )
+                  VALUES
+                    (
+                      $1,$2,
+                      'cancelled_order',
+                      $3
+                    )
+                  `,
+                  [
+                    item.product_id,
+                    item.quantity,
+                    orderId
+                  ]
+                );
+              }
+            }
+
+            const updated =
+              await client.query(
+                `
+                UPDATE orders
+                SET
+                  status = 'cancelled',
+                  updated_at = NOW()
+                WHERE
+                  id = $1
+                RETURNING
+                  id,
+                  status,
+                  total,
+                  updated_at AS "updatedAt"
+                `,
+                [orderId]
+              );
+
+            return updated.rows[0];
+          }
+        );
+
+      res.json({
+        ok: true,
+        order: result
+      });
+    } catch (error) {
+      console.error(
+        "[CANCEL ORDER]",
+        error
+      );
+
+      res.status(400).json({
+        ok: false,
+        message:
+          error.message ||
+          "تعذر إلغاء الطلب"
+      });
+    }
+  }
+);
+
+/* =========================================================
+   ADMIN - INVENTORY
+========================================================= */
+
+app.get(
+  "/api/admin/inventory",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const result =
+        await db(`
+          SELECT
+            p.id AS "productId",
+            p.name AS "productName",
+            p.stock AS "productStock",
+
+            v.id AS "variantId",
+            v.sku,
+            v.color,
+            v.size,
+            v.stock AS "variantStock"
+
+          FROM products p
+
+          LEFT JOIN product_variants v
+            ON v.product_id = p.id
+            AND v.is_active = TRUE
+
+          WHERE
+            p.is_active = TRUE
+
+          ORDER BY
+            p.name ASC,
+            v.id ASC
+        `);
+
+      res.json({
+        ok: true,
+        inventory:
+          result.rows
+      });
+    } catch (error) {
+      console.error(
+        "[INVENTORY]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تحميل المخزون"
+      });
+    }
+  }
+);
+
+/* =========================================================
+   ADMIN - INVENTORY MOVEMENTS
+========================================================= */
+
+app.get(
+  "/api/admin/inventory/movements",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const from =
+        cleanText(
+          req.query.from
+        );
+
+      const to =
+        cleanText(
+          req.query.to
+        );
+
+      if (!from || !to) {
+        return res.json({
+          ok: true,
+          movements: []
+        });
+      }
+
+      const result =
+        await db(
+          `
+          SELECT
+            im.id,
+            im.product_id AS "productId",
+            p.name AS "productName",
+            im.variant_id AS "variantId",
+            im.quantity_change AS "quantityChange",
+            im.reason,
+            im.order_id AS "orderId",
+            im.created_at AS "createdAt"
+          FROM inventory_movements im
+
+          LEFT JOIN products p
+            ON p.id = im.product_id
+
+          WHERE
+            im.created_at >= $1::date
+            AND im.created_at <
+              ($2::date + INTERVAL '1 day')
+
+          ORDER BY
+            im.created_at DESC
+          `,
+          [
+            from,
+            to
+          ]
+        );
+
+      res.json({
+        ok: true,
+        movements:
+          result.rows
+      });
+    } catch (error) {
+      console.error(
+        "[MOVEMENTS]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تحميل حركة المخزون"
+      });
+    }
+  }
+);
+
+/* =========================================================
+   ADMIN - ROLES
+========================================================= */
+
+app.patch(
+  "/api/admin/users/:id/role",
+  requireOwner,
+  async (req, res) => {
+    try {
+      const userId =
+        integer(
+          req.params.id,
+          NaN
+        );
+
+      const role =
+        cleanText(
+          req.body?.role
+        );
+
+      const allowed = [
+        "customer",
+        "staff",
+        "admin"
+      ];
+
+      if (
+        !Number.isInteger(
+          userId
+        ) ||
+        !allowed.includes(role)
+      ) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "بيانات الصلاحية غير صحيحة"
+        });
+      }
+
+      const target =
+        await db(
+          `
+          SELECT
+            id,
+            role
+          FROM users
+          WHERE id = $1
+          `,
+          [userId]
+        );
+
+      if (!target.rows.length) {
+        return res.status(404).json({
+          ok: false,
+          message:
+            "المستخدم غير موجود"
+        });
+      }
+
+      /*
+         Owner cannot be changed
+         through the normal role endpoint.
+      */
+      if (
+        target.rows[0].role === "owner"
+      ) {
+        return res.status(403).json({
+          ok: false,
+          message:
+            "لا يمكن تغيير صلاحية المالك"
+        });
+      }
+
+      const result =
+        await db(
+          `
+          UPDATE users
+          SET
+            role = $1,
+            updated_at = NOW()
+          WHERE
+            id = $2
+          RETURNING
+            id,
+            name,
+            email,
+            phone,
+            gender,
+            age,
+            role,
+            loyalty_points,
+            is_active,
+            created_at,
+            updated_at
+          `,
+          [
+            role,
+            userId
+          ]
+        );
+
+      res.json({
+        ok: true,
+        user:
+          publicUser(
+            result.rows[0]
+          )
+      });
+    } catch (error) {
+      console.error(
+        "[ROLE]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تعديل الصلاحية"
+      });
+    }
+  }
+);
+
+/* =========================================================
+   404 API
+========================================================= */
+
+app.use(
+  "/api",
+  (req, res) => {
+    res.status(404).json({
+      ok: false,
+      message:
+        "API endpoint not found"
+    });
+  }
+);
+
+/* =========================================================
+   GLOBAL ERROR
+========================================================= */
+
+app.use(
+  (error, req, res, next) => {
+    console.error(
+      "[UNHANDLED]",
+      error
+    );
+
+    if (res.headersSent) {
+      return next(error);
+    }
+
+    res.status(500).json({
+      ok: false,
+      message:
+        "حدث خطأ في السيرفر"
+    });
+  }
+);
 
 /* =========================================================
    START
@@ -1209,19 +2572,42 @@ async function start() {
   try {
     await initDatabase();
 
-    app.listen(PORT, () => {
-      console.log(
-        `Ladies First backend running on port ${PORT}`
-      );
-    });
+    app.listen(
+      PORT,
+      () => {
+        console.log(
+          `Ladies First backend running on port ${PORT}`
+        );
+      }
+    );
   } catch (error) {
     console.error(
-      "Failed to start backend:",
+      "[START FAILED]",
       error
     );
 
     process.exit(1);
   }
 }
+
+async function shutdown(signal) {
+  console.log(
+    `[SERVER] ${signal} received.`
+  );
+
+  await closeDatabase();
+
+  process.exit(0);
+}
+
+process.once(
+  "SIGINT",
+  () => shutdown("SIGINT")
+);
+
+process.once(
+  "SIGTERM",
+  () => shutdown("SIGTERM")
+);
 
 start();
