@@ -1,25 +1,25 @@
-import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import fs from 'node:fs';
+"use strict";
 
-import { db, initDb } from './db.js';
-import {
+require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+const path = require("node:path");
+
+const { db } = require("./db.js");
+
+const {
   requireAuth,
   requireAdmin,
   requireOwner,
   hashPassword,
   verifyPassword,
-  signToken
-} from './auth.js';
+  createToken
+} = require("./auth.js");
 
 const app = express();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const ROOT = path.resolve(__dirname, '..', '..');
+const ROOT = path.resolve(__dirname, "..", "..");
 
 const PORT = Number(process.env.PORT || 10000);
 
@@ -29,15 +29,17 @@ app.use(cors({
 }));
 
 app.use(express.json({
-  limit: '5mb'
+  limit: "5mb"
 }));
 
 app.use(express.urlencoded({
   extended: true,
-  limit: '5mb'
+  limit: "5mb"
 }));
 
-app.use(express.static(path.join(ROOT, 'frontend')));
+app.use(express.static(
+  path.join(ROOT, "frontend")
+));
 
 function now() {
   return new Date().toISOString();
@@ -54,7 +56,7 @@ function number(value, fallback = 0) {
 }
 
 function cleanText(value) {
-  return String(value ?? '').trim();
+  return String(value ?? "").trim();
 }
 
 function normalizeEmail(value) {
@@ -63,75 +65,87 @@ function normalizeEmail(value) {
 }
 
 function normalizePhone(value) {
-  const v = cleanText(value).replace(/[^\d+]/g, '');
+  const v = cleanText(value)
+    .replace(/[^\d+]/g, "");
+
   return v || null;
 }
 
 function publicUser(user) {
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
 
   return {
     id: user.id,
-    name: user.name || '',
-    email: user.email || '',
-    phone: user.phone || user.contact || '',
-    contact: user.contact || user.phone || '',
-    gender: user.gender || 'unspecified',
+    name: user.name || "",
+    email: user.email || "",
+    phone: user.phone || user.contact || "",
+    contact: user.contact || user.phone || "",
+    gender: user.gender || "unspecified",
     age: user.age ?? null,
-    role: user.role || 'customer',
+    role: user.role || "customer",
     is_owner: Number(user.is_owner || 0),
-    is_active: Number(user.is_active ?? user.active ?? 1),
-    loyalty_points: Number(user.loyalty_points || 0),
+    is_active: Number(
+      user.is_active ?? user.active ?? 1
+    ),
+    loyalty_points: Number(
+      user.loyalty_points || 0
+    ),
     created_at: user.created_at || null,
     updated_at: user.updated_at || null
   };
 }
 
 function getGenderGreeting(gender) {
-  if (gender === 'female') return 'نورتينا';
-  if (gender === 'male') return 'نورتنا';
-  return 'أهلًا وسهلًا';
+  if (gender === "female") {
+    return "نورتينا";
+  }
+
+  if (gender === "male") {
+    return "نورتنا";
+  }
+
+  return "أهلًا وسهلًا";
 }
 
-/* =========================================================
-   DATABASE
-========================================================= */
-
-await initDb();
 
 /* =========================================================
    HEALTH
 ========================================================= */
 
-app.get('/api/health', async (req, res) => {
+app.get("/api/health", async (req, res) => {
   try {
-    await db('SELECT 1');
+    await db("SELECT 1");
 
     res.json({
       ok: true,
       server: true,
       database: true,
-      databaseConfigured: Boolean(process.env.DATABASE_URL),
-      time: now()
+      databaseConfigured:
+        Boolean(process.env.DATABASE_URL),
+      serverTime: now()
     });
   } catch (error) {
-    console.error('[HEALTH]', error);
+    console.error("[HEALTH]", error);
 
     res.status(500).json({
       ok: false,
       server: true,
       database: false,
-      databaseConfigured: Boolean(process.env.DATABASE_URL),
-      time: now()
+      databaseConfigured:
+        Boolean(process.env.DATABASE_URL),
+      serverTime: now()
     });
   }
 });
+
 
 /* =========================================================
    SETTINGS
 ========================================================= */
 
-app.get('/api/settings', async (req, res) => {
+app.get("/api/settings", async (req, res) => {
   try {
     const result = await db(`
       SELECT key, value
@@ -150,17 +164,18 @@ app.get('/api/settings', async (req, res) => {
       settings
     });
   } catch (error) {
-    console.error('[SETTINGS]', error);
+    console.error("[SETTINGS]", error);
 
     res.status(500).json({
       ok: false,
-      message: 'تعذر تحميل الإعدادات'
+      message: "تعذر تحميل الإعدادات"
     });
   }
 });
 
+
 app.get(
-  '/api/admin/settings',
+  "/api/admin/settings",
   requireAuth,
   requireAdmin,
   async (req, res) => {
@@ -181,32 +196,43 @@ app.get(
         ok: true,
         settings,
         updatedAt: Object.fromEntries(
-          result.rows.map(row => [row.key, row.updated_at])
+          result.rows.map(row => [
+            row.key,
+            row.updated_at
+          ])
         )
       });
     } catch (error) {
-      console.error('[ADMIN SETTINGS]', error);
+      console.error(
+        "[ADMIN SETTINGS]",
+        error
+      );
 
       res.status(500).json({
         ok: false,
-        message: 'تعذر تحميل إعدادات الإدارة'
+        message: "تعذر تحميل إعدادات الإدارة"
       });
     }
   }
 );
 
+
 app.put(
-  '/api/admin/settings/:key',
+  "/api/admin/settings/:key",
   requireAuth,
   requireAdmin,
   async (req, res) => {
     try {
-      const key = cleanText(req.params.key);
+      const key = cleanText(
+        req.params.key
+      );
 
-      if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(key)) {
+      if (
+        !/^[a-zA-Z0-9_.-]{1,80}$/.test(key)
+      ) {
         return res.status(400).json({
           ok: false,
-          message: 'اسم الإعداد غير صالح'
+          message: "اسم الإعداد غير صالح"
         });
       }
 
@@ -215,14 +241,22 @@ app.put(
       if (value === undefined) {
         return res.status(400).json({
           ok: false,
-          message: 'قيمة الإعداد مطلوبة'
+          message: "قيمة الإعداد مطلوبة"
         });
       }
 
       await db(
         `
-        INSERT INTO settings(key, value, updated_at)
-        VALUES($1, $2, NOW())
+        INSERT INTO settings(
+          key,
+          value,
+          updated_at
+        )
+        VALUES(
+          $1,
+          $2,
+          NOW()
+        )
         ON CONFLICT(key)
         DO UPDATE SET
           value = EXCLUDED.value,
@@ -240,317 +274,436 @@ app.put(
         value
       });
     } catch (error) {
-      console.error('[SAVE SETTING]', error);
+      console.error(
+        "[SAVE SETTING]",
+        error
+      );
 
       res.status(500).json({
         ok: false,
-        message: 'تعذر حفظ الإعداد'
+        message: "تعذر حفظ الإعداد"
       });
     }
   }
 );
 
+
 /* =========================================================
    AUTH - REGISTER
 ========================================================= */
 
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const {
-      name,
-      email,
-      phone,
-      contact,
-      password,
-      gender = 'unspecified',
-      age = null
-    } = req.body || {};
-
-    const cleanName = cleanText(name);
-    const cleanEmail = normalizeEmail(email);
-    const cleanPhone = normalizePhone(phone || contact);
-    const cleanPassword = String(password || '');
-
-    if (!cleanName || !cleanPassword || cleanPassword.length < 8) {
-      return res.status(400).json({
-        ok: false,
-        message: 'البيانات غير مكتملة أو كلمة المرور قصيرة'
-      });
-    }
-
-    if (!cleanEmail && !cleanPhone) {
-      return res.status(400).json({
-        ok: false,
-        message: 'أدخلي البريد الإلكتروني أو رقم الهاتف'
-      });
-    }
-
-    const duplicate = await db(
-      `
-      SELECT id
-      FROM users
-      WHERE
-        ($1::text IS NOT NULL AND email = $1)
-        OR
-        ($2::text IS NOT NULL AND phone = $2)
-      LIMIT 1
-      `,
-      [
-        cleanEmail,
-        cleanPhone
-      ]
-    );
-
-    if (duplicate.rows.length) {
-      return res.status(409).json({
-        ok: false,
-        message: 'البريد الإلكتروني أو رقم الهاتف مستخدم مسبقًا'
-      });
-    }
-
-    const passwordHash = await hashPassword(cleanPassword);
-
-    const result = await db(
-      `
-      INSERT INTO users(
+app.post(
+  "/api/auth/register",
+  async (req, res) => {
+    try {
+      const {
         name,
         email,
         phone,
-        gender,
-        age,
-        password_hash,
-        role,
-        is_owner,
-        is_active,
-        loyalty_points,
-        created_at,
-        updated_at
-      )
-      VALUES(
-        $1,
-        $2,
-        $3,
-        $4,
-        $5,
-        $6,
-        'customer',
-        false,
-        true,
-        0,
-        NOW(),
-        NOW()
-      )
-      RETURNING
-        id,
-        name,
-        email,
-        phone,
-        gender,
-        age,
-        role,
-        is_owner,
-        is_active,
-        loyalty_points,
-        created_at,
-        updated_at
-      `,
-      [
-        cleanName,
-        cleanEmail,
-        cleanPhone,
-        cleanText(gender) || 'unspecified',
-        age === '' || age === null ? null : integer(age, null),
-        passwordHash
-      ]
-    );
+        contact,
+        password,
+        gender = "unspecified",
+        age = null
+      } = req.body || {};
 
-    const user = result.rows[0];
+      const cleanName = cleanText(name);
 
-    const token = signToken({
-      id: user.id,
-      role: user.role,
-      is_owner: user.is_owner
-    });
+      const cleanEmail =
+        normalizeEmail(email);
 
-    res.status(201).json({
-      ok: true,
-      user: publicUser(user),
-      token,
-      greeting: getGenderGreeting(user.gender)
-    });
-  } catch (error) {
-    console.error('[REGISTER]', error);
+      const cleanPhone =
+        normalizePhone(
+          phone || contact
+        );
 
-    res.status(500).json({
-      ok: false,
-      message: 'تعذر إنشاء الحساب'
-    });
+      const cleanPassword =
+        String(password || "");
+
+      if (
+        !cleanName ||
+        !cleanPassword ||
+        cleanPassword.length < 8
+      ) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "البيانات غير مكتملة أو كلمة المرور قصيرة"
+        });
+      }
+
+      if (
+        !cleanEmail &&
+        !cleanPhone
+      ) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "أدخلي البريد الإلكتروني أو رقم الهاتف"
+        });
+      }
+
+      const duplicate = await db(
+        `
+        SELECT id
+        FROM users
+        WHERE
+          (
+            $1::text IS NOT NULL
+            AND email = $1
+          )
+          OR
+          (
+            $2::text IS NOT NULL
+            AND phone = $2
+          )
+        LIMIT 1
+        `,
+        [
+          cleanEmail,
+          cleanPhone
+        ]
+      );
+
+      if (duplicate.rows.length) {
+        return res.status(409).json({
+          ok: false,
+          message:
+            "البريد الإلكتروني أو رقم الهاتف مستخدم مسبقًا"
+        });
+      }
+
+      const passwordHash =
+        await hashPassword(
+          cleanPassword
+        );
+
+      const result = await db(
+        `
+        INSERT INTO users(
+          name,
+          email,
+          phone,
+          gender,
+          age,
+          password_hash,
+          role,
+          is_owner,
+          is_active,
+          loyalty_points,
+          created_at,
+          updated_at
+        )
+        VALUES(
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          'customer',
+          false,
+          true,
+          0,
+          NOW(),
+          NOW()
+        )
+        RETURNING
+          id,
+          name,
+          email,
+          phone,
+          gender,
+          age,
+          role,
+          is_owner,
+          is_active,
+          loyalty_points,
+          created_at,
+          updated_at
+        `,
+        [
+          cleanName,
+          cleanEmail,
+          cleanPhone,
+          cleanText(gender) ||
+            "unspecified",
+          age === "" ||
+          age === null
+            ? null
+            : integer(age, null),
+          passwordHash
+        ]
+      );
+
+      const user =
+        result.rows[0];
+
+      const token =
+        createToken({
+          id: user.id,
+          role: user.role,
+          is_owner: user.is_owner
+        });
+
+      res.status(201).json({
+        ok: true,
+        user: publicUser(user),
+        token,
+        greeting:
+          getGenderGreeting(
+            user.gender
+          )
+      });
+    } catch (error) {
+      console.error(
+        "[REGISTER]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر إنشاء الحساب"
+      });
+    }
   }
-});
+);
+
 
 /* =========================================================
    AUTH - LOGIN
 ========================================================= */
 
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const identifier = cleanText(
-      req.body?.email ||
-      req.body?.phone ||
-      req.body?.contact
-    );
+app.post(
+  "/api/auth/login",
+  async (req, res) => {
+    try {
+      const identifier =
+        cleanText(
+          req.body?.email ||
+          req.body?.phone ||
+          req.body?.contact
+        );
 
-    const password = String(req.body?.password || '');
+      const password =
+        String(
+          req.body?.password || ""
+        );
 
-    if (!identifier || !password) {
-      return res.status(400).json({
+      if (
+        !identifier ||
+        !password
+      ) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "أدخلي بيانات الدخول"
+        });
+      }
+
+      const normalizedIdentifier =
+        identifier.includes("@")
+          ? identifier.toLowerCase()
+          : normalizePhone(
+              identifier
+            );
+
+      const result = await db(
+        `
+        SELECT *
+        FROM users
+        WHERE
+          email = $1
+          OR phone = $1
+        LIMIT 1
+        `,
+        [
+          normalizedIdentifier
+        ]
+      );
+
+      if (!result.rows.length) {
+        return res.status(401).json({
+          ok: false,
+          message:
+            "بيانات الدخول غير صحيحة"
+        });
+      }
+
+      const user =
+        result.rows[0];
+
+      if (
+        user.is_active === false
+      ) {
+        return res.status(403).json({
+          ok: false,
+          message:
+            "هذا الحساب غير مفعل"
+        });
+      }
+
+      const valid =
+        await verifyPassword(
+          password,
+          user.password_hash
+        );
+
+      if (!valid) {
+        return res.status(401).json({
+          ok: false,
+          message:
+            "بيانات الدخول غير صحيحة"
+        });
+      }
+
+      const token =
+        createToken({
+          id: user.id,
+          role: user.role,
+          is_owner: user.is_owner
+        });
+
+      res.json({
+        ok: true,
+        user: publicUser(user),
+        token,
+        greeting:
+          getGenderGreeting(
+            user.gender
+          )
+      });
+    } catch (error) {
+      console.error(
+        "[LOGIN]",
+        error
+      );
+
+      res.status(500).json({
         ok: false,
-        message: 'أدخلي بيانات الدخول'
+        message:
+          "تعذر تسجيل الدخول"
       });
     }
-
-    const result = await db(
-      `
-      SELECT *
-      FROM users
-      WHERE
-        email = $1
-        OR phone = $1
-      LIMIT 1
-      `,
-      [identifier.toLowerCase()]
-    );
-
-    if (!result.rows.length) {
-      return res.status(401).json({
-        ok: false,
-        message: 'بيانات الدخول غير صحيحة'
-      });
-    }
-
-    const user = result.rows[0];
-
-    if (user.is_active === false) {
-      return res.status(403).json({
-        ok: false,
-        message: 'هذا الحساب غير مفعل'
-      });
-    }
-
-    const valid = await verifyPassword(
-      password,
-      user.password_hash
-    );
-
-    if (!valid) {
-      return res.status(401).json({
-        ok: false,
-        message: 'بيانات الدخول غير صحيحة'
-      });
-    }
-
-    const token = signToken({
-      id: user.id,
-      role: user.role,
-      is_owner: user.is_owner
-    });
-
-    res.json({
-      ok: true,
-      user: publicUser(user),
-      token,
-      greeting: getGenderGreeting(user.gender)
-    });
-  } catch (error) {
-    console.error('[LOGIN]', error);
-
-    res.status(500).json({
-      ok: false,
-      message: 'تعذر تسجيل الدخول'
-    });
   }
-});
+);
+
 
 /* =========================================================
    CURRENT USER
 ========================================================= */
 
-app.get('/api/me', requireAuth, async (req, res) => {
-  try {
-    const result = await db(
-      `
-      SELECT *
-      FROM users
-      WHERE id = $1
-      LIMIT 1
-      `,
-      [req.user.id]
-    );
-
-    if (!result.rows.length) {
-      return res.status(404).json({
-        ok: false,
-        message: 'المستخدم غير موجود'
-      });
-    }
-
-    const user = result.rows[0];
-
-    let permissions = {};
-
-    if (Number(user.is_owner) === 1) {
-      permissions = {
-        '*': true
-      };
-    } else {
-      const permissionResult = await db(
+app.get(
+  "/api/me",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const result = await db(
         `
-        SELECT permissions
-        FROM admin_permissions
-        WHERE user_id = $1
+        SELECT *
+        FROM users
+        WHERE id = $1
         LIMIT 1
         `,
-        [user.id]
+        [
+          req.user.id
+        ]
       );
 
-      if (permissionResult.rows.length) {
-        permissions = permissionResult.rows[0].permissions || {};
+      if (!result.rows.length) {
+        return res.status(404).json({
+          ok: false,
+          message:
+            "المستخدم غير موجود"
+        });
       }
+
+      const user =
+        result.rows[0];
+
+      let permissions = {};
+
+      if (
+        Number(user.is_owner) === 1 ||
+        user.role === "owner"
+      ) {
+        permissions = {
+          "*": true
+        };
+      } else {
+        const permissionResult =
+          await db(
+            `
+            SELECT permissions
+            FROM admin_permissions
+            WHERE user_id = $1
+            LIMIT 1
+            `,
+            [
+              user.id
+            ]
+          );
+
+        if (
+          permissionResult.rows.length
+        ) {
+          permissions =
+            permissionResult
+              .rows[0]
+              .permissions || {};
+        }
+      }
+
+      res.json({
+        ok: true,
+        user: {
+          ...publicUser(user),
+          permissions
+        },
+        greeting:
+          getGenderGreeting(
+            user.gender
+          )
+      });
+    } catch (error) {
+      console.error(
+        "[ME]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تحميل بيانات الحساب"
+      });
     }
-
-    res.json({
-      ok: true,
-      user: {
-        ...publicUser(user),
-        permissions
-      },
-      greeting: getGenderGreeting(user.gender)
-    });
-  } catch (error) {
-    console.error('[ME]', error);
-
-    res.status(500).json({
-      ok: false,
-      message: 'تعذر تحميل بيانات الحساب'
-    });
   }
-});
+);
+
 
 /* =========================================================
    CUSTOMER - UPDATE OWN PROFILE
 ========================================================= */
 
 app.put(
-  '/api/users/:id',
+  "/api/users/:id",
   requireAuth,
   async (req, res) => {
     try {
-      const id = integer(req.params.id, NaN);
+      const id =
+        integer(
+          req.params.id,
+          NaN
+        );
 
-      if (!Number.isInteger(id) || id !== Number(req.user.id)) {
+      if (
+        !Number.isInteger(id) ||
+        id !== Number(req.user.id)
+      ) {
         return res.status(403).json({
           ok: false,
-          message: 'غير مسموح بتعديل هذا الحساب'
+          message:
+            "غير مسموح بتعديل هذا الحساب"
         });
       }
 
@@ -585,14 +738,18 @@ app.put(
       const cleanAge =
         age !== undefined &&
         age !== null &&
-        age !== ''
+        age !== ""
           ? integer(age, null)
           : null;
 
-      if (cleanName !== null && !cleanName) {
+      if (
+        cleanName !== null &&
+        !cleanName
+      ) {
         return res.status(400).json({
           ok: false,
-          message: 'الاسم مطلوب'
+          message:
+            "الاسم مطلوب"
         });
       }
 
@@ -605,99 +762,168 @@ app.put(
       ) {
         return res.status(400).json({
           ok: false,
-          message: 'العمر غير صالح'
+          message:
+            "العمر غير صالح"
         });
       }
 
-      const duplicate = await db(
-        `
-        SELECT id
-        FROM users
-        WHERE
-          id <> $1
-          AND (
-            (
-              $2::text IS NOT NULL
-              AND email = $2
+      const duplicate =
+        await db(
+          `
+          SELECT id
+          FROM users
+          WHERE
+            id <> $1
+            AND (
+              (
+                $2::text IS NOT NULL
+                AND email = $2
+              )
+              OR
+              (
+                $3::text IS NOT NULL
+                AND phone = $3
+              )
             )
-            OR
-            (
-              $3::text IS NOT NULL
-              AND phone = $3
-            )
-          )
-        LIMIT 1
-        `,
-        [
-          id,
-          cleanEmail,
-          cleanPhone
-        ]
-      );
+          LIMIT 1
+          `,
+          [
+            id,
+            cleanEmail,
+            cleanPhone
+          ]
+        );
 
-      if (duplicate.rows.length) {
+      if (
+        duplicate.rows.length
+      ) {
         return res.status(409).json({
           ok: false,
-          message: 'هذا البريد أو رقم الهاتف مستخدم من حساب آخر'
+          message:
+            "هذا البريد أو رقم الهاتف مستخدم من حساب آخر"
         });
       }
 
-      const result = await db(
-        `
-        UPDATE users
-        SET
-          name = COALESCE($1, name),
-          email = COALESCE($2, email),
-          phone = COALESCE($3, phone),
-          gender = COALESCE($4, gender),
-          age = COALESCE($5, age),
-          updated_at = NOW()
-        WHERE id = $6
-        RETURNING
-          id,
-          name,
-          email,
-          phone,
-          gender,
-          age,
-          role,
-          is_owner,
-          is_active,
-          loyalty_points,
-          created_at,
-          updated_at
-        `,
-        [
-          cleanName,
-          cleanEmail,
-          cleanPhone,
-          cleanGender,
-          cleanAge,
-          id
-        ]
-      );
+      const result =
+        await db(
+          `
+          UPDATE users
+          SET
+            name = COALESCE(
+              $1,
+              name
+            ),
+            email = COALESCE(
+              $2,
+              email
+            ),
+            phone = COALESCE(
+              $3,
+              phone
+            ),
+            gender = COALESCE(
+              $4,
+              gender
+            ),
+            age = COALESCE(
+              $5,
+              age
+            ),
+            updated_at = NOW()
+          WHERE id = $6
+          RETURNING
+            id,
+            name,
+            email,
+            phone,
+            gender,
+            age,
+            role,
+            is_owner,
+            is_active,
+            loyalty_points,
+            created_at,
+            updated_at
+          `,
+          [
+            cleanName,
+            cleanEmail,
+            cleanPhone,
+            cleanGender,
+            cleanAge,
+            id
+          ]
+        );
 
       if (!result.rows.length) {
         return res.status(404).json({
           ok: false,
-          message: 'المستخدم غير موجود'
+          message:
+            "المستخدم غير موجود"
         });
       }
 
-      const user = result.rows[0];
+      const user =
+        result.rows[0];
 
       res.json({
         ok: true,
         user: publicUser(user),
-        greeting: getGenderGreeting(user.gender)
+        greeting:
+          getGenderGreeting(
+            user.gender
+          )
       });
     } catch (error) {
-      console.error('[UPDATE OWN PROFILE]', error);
+      console.error(
+        "[UPDATE OWN PROFILE]",
+        error
+      );
 
       res.status(500).json({
         ok: false,
-        message: 'تعذر حفظ بيانات الحساب'
+        message:
+          "تعذر حفظ بيانات الحساب"
       });
     }
+  }
+);
+
+
+/* =========================================================
+   FRONTEND FALLBACK
+========================================================= */
+
+app.get("*", (req, res) => {
+  if (
+    req.path.startsWith("/api/")
+  ) {
+    return res.status(404).json({
+      ok: false,
+      message: "API endpoint not found"
+    });
+  }
+
+  res.sendFile(
+    path.join(
+      ROOT,
+      "frontend",
+      "index.html"
+    )
+  );
+});
+
+
+/* =========================================================
+   SERVER
+========================================================= */
+
+app.listen(
+  PORT,
+  "0.0.0.0",
+  () => {
+    console.log(
+      `[SERVER] Ladies First listening on port ${PORT}`
+    );
   }
 );
