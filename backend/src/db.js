@@ -2,7 +2,8 @@
 
 const { Pool } = require("pg");
 
-const DATABASE_URL = process.env.DATABASE_URL || "";
+const DATABASE_URL =
+  process.env.DATABASE_URL || "";
 
 if (!DATABASE_URL) {
   console.warn(
@@ -11,7 +12,8 @@ if (!DATABASE_URL) {
 }
 
 const pool = new Pool({
-  connectionString: DATABASE_URL || undefined,
+  connectionString:
+    DATABASE_URL || undefined,
 
   ssl: DATABASE_URL
     ? {
@@ -19,7 +21,9 @@ const pool = new Pool({
       }
     : false,
 
-  max: Number(process.env.DB_POOL_MAX || 10),
+  max: Number(
+    process.env.DB_POOL_MAX || 10
+  ),
 
   idleTimeoutMillis: Number(
     process.env.DB_IDLE_TIMEOUT || 30000
@@ -30,51 +34,56 @@ const pool = new Pool({
   )
 });
 
-/**
- * Execute a database query.
- *
- * @param {string} text
- * @param {Array} params
- * @returns {Promise<import("pg").QueryResult>}
- */
-async function db(text, params = []) {
-  return pool.query(text, params);
+/* =========================================================
+   DATABASE QUERY
+========================================================= */
+
+async function db(
+  text,
+  params = []
+) {
+  return pool.query(
+    text,
+    params
+  );
 }
 
-/**
- * Get a dedicated database client.
- *
- * Useful when several queries must run
- * inside the same transaction.
- *
- * @returns {Promise<import("pg").PoolClient>}
- */
+/* =========================================================
+   CLIENT
+========================================================= */
+
 async function getClient() {
   return pool.connect();
 }
 
-/**
- * Run multiple operations inside a PostgreSQL transaction.
- *
- * The callback receives a dedicated client.
- *
- * @param {(client: import("pg").PoolClient) => Promise<any>} callback
- * @returns {Promise<any>}
- */
-async function transaction(callback) {
-  const client = await pool.connect();
+/* =========================================================
+   TRANSACTION
+========================================================= */
+
+async function transaction(
+  callback
+) {
+  const client =
+    await pool.connect();
 
   try {
-    await client.query("BEGIN");
+    await client.query(
+      "BEGIN"
+    );
 
-    const result = await callback(client);
+    const result =
+      await callback(client);
 
-    await client.query("COMMIT");
+    await client.query(
+      "COMMIT"
+    );
 
     return result;
   } catch (error) {
     try {
-      await client.query("ROLLBACK");
+      await client.query(
+        "ROLLBACK"
+      );
     } catch (rollbackError) {
       console.error(
         "[DB] Rollback error:",
@@ -88,18 +97,20 @@ async function transaction(callback) {
   }
 }
 
-/**
- * Check whether the database is available.
- *
- * @returns {Promise<boolean>}
- */
+/* =========================================================
+   DATABASE AVAILABILITY
+========================================================= */
+
 async function isDatabaseAvailable() {
   if (!DATABASE_URL) {
     return false;
   }
 
   try {
-    await pool.query("SELECT 1");
+    await pool.query(
+      "SELECT 1"
+    );
+
     return true;
   } catch (error) {
     console.error(
@@ -111,41 +122,51 @@ async function isDatabaseAvailable() {
   }
 }
 
-/**
- * Return basic database status.
- *
- * @returns {Promise<object>}
- */
+/* =========================================================
+   DATABASE STATUS
+========================================================= */
+
 async function getDatabaseStatus() {
   if (!DATABASE_URL) {
     return {
       configured: false,
-      connected: false
+      connected: false,
+      serverTime: null
     };
   }
 
   try {
-    const result = await pool.query(
-      "SELECT NOW() AS server_time"
-    );
+    const result =
+      await pool.query(
+        "SELECT NOW() AS server_time"
+      );
 
     return {
       configured: true,
       connected: true,
-      serverTime: result.rows[0]?.server_time || null
+      serverTime:
+        result.rows[0]?.server_time ||
+        null
     };
   } catch (error) {
+    console.error(
+      "[DB] Status check failed:",
+      error.message
+    );
+
     return {
       configured: true,
       connected: false,
+      serverTime: null,
       error: error.message
     };
   }
 }
 
-/**
- * Gracefully close the PostgreSQL pool.
- */
+/* =========================================================
+   CLOSE DATABASE
+========================================================= */
+
 async function closeDatabase() {
   try {
     await pool.end();
@@ -157,23 +178,44 @@ async function closeDatabase() {
   }
 }
 
-/**
- * Handle application shutdown.
- */
+/* =========================================================
+   DATABASE SHUTDOWN
+========================================================= */
+
+let shutdownRegistered = false;
+
 function registerDatabaseShutdown() {
-  const shutdown = async (signal) => {
-    console.log(
-      `[DB] Received ${signal}. Closing database...`
-    );
+  if (shutdownRegistered) {
+    return;
+  }
 
-    await closeDatabase();
-  };
+  shutdownRegistered = true;
 
-  process.once("SIGINT", () => shutdown("SIGINT"));
-  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  const shutdown =
+    async (signal) => {
+      console.log(
+        `[DB] Received ${signal}. Closing database...`
+      );
+
+      await closeDatabase();
+    };
+
+  process.once(
+    "SIGINT",
+    () => shutdown("SIGINT")
+  );
+
+  process.once(
+    "SIGTERM",
+    () => shutdown("SIGTERM")
+  );
 }
 
 registerDatabaseShutdown();
+
+/* =========================================================
+   EXPORTS
+========================================================= */
 
 module.exports = {
   pool,
