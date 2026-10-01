@@ -36,4 +36,4 @@ services:
 
 databases:
   - name: ladies-first-db
-    plan: basic-256mb
+    plan: free
