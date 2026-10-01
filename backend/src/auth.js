@@ -38,7 +38,9 @@ async function verifyPassword(password, passwordHash) {
 
 function createToken(user) {
   if (!user || !user.id) {
-    throw new Error("User is required to create token");
+    throw new Error(
+      "User is required to create token"
+    );
   }
 
   return jwt.sign(
@@ -61,20 +63,31 @@ function getTokenFromRequest(req) {
   const authorization =
     req.headers.authorization || "";
 
-  if (authorization.startsWith("Bearer ")) {
-    return authorization.slice(7).trim();
+  if (
+    authorization.startsWith("Bearer ")
+  ) {
+    return authorization
+      .slice(7)
+      .trim();
   }
 
   const cookieHeader =
     req.headers.cookie || "";
 
   if (cookieHeader) {
-    const match = cookieHeader.match(
-      /(?:^|;\s*)token=([^;]+)/
-    );
+    const match =
+      cookieHeader.match(
+        /(?:^|;\s*)token=([^;]+)/
+      );
 
     if (match) {
-      return decodeURIComponent(match[1]);
+      try {
+        return decodeURIComponent(
+          match[1]
+        );
+      } catch {
+        return match[1];
+      }
     }
   }
 
@@ -104,7 +117,11 @@ function verifyToken(token) {
    OPTIONAL AUTH
 ========================================================= */
 
-function optionalAuth(req, res, next) {
+function optionalAuth(
+  req,
+  res,
+  next
+) {
   const token =
     getTokenFromRequest(req);
 
@@ -116,7 +133,8 @@ function optionalAuth(req, res, next) {
   const payload =
     verifyToken(token);
 
-  req.user = payload || null;
+  req.user =
+    payload || null;
 
   next();
 }
@@ -125,7 +143,11 @@ function optionalAuth(req, res, next) {
    REQUIRED AUTH
 ========================================================= */
 
-function requireAuth(req, res, next) {
+function requireAuth(
+  req,
+  res,
+  next
+) {
   const token =
     getTokenFromRequest(req);
 
@@ -157,8 +179,14 @@ function requireAuth(req, res, next) {
    ROLE AUTHORIZATION
 ========================================================= */
 
-function requireRole(...allowedRoles) {
-  return (req, res, next) => {
+function requireRole(
+  ...allowedRoles
+) {
+  return (
+    req,
+    res,
+    next
+  ) => {
     if (!req.user) {
       return res.status(401).json({
         ok: false,
@@ -187,22 +215,38 @@ function requireRole(...allowedRoles) {
    ADMIN
 ========================================================= */
 
-function requireAdmin(req, res, next) {
+function requireAdmin(
+  req,
+  res,
+  next
+) {
   return requireRole(
     "owner",
     "admin",
     "staff"
-  )(req, res, next);
+  )(
+    req,
+    res,
+    next
+  );
 }
 
 /* =========================================================
    OWNER
 ========================================================= */
 
-function requireOwner(req, res, next) {
+function requireOwner(
+  req,
+  res,
+  next
+) {
   return requireRole(
     "owner"
-  )(req, res, next);
+  )(
+    req,
+    res,
+    next
+  );
 }
 
 /* =========================================================
@@ -227,12 +271,17 @@ function normalizePhone(phone) {
     return null;
   }
 
-  return String(phone)
-    .trim()
-    .replace(/[\s()-]/g, "") || null;
+  const value =
+    String(phone)
+      .trim()
+      .replace(/[\s()-]/g, "");
+
+  return value || null;
 }
 
-function normalizeContact(contact) {
+function normalizeContact(
+  contact
+) {
   if (!contact) {
     return null;
   }
@@ -240,11 +289,17 @@ function normalizeContact(contact) {
   const value =
     String(contact).trim();
 
-  if (value.includes("@")) {
-    return normalizeEmail(value);
+  if (
+    value.includes("@")
+  ) {
+    return normalizeEmail(
+      value
+    );
   }
 
-  return normalizePhone(value);
+  return normalizePhone(
+    value
+  );
 }
 
 /* =========================================================
@@ -258,31 +313,47 @@ function sanitizeUser(user) {
 
   return {
     id: user.id,
-    name: user.name || "",
-    email: user.email || null,
-    phone: user.phone || null,
-    gender: user.gender || null,
+
+    name:
+      user.name || "",
+
+    email:
+      user.email || null,
+
+    phone:
+      user.phone || null,
+
+    gender:
+      user.gender || null,
+
     age:
       user.age !== undefined &&
       user.age !== null
         ? Number(user.age)
         : null,
+
     role:
       user.role || "customer",
+
     loyaltyPoints:
       Number(
         user.loyalty_points ??
         user.loyaltyPoints ??
         0
       ),
+
     isActive:
       user.is_active !== undefined
-        ? Boolean(user.is_active)
+        ? Boolean(
+            user.is_active
+          )
         : true,
+
     createdAt:
       user.created_at ||
       user.createdAt ||
       null,
+
     updatedAt:
       user.updated_at ||
       user.updatedAt ||
@@ -291,10 +362,12 @@ function sanitizeUser(user) {
 }
 
 /* =========================================================
-   GREETING
+   GENDER GREETING
 ========================================================= */
 
-function getGenderGreeting(gender) {
+function getGenderGreeting(
+  gender
+) {
   const value =
     String(gender || "")
       .trim()
@@ -312,7 +385,6 @@ function getGenderGreeting(gender) {
     value === "female" ||
     value === "أنثى" ||
     value === "انثى" ||
-    value === "female" ||
     value === "f"
   ) {
     return "نورتينا";
