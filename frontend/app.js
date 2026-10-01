@@ -1018,8 +1018,7 @@
 
     state.currentProduct = product;
 
-    render
-    ProductDetails(product);
+     renderProductDetails(product);
   }
 
   /* =========================================================
