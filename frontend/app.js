@@ -1,5 +1,6 @@
 /* =========================================================
    LADIES FIRST - FRONTEND APP
+   Complete frontend application
    ========================================================= */
 
 (() => {
@@ -15,16 +16,23 @@
     offers: [],
     topFive: [],
     bestSellers: [],
+    heroSlides: [],
     favorites: JSON.parse(localStorage.getItem("lf_favorites") || "[]"),
     cart: JSON.parse(localStorage.getItem("lf_cart") || "[]"),
     user: JSON.parse(localStorage.getItem("lf_user") || "null"),
+    settings: {},
     currentProduct: null,
     currentFilter: {},
-    heroIndex: 0
+    heroIndex: 0,
+    heroTimer: null,
+    orderSubmitting: false
   };
 
-  const $ = (selector, root = document) => root.querySelector(selector);
-  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+  const $ = (selector, root = document) =>
+    root.querySelector(selector);
+
+  const $$ = (selector, root = document) =>
+    [...root.querySelectorAll(selector)];
 
   const escapeHTML = (value = "") =>
     String(value)
@@ -34,21 +42,28 @@
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
 
-  const money = (value) => {
-    const number = Number(value || 0);
-    return `${number.toFixed(2)} ₪`;
-  };
+  const money = (value) =>
+    `${Number(value || 0).toFixed(2)} ₪`;
 
-  const saveState = () => {
-    localStorage.setItem("lf_favorites", JSON.stringify(state.favorites));
-    localStorage.setItem("lf_cart", JSON.stringify(state.cart));
+  function saveState() {
+    localStorage.setItem(
+      "lf_favorites",
+      JSON.stringify(state.favorites)
+    );
+    localStorage.setItem(
+      "lf_cart",
+      JSON.stringify(state.cart)
+    );
 
     if (state.user) {
-      localStorage.setItem("lf_user", JSON.stringify(state.user));
+      localStorage.setItem(
+        "lf_user",
+        JSON.stringify(state.user)
+      );
     } else {
       localStorage.removeItem("lf_user");
     }
-  };
+  }
 
   /* =========================================================
      API
@@ -58,24 +73,28 @@
     try {
       const token = localStorage.getItem("lf_token");
 
-      const response = await fetch(`${API_BASE}${path}`, {
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(options.headers || {})
-        },
-        ...options
-      });
+      const response = await fetch(
+        `${API_BASE}${path}`,
+        {
+          credentials: "include",
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            ...(token
+              ? { Authorization: `Bearer ${token}` }
+              : {}),
+            ...(options.headers || {})
+          }
+        }
+      );
 
-      const text = await response.text();
-
+      const raw = await response.text();
       let data = null;
 
       try {
-        data = text ? JSON.parse(text) : null;
+        data = raw ? JSON.parse(raw) : null;
       } catch {
-        data = text;
+        data = raw;
       }
 
       if (!response.ok) {
@@ -94,8 +113,66 @@
   }
 
   /* =========================================================
-     USER / GREETING
+     TOAST
      ========================================================= */
+
+  function showToast(message) {
+    let toast = $("#lfToast");
+
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "lfToast";
+      toast.className = "lf-toast";
+      document.body.appendChild(toast);
+    }
+
+    toast.textContent = message;
+    toast.classList.add("show");
+
+    clearTimeout(toast._timer);
+
+    toast._timer = setTimeout(() => {
+      toast.classList.remove("show");
+    }, 2800);
+  }
+
+  /* =========================================================
+     AUTH / USER
+     ========================================================= */
+
+  function setToken(token) {
+    if (token) {
+      localStorage.setItem("lf_token", token);
+    } else {
+      localStorage.removeItem("lf_token");
+    }
+  }
+
+  function getGenderGreeting(gender) {
+    const value =
+      String(gender || "")
+        .trim()
+        .toLowerCase();
+
+    if (
+      value === "male" ||
+      value === "ذكر" ||
+      value === "m"
+    ) {
+      return "نورتنا";
+    }
+
+    if (
+      value === "female" ||
+      value === "أنثى" ||
+      value === "انثى" ||
+      value === "f"
+    ) {
+      return "نورتينا";
+    }
+
+    return "أهلاً وسهلاً";
+  }
 
   function updateGreeting() {
     const greeting = $("#accountGreeting");
@@ -107,28 +184,14 @@
       return;
     }
 
-    const gender = String(state.user.gender || "").toLowerCase();
+    const text = getGenderGreeting(
+      state.user.gender
+    );
 
-    if (
-      gender === "male" ||
-      gender === "ذكر" ||
-      gender === "m"
-    ) {
-      greeting.textContent = "نورتنا";
-      return;
-    }
-
-    if (
-      gender === "female" ||
-      gender === "أنثى" ||
-      gender === "انثى" ||
-      gender === "f"
-    ) {
-      greeting.textContent = "نورتينا";
-      return;
-    }
-
-    greeting.textContent = state.user.name || "حسابي";
+    greeting.textContent =
+      text === "أهلاً وسهلاً"
+        ? state.user.name || text
+        : text;
   }
 
   async function loadCurrentUser() {
@@ -142,40 +205,38 @@
     updateGreeting();
   }
 
-  /* =========================================================
-     ACCOUNT / AUTH
-     ========================================================= */
-
-  function setToken(token) {
-    if (token) {
-      localStorage.setItem("lf_token", token);
-    } else {
-      localStorage.removeItem("lf_token");
-    }
-  }
-
   function fillAccountProfile() {
     const user = state.user || {};
 
     const fields = {
       "#profileName": user.name || "",
       "#profileEmail": user.email || "",
-      "#profilePhone": user.phone || user.whatsapp || "",
-      "#profileGender": user.gender || "",
-      "#profileAge": user.age ?? ""
+      "#profilePhone":
+        user.phone ||
+        user.whatsapp ||
+        "",
+      "#profileGender":
+        user.gender || "",
+      "#profileAge":
+        user.age ?? ""
     };
 
-    Object.entries(fields).forEach(([selector, value]) => {
-      const el = $(selector);
-      if (el) el.value = value;
-    });
+    Object.entries(fields).forEach(
+      ([selector, value]) => {
+        const el = $(selector);
+        if (el) el.value = value;
+      }
+    );
 
     const points = $("#loyaltyPoints");
 
     if (points) {
-      points.textContent = Number(
-        user.loyaltyPoints ?? user.points ?? 0
-      ).toLocaleString("ar");
+      points.textContent =
+        Number(
+          user.loyaltyPoints ??
+          user.points ??
+          0
+        ).toLocaleString("ar");
     }
   }
 
@@ -198,21 +259,29 @@
   }
 
   async function loginUser() {
-    const contact = $("#loginContact")?.value.trim();
-    const password = $("#loginPassword")?.value || "";
+    const contact =
+      $("#loginContact")?.value.trim();
+
+    const password =
+      $("#loginPassword")?.value || "";
 
     if (!contact || !password) {
-      showToast("اكتبي رقم الهاتف أو البريد وكلمة المرور");
+      showToast(
+        "اكتبي رقم الهاتف أو البريد وكلمة المرور"
+      );
       return;
     }
 
-    const result = await api("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({
-        contact,
-        password
-      })
-    });
+    const result = await api(
+      "/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          contact,
+          password
+        })
+      }
+    );
 
     if (!result) {
       showToast("تعذر تسجيل الدخول حالياً");
@@ -225,50 +294,83 @@
 
     if (result.user) {
       state.user = result.user;
-
       saveState();
       renderAccount();
       updateGreeting();
 
-      showToast("تم تسجيل الدخول بنجاح");
+      showToast(
+        getGenderGreeting(result.user.gender) ===
+          "نورتنا"
+          ? "نورتنا، تم تسجيل الدخول بنجاح"
+          : getGenderGreeting(result.user.gender) ===
+            "نورتينا"
+            ? "نورتينا، تم تسجيل الدخول بنجاح"
+            : "تم تسجيل الدخول بنجاح"
+      );
       return;
     }
 
-    showToast(result.message || "تعذر تسجيل الدخول");
+    showToast(
+      result.message ||
+      "تعذر تسجيل الدخول"
+    );
   }
 
   async function registerUser() {
-    const name = $("#registerName")?.value.trim();
-    const email = $("#registerEmail")?.value.trim();
-    const phone = $("#registerPhone")?.value.trim();
-    const gender = $("#registerGender")?.value || "";
-    const ageValue = $("#registerAge")?.value;
-    const password = $("#registerPassword")?.value || "";
+    const name =
+      $("#registerName")?.value.trim();
 
-    if (!name || !password || (!email && !phone)) {
-      showToast("الاسم ووسيلة التواصل وكلمة المرور مطلوبة");
+    const email =
+      $("#registerEmail")?.value.trim();
+
+    const phone =
+      $("#registerPhone")?.value.trim();
+
+    const gender =
+      $("#registerGender")?.value || "";
+
+    const ageValue =
+      $("#registerAge")?.value;
+
+    const password =
+      $("#registerPassword")?.value || "";
+
+    if (
+      !name ||
+      !password ||
+      (!email && !phone)
+    ) {
+      showToast(
+        "الاسم ووسيلة التواصل وكلمة المرور مطلوبة"
+      );
       return;
     }
 
     const age =
-      ageValue === "" || ageValue == null
+      ageValue === "" ||
+      ageValue == null
         ? null
         : Number(ageValue);
 
-    const result = await api("/auth/register", {
-      method: "POST",
-      body: JSON.stringify({
-        name,
-        email: email || null,
-        phone: phone || null,
-        gender: gender || null,
-        age,
-        password
-      })
-    });
+    const result = await api(
+      "/auth/register",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          email: email || null,
+          phone: phone || null,
+          gender: gender || null,
+          age,
+          password
+        })
+      }
+    );
 
     if (!result) {
-      showToast("تعذر إنشاء الحساب حالياً");
+      showToast(
+        "تعذر إنشاء الحساب حالياً"
+      );
       return;
     }
 
@@ -278,31 +380,46 @@
 
     if (result.user) {
       state.user = result.user;
-
       saveState();
       renderAccount();
       updateGreeting();
 
-      showToast("تم إنشاء الحساب بنجاح");
+      showToast(
+        "تم إنشاء الحساب بنجاح"
+      );
       return;
     }
 
-    showToast(result.message || "تعذر إنشاء الحساب");
+    showToast(
+      result.message ||
+      "تعذر إنشاء الحساب"
+    );
   }
-     async function saveProfile() {
+
+  async function saveProfile() {
     if (!state.user) {
       showToast("سجلي الدخول أولاً");
       return;
     }
 
-    const name = $("#profileName")?.value.trim();
-    const email = $("#profileEmail")?.value.trim();
-    const phone = $("#profilePhone")?.value.trim();
-    const gender = $("#profileGender")?.value || "";
-    const ageValue = $("#profileAge")?.value;
+    const name =
+      $("#profileName")?.value.trim();
+
+    const email =
+      $("#profileEmail")?.value.trim();
+
+    const phone =
+      $("#profilePhone")?.value.trim();
+
+    const gender =
+      $("#profileGender")?.value || "";
+
+    const ageValue =
+      $("#profileAge")?.value;
 
     const age =
-      ageValue === "" || ageValue == null
+      ageValue === "" ||
+      ageValue == null
         ? null
         : Number(ageValue);
 
@@ -311,33 +428,37 @@
       return;
     }
 
-    const userId = state.user.id;
-
-    if (!userId) {
-      showToast("تعذر تحديد الحساب");
+    if (!state.user.id) {
+      showToast(
+        "تعذر تحديد الحساب"
+      );
       return;
     }
 
-    const result = await api(`/users/${userId}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        name,
-        email: email || null,
-        phone: phone || null,
-        gender: gender || null,
-        age
-      })
-    });
+    const result = await api(
+      `/users/${state.user.id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          name,
+          email: email || null,
+          phone: phone || null,
+          gender: gender || null,
+          age
+        })
+      }
+    );
 
     if (!result) {
-      showToast("تعذر حفظ البيانات حالياً");
+      showToast(
+        "تعذر حفظ البيانات حالياً"
+      );
       return;
     }
 
-    if (result.user) {
-      state.user = result.user;
-    } else {
-      state.user = {
+    state.user =
+      result.user ||
+      {
         ...state.user,
         name,
         email,
@@ -345,25 +466,33 @@
         gender,
         age
       };
-    }
 
     saveState();
-    updateGreeting();
     fillAccountProfile();
+    updateGreeting();
 
-    showToast("تم حفظ بياناتك بنجاح");
+    showToast(
+      getGenderGreeting(gender) ===
+        "نورتنا"
+        ? "تم حفظ البيانات — نورتنا"
+        : getGenderGreeting(gender) ===
+          "نورتينا"
+          ? "تم حفظ البيانات — نورتينا"
+          : "تم حفظ بياناتك بنجاح"
+    );
   }
 
   function logoutUser() {
     state.user = null;
-
     setToken(null);
     localStorage.removeItem("lf_user");
 
     renderAccount();
     updateGreeting();
 
-    showToast("تم تسجيل الخروج");
+    showToast(
+      "تم تسجيل الخروج"
+    );
   }
 
   /* =========================================================
@@ -384,33 +513,45 @@
     product: "productPage"
   };
 
-  function showPage(page) {
-    const pageId = pageMap[page];
+  function closeMobileMenu() {
+    $("#mainNav")?.classList.remove("open");
+    $("#mobileMenuButton")?.classList.remove("active");
+    document.body.classList.remove(
+      "menu-open"
+    );
+  }
 
-    if (!pageId) {
+  function showPage(page) {
+    if (!pageMap[page]) {
       page = "home";
     }
 
     state.page = page;
 
-    $$(".page-section").forEach((section) => {
-      section.classList.remove("active");
-      section.hidden = true;
-    });
+    $$(".page-section").forEach(
+      (section) => {
+        section.classList.remove(
+          "active"
+        );
+        section.hidden = true;
+      }
+    );
 
-    const target = $(`#${pageMap[page]}`);
+    const target =
+      $(`#${pageMap[page]}`);
 
     if (target) {
       target.hidden = false;
       target.classList.add("active");
     }
 
-    $$(".main-nav button[data-page]").forEach((button) => {
-      button.classList.toggle(
-        "active",
-        button.dataset.page === page
-      );
-    });
+    $$(".main-nav button[data-page]")
+      .forEach((button) => {
+        button.classList.toggle(
+          "active",
+          button.dataset.page === page
+        );
+      });
 
     window.scrollTo({
       top: 0,
@@ -429,35 +570,19 @@
         "",
         `#${page}`
       );
-    } catch {
-      // تجاهل مشاكل history في بعض البيئات
-    }
+    } catch {}
   }
 
   function handleHash() {
-    const hash = window.location.hash.replace("#", "");
+    const hash =
+      window.location.hash
+        .replace("#", "");
 
-    if (hash && pageMap[hash]) {
-      showPage(hash);
-    } else {
-      showPage("home");
-    }
-  }
-
-  /* =========================================================
-     MOBILE MENU
-     ========================================================= */
-
-  function openMobileMenu() {
-    $("#mainNav")?.classList.add("open");
-    $("#mobileMenuButton")?.classList.add("active");
-    document.body.classList.add("menu-open");
-  }
-
-  function closeMobileMenu() {
-    $("#mainNav")?.classList.remove("open");
-    $("#mobileMenuButton")?.classList.remove("active");
-    document.body.classList.remove("menu-open");
+    showPage(
+      hash && pageMap[hash]
+        ? hash
+        : "home"
+    );
   }
 
   function toggleMobileMenu() {
@@ -465,55 +590,40 @@
 
     if (!nav) return;
 
-    if (nav.classList.contains("open")) {
+    if (
+      nav.classList.contains("open")
+    ) {
       closeMobileMenu();
     } else {
-      openMobileMenu();
+      nav.classList.add("open");
+      $("#mobileMenuButton")
+        ?.classList.add("active");
+      document.body.classList.add(
+        "menu-open"
+      );
     }
   }
 
   /* =========================================================
-     TOAST
-     ========================================================= */
-
-  function showToast(message) {
-    let toast = $("#lfToast");
-
-    if (!toast) {
-      toast = document.createElement("div");
-      toast.id = "lfToast";
-      toast.className = "lf-toast";
-
-      document.body.appendChild(toast);
-    }
-
-    toast.textContent = message;
-    toast.classList.add("show");
-
-    clearTimeout(toast._timer);
-
-    toast._timer = setTimeout(() => {
-      toast.classList.remove("show");
-    }, 2800);
-  }
-
-  /* =========================================================
-     COUNTERS
+     COUNTERS / FAVORITES / CART
      ========================================================= */
 
   function updateCounters() {
     const cartCount = $("#cartCount");
-    const favoritesCount = $("#favoritesCount");
+    const favoritesCount =
+      $("#favoritesCount");
 
-    const cartTotal = state.cart.reduce(
-      (sum, item) => sum + Number(item.quantity || 1),
-      0
-    );
-
-    const favoritesTotal = state.favorites.length;
+    const cartTotal =
+      state.cart.reduce(
+        (sum, item) =>
+          sum +
+          Number(item.quantity || 1),
+        0
+      );
 
     if (cartCount) {
-      cartCount.textContent = cartTotal;
+      cartCount.textContent =
+        cartTotal;
       cartCount.classList.toggle(
         "has-items",
         cartTotal > 0
@@ -521,21 +631,20 @@
     }
 
     if (favoritesCount) {
-      favoritesCount.textContent = favoritesTotal;
+      favoritesCount.textContent =
+        state.favorites.length;
       favoritesCount.classList.toggle(
         "has-items",
-        favoritesTotal > 0
+        state.favorites.length > 0
       );
     }
   }
 
-  /* =========================================================
-     FAVORITES
-     ========================================================= */
-
   function isFavorite(productId) {
     return state.favorites.some(
-      (id) => String(id) === String(productId)
+      (id) =>
+        String(id) ===
+        String(productId)
     );
   }
 
@@ -543,74 +652,89 @@
     const id = String(productId);
 
     if (isFavorite(id)) {
-      state.favorites = state.favorites.filter(
-        (favoriteId) =>
-          String(favoriteId) !== id
-      );
+      state.favorites =
+        state.favorites.filter(
+          (favoriteId) =>
+            String(favoriteId) !== id
+        );
 
-      showToast("تمت إزالة المنتج من المفضلة");
+      showToast(
+        "تمت إزالة المنتج من المفضلة"
+      );
     } else {
       state.favorites.push(id);
 
-      showToast("تمت إضافة المنتج للمفضلة");
+      showToast(
+        "تمت إضافة المنتج للمفضلة"
+      );
     }
 
     saveState();
     updateCounters();
-
     renderProducts();
     renderFavorites();
   }
 
-  function getFavoriteProducts() {
-    return state.products.filter((product) =>
-      isFavorite(product.id)
-    );
-  }
-
-  /* =========================================================
-     CART
-     ========================================================= */
-
-  function getCartKey(productId, variantId = "") {
+  function getCartKey(
+    productId,
+    variantId = ""
+  ) {
     return `${productId}::${variantId || ""}`;
   }
 
-  function addToCart(product, quantity = 1, variant = null) {
+  function addToCart(
+    product,
+    quantity = 1,
+    variant = null
+  ) {
     if (!product) return;
 
     const productId = product.id;
+
     const variantId =
       variant?.id ||
       product.variant_id ||
       product.selectedVariantId ||
       "";
 
-    const stock = Number(
-      variant?.stock ??
-      product.stock ??
-      product.inventory ??
-      999999
-    );
+    const stock =
+      Number(
+        variant?.stock ??
+        product.stock ??
+        product.inventory ??
+        999999
+      );
 
-    const key = getCartKey(
-      productId,
-      variantId
-    );
+    const key =
+      getCartKey(
+        productId,
+        variantId
+      );
 
-    const existing = state.cart.find(
-      (item) => item.key === key
-    );
+    const existing =
+      state.cart.find(
+        (item) =>
+          item.key === key
+      );
 
-    const currentQuantity = existing
-      ? Number(existing.quantity || 0)
-      : 0;
+    const current =
+      existing
+        ? Number(
+            existing.quantity || 0
+          )
+        : 0;
 
     const requested =
-      currentQuantity + Number(quantity || 1);
+      current +
+      Number(quantity || 1);
 
-    if (Number.isFinite(stock) && requested > stock) {
-      showToast("الكمية خلصت، حقك علينا");
+    if (
+      Number.isFinite(stock) &&
+      requested > stock
+    ) {
+      showToast(
+        "الكمية خلصت، حقك علينا"
+      );
       return;
     }
 
@@ -642,7 +766,10 @@
     };
 
     if (existing) {
-      Object.assign(existing, item);
+      Object.assign(
+        existing,
+        item
+      );
     } else {
       state.cart.push(item);
     }
@@ -651,13 +778,20 @@
     updateCounters();
     renderCart();
 
-    showToast("تمت إضافة المنتج للسلة 🛒");
+    showToast(
+      "تمت إضافة المنتج للسلة 🛒"
+    );
   }
 
-  function changeCartQuantity(key, delta) {
-    const item = state.cart.find(
-      (cartItem) => cartItem.key === key
-    );
+  function changeCartQuantity(
+    key,
+    delta
+  ) {
+    const item =
+      state.cart.find(
+        (cartItem) =>
+          cartItem.key === key
+      );
 
     if (!item) return;
 
@@ -675,18 +809,24 @@
     saveState();
     updateCounters();
     renderCart();
+    renderCheckout();
   }
 
   function removeFromCart(key) {
-    state.cart = state.cart.filter(
-      (item) => item.key !== key
-    );
+    state.cart =
+      state.cart.filter(
+        (item) =>
+          item.key !== key
+      );
 
     saveState();
     updateCounters();
     renderCart();
+    renderCheckout();
 
-    showToast("تم حذف المنتج من السلة");
+    showToast(
+      "تم حذف المنتج من السلة"
+    );
   }
 
   function clearCart() {
@@ -695,6 +835,7 @@
     saveState();
     updateCounters();
     renderCart();
+    renderCheckout();
   }
 
   function getCartSubtotal() {
@@ -708,7 +849,7 @@
   }
 
   /* =========================================================
-     PRODUCTS HELPERS
+     PRODUCT HELPERS / CARDS
      ========================================================= */
 
   function productImage(product) {
@@ -750,43 +891,36 @@
   }
 
   function isSoldOut(product) {
-    const stock = productStock(product);
+    const stock =
+      productStock(product);
 
-    return stock !== null && stock <= 0;
+    return (
+      stock !== null &&
+      stock <= 0
+    );
   }
-     /* =========================================================
-     PRODUCT CARD
-     ========================================================= */
 
-  function renderProductCard(product, options = {}) {
+  function renderProductCard(product) {
     if (!product) return "";
 
-    const favorite = isFavorite(product.id);
-    const soldOut = isSoldOut(product);
+    const favorite =
+      isFavorite(product.id);
 
-    const price = productPrice(product);
-    const oldPrice = productOldPrice(product);
+    const soldOut =
+      isSoldOut(product);
+
+    const price =
+      productPrice(product);
+
+    const oldPrice =
+      productOldPrice(product);
 
     const hasDiscount =
-      oldPrice > price && price > 0;
-
-    const category =
-      product.category_name ||
-      product.category ||
-      "";
-
-    const brand =
-      product.brand_name ||
-      product.brand ||
-      "";
-
-    const image = productImage(product);
+      oldPrice > price &&
+      price > 0;
 
     return `
-      <article
-        class="product-card"
-        data-product-id="${escapeHTML(product.id)}"
-      >
+      <article class="product-card">
         <div class="product-card-image">
 
           <button
@@ -801,21 +935,13 @@
 
           ${
             hasDiscount
-              ? `
-                <span class="product-badge discount-badge">
-                  خصم
-                </span>
-              `
+              ? `<span class="product-badge discount-badge">خصم</span>`
               : ""
           }
 
           ${
             soldOut
-              ? `
-                <span class="product-badge sold-out-badge">
-                  SOLD OUT
-                </span>
-              `
+              ? `<span class="product-badge sold-out-badge">SOLD OUT</span>`
               : ""
           }
 
@@ -826,10 +952,9 @@
             data-product-id="${escapeHTML(product.id)}"
           >
             <img
-              src="${escapeHTML(image)}"
+              src="${escapeHTML(productImage(product))}"
               alt="${escapeHTML(product.name || "منتج")}"
               loading="lazy"
-              onerror="this.src='https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=800&q=80'"
             >
           </button>
         </div>
@@ -837,12 +962,9 @@
         <div class="product-card-body">
 
           ${
-            brand
-              ? `
-                <div class="product-brand">
-                  ${escapeHTML(brand)}
-                </div>
-              `
+            product.brand_name ||
+            product.brand
+              ? `<div class="product-brand">${escapeHTML(product.brand_name || product.brand)}</div>`
               : ""
           }
 
@@ -856,54 +978,28 @@
           </button>
 
           ${
-            category
-              ? `
-                <div class="product-category">
-                  ${escapeHTML(category)}
-                </div>
-              `
+            product.category_name ||
+            product.category
+              ? `<div class="product-category">${escapeHTML(product.category_name || product.category)}</div>`
               : ""
           }
 
           <div class="product-price-row">
-
             <strong class="product-price">
               ${money(price)}
             </strong>
 
             ${
               hasDiscount
-                ? `
-                  <span class="product-old-price">
-                    ${money(oldPrice)}
-                  </span>
-                `
+                ? `<span class="product-old-price">${money(oldPrice)}</span>`
                 : ""
             }
-
           </div>
 
           ${
             soldOut
-              ? `
-                <button
-                  class="add-to-cart-button disabled"
-                  type="button"
-                  disabled
-                >
-                  الكمية خلصت
-                </button>
-              `
-              : `
-                <button
-                  class="add-to-cart-button"
-                  type="button"
-                  data-action="add-cart"
-                  data-product-id="${escapeHTML(product.id)}"
-                >
-                  أضيفي للسلة 🛒
-                </button>
-              `
+              ? `<button class="add-to-cart-button disabled" disabled>الكمية خلصت</button>`
+              : `<button class="add-to-cart-button" type="button" data-action="add-cart" data-product-id="${escapeHTML(product.id)}">أضيفي للسلة 🛒</button>`
           }
 
         </div>
@@ -911,188 +1007,179 @@
     `;
   }
 
-  /* =========================================================
-     PRODUCTS FILTER
-     ========================================================= */
-
   function getFilteredProducts() {
-    let products = [...state.products];
+    let products =
+      [...state.products];
 
-    const filter = state.currentFilter || {};
+    const filter =
+      state.currentFilter || {};
 
     if (filter.category) {
-      const categoryValue =
-        String(filter.category).toLowerCase();
-
-      products = products.filter((product) => {
-        const value = String(
-          product.category_id ??
-          product.category ??
-          product.category_name ??
-          ""
+      const value =
+        String(
+          filter.category
         ).toLowerCase();
 
-        return value === categoryValue;
-      });
+      products =
+        products.filter(
+          (product) =>
+            String(
+              product.category_id ??
+              product.category ??
+              product.category_name ??
+              ""
+            ).toLowerCase() === value
+        );
     }
 
     if (filter.brand) {
-      const brandValue =
-        String(filter.brand).toLowerCase();
-
-      products = products.filter((product) => {
-        const value = String(
-          product.brand_id ??
-          product.brand ??
-          product.brand_name ??
-          ""
+      const value =
+        String(
+          filter.brand
         ).toLowerCase();
 
-        return value === brandValue;
-      });
+      products =
+        products.filter(
+          (product) =>
+            String(
+              product.brand_id ??
+              product.brand ??
+              product.brand_name ??
+              ""
+            ).toLowerCase() === value
+        );
     }
 
     if (filter.search) {
       const search =
-        String(filter.search)
+        String(
+          filter.search
+        )
           .trim()
           .toLowerCase();
 
-      if (search) {
-        products = products.filter((product) => {
-          const text = [
-            product.name,
-            product.description,
-            product.brand,
-            product.brand_name,
-            product.category,
-            product.category_name,
-            product.sku
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
+      products =
+        products.filter(
+          (product) => {
+            const text = [
+              product.name,
+              product.description,
+              product.brand,
+              product.brand_name,
+              product.category,
+              product.category_name,
+              product.sku
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
 
-          return text.includes(search);
-        });
-      }
+            return text.includes(search);
+          }
+        );
     }
 
     if (filter.offer) {
-      products = products.filter((product) => {
-        const price = productPrice(product);
-        const oldPrice = productOldPrice(product);
-
-        return (
-          oldPrice > price &&
-          price > 0
+      products =
+        products.filter(
+          (product) =>
+            productOldPrice(product) >
+            productPrice(product)
         );
-      });
     }
 
-    if (filter.sort) {
-      switch (filter.sort) {
-        case "price-low":
-          products.sort(
-            (a, b) =>
-              productPrice(a) -
-              productPrice(b)
-          );
-          break;
+    switch (filter.sort) {
+      case "price-low":
+        products.sort(
+          (a, b) =>
+            productPrice(a) -
+            productPrice(b)
+        );
+        break;
 
-        case "price-high":
-          products.sort(
-            (a, b) =>
-              productPrice(b) -
-              productPrice(a)
-          );
-          break;
+      case "price-high":
+        products.sort(
+          (a, b) =>
+            productPrice(b) -
+            productPrice(a)
+        );
+        break;
 
-        case "name":
-          products.sort((a, b) =>
-            String(a.name || "").localeCompare(
-              String(b.name || ""),
-              "ar"
-            )
-          );
-          break;
+      case "name":
+        products.sort(
+          (a, b) =>
+            String(a.name || "")
+              .localeCompare(
+                String(b.name || ""),
+                "ar"
+              )
+        );
+        break;
 
-        case "newest":
-          products.sort((a, b) =>
+      case "newest":
+        products.sort(
+          (a, b) =>
             String(
               b.created_at || ""
             ).localeCompare(
-              String(a.created_at || "")
+              String(
+                a.created_at || ""
+              )
             )
-          );
-          break;
-      }
+        );
+        break;
     }
 
     return products;
   }
 
-  /* =========================================================
-     RENDER PRODUCTS
-     ========================================================= */
-
   function renderProducts() {
-    const container = $("#productsGrid");
+    const container =
+      $("#productsGrid");
 
     if (!container) return;
 
-    const products = getFilteredProducts();
+    const products =
+      getFilteredProducts();
 
-    if (!products.length) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">🛍️</div>
-          <h3>ما لقينا منتجات</h3>
-          <p>جربي تغيير البحث أو التصنيف.</p>
-        </div>
-      `;
-
-      return;
-    }
-
-    container.innerHTML = products
-      .map((product) =>
-        renderProductCard(product)
-      )
-      .join("");
+    container.innerHTML =
+      products.length
+        ? products
+            .map(renderProductCard)
+            .join("")
+        : `
+          <div class="empty-state">
+            <div class="empty-state-icon">🛍️</div>
+            <h3>ما لقينا منتجات</h3>
+            <p>جربي تغيير البحث أو التصنيف.</p>
+          </div>
+        `;
   }
 
-  /* =========================================================
-     FAVORITES RENDER
-     ========================================================= */
-
   function renderFavorites() {
-    const container = $("#favoritesGrid");
+    const container =
+      $("#favoritesGrid");
 
     if (!container) return;
 
-    const products = getFavoriteProducts();
+    const products =
+      state.products.filter(
+        (product) =>
+          isFavorite(product.id)
+      );
 
-    if (!products.length) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">♡</div>
-          <h3>المفضلة فاضية</h3>
-          <p>
-            أضيفي المنتجات اللي بتحبيها للمفضلة
-            عشان تلاقيها بسرعة.
-          </p>
-        </div>
-      `;
-
-      return;
-    }
-
-    container.innerHTML = products
-      .map((product) =>
-        renderProductCard(product)
-      )
-      .join("");
+    container.innerHTML =
+      products.length
+        ? products
+            .map(renderProductCard)
+            .join("")
+        : `
+          <div class="empty-state">
+            <div class="empty-state-icon">♡</div>
+            <h3>المفضلة فاضية</h3>
+            <p>أضيفي المنتجات اللي بتحبيها للمفضلة.</p>
+          </div>
+        `;
   }
 
   /* =========================================================
@@ -1100,9 +1187,14 @@
      ========================================================= */
 
   function renderCart() {
-    const container = $("#cartItems");
-    const subtotalElement = $("#cartSubtotal");
-    const totalElement = $("#cartTotal");
+    const container =
+      $("#cartItems");
+
+    const subtotalElement =
+      $("#cartSubtotal");
+
+    const totalElement =
+      $("#cartTotal");
 
     if (!container) return;
 
@@ -1115,93 +1207,55 @@
         </div>
       `;
 
-      if (subtotalElement) {
-        subtotalElement.textContent = money(0);
-      }
+      if (subtotalElement)
+        subtotalElement.textContent =
+          money(0);
 
-      if (totalElement) {
-        totalElement.textContent = money(0);
-      }
+      if (totalElement)
+        totalElement.textContent =
+          money(0);
 
       return;
     }
 
-    container.innerHTML = state.cart
-      .map((item) => {
+    container.innerHTML =
+      state.cart.map((item) => {
         const total =
           Number(item.price || 0) *
           Number(item.quantity || 0);
 
         return `
-          <div
-            class="cart-item"
-            data-cart-key="${escapeHTML(item.key)}"
-          >
-
+          <div class="cart-item">
             <div class="cart-item-image">
               <img
-                src="${escapeHTML(
-                  item.image || productImage({})
-                )}"
+                src="${escapeHTML(item.image || productImage({}))}"
                 alt="${escapeHTML(item.name)}"
                 loading="lazy"
               >
             </div>
 
             <div class="cart-item-info">
-
-              <h3>
-                ${escapeHTML(item.name)}
-              </h3>
+              <h3>${escapeHTML(item.name)}</h3>
 
               ${
                 item.variantName
-                  ? `
-                    <div class="cart-item-variant">
-                      ${escapeHTML(item.variantName)}
-                    </div>
-                  `
+                  ? `<div class="cart-item-variant">${escapeHTML(item.variantName)}</div>`
                   : ""
               }
 
               ${
                 item.sku
-                  ? `
-                    <div class="cart-item-sku">
-                      SKU: ${escapeHTML(item.sku)}
-                    </div>
-                  `
+                  ? `<div class="cart-item-sku">SKU: ${escapeHTML(item.sku)}</div>`
                   : ""
               }
 
-              <strong>
-                ${money(item.price)}
-              </strong>
-
+              <strong>${money(item.price)}</strong>
             </div>
 
             <div class="cart-item-controls">
-
-              <button
-                type="button"
-                data-action="cart-minus"
-                data-cart-key="${escapeHTML(item.key)}"
-              >
-                −
-              </button>
-
-              <span>
-                ${Number(item.quantity || 0)}
-              </span>
-
-              <button
-                type="button"
-                data-action="cart-plus"
-                data-cart-key="${escapeHTML(item.key)}"
-              >
-                +
-              </button>
-
+              <button type="button" data-action="cart-minus" data-cart-key="${escapeHTML(item.key)}">−</button>
+              <span>${Number(item.quantity || 0)}</span>
+              <button type="button" data-action="cart-plus" data-cart-key="${escapeHTML(item.key)}">+</button>
             </div>
 
             <div class="cart-item-total">
@@ -1213,27 +1267,21 @@
               type="button"
               data-action="cart-remove"
               data-cart-key="${escapeHTML(item.key)}"
-              aria-label="حذف"
-            >
-              ×
-            </button>
-
+            >×</button>
           </div>
         `;
-      })
-      .join("");
+      }).join("");
 
-    const subtotal = getCartSubtotal();
+    const subtotal =
+      getCartSubtotal();
 
-    if (subtotalElement) {
+    if (subtotalElement)
       subtotalElement.textContent =
         money(subtotal);
-    }
 
-    if (totalElement) {
+    if (totalElement)
       totalElement.textContent =
         money(subtotal);
-    }
   }
 
   /* =========================================================
@@ -1241,30 +1289,34 @@
      ========================================================= */
 
   async function openProduct(productId) {
-    const product = state.products.find(
-      (item) =>
-        String(item.id) ===
-        String(productId)
-    );
-
-    if (!product) {
-      const result = await api(
-        `/products/${encodeURIComponent(productId)}`
+    let product =
+      state.products.find(
+        (item) =>
+          String(item.id) ===
+          String(productId)
       );
 
-      if (result?.product) {
-        state.currentProduct =
-          result.product;
-      } else {
-        showToast("تعذر فتح المنتج");
-        return;
-      }
-    } else {
-      state.currentProduct = product;
+    if (!product) {
+      const result =
+        await api(
+          `/products/${encodeURIComponent(productId)}`
+        );
+
+      product =
+        result?.product || null;
     }
 
-    renderProductDetails();
+    if (!product) {
+      showToast(
+        "تعذر فتح المنتج"
+      );
+      return;
+    }
 
+    state.currentProduct =
+      product;
+
+    renderProductDetails();
     navigate("product");
   }
 
@@ -1275,12 +1327,8 @@
     const container =
       $("#productDetails");
 
-    if (!product || !container) return;
-
-    const image = productImage(product);
-    const price = productPrice(product);
-    const oldPrice = productOldPrice(product);
-    const soldOut = isSoldOut(product);
+    if (!product || !container)
+      return;
 
     const variants =
       product.variants ||
@@ -1291,14 +1339,12 @@
       <div class="product-details-layout">
 
         <div class="product-details-gallery">
-
           <div class="product-main-image">
             <img
-              src="${escapeHTML(image)}"
+              src="${escapeHTML(productImage(product))}"
               alt="${escapeHTML(product.name || "")}"
             >
           </div>
-
         </div>
 
         <div class="product-details-info">
@@ -1306,82 +1352,49 @@
           ${
             product.brand_name ||
             product.brand
-              ? `
-                <div class="product-brand">
-                  ${escapeHTML(
-                    product.brand_name ||
-                    product.brand
-                  )}
-                </div>
-              `
+              ? `<div class="product-brand">${escapeHTML(product.brand_name || product.brand)}</div>`
               : ""
           }
 
-          <h1>
-            ${escapeHTML(product.name || "منتج")}
-          </h1>
+          <h1>${escapeHTML(product.name || "منتج")}</h1>
 
           ${
             product.description
-              ? `
-                <div class="product-description">
-                  ${escapeHTML(product.description)}
-                </div>
-              `
+              ? `<div class="product-description">${escapeHTML(product.description)}</div>`
               : ""
           }
 
           <div class="product-details-price">
-
-            <strong>
-              ${money(price)}
-            </strong>
+            <strong>${money(productPrice(product))}</strong>
 
             ${
-              oldPrice > price
-                ? `
-                  <del>
-                    ${money(oldPrice)}
-                  </del>
-                `
+              productOldPrice(product) >
+              productPrice(product)
+                ? `<del>${money(productOldPrice(product))}</del>`
                 : ""
             }
-
           </div>
 
           ${
             variants.length
               ? `
                 <div class="variant-selector">
-                  <label>
-                    اختاري الخيار
-                  </label>
-
+                  <label>اختاري الخيار</label>
                   <div class="variant-options">
-                    ${variants
-                      .map(
-                        (variant, index) => `
-                          <button
-                            type="button"
-                            class="variant-option ${
-                              index === 0
-                                ? "active"
-                                : ""
-                            }"
-                            data-variant-id="${escapeHTML(
-                              variant.id
-                            )}"
-                          >
-                            ${escapeHTML(
-                              variant.name ||
-                              variant.color ||
-                              variant.size ||
-                              `الخيار ${index + 1}`
-                            )}
-                          </button>
-                        `
-                      )
-                      .join("")}
+                    ${variants.map((variant, index) => `
+                      <button
+                        type="button"
+                        class="variant-option ${index === 0 ? "active" : ""}"
+                        data-variant-id="${escapeHTML(variant.id)}"
+                      >
+                        ${escapeHTML(
+                          variant.name ||
+                          variant.color ||
+                          variant.size ||
+                          `الخيار ${index + 1}`
+                        )}
+                      </button>
+                    `).join("")}
                   </div>
                 </div>
               `
@@ -1389,49 +1402,15 @@
           }
 
           <div class="product-quantity">
-
-            <button
-              type="button"
-              id="productQuantityMinus"
-            >
-              −
-            </button>
-
-            <input
-              id="productQuantity"
-              type="number"
-              min="1"
-              value="1"
-            >
-
-            <button
-              type="button"
-              id="productQuantityPlus"
-            >
-              +
-            </button>
-
+            <button type="button" id="productQuantityMinus">−</button>
+            <input id="productQuantity" type="number" min="1" value="1">
+            <button type="button" id="productQuantityPlus">+</button>
           </div>
 
           ${
-            soldOut
-              ? `
-                <button
-                  class="primary-button disabled"
-                  disabled
-                >
-                  الكمية خلصت، حقك علينا
-                </button>
-              `
-              : `
-                <button
-                  class="primary-button"
-                  id="productAddToCart"
-                  type="button"
-                >
-                  أضيفي للسلة 🛒
-                </button>
-              `
+            isSoldOut(product)
+              ? `<button class="primary-button disabled" disabled>الكمية خلصت، حقك علينا</button>`
+              : `<button class="primary-button" id="productAddToCart" type="button">أضيفي للسلة 🛒</button>`
           }
 
           <button
@@ -1447,114 +1426,130 @@
           </button>
 
         </div>
-
       </div>
     `;
 
     bindProductDetails();
   }
-     function bindProductDetails() {
-    const product = state.currentProduct;
+
+  function bindProductDetails() {
+    const product =
+      state.currentProduct;
 
     if (!product) return;
 
     const quantityInput =
       $("#productQuantity");
 
-    const minus =
-      $("#productQuantityMinus");
-
-    const plus =
-      $("#productQuantityPlus");
-
-    const addButton =
-      $("#productAddToCart");
-
-    const favoriteButton =
-      $("#productFavoriteButton");
-
-    let selectedVariant = null;
+    let selectedVariant =
+      (
+        product.variants ||
+        product.product_variants ||
+        []
+      )[0] || null;
 
     const variants =
       product.variants ||
       product.product_variants ||
       [];
 
-    if (variants.length) {
-      selectedVariant = variants[0];
-    }
+    $$(".variant-option")
+      .forEach((button) => {
+        button.addEventListener(
+          "click",
+          () => {
+            $$(".variant-option")
+              .forEach((item) =>
+                item.classList.remove(
+                  "active"
+                )
+              );
 
-    $$(".variant-option").forEach((button) => {
-      button.addEventListener("click", () => {
-        $$(".variant-option").forEach((item) =>
-          item.classList.remove("active")
+            button.classList.add(
+              "active"
+            );
+
+            selectedVariant =
+              variants.find(
+                (variant) =>
+                  String(variant.id) ===
+                  String(
+                    button.dataset.variantId
+                  )
+              ) || null;
+          }
         );
-
-        button.classList.add("active");
-
-        const variantId =
-          button.dataset.variantId;
-
-        selectedVariant =
-          variants.find(
-            (variant) =>
-              String(variant.id) ===
-              String(variantId)
-          ) || null;
       });
-    });
 
-    minus?.addEventListener("click", () => {
-      if (!quantityInput) return;
+    $("#productQuantityMinus")
+      ?.addEventListener(
+        "click",
+        () => {
+          if (!quantityInput) return;
 
-      const current =
-        Number(quantityInput.value || 1);
-
-      quantityInput.value =
-        Math.max(1, current - 1);
-    });
-
-    plus?.addEventListener("click", () => {
-      if (!quantityInput) return;
-
-      const current =
-        Number(quantityInput.value || 1);
-
-      quantityInput.value =
-        current + 1;
-    });
-
-    addButton?.addEventListener("click", () => {
-      const quantity =
-        Math.max(
-          1,
-          Number(quantityInput?.value || 1)
-        );
-
-      addToCart(
-        product,
-        quantity,
-        selectedVariant
-      );
-    });
-
-    favoriteButton?.addEventListener(
-      "click",
-      () => {
-        toggleFavorite(product.id);
-
-        if (favoriteButton) {
-          favoriteButton.textContent =
-            isFavorite(product.id)
-              ? "♥ إزالة من المفضلة"
-              : "♡ أضيفي للمفضلة";
+          quantityInput.value =
+            Math.max(
+              1,
+              Number(
+                quantityInput.value || 1
+              ) - 1
+            );
         }
-      }
-    );
+      );
+
+    $("#productQuantityPlus")
+      ?.addEventListener(
+        "click",
+        () => {
+          if (!quantityInput) return;
+
+          quantityInput.value =
+            Number(
+              quantityInput.value || 1
+            ) + 1;
+        }
+      );
+
+    $("#productAddToCart")
+      ?.addEventListener(
+        "click",
+        () => {
+          addToCart(
+            product,
+            Math.max(
+              1,
+              Number(
+                quantityInput?.value || 1
+              )
+            ),
+            selectedVariant
+          );
+        }
+      );
+
+    $("#productFavoriteButton")
+      ?.addEventListener(
+        "click",
+        () => {
+          toggleFavorite(
+            product.id
+          );
+
+          const button =
+            $("#productFavoriteButton");
+
+          if (button) {
+            button.textContent =
+              isFavorite(product.id)
+                ? "♥ إزالة من المفضلة"
+                : "♡ أضيفي للمفضلة";
+          }
+        }
+      );
   }
 
   /* =========================================================
-     CATEGORIES
+     CATEGORIES / BRANDS / OFFERS
      ========================================================= */
 
   function renderCategories() {
@@ -1563,72 +1558,40 @@
 
     if (!container) return;
 
-    if (!state.categories.length) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">🛍️</div>
-          <h3>التصنيفات قيد التجهيز</h3>
-          <p>رح تظهر التصنيفات هون قريباً.</p>
-        </div>
-      `;
-
-      return;
-    }
-
     container.innerHTML =
-      state.categories
-        .map((category) => {
-          const image =
-            category.image_url ||
-            category.image ||
-            "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=800&q=80";
+      state.categories.length
+        ? state.categories.map(
+            (category) => `
+              <button
+                type="button"
+                class="category-card"
+                data-action="category"
+                data-category-id="${escapeHTML(category.id)}"
+              >
+                <div class="category-image">
+                  <img
+                    src="${escapeHTML(
+                      category.image_url ||
+                      category.image ||
+                      "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=800&q=80"
+                    )}"
+                    alt="${escapeHTML(category.name || "")}"
+                    loading="lazy"
+                  >
+                </div>
 
-          return `
-            <button
-              type="button"
-              class="category-card"
-              data-action="category"
-              data-category-id="${escapeHTML(
-                category.id
-              )}"
-            >
-
-              <div class="category-image">
-                <img
-                  src="${escapeHTML(image)}"
-                  alt="${escapeHTML(
-                    category.name || ""
-                  )}"
-                  loading="lazy"
-                >
-              </div>
-
-              <div class="category-card-content">
-                <strong>
-                  ${escapeHTML(
-                    category.name || "تصنيف"
-                  )}
-                </strong>
-              </div>
-
-            </button>
-          `;
-        })
-        .join("");
+                <div class="category-card-content">
+                  <strong>${escapeHTML(category.name || "تصنيف")}</strong>
+                </div>
+              </button>
+            `
+          ).join("")
+        : `
+          <div class="empty-state">
+            <h3>التصنيفات قيد التجهيز</h3>
+          </div>
+        `;
   }
-
-  function openCategory(categoryId) {
-    state.currentFilter = {
-      category: categoryId
-    };
-
-    renderProducts();
-    navigate("products");
-  }
-
-  /* =========================================================
-     BRANDS
-     ========================================================= */
 
   function renderBrands() {
     const container =
@@ -1636,81 +1599,34 @@
 
     if (!container) return;
 
-    if (!state.brands.length) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">✨</div>
-          <h3>الماركات قيد التجهيز</h3>
-          <p>رح تظهر الماركات هون قريباً.</p>
-        </div>
-      `;
-
-      return;
-    }
-
     container.innerHTML =
-      state.brands
-        .map((brand) => {
-          const image =
-            brand.image_url ||
-            brand.logo_url ||
-            brand.image ||
-            "";
+      state.brands.length
+        ? state.brands.map(
+            (brand) => `
+              <button
+                type="button"
+                class="brand-card"
+                data-action="brand"
+                data-brand-id="${escapeHTML(brand.id)}"
+              >
+                ${
+                  brand.image_url ||
+                  brand.logo_url ||
+                  brand.image
+                    ? `<div class="brand-image"><img src="${escapeHTML(brand.image_url || brand.logo_url || brand.image)}" alt="${escapeHTML(brand.name || "")}"></div>`
+                    : `<div class="brand-placeholder">✦</div>`
+                }
 
-          return `
-            <button
-              type="button"
-              class="brand-card"
-              data-action="brand"
-              data-brand-id="${escapeHTML(
-                brand.id
-              )}"
-            >
-
-              ${
-                image
-                  ? `
-                    <div class="brand-image">
-                      <img
-                        src="${escapeHTML(image)}"
-                        alt="${escapeHTML(
-                          brand.name || ""
-                        )}"
-                        loading="lazy"
-                      >
-                    </div>
-                  `
-                  : `
-                    <div class="brand-placeholder">
-                      ✦
-                    </div>
-                  `
-              }
-
-              <strong>
-                ${escapeHTML(
-                  brand.name || "ماركة"
-                )}
-              </strong>
-
-            </button>
-          `;
-        })
-        .join("");
+                <strong>${escapeHTML(brand.name || "ماركة")}</strong>
+              </button>
+            `
+          ).join("")
+        : `
+          <div class="empty-state">
+            <h3>الماركات قيد التجهيز</h3>
+          </div>
+        `;
   }
-
-  function openBrand(brandId) {
-    state.currentFilter = {
-      brand: brandId
-    };
-
-    renderProducts();
-    navigate("products");
-  }
-
-  /* =========================================================
-     OFFERS
-     ========================================================= */
 
   function renderOffers() {
     const container =
@@ -1721,34 +1637,38 @@
     const offers =
       state.offers.length
         ? state.offers
-        : state.products.filter((product) => {
-            const price = productPrice(product);
-            const oldPrice =
-              productOldPrice(product);
+        : state.products.filter(
+            (product) =>
+              productOldPrice(product) >
+              productPrice(product)
+          );
 
-            return (
-              oldPrice > price &&
-              price > 0
-            );
-          });
+    container.innerHTML =
+      offers.length
+        ? offers.map(
+            renderProductCard
+          ).join("")
+        : `
+          <div class="empty-state">
+            <h3>ما في عروض حالياً</h3>
+          </div>
+        `;
+  }
 
-    if (!offers.length) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">🎁</div>
-          <h3>ما في عروض حالياً</h3>
-          <p>تابعي الصفحة للعروض الجديدة.</p>
-        </div>
-      `;
+  function openCategory(id) {
+    state.currentFilter = {
+      category: id
+    };
+    renderProducts();
+    navigate("products");
+  }
 
-      return;
-    }
-
-    container.innerHTML = offers
-      .map((product) =>
-        renderProductCard(product)
-      )
-      .join("");
+  function openBrand(id) {
+    state.currentFilter = {
+      brand: id
+    };
+    renderProducts();
+    navigate("products");
   }
 
   /* =========================================================
@@ -1761,27 +1681,14 @@
   ) {
     if (!container) return;
 
-    if (!products?.length) {
-      container.innerHTML = `
-        <div class="empty-state compact">
-          <p>لسه ما في منتجات بهالقائمة.</p>
-        </div>
-      `;
-
-      return;
-    }
-
-    container.innerHTML = `
-      <div class="mini-slider-track">
-        ${products
-          .map((product) =>
-            renderProductCard(product, {
-              mini: true
-            })
-          )
-          .join("")}
-      </div>
-    `;
+    container.innerHTML =
+      products?.length
+        ? `<div class="mini-slider-track">${products.map(renderProductCard).join("")}</div>`
+        : `
+          <div class="empty-state compact">
+            <p>لسه ما في منتجات بهالقائمة.</p>
+          </div>
+        `;
   }
 
   function renderTopFive() {
@@ -1803,12 +1710,11 @@
      ========================================================= */
 
   function renderHero() {
-    const slides =
-      state.heroSlides ||
-      [];
-
     const container =
       $("#heroSlider");
+
+    const slides =
+      state.heroSlides || [];
 
     if (!container) return;
 
@@ -1816,30 +1722,15 @@
       container.innerHTML = `
         <div class="hero-slide active">
           <div class="hero-slide-content">
-            <span class="hero-kicker">
-              Ladies First
-            </span>
-
-            <h1>
-              لأنك أولاً
-            </h1>
-
-            <p>
-              اكتشفي اختياراتنا من الأزياء
-              والجمال والإكسسوارات.
-            </p>
-
-            <button
-              type="button"
-              class="primary-button"
-              data-action="go-products"
-            >
+            <span class="hero-kicker">Ladies First</span>
+            <h1>لأنك أولاً</h1>
+            <p>اكتشفي اختياراتنا من الأزياء والجمال والإكسسوارات.</p>
+            <button type="button" class="primary-button" data-action="go-products">
               تسوقي الآن
             </button>
           </div>
         </div>
       `;
-
       return;
     }
 
@@ -1847,125 +1738,78 @@
       Math.max(
         0,
         Math.min(
-          state.heroIndex || 0,
+          state.heroIndex,
           slides.length - 1
         )
       );
 
     container.innerHTML =
-      slides
-        .map((slide, slideIndex) => {
-          const image =
-            slide.image_url ||
-            slide.image ||
-            "";
+      slides.map(
+        (slide, slideIndex) => `
+          <div
+            class="hero-slide ${slideIndex === index ? "active" : ""}"
+            style="${
+              slide.image_url || slide.image
+                ? `background-image:url('${escapeHTML(slide.image_url || slide.image)}')`
+                : ""
+            }"
+          >
+            <div class="hero-slide-overlay"></div>
 
-          return `
-            <div
-              class="hero-slide ${
-                slideIndex === index
-                  ? "active"
+            <div class="hero-slide-content">
+              ${
+                slide.kicker
+                  ? `<span class="hero-kicker">${escapeHTML(slide.kicker)}</span>`
                   : ""
-              }"
-              data-hero-index="${slideIndex}"
-              style="${
-                image
-                  ? `background-image:url('${escapeHTML(
-                      image
-                    )}')`
+              }
+
+              <h1>${escapeHTML(slide.title || "لأنك أولاً")}</h1>
+
+              ${
+                slide.subtitle
+                  ? `<p>${escapeHTML(slide.subtitle)}</p>`
                   : ""
-              }"
-            >
+              }
 
-              <div class="hero-slide-overlay"></div>
-
-              <div class="hero-slide-content">
-
-                ${
-                  slide.kicker
-                    ? `
-                      <span class="hero-kicker">
-                        ${escapeHTML(
-                          slide.kicker
-                        )}
-                      </span>
-                    `
-                    : ""
-                }
-
-                <h1>
-                  ${escapeHTML(
-                    slide.title ||
-                    "لأنك أولاً"
-                  )}
-                </h1>
-
-                ${
-                  slide.subtitle
-                    ? `
-                      <p>
-                        ${escapeHTML(
-                          slide.subtitle
-                        )}
-                      </p>
-                    `
-                    : ""
-                }
-
-                <button
-                  type="button"
-                  class="primary-button"
-                  data-action="hero-action"
-                  data-hero-action="${
-                    escapeHTML(
-                      slide.action ||
-                      "products"
-                    )
-                  }"
-                >
-                  ${escapeHTML(
-                    slide.button_text ||
-                    "تسوقي الآن"
-                  )}
-                </button>
-
-              </div>
+              <button
+                type="button"
+                class="primary-button"
+                data-action="hero-action"
+                data-hero-action="${escapeHTML(slide.action || "products")}"
+              >
+                ${escapeHTML(slide.button_text || "تسوقي الآن")}
+              </button>
             </div>
-          `;
-        })
-        .join("");
+          </div>
+        `
+      ).join("");
 
-    renderHeroDots(slides.length);
+    renderHeroDots(
+      slides.length
+    );
   }
 
   function renderHeroDots(count) {
-    const dots =
+    const container =
       $("#heroDots");
 
-    if (!dots) return;
+    if (!container) return;
 
-    if (count <= 1) {
-      dots.innerHTML = "";
-      return;
-    }
-
-    dots.innerHTML =
-      Array.from(
-        { length: count },
-        (_, index) => `
-          <button
-            type="button"
-            class="hero-dot ${
-              index === state.heroIndex
-                ? "active"
-                : ""
-            }"
-            data-action="hero-dot"
-            data-index="${index}"
-            aria-label="الشريحة ${index + 1}"
-          ></button>
-        `
-      ).join("");
+    container.innerHTML =
+      count <= 1
+        ? ""
+        : Array.from(
+            { length: count },
+            (_, index) => `
+              <button
+                type="button"
+                class="hero-dot ${index === state.heroIndex ? "active" : ""}"
+                data-action="hero-dot"
+                data-index="${index}"
+                aria-label="الشريحة ${index + 1}"
+              ></button>
+            `
+          ).join("");
   }
 
   function setHero(index) {
@@ -1983,13 +1827,13 @@
 
   function nextHero() {
     setHero(
-      Number(state.heroIndex || 0) + 1
+      state.heroIndex + 1
     );
   }
 
   function previousHero() {
     setHero(
-      Number(state.heroIndex || 0) - 1
+      state.heroIndex - 1
     );
   }
 
@@ -1998,15 +1842,18 @@
       state.heroTimer
     );
 
-    const slides =
-      state.heroSlides || [];
-
-    if (slides.length <= 1) return;
+    if (
+      !state.heroSlides ||
+      state.heroSlides.length <= 1
+    ) {
+      return;
+    }
 
     state.heroTimer =
-      setInterval(() => {
-        nextHero();
-      }, 6000);
+      setInterval(
+        nextHero,
+        6000
+      );
   }
 
   /* =========================================================
@@ -2015,19 +1862,20 @@
 
   function performSearch(value) {
     state.currentFilter = {
-      search: String(value || "").trim()
+      search:
+        String(value || "")
+          .trim()
     };
 
     renderProducts();
-
     navigate("products");
   }
 
   function openSearch() {
-    const search =
+    const panel =
       $("#searchPanel");
 
-    if (!search) {
+    if (!panel) {
       const value =
         window.prompt(
           "عن شو بدك تدوري؟"
@@ -2040,23 +1888,212 @@
       return;
     }
 
-    search.classList.add("open");
-
-    const input =
-      $("#searchInput");
-
-    input?.focus();
+    panel.classList.add("open");
+    $("#searchInput")?.focus();
   }
 
   function closeSearch() {
-    $("#searchPanel")?.classList.remove(
-      "open"
-    );
+    $("#searchPanel")
+      ?.classList.remove("open");
   }
 
   /* =========================================================
-     CHECKOUT
+     CHECKOUT / PAYMENT
      ========================================================= */
+
+  function getSettingNumber(...keys) {
+    const settings =
+      state.settings || {};
+
+    for (const key of keys) {
+      const value =
+        settings[key];
+
+      if (
+        value !== undefined &&
+        value !== null &&
+        value !== "" &&
+        Number.isFinite(
+          Number(value)
+        )
+      ) {
+        return Number(value);
+      }
+    }
+
+    return 0;
+  }
+
+  function getSelectedPaymentMethod() {
+    const selected =
+      document.querySelector(
+        'input[name="payment_method"]:checked'
+      );
+
+    return selected?.value === "visa"
+      ? "visa"
+      : "cash";
+  }
+
+  function calculateCheckoutPreview() {
+    const subtotal =
+      getCartSubtotal();
+
+    const paymentMethod =
+      getSelectedPaymentMethod();
+
+    const visaDiscountPercent =
+      getSettingNumber(
+        "visa_discount_percent",
+        "visaDiscountPercent",
+        "visa_discount"
+      );
+
+    const shipping =
+      getSettingNumber(
+        "shipping",
+        "shipping_fee",
+        "shippingFee",
+        "delivery_fee",
+        "deliveryFee"
+      );
+
+    const packaging =
+      getSettingNumber(
+        "packaging",
+        "packaging_fee",
+        "packagingFee"
+      );
+
+    const discount =
+      paymentMethod === "visa"
+        ? Math.min(
+            subtotal,
+            subtotal *
+              visaDiscountPercent /
+              100
+          )
+        : 0;
+
+    const pointsRate =
+      getSettingNumber(
+        "loyalty_points_per_currency",
+        "loyaltyPointsPerCurrency"
+      );
+
+    const points =
+      Math.max(
+        0,
+        Math.floor(
+          Math.max(
+            0,
+            subtotal - discount
+          ) * pointsRate
+        )
+      );
+
+    const total =
+      Math.max(
+        0,
+        subtotal +
+          shipping +
+          packaging -
+          discount
+      );
+
+    return {
+      subtotal,
+      paymentMethod,
+      visaDiscountPercent,
+      discount,
+      shipping,
+      packaging,
+      points,
+      total
+    };
+  }
+
+  function updateCheckoutPaymentUI() {
+    const preview =
+      calculateCheckoutPreview();
+
+    const discountRow =
+      $("#checkoutVisaDiscountRow");
+
+    const discountElement =
+      $("#checkoutVisaDiscount");
+
+    const shippingElement =
+      $("#checkoutShipping");
+
+    const packagingElement =
+      $("#checkoutPackaging");
+
+    const totalElement =
+      $("#checkoutTotal");
+
+    const pointsElement =
+      $("#checkoutPoints");
+
+    const visaMessage =
+      $("#visaDiscountMessage");
+
+    if (discountRow) {
+      discountRow.classList.toggle(
+        "hidden",
+        preview.discount <= 0
+      );
+    }
+
+    if (discountElement) {
+      discountElement.textContent =
+        money(preview.discount);
+    }
+
+    if (shippingElement) {
+      shippingElement.textContent =
+        money(preview.shipping);
+    }
+
+    if (packagingElement) {
+      packagingElement.textContent =
+        money(preview.packaging);
+    }
+
+    if (totalElement) {
+      totalElement.textContent =
+        money(preview.total);
+    }
+
+    if (pointsElement) {
+      pointsElement.textContent =
+        Number(
+          preview.points || 0
+        ).toLocaleString("ar");
+    }
+
+    if (visaMessage) {
+      visaMessage.textContent =
+        preview.visaDiscountPercent > 0
+          ? "عند اختيار Visa سيتم خصم " +
+            preview.visaDiscountPercent +
+            "% من قيمة المنتجات."
+          : "الدفع بالفيزا متاح، ولا يوجد خصم Visa مفعّل حالياً.";
+    }
+  }
+
+  function bindCheckoutPaymentOptions() {
+    $$(
+      'input[name="payment_method"]'
+    ).forEach((input) => {
+      input.addEventListener(
+        "change",
+        updateCheckoutPaymentUI
+      );
+    });
+
+    updateCheckoutPaymentUI();
+  }
 
   function renderCheckout() {
     const subtotal =
@@ -2065,93 +2102,273 @@
     const subtotalElement =
       $("#checkoutSubtotal");
 
-    const totalElement =
-      $("#checkoutTotal");
-
     if (subtotalElement) {
       subtotalElement.textContent =
         money(subtotal);
     }
 
-    if (totalElement) {
-      totalElement.textContent =
-        money(subtotal);
-    }
+    updateCheckoutPaymentUI();
   }
-     /* =========================================================
-     STORE / HOME DATA
-     ========================================================= */
 
-  async function loadStore() {
-    const result = await api("/store/home");
-
-    if (!result) {
-      showToast("تعذر تحميل المتجر حالياً");
+  async function submitOrder() {
+    if (state.orderSubmitting) {
       return;
     }
 
-    state.products =
-      Array.isArray(result.products)
-        ? result.products
-        : [];
+    if (!state.cart.length) {
+      showToast(
+        "السلة فاضية"
+      );
+      return;
+    }
 
-    state.categories =
-      Array.isArray(result.categories)
-        ? result.categories
-        : [];
+    const name =
+      $("#checkoutName")?.value.trim();
 
-    state.brands =
-      Array.isArray(result.brands)
-        ? result.brands
-        : [];
+    const phone =
+      $("#checkoutPhone")?.value.trim();
 
-    state.offers =
-      Array.isArray(result.offers)
-        ? result.offers
-        : [];
+    const address =
+      $("#checkoutAddress")?.value.trim();
 
-    state.topFive =
-      Array.isArray(result.topFive)
-        ? result.topFive
-        : [];
+    const notes =
+      $("#checkoutNotes")?.value.trim();
 
-    state.bestSellers =
-      Array.isArray(result.bestSellers)
-        ? result.bestSellers
-        : [];
+    const paymentMethod =
+      getSelectedPaymentMethod();
 
-    state.heroSlides =
-      Array.isArray(result.heroSlides)
-        ? result.heroSlides
-        : Array.isArray(result.hero)
-          ? result.hero
-          : [];
+    if (!name || !phone) {
+      showToast(
+        "الاسم ورقم الهاتف مطلوبان"
+      );
+      return;
+    }
 
-    renderAllStoreSections();
-  }
+    const orderItems =
+      state.cart.map((item) => ({
+        product_id:
+          item.productId,
+        variant_id:
+          item.variantId ||
+          null,
+        quantity:
+          Number(
+            item.quantity || 1
+          ),
+        unit_price:
+          Number(
+            item.price || 0
+          )
+      }));
 
-  function renderAllStoreSections() {
-    renderHero();
-    renderProducts();
-    renderFavorites();
+    const preview =
+      calculateCheckoutPreview();
+
+    const payload = {
+      customer_name: name,
+      customer_phone: phone,
+      shipping_address:
+        address || "",
+      notes: notes || "",
+      items: orderItems,
+      subtotal:
+        preview.subtotal,
+      total:
+        preview.total,
+      payment_method:
+        paymentMethod,
+      paymentMethod
+    };
+
+    state.orderSubmitting = true;
+
+    const button =
+      $("#submitOrderButton") ||
+      $("#checkoutButton");
+
+    if (button) {
+      button.disabled = true;
+      button.textContent =
+        "جاري إرسال الطلب...";
+    }
+
+    let result = null;
+
+    try {
+      result = await api(
+        "/orders",
+        {
+          method: "POST",
+          body: JSON.stringify(
+            payload
+          )
+        }
+      );
+    } finally {
+      state.orderSubmitting =
+        false;
+
+      if (button) {
+        button.disabled = false;
+        button.textContent =
+          "تأكيد الطلب";
+      }
+    }
+
+    if (!result) {
+      showToast(
+        "تعذر إرسال الطلب حالياً"
+      );
+      return;
+    }
+
+    if (
+      result.error ===
+        "OUT_OF_STOCK" ||
+      result.code ===
+        "OUT_OF_STOCK"
+    ) {
+      showToast(
+        "الكمية خلصت، حقك علينا"
+      );
+      return;
+    }
+
+    if (
+      result.ok === false &&
+      result.message
+    ) {
+      showToast(
+        result.message
+      );
+      return;
+    }
+
+    const order =
+      result.order || result;
+
+    const orderNumber =
+      order.order_number ||
+      order.orderNumber ||
+      order.id ||
+      "";
+
+    const returnedTotal =
+      Number(
+        order.total ??
+        order.total_amount ??
+        preview.total
+      );
+
+    const returnedDiscount =
+      Number(
+        order.visaDiscount ??
+        order.visa_discount ??
+        preview.discount
+      );
+
+    const returnedPoints =
+      Number(
+        order.loyaltyPoints ??
+        order.loyalty_points_awarded ??
+        preview.points
+      );
+
+    state.cart = [];
+    saveState();
+    updateCounters();
     renderCart();
     renderCheckout();
 
-    renderCategories();
-    renderBrands();
-    renderOffers();
+    showToast(
+      returnedPoints > 0
+        ? "تم إرسال طلبك بنجاح ❤️ وأضيفت " +
+          returnedPoints.toLocaleString("ar") +
+          " نقطة"
+        : "تم إرسال طلبك بنجاح ❤️"
+    );
 
-    renderTopFive();
-    renderBestSellers();
+    if (orderNumber) {
+      const message = [
+        "🛍️ طلب جديد من Ladies First",
+        "",
+        `رقم الطلب: ${orderNumber}`,
+        `الاسم: ${name}`,
+        `الهاتف: ${phone}`,
+        `طريقة الدفع: ${
+          paymentMethod === "visa"
+            ? "Visa"
+            : "الدفع عند الاستلام"
+        }`,
+        returnedDiscount > 0
+          ? `خصم Visa: ${money(returnedDiscount)}`
+          : "",
+        `الإجمالي: ${money(returnedTotal)}`
+      ]
+        .filter(Boolean)
+        .join("\n");
 
-    updateCounters();
+      openWhatsApp(
+        message
+      );
+    }
+
+    navigate("home");
+  }
+
+  /*
+   * index.html may use onclick="submitOrder()".
+   * Expose the function globally while keeping the rest private.
+   */
+  window.submitOrder =
+    submitOrder;
+
+  /* =========================================================
+     WHATSAPP
+     ========================================================= */
+
+  function getWhatsAppNumber() {
+    return "0562499924";
+  }
+
+  function openWhatsApp(message = "") {
+    const cleanNumber =
+      getWhatsAppNumber()
+        .replace(/[^\d]/g, "");
+
+    const url =
+      `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
+
+    window.open(
+      url,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+
+  function shareProductWhatsApp(product) {
+    if (!product) return;
+
+    openWhatsApp(
+      [
+        "🛍️ Ladies First",
+        "",
+        product.name ||
+          "منتج",
+        `السعر: ${money(productPrice(product))}`,
+        "",
+        "شوفي المنتج على متجر Ladies First."
+      ].join("\n")
+    );
   }
 
   /* =========================================================
      COMPLEMENTARY PRODUCTS
      ========================================================= */
 
-  function getComplementaryProducts(product) {
+  function getComplementaryProducts(
+    product
+  ) {
     if (!product) return [];
 
     const explicit =
@@ -2159,7 +2376,10 @@
       product.recommended_products ||
       product.recommendations;
 
-    if (Array.isArray(explicit) && explicit.length) {
+    if (
+      Array.isArray(explicit) &&
+      explicit.length
+    ) {
       return explicit;
     }
 
@@ -2178,263 +2398,54 @@
           return false;
         }
 
-        if (
-          categoryId &&
-          String(item.category_id) ===
-          String(categoryId)
-        ) {
-          return true;
-        }
-
-        if (
-          brandId &&
-          String(item.brand_id) ===
-          String(brandId)
-        ) {
-          return true;
-        }
-
-        return false;
+        return (
+          (categoryId &&
+            String(
+              item.category_id
+            ) ===
+              String(categoryId)) ||
+          (brandId &&
+            String(
+              item.brand_id
+            ) ===
+              String(brandId))
+        );
       })
       .slice(0, 6);
   }
 
-  function renderComplementaryProducts(product) {
+  function renderComplementaryProducts(
+    product
+  ) {
     const container =
       $("#complementaryProducts");
 
     if (!container) return;
 
     const products =
-      getComplementaryProducts(product);
+      getComplementaryProducts(
+        product
+      );
 
-    if (!products.length) {
-      container.innerHTML = "";
-      return;
-    }
+    container.innerHTML =
+      products.length
+        ? `
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">يكمل اللوك</span>
+              <h2>بيلبق معه ✨</h2>
+            </div>
+          </div>
 
-    container.innerHTML = `
-      <div class="section-heading">
-        <div>
-          <span class="section-kicker">
-            يكمل اللوك
-          </span>
-
-          <h2>
-            بيلبق معه ✨
-          </h2>
-        </div>
-      </div>
-
-      <div class="mini-slider-track">
-        ${products
-          .map((item) =>
-            renderProductCard(item, {
-              mini: true
-            })
-          )
-          .join("")}
-      </div>
-    `;
+          <div class="mini-slider-track">
+            ${products.map(renderProductCard).join("")}
+          </div>
+        `
+        : "";
   }
 
   /* =========================================================
-     WHATSAPP
-     ========================================================= */
-
-  function getWhatsAppNumber() {
-    return (
-      state.settings?.whatsapp ||
-      state.settings?.whatsapp_number ||
-      ""
-    );
-  }
-
-  function openWhatsApp(message = "") {
-    const number =
-      getWhatsAppNumber();
-
-    const encoded =
-      encodeURIComponent(message);
-
-    const cleanNumber =
-      String(number)
-        .replace(/[^\d+]/g, "");
-
-    const url = cleanNumber
-      ? `https://wa.me/${cleanNumber.replace(
-          /^\+/,
-          ""
-        )}?text=${encoded}`
-      : `https://wa.me/?text=${encoded}`;
-
-    window.open(
-      url,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  }
-
-  function shareProductWhatsApp(product) {
-    if (!product) return;
-
-    const price =
-      money(productPrice(product));
-
-    const message = [
-      "🛍️ Ladies First",
-      "",
-      product.name || "منتج",
-      `السعر: ${price}`,
-      "",
-      "شوفي المنتج على متجر Ladies First."
-    ].join("\n");
-
-    openWhatsApp(message);
-  }
-
-  function shareOfferWhatsApp(product) {
-    if (!product) return;
-
-    const price =
-      money(productPrice(product));
-
-    const oldPrice =
-      productOldPrice(product);
-
-    const message = [
-      "🎁 عرض من Ladies First",
-      "",
-      product.name || "منتج",
-      `السعر الحالي: ${price}`,
-      oldPrice > productPrice(product)
-        ? `السعر السابق: ${money(oldPrice)}`
-        : "",
-      "",
-      "✨ لا تفوتي العرض!"
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    openWhatsApp(message);
-  }
-
-  /* =========================================================
-     ORDER
-     ========================================================= */
-
-  async function submitOrder() {
-    if (!state.cart.length) {
-      showToast("السلة فاضية");
-      return;
-    }
-
-    const name =
-      $("#checkoutName")?.value.trim();
-
-    const phone =
-      $("#checkoutPhone")?.value.trim();
-
-    const address =
-      $("#checkoutAddress")?.value.trim();
-
-    const notes =
-      $("#checkoutNotes")?.value.trim();
-
-    if (!name || !phone) {
-      showToast(
-        "الاسم ورقم الهاتف مطلوبان"
-      );
-      return;
-    }
-
-    const subtotal =
-      getCartSubtotal();
-
-    const orderItems =
-      state.cart.map((item) => ({
-        product_id: item.productId,
-        variant_id:
-          item.variantId || null,
-        quantity: Number(
-          item.quantity || 1
-        ),
-        unit_price: Number(
-          item.price || 0
-        )
-      }));
-
-    const payload = {
-      customer_name: name,
-      customer_phone: phone,
-      shipping_address:
-        address || "",
-      notes: notes || "",
-      items: orderItems,
-      subtotal,
-      total: subtotal
-    };
-
-    const result =
-      await api("/orders", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-
-    if (!result) {
-      showToast(
-        "تعذر إرسال الطلب حالياً"
-      );
-      return;
-    }
-
-    if (
-      result.error === "OUT_OF_STOCK" ||
-      result.code === "OUT_OF_STOCK"
-    ) {
-      showToast(
-        "الكمية خلصت، حقك علينا"
-      );
-      return;
-    }
-
-    const order =
-      result.order || result;
-
-    const orderNumber =
-      order.order_number ||
-      order.orderNumber ||
-      order.id ||
-      "";
-
-    state.cart = [];
-
-    saveState();
-    updateCounters();
-    renderCart();
-
-    showToast(
-      "تم إرسال طلبك بنجاح ❤️"
-    );
-
-    if (orderNumber) {
-      const message = [
-        "🛍️ طلب جديد من Ladies First",
-        "",
-        `رقم الطلب: ${orderNumber}`,
-        `الاسم: ${name}`,
-        `الهاتف: ${phone}`,
-        `الإجمالي: ${money(subtotal)}`
-      ].join("\n");
-
-      openWhatsApp(message);
-    }
-
-    navigate("home");
-  }
-
-  /* =========================================================
-     SETTINGS
+     SETTINGS / STORE
      ========================================================= */
 
   async function loadSettings() {
@@ -2444,17 +2455,98 @@
     if (result) {
       state.settings =
         result.settings ||
-        result;
+        result ||
+        {};
     }
   }
 
-  /* =========================================================
-     ACCOUNT UI
-     ========================================================= */
+  async function loadStore() {
+    const result =
+      await api("/store/home");
 
-  function openAccount() {
-    renderAccount();
-    navigate("account");
+    if (!result) {
+      showToast(
+        "تعذر تحميل المتجر حالياً"
+      );
+      return;
+    }
+
+    state.products =
+      Array.isArray(
+        result.products
+      )
+        ? result.products
+        : [];
+
+    state.categories =
+      Array.isArray(
+        result.categories
+      )
+        ? result.categories
+        : [];
+
+    state.brands =
+      Array.isArray(
+        result.brands
+      )
+        ? result.brands
+        : [];
+
+    state.offers =
+      Array.isArray(
+        result.offers
+      )
+        ? result.offers
+        : [];
+
+    state.topFive =
+      Array.isArray(
+        result.topFive
+      )
+        ? result.topFive
+        : [];
+
+    state.bestSellers =
+      Array.isArray(
+        result.bestSellers
+      )
+        ? result.bestSellers
+        : [];
+
+    state.heroSlides =
+      Array.isArray(
+        result.heroSlides
+      )
+        ? result.heroSlides
+        : Array.isArray(
+            result.hero
+          )
+          ? result.hero
+          : [];
+
+    renderAllStoreSections();
+  }
+
+  function renderAllStoreSections() {
+    renderHero();
+    renderProducts();
+    renderFavorites();
+    renderCart();
+    renderCheckout();
+    renderCategories();
+    renderBrands();
+    renderOffers();
+    renderTopFive();
+    renderBestSellers();
+    updateCounters();
+
+    if (
+      state.currentProduct
+    ) {
+      renderComplementaryProducts(
+        state.currentProduct
+      );
+    }
   }
 
   /* =========================================================
@@ -2480,7 +2572,6 @@
         if (id) {
           toggleFavorite(id);
         }
-
         break;
       }
 
@@ -2491,7 +2582,6 @@
         if (id) {
           openProduct(id);
         }
-
         break;
       }
 
@@ -2507,9 +2597,10 @@
           );
 
         if (product) {
-          addToCart(product);
+          addToCart(
+            product
+          );
         }
-
         break;
       }
 
@@ -2520,7 +2611,6 @@
         if (id) {
           openCategory(id);
         }
-
         break;
       }
 
@@ -2531,7 +2621,6 @@
         if (id) {
           openBrand(id);
         }
-
         break;
       }
 
@@ -2545,7 +2634,6 @@
             1
           );
         }
-
         break;
       }
 
@@ -2559,7 +2647,6 @@
             -1
           );
         }
-
         break;
       }
 
@@ -2570,7 +2657,6 @@
         if (key) {
           removeFromCart(key);
         }
-
         break;
       }
 
@@ -2586,31 +2672,35 @@
           actionName &&
           pageMap[actionName]
         ) {
-          navigate(actionName);
+          navigate(
+            actionName
+          );
         } else {
-          navigate("products");
+          navigate(
+            "products"
+          );
         }
-
         break;
       }
 
       case "hero-dot": {
         const index =
-          Number(element.dataset.index);
+          Number(
+            element.dataset.index
+          );
 
         if (
           Number.isFinite(index)
         ) {
           setHero(index);
         }
-
         break;
       }
     }
   }
 
   /* =========================================================
-     INIT EVENTS
+     GLOBAL EVENTS
      ========================================================= */
 
   function bindGlobalEvents() {
@@ -2624,11 +2714,12 @@
         button.addEventListener(
           "click",
           () => {
-            const page =
-              button.dataset.page;
-
-            if (page) {
-              navigate(page);
+            if (
+              button.dataset.page
+            ) {
+              navigate(
+                button.dataset.page
+              );
             }
           }
         );
@@ -2657,7 +2748,10 @@
     $("#favoritesButton")
       ?.addEventListener(
         "click",
-        () => navigate("favorites")
+        () =>
+          navigate(
+            "favorites"
+          )
       );
 
     $("#cartButton")
@@ -2672,7 +2766,10 @@
     $("#accountButton")
       ?.addEventListener(
         "click",
-        openAccount
+        () => {
+          renderAccount();
+          navigate("account");
+        }
       );
 
     $("#closeSearchButton")
@@ -2686,10 +2783,13 @@
         "click",
         () => {
           const value =
-            $("#searchInput")?.value || "";
+            $("#searchInput")
+              ?.value || "";
 
           if (value.trim()) {
-            performSearch(value);
+            performSearch(
+              value
+            );
             closeSearch();
           }
         }
@@ -2700,13 +2800,17 @@
         "keydown",
         (event) => {
           if (
-            event.key === "Enter"
+            event.key ===
+            "Enter"
           ) {
             const value =
-              event.currentTarget.value;
+              event.currentTarget
+                .value;
 
             if (value.trim()) {
-              performSearch(value);
+              performSearch(
+                value
+              );
               closeSearch();
             }
           }
@@ -2742,10 +2846,14 @@
         "click",
         () => {
           $("#loginForm")
-            ?.classList.add("hidden");
+            ?.classList.add(
+              "hidden"
+            );
 
           $("#registerForm")
-            ?.classList.remove("hidden");
+            ?.classList.remove(
+              "hidden"
+            );
         }
       );
 
@@ -2754,11 +2862,21 @@
         "click",
         () => {
           $("#registerForm")
-            ?.classList.add("hidden");
+            ?.classList.add(
+              "hidden"
+            );
 
           $("#loginForm")
-            ?.classList.remove("hidden");
+            ?.classList.remove(
+              "hidden"
+            );
         }
+      );
+
+    $("#submitOrderButton")
+      ?.addEventListener(
+        "click",
+        submitOrder
       );
 
     $("#checkoutButton")
@@ -2799,17 +2917,20 @@
       "keydown",
       (event) => {
         if (
-          event.key === "Escape"
+          event.key ===
+          "Escape"
         ) {
           closeMobileMenu();
           closeSearch();
         }
       }
     );
+
+    bindCheckoutPaymentOptions();
   }
 
   /* =========================================================
-     START APPLICATION
+     INIT
      ========================================================= */
 
   async function init() {
@@ -2818,7 +2939,6 @@
     updateCounters();
     updateGreeting();
     renderAccount();
-
     handleHash();
 
     await Promise.allSettled([
@@ -2830,6 +2950,7 @@
     renderAllStoreSections();
     renderAccount();
     updateCounters();
+    updateCheckoutPaymentUI();
 
     startHeroAutoPlay();
   }
@@ -2846,5 +2967,4 @@
   } else {
     init();
   }
-
 })();
