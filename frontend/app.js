@@ -2135,25 +2135,28 @@
      ========================================================= */
 
   function openNaya() {
-    const assistant =
-      $("#nayaAssistant");
+  const assistant =
+    $("#nayaAssistant");
 
-    if (!assistant) return;
+  if (!assistant) return;
 
-    assistant.classList.add("active");
-    assistant.classList.remove("hidden");
+  assistant.classList.remove("hidden");
+  assistant.classList.add("active");
+  document.body.classList.add("naya-open");
 
-    $("#nayaInput")?.focus();
-  }
+  $("#nayaInput")?.focus();
+}
 
   function closeNaya() {
-    const assistant =
-      $("#nayaAssistant");
+  const assistant =
+    $("#nayaAssistant");
 
-    if (!assistant) return;
+  if (!assistant) return;
 
-    assistant.classList.remove("active");
-  }
+  assistant.classList.remove("active");
+  assistant.classList.add("hidden");
+  document.body.classList.remove("naya-open");
+}
 
   function nayaMessage(text, type = "bot") {
     const conversation =
@@ -2730,7 +2733,14 @@
           openNaya();
         }
       );
-
+$("#nayaClose")
+  ?.addEventListener(
+    "click",
+    event => {
+      event.preventDefault();
+      closeNaya();
+    }
+  );
     $("#nayaSend")
       ?.addEventListener(
         "click",
