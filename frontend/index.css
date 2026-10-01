@@ -2713,3 +2713,10 @@ textarea:focus-visible{
   }
 
 }
+/* =========================
+   NAYA - LOCK BACKGROUND
+   ========================= */
+
+body.naya-open {
+  overflow: hidden;
+}
