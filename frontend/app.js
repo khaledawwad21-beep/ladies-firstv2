@@ -275,9 +275,6 @@
       toast("أكملي البيانات المطلوبة");
       return;
     }
-           toast("الاسم ووسيلة التواصل وكلمة المرور مطلوبة");
-      return;
-    }
 
     const result = await api("/auth/register", {
       method: "POST",
