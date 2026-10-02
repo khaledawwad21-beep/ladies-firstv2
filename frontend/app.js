@@ -180,44 +180,118 @@
     });
   }
 
-  function renderAccount() {
-  const auth = $("#accountAuth");
-  const profile = $("#accountProfile");
-  const adminButton = $("#adminMenuButton");
+    function renderAccount() {
+    const auth = $("#accountAuth");
+    const profile = $("#accountProfile");
+    const adminButton = $("#adminMenuButton");
 
-  if (adminButton) {
-    const isAdmin =
-      [
-        "owner",
-        "admin",
-        "staff"
-      ].includes(
-        String(
-          state.user?.role || ""
-        ).toLowerCase()
+    const mobileSummary =
+      $("#mobileAccountSummary");
+
+    const mobileGuest =
+      $("#mobileGuestSummary");
+
+    const mobileName =
+      $("#mobileAccountName");
+
+    const mobileEmail =
+      $("#mobileAccountEmail");
+
+    const mobilePhone =
+      $("#mobileAccountPhone");
+
+    const mobileAvatar =
+      $("#mobileAccountAvatar");
+
+    if (adminButton) {
+      const isAdmin =
+        [
+          "owner",
+          "admin",
+          "staff"
+        ].includes(
+          String(
+            state.user?.role || ""
+          ).toLowerCase()
+        );
+
+      adminButton.classList.toggle(
+        "hidden",
+        !isAdmin
+      );
+    }
+
+    if (state.user) {
+      auth?.classList.add("hidden");
+      profile?.classList.remove("hidden");
+
+      fillProfile();
+
+      if (mobileSummary) {
+        mobileSummary.classList.remove(
+          "hidden"
+        );
+      }
+
+      if (mobileGuest) {
+        mobileGuest.classList.add(
+          "hidden"
+        );
+      }
+
+      const name =
+        state.user.name ||
+        "مستخدم Ladies First";
+
+      const email =
+        state.user.email ||
+        "لا يوجد بريد إلكتروني";
+
+      const phone =
+        state.user.phone ||
+        "لا يوجد رقم هاتف";
+
+      if (mobileName) {
+        mobileName.textContent =
+          name;
+      }
+
+      if (mobileEmail) {
+        mobileEmail.textContent =
+          email;
+      }
+
+      if (mobilePhone) {
+        mobilePhone.textContent =
+          phone;
+      }
+
+      if (mobileAvatar) {
+        mobileAvatar.textContent =
+          name.trim().charAt(0) || "خ";
+      }
+
+    } else {
+      auth?.classList.remove("hidden");
+      profile?.classList.add("hidden");
+
+      mobileSummary?.classList.add(
+        "hidden"
       );
 
-    adminButton.classList.toggle(
-      "hidden",
-      !isAdmin
-    );
-  }
-
-  if (!auth || !profile) return;
-
-  if (state.user) {
-    auth.classList.add("hidden");
-    profile.classList.remove("hidden");
-    fillProfile();
-  } else {
-    auth.classList.remove("hidden");
-    profile.classList.add("hidden");
-  }
-
-  updateGreeting();
+      mobileGuest?.classList.remove(
+        "hidden"
+      );
+    }
 
     updateGreeting();
   }
+
+  async function loadCurrentUser() {
+    if (!state.token) {
+      renderAccount();
+      return;
+    }
 
   async function loadCurrentUser() {
     if (!state.token) {
