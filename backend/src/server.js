@@ -1872,6 +1872,195 @@ app.post(
   }
 );
 /* =========================================================
+   ADMIN - UPDATE PRODUCT
+========================================================= */
+
+app.put(
+  "/api/admin/products/:id",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const id =
+        productIdFromRequest(req);
+
+      if (!id) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "رقم المنتج غير صحيح"
+        });
+      }
+
+      const body =
+        req.body || {};
+
+      const name =
+        cleanText(body.name);
+
+      const description =
+        nullableText(
+          body.description
+        );
+
+      const price =
+        money(body.price);
+
+      const oldPrice =
+        body.oldPrice === "" ||
+        body.oldPrice === null ||
+        body.oldPrice === undefined
+          ? null
+          : money(body.oldPrice);
+
+      const stock =
+        integer(
+          body.stock,
+          0
+        );
+
+      const imageUrl =
+        nullableText(
+          body.imageUrl ??
+          body.image_url
+        );
+
+      const categoryId =
+        body.categoryId === "" ||
+        body.categoryId === null ||
+        body.categoryId === undefined
+          ? null
+          : integer(
+              body.categoryId,
+              null
+            );
+
+      const brandId =
+        body.brandId === "" ||
+        body.brandId === null ||
+        body.brandId === undefined
+          ? null
+          : integer(
+              body.brandId,
+              null
+            );
+
+      const isActive =
+        body.isActive === undefined
+          ? true
+          : Boolean(
+              body.isActive
+            );
+
+      const isFeatured =
+        Boolean(
+          body.isFeatured
+        );
+
+      const isBestSeller =
+        Boolean(
+          body.isBestSeller
+        );
+
+      if (!name) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "اسم المنتج مطلوب"
+        });
+      }
+
+      if (
+        !Number.isFinite(price) ||
+        price < 0
+      ) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "سعر المنتج غير صحيح"
+        });
+      }
+
+      if (stock < 0) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "المخزون لا يمكن أن يكون سالباً"
+        });
+      }
+
+      const result =
+        await db(
+          `
+          UPDATE products
+          SET
+            name = $1,
+            description = $2,
+            price = $3,
+            old_price = $4,
+            stock = $5,
+            image_url = $6,
+            category_id = $7,
+            brand_id = $8,
+            is_active = $9,
+            is_featured = $10,
+            is_best_seller = $11,
+            updated_at = NOW()
+          WHERE id = $12
+          RETURNING id
+          `,
+          [
+            name,
+            description,
+            price,
+            oldPrice,
+            stock,
+            imageUrl,
+            categoryId,
+            brandId,
+            isActive,
+            isFeatured,
+            isBestSeller,
+            id
+          ]
+        );
+
+      if (!result.rowCount) {
+        return res.status(404).json({
+          ok: false,
+          message:
+            "المنتج غير موجود"
+        });
+      }
+
+      const products =
+        await getProducts(
+          "AND p.id = $1",
+          [id]
+        );
+
+      res.json({
+        ok: true,
+        product:
+          products[0] || null,
+        message:
+          "تم تعديل المنتج بنجاح"
+      });
+    } catch (error) {
+      console.error(
+        "[ADMIN UPDATE PRODUCT]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر تعديل المنتج"
+      });
+    }
+  }
+);
+/* =========================================================
    SINGLE PRODUCT
 ========================================================= */
 
