@@ -392,7 +392,6 @@
     orders: "ordersPage",
     account: "accountPage",
 adminProducts: "adminProductsPage"
-adminProducts: "adminProductsPage"
   };
 
   function closeMobileMenu() {
@@ -615,21 +614,22 @@ adminProducts: "adminProductsPage"
         })
         .join("");
   }
-  function updatePageUI() {
+    function updatePageUI() {
     renderAccount();
     renderCart();
     renderFavorites();
     renderProducts();
     renderProductDetails();
     renderOrders();
-         if (state.page === "adminProducts") {
+
+    if (state.page === "adminProducts") {
       loadAdminProducts();
     }
-  }
+
     if (state.page === "checkout") {
       renderCheckout();
     }
-  }
+    }
 
   /* =========================================================
      PRODUCT HELPERS
