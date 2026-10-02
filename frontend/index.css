@@ -3533,3 +3533,74 @@ body{
 body.naya-open {
   overflow: hidden;
 }
+/* =========================================================
+   FAVORITES - EMPTY STATE
+   ========================================================= */
+
+#favoritesGrid .empty-state{
+  grid-column:1 / -1;
+  width:100%;
+  min-height:320px;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:45px 25px;
+  border:1px dashed #eadce3;
+  border-radius:28px;
+  background:#fff;
+  box-shadow:0 12px 30px rgba(99,52,94,.06);
+}
+
+#favoritesGrid .empty-state-icon{
+  width:72px;
+  height:72px;
+  margin-bottom:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  background:#f7e7ee;
+  color:#e98eae;
+  font-size:38px;
+}
+
+#favoritesGrid .empty-state h3{
+  margin:0 0 12px;
+  color:#63345e;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:26px;
+}
+
+#favoritesGrid .empty-state p{
+  max-width:420px;
+  margin:0 0 24px;
+  color:#806f77;
+  font-size:16px;
+  line-height:1.8;
+}
+
+#favoritesGrid .empty-state .btn{
+  min-width:170px;
+  min-height:52px;
+  border-radius:28px;
+}
+
+@media(max-width:760px){
+
+  #favoritesGrid .empty-state{
+    min-height:300px;
+    padding:35px 20px;
+  }
+
+  #favoritesGrid .empty-state h3{
+    font-size:23px;
+  }
+
+  #favoritesGrid .empty-state p{
+    font-size:15px;
+  }
+
+}
