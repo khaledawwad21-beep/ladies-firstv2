@@ -293,12 +293,6 @@
       return;
     }
 
-  async function loadCurrentUser() {
-    if (!state.token) {
-      renderAccount();
-      return;
-    }
-
     const result = await api("/auth/me");
 
     if (result?.user) {
@@ -308,7 +302,6 @@
 
     renderAccount();
   }
-
   async function loginUser() {
     const contact = $("#loginContact")?.value.trim();
     const password = $("#loginPassword")?.value || "";
