@@ -81,12 +81,54 @@
 
   <!-- ================= MOBILE MENU ================= -->
   <aside class="mobile-menu hidden" id="mobileMenu">
-    <div class="mobile-menu-header">
+        <div class="mobile-menu-header">
       <strong>Ladies First</strong>
       <button type="button" id="closeMobileMenu">×</button>
     </div>
 
+    <div
+      id="mobileAccountSummary"
+      class="mobile-account-summary hidden"
+    >
+      <div
+        id="mobileAccountAvatar"
+        class="mobile-account-avatar"
+      >
+        خ
+      </div>
+
+      <div class="mobile-account-info">
+        <strong id="mobileAccountName">
+          حسابي
+        </strong>
+
+        <span id="mobileAccountEmail">
+          البريد الإلكتروني
+        </span>
+
+        <span id="mobileAccountPhone">
+          رقم الهاتف
+        </span>
+      </div>
+    </div>
+
+    <div
+      id="mobileGuestSummary"
+      class="mobile-guest-summary hidden"
+    >
+      <strong>أهلاً بكِ في Ladies First</strong>
+      <span>سجلي الدخول للوصول إلى حسابك وطلباتك.</span>
+    </div>
+
     <div class="mobile-menu-links">
+
+      <button
+        type="button"
+        data-page="account"
+      >
+        حسابي
+      </button>
+
       <button data-page="home">الرئيسية</button>
       <button data-page="products">المنتجات</button>
       <button data-page="categories">التصنيفات</button>
@@ -95,14 +137,16 @@
       <button data-page="bestsellers">الأكثر مبيعاً</button>
       <button data-page="favorites">المفضلة</button>
       <button data-page="orders">طلباتي</button>
+
       <button
-  type="button"
-  data-page="adminProducts"
-  id="adminMenuButton"
-  class="hidden"
->
-  لوحة الإدارة
+        type="button"
+        data-page="adminProducts"
+        id="adminMenuButton"
+        class="hidden"
+      >
+        لوحة الإدارة
       </button>
+
     </div>
   </aside>
 
