@@ -839,7 +839,7 @@ renderMiniProductSlider(
   $("#completeLookSlider"),
   completeLookProducts
 );
-
+  }
   function renderMiniProductSlider(container, products) {
     if (!container) return;
 
