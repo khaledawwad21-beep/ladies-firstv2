@@ -2979,7 +2979,14 @@ $("#nayaClose")
   loadSettings(),
   loadCurrentUser()
 ]);
-
+  /*
+   * Fallback:
+   * إذا الصفحة الرئيسية لم ترجع المنتجات،
+   * نحاول تحميل المنتجات مباشرة.
+   */
+  if (!state.products.length) {
+    await refreshProducts();
+  }
     renderHero();
     renderProducts();
     renderCategories();
