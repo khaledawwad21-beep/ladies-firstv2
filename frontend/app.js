@@ -181,19 +181,40 @@
   }
 
   function renderAccount() {
-    const auth = $("#accountAuth");
-    const profile = $("#accountProfile");
+  const auth = $("#accountAuth");
+  const profile = $("#accountProfile");
+  const adminButton = $("#adminMenuButton");
 
-    if (!auth || !profile) return;
+  if (adminButton) {
+    const isAdmin =
+      [
+        "owner",
+        "admin",
+        "staff"
+      ].includes(
+        String(
+          state.user?.role || ""
+        ).toLowerCase()
+      );
 
-    if (state.user) {
-      auth.classList.add("hidden");
-      profile.classList.remove("hidden");
-      fillProfile();
-    } else {
-      auth.classList.remove("hidden");
-      profile.classList.add("hidden");
-    }
+    adminButton.classList.toggle(
+      "hidden",
+      !isAdmin
+    );
+  }
+
+  if (!auth || !profile) return;
+
+  if (state.user) {
+    auth.classList.add("hidden");
+    profile.classList.remove("hidden");
+    fillProfile();
+  } else {
+    auth.classList.remove("hidden");
+    profile.classList.add("hidden");
+  }
+
+  updateGreeting();
 
     updateGreeting();
   }
