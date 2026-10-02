@@ -390,7 +390,9 @@
     cart: "cartPage",
     checkout: "checkoutPage",
     orders: "ordersPage",
-    account: "accountPage"
+    account: "accountPage",
+adminProducts: "adminProductsPage"
+adminProducts: "adminProductsPage"
   };
 
   function closeMobileMenu() {
@@ -444,7 +446,175 @@
 
     showPage(page);
   }
+  function isAdminUser() {
+    return [
+      "owner",
+      "admin",
+      "staff"
+    ].includes(
+      String(
+        state.user?.role || ""
+      ).toLowerCase()
+    );
+  }
 
+  async function loadAdminProducts() {
+
+    const list =
+      $("#adminProductsList");
+
+    if (!list) return;
+
+    if (!isAdminUser()) {
+      list.innerHTML = `
+        <div class="empty-state">
+          ليس لديك صلاحية للوصول إلى لوحة الإدارة.
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = `
+      <div class="loading">
+        جاري تحميل المنتجات...
+      </div>
+    `;
+
+    const result =
+      await api("/products");
+
+    if (!result) {
+      list.innerHTML = `
+        <div class="empty-state">
+          تعذر تحميل المنتجات حالياً.
+        </div>
+      `;
+      return;
+    }
+
+    const products =
+      Array.isArray(result.products)
+        ? result.products
+        : [];
+
+    if (!products.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          لا توجد منتجات حالياً.
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML =
+      products
+        .map(product => {
+
+          const id =
+            productId(product);
+
+          const name =
+            escapeHTML(
+              productName(product)
+            );
+
+          const price =
+            money(
+              productPrice(product)
+            );
+
+          const oldPrice =
+            productOldPrice(product);
+
+          const stock =
+            productStock(product);
+
+          const image =
+            productImage(product);
+
+          const active =
+            product.isActive !== false;
+
+          return `
+            <article
+              class="admin-product-card"
+              data-product-id="${id}"
+            >
+
+              <div class="admin-product-image">
+
+                ${
+                  image
+                    ? `
+                      <img
+                        src="${escapeHTML(image)}"
+                        alt="${name}"
+                        loading="lazy"
+                      >
+                    `
+                    : `
+                      <div class="admin-product-no-image">
+                        لا توجد صورة
+                      </div>
+                    `
+                }
+
+              </div>
+
+              <div class="admin-product-info">
+
+                <h3>
+                  ${name}
+                </h3>
+
+                <div class="admin-product-price">
+                  <strong>
+                    ${price}
+                  </strong>
+
+                  ${
+                    oldPrice > productPrice(product)
+                      ? `
+                        <del>
+                          ${money(oldPrice)}
+                        </del>
+                      `
+                      : ""
+                  }
+                </div>
+
+                <div class="admin-product-meta">
+
+                  <span>
+                    المخزون:
+                    ${stock}
+                  </span>
+
+                  <span>
+                    ${
+                      active
+                        ? "نشط"
+                        : "متوقف"
+                    }
+                  </span>
+
+                </div>
+
+                <button
+                  type="button"
+                  class="primary-button"
+                  data-admin-edit-product="${id}"
+                >
+                  تعديل المنتج
+                </button>
+
+              </div>
+
+            </article>
+          `;
+        })
+        .join("");
+  }
   function updatePageUI() {
     renderAccount();
     renderCart();
@@ -452,7 +622,10 @@
     renderProducts();
     renderProductDetails();
     renderOrders();
-
+         if (state.page === "adminProducts") {
+      loadAdminProducts();
+    }
+  }
     if (state.page === "checkout") {
       renderCheckout();
     }
@@ -527,7 +700,160 @@
       0
     );
   }
+  function isAdminUser() {
+    return [
+      "owner",
+      "admin",
+      "staff"
+    ].includes(
+      String(
+        state.user?.role || ""
+      ).toLowerCase()
+    );
+  }
 
+  async function loadAdminProducts() {
+    const list = $("#adminProductsList");
+
+    if (!list) return;
+
+    if (!isAdminUser()) {
+      list.innerHTML = `
+        <div class="empty-state">
+          ليس لديك صلاحية للوصول إلى لوحة الإدارة.
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = `
+      <div class="loading">
+        جاري تحميل المنتجات...
+      </div>
+    `;
+
+    const result = await api("/products");
+
+    if (!result) {
+      list.innerHTML = `
+        <div class="empty-state">
+          تعذر تحميل المنتجات حالياً.
+        </div>
+      `;
+      return;
+    }
+
+    const products =
+      Array.isArray(result.products)
+        ? result.products
+        : [];
+
+    if (!products.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          لا توجد منتجات حالياً.
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML =
+      products
+        .map(product => {
+          const id = productId(product);
+          const name =
+            escapeHTML(productName(product));
+
+          const price =
+            productPrice(product);
+
+          const oldPrice =
+            productOldPrice(product);
+
+          const stock =
+            productStock(product);
+
+          const image =
+            productImage(product);
+
+          return `
+            <article
+              class="admin-product-card"
+              data-product-id="${escapeHTML(id)}"
+            >
+
+              <div class="admin-product-image">
+
+                ${
+                  image
+                    ? `
+                      <img
+                        src="${escapeHTML(image)}"
+                        alt="${name}"
+                        loading="lazy"
+                      >
+                    `
+                    : `
+                      <div class="admin-product-no-image">
+                        لا توجد صورة
+                      </div>
+                    `
+                }
+
+              </div>
+
+              <div class="admin-product-info">
+
+                <h3>
+                  ${name}
+                </h3>
+
+                <div class="admin-product-price">
+
+                  <strong>
+                    ${money(price)}
+                  </strong>
+
+                  ${
+                    oldPrice > price
+                      ? `
+                        <del>
+                          ${money(oldPrice)}
+                        </del>
+                      `
+                      : ""
+                  }
+
+                </div>
+
+                <div class="admin-product-meta">
+
+                  <span>
+                    المخزون:
+                    ${stock}
+                  </span>
+
+                  <span>
+                    ${stock > 0 ? "متوفر" : "نفد المخزون"}
+                  </span>
+
+                </div>
+
+                <button
+                  type="button"
+                  class="primary-button"
+                  data-admin-edit-product="${id}"
+                >
+                  تعديل المنتج
+                </button>
+
+              </div>
+
+            </article>
+          `;
+        })
+        .join("");
+  }
   function productVariants(product) {
     return Array.isArray(product?.variants)
       ? product.variants
