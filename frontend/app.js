@@ -3020,6 +3020,270 @@ $("#nayaClose")
     "loading"
   ) {
     document.addEventListener(
+       /* =========================================================
+   REFERENCE HERO - FINAL
+   ========================================================= */
+
+.hero-fallback{
+  position:relative;
+  min-height:430px;
+  height:min(62vw,620px);
+  border-radius:30px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:55px 7%;
+  background:
+    radial-gradient(
+      circle at 75% 45%,
+      rgba(232,142,174,.55),
+      transparent 30%
+    ),
+    linear-gradient(
+      135deg,
+      #eadce5 0%,
+      #f8e9ef 48%,
+      #fbf4ec 100%
+    );
+}
+
+.hero-fallback::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(
+      circle at 85% 20%,
+      rgba(168,137,183,.25),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 60% 100%,
+      rgba(169,178,138,.18),
+      transparent 30%
+    );
+  pointer-events:none;
+}
+
+.hero-fallback-copy{
+  position:relative;
+  z-index:3;
+  width:min(58%,560px);
+  text-align:right;
+}
+
+.hero-eyebrow{
+  display:block;
+  margin-bottom:12px;
+  color:#63345e;
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:2px;
+}
+
+.hero-fallback-copy h1{
+  margin:0 0 18px;
+  color:#63345e;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(36px,5vw,62px);
+  line-height:1.12;
+}
+
+.hero-fallback-copy p{
+  margin:0 0 25px;
+  color:#634f5e;
+  font-size:18px;
+  line-height:1.8;
+}
+
+.hero-fallback-copy .btn{
+  min-width:160px;
+  min-height:54px;
+  border:0;
+  border-radius:28px;
+  font-size:17px;
+  font-weight:700;
+}
+
+.hero-fallback-art{
+  position:relative;
+  z-index:2;
+  width:42%;
+  height:100%;
+  min-height:330px;
+}
+
+.hero-art-glow{
+  position:absolute;
+  width:300px;
+  height:300px;
+  border-radius:50%;
+  right:8%;
+  top:50%;
+  transform:translateY(-50%);
+  background:
+    radial-gradient(
+      circle,
+      rgba(255,255,255,.9),
+      rgba(232,142,174,.25) 55%,
+      transparent 70%
+    );
+}
+
+.hero-art-circle{
+  position:absolute;
+  width:210px;
+  height:210px;
+  border-radius:50%;
+  right:18%;
+  top:50%;
+  transform:translateY(-50%);
+  border:1px solid rgba(99,52,94,.12);
+  background:rgba(255,255,255,.38);
+  box-shadow:
+    0 20px 45px rgba(99,52,94,.10);
+}
+
+.hero-art-bottle{
+  position:absolute;
+  z-index:3;
+  right:31%;
+  top:50%;
+  transform:translateY(-50%);
+  width:92px;
+  height:150px;
+  border-radius:18px 18px 24px 24px;
+  background:
+    linear-gradient(
+      135deg,
+      #fff,
+      #eadce5
+    );
+  border:2px solid rgba(99,52,94,.18);
+  box-shadow:
+    0 20px 35px rgba(99,52,94,.18);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#63345e;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:28px;
+  font-weight:700;
+}
+
+.hero-art-bottle::before{
+  content:"";
+  position:absolute;
+  top:-28px;
+  width:38px;
+  height:30px;
+  border-radius:7px 7px 2px 2px;
+  background:#63345e;
+}
+
+.hero-art-bottle::after{
+  content:"LADIES FIRST";
+  position:absolute;
+  bottom:28px;
+  font-family:Arial,Tahoma,sans-serif;
+  font-size:7px;
+  letter-spacing:1px;
+  color:#9a668c;
+}
+
+.hero-art-flower{
+  position:absolute;
+  z-index:4;
+  right:4%;
+  top:16%;
+  color:#a889b7;
+  font-size:92px;
+  opacity:.65;
+  transform:rotate(-15deg);
+}
+
+@media(max-width:760px){
+
+  .hero-fallback{
+    min-height:420px;
+    height:auto;
+    padding:34px 22px;
+    display:block;
+  }
+
+  .hero-fallback-copy{
+    width:100%;
+    text-align:center;
+  }
+
+  .hero-fallback-copy h1{
+    font-size:35px;
+  }
+
+  .hero-fallback-copy p{
+    font-size:15px;
+  }
+
+  .hero-fallback-art{
+    width:100%;
+    height:180px;
+    min-height:180px;
+    margin-top:8px;
+  }
+
+  .hero-art-glow{
+    width:180px;
+    height:180px;
+    right:50%;
+    transform:translate(50%,-5%);
+  }
+
+  .hero-art-circle{
+    width:125px;
+    height:125px;
+    right:50%;
+    transform:translate(50%,-5%);
+  }
+
+  .hero-art-bottle{
+    width:58px;
+    height:96px;
+    right:50%;
+    top:50%;
+    transform:translate(50%,-5%);
+    font-size:18px;
+    border-radius:12px 12px 16px 16px;
+  }
+
+  .hero-art-bottle::before{
+    top:-18px;
+    width:25px;
+    height:20px;
+  }
+
+  .hero-art-bottle::after{
+    bottom:18px;
+    font-size:5px;
+  }
+
+  .hero-art-flower{
+    right:18%;
+    top:0;
+    font-size:55px;
+  }
+
+  .hero-slide{
+    min-height:420px;
+  }
+
+  .hero-content{
+    width:100%;
+    padding:35px 22px;
+    text-align:center;
+  }
+
+}
       "DOMContentLoaded",
       initializeApp
     );
