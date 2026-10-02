@@ -480,24 +480,26 @@
   }
 
   function productImage(product) {
-    if (product?.image_url) return product.image_url;
-    if (product?.image) return product.image;
-    if (product?.thumbnail) return product.thumbnail;
+  if (product?.imageUrl) return product.imageUrl;
+  if (product?.image_url) return product.image_url;
+  if (product?.image) return product.image;
+  if (product?.thumbnail) return product.thumbnail;
 
-    if (Array.isArray(product?.images) && product.images.length) {
-      const first = product.images[0];
+  if (Array.isArray(product?.images) && product.images.length) {
+    const first = product.images[0];
 
-      if (typeof first === "string") {
-        return first;
-      }
-
-      return first?.url ||
-        first?.image_url ||
-        first?.src ||
-        "";
+    if (typeof first === "string") {
+      return first;
     }
 
-    return "";
+    return first?.url ||
+      first?.imageUrl ||
+      first?.image_url ||
+      first?.src ||
+      "";
+  }
+
+  return "";
   }
 
   function productPrice(product) {
@@ -800,19 +802,43 @@
     }
 
     renderMiniProductSlider(
-      $("#homeTopFive"),
-      state.topFive.length
-        ? state.topFive
-        : products.slice(0, 5)
-    );
+  $("#topFiveSlider"),
+  state.topFive.length
+    ? state.topFive
+    : products.slice(0, 5)
+);
 
-    renderMiniProductSlider(
-      $("#homeBestSellers"),
-      state.bestSellers.length
-        ? state.bestSellers
-        : products.slice(0, 10)
-    );
-  }
+renderMiniProductSlider(
+  $("#bestSellersSlider"),
+  state.bestSellers.length
+    ? state.bestSellers
+    : products.slice(0, 10)
+);
+
+renderMiniProductSlider(
+  $("#quickOffersSlider"),
+  state.offers.length
+    ? state.offers
+    : products.filter(product =>
+        productOldPrice(product) > productPrice(product)
+      )
+);
+
+/*
+ * بيلبق معه:
+ * نعرض منتجات فعلية بدل صندوق النص الفارغ.
+ */
+const completeLookProducts =
+  state.bestSellers.length
+    ? state.bestSellers.slice(0, 8)
+    : state.topFive.length
+      ? state.topFive.slice(0, 8)
+      : products.slice(0, 8);
+
+renderMiniProductSlider(
+  $("#completeLookSlider"),
+  completeLookProducts
+);
 
   function renderMiniProductSlider(container, products) {
     if (!container) return;
@@ -1362,9 +1388,10 @@
             "تصنيف";
 
           const image =
-            category.image_url ??
-            category.image ??
-            "";
+  category.imageUrl ??
+  category.image_url ??
+  category.image ??
+  "";
 
           return `
             <button
@@ -1420,11 +1447,13 @@
             "علامة تجارية";
 
           const logo =
-            brand.logo_url ??
-            brand.logo ??
-            brand.image_url ??
-            brand.image ??
-            "";
+  brand.logoUrl ??
+  brand.logo_url ??
+  brand.logo ??
+  brand.imageUrl ??
+  brand.image_url ??
+  brand.image ??
+  "";
 
           return `
             <button
@@ -2622,7 +2651,107 @@
         "click",
         closeMobileMenu
       );
+/* -------------------------
+   HEADER BUTTONS
+   ------------------------- */
 
+$("#searchButton")
+  ?.addEventListener(
+    "click",
+    event => {
+      event.preventDefault();
+
+      const panel = $("#searchPanel");
+
+      if (!panel) return;
+
+      panel.classList.toggle("hidden");
+
+      if (!panel.classList.contains("hidden")) {
+        $("#globalSearch")?.focus();
+      }
+    }
+  );
+
+$("#searchSubmit")
+  ?.addEventListener(
+    "click",
+    event => {
+      event.preventDefault();
+
+      performSearch(
+        $("#globalSearch")?.value || ""
+      );
+    }
+  );
+
+$("#favoritesButton")
+  ?.addEventListener(
+    "click",
+    event => {
+      event.preventDefault();
+      navigate("favorites");
+    }
+  );
+
+$("#cartButton")
+  ?.addEventListener(
+    "click",
+    event => {
+      event.preventDefault();
+      navigate("cart");
+    }
+  );
+
+$("#accountButton")
+  ?.addEventListener(
+    "click",
+    event => {
+      event.preventDefault();
+      navigate("account");
+    }
+  );
+
+$("#closeMobileMenu")
+  ?.addEventListener(
+    "click",
+    event => {
+      event.preventDefault();
+      closeMobileMenu();
+    }
+  );
+
+/* -------------------------
+   HERO CONTROLS
+   ------------------------- */
+
+$("#heroPrev")
+  ?.addEventListener(
+    "click",
+    event => {
+      event.preventDefault();
+
+      if (!state.heroSlides.length) return;
+
+      setHeroIndex(
+        state.heroIndex - 1
+      );
+    }
+  );
+
+$("#heroNext")
+  ?.addEventListener(
+    "click",
+    event => {
+      event.preventDefault();
+
+      if (!state.heroSlides.length) return;
+
+      setHeroIndex(
+        state.heroIndex + 1
+      );
+    }
+  );
     /* -------------------------
        SEARCH
        ------------------------- */
@@ -2844,10 +2973,12 @@ $("#nayaClose")
     renderAccount();
 
     await Promise.all([
-      loadHomeData(),
-      loadSettings(),
-      loadCurrentUser()
-    ]);
+  loadHomeData(),
+  refreshCategories(),
+  refreshBrands(),
+  loadSettings(),
+  loadCurrentUser()
+]);
 
     renderHero();
     renderProducts();
