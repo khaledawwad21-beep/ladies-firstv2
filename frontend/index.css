@@ -1,15 +1,17 @@
 :root{
-  --bg:#fbf7f8;
-  --surface:#fff;
-  --soft:#f5e9ee;
-  --text:#30252b;
+  --bg:#fbf4ec;
+  --surface:#ffffff;
+  --soft:#f7e7ee;
+  --text:#3f3340;
   --muted:#806f77;
-  --primary:#8b4f68;
-  --dark:#713c52;
-  --border:#eadde3;
-  --shadow:0 10px 30px rgba(60,35,47,.09);
-  --radius:18px;
-  --max:1240px;
+  --primary:#e98eae;
+  --dark:#63345e;
+  --lav:#a889b7;
+  --sage:#a9b28a;
+  --border:#eadce3;
+  --shadow:0 10px 30px rgba(99,52,94,.10);
+  --radius:20px;
+  --max:1180px;
 }
 
 *{
@@ -2711,6 +2713,540 @@ textarea:focus-visible{
   .naya-input button{
     min-width:54px;
   }
+  /* =========================================================
+   LADIES FIRST - REFERENCE DESIGN
+   Based on indexهيك بالزبط.html
+   ========================================================= */
+
+/* ---------- GENERAL ---------- */
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:Arial,Tahoma,sans-serif;
+}
+
+.container{
+  width:min(calc(100% - 24px),1180px);
+}
+
+.site-header{
+  background:rgba(255,253,251,.96);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  box-shadow:0 3px 18px rgba(99,52,94,.06);
+}
+
+
+/* ---------- BRAND ---------- */
+
+.brand-en{
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:25px;
+  font-weight:700;
+  color:var(--dark);
+}
+
+.brand-ar{
+  color:#9a668c;
+  letter-spacing:1.5px;
+}
+
+
+/* ---------- HEADER BUTTONS ---------- */
+
+.icon-button,
+.account-button{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:50%;
+  color:var(--dark);
+  transition:.2s ease;
+}
+
+.icon-button:hover,
+.account-button:hover{
+  background:#fff5f8;
+  border-color:var(--primary);
+  color:var(--dark);
+  transform:translateY(-1px);
+}
+
+.counter{
+  background:var(--primary);
+  color:#fff;
+}
+
+
+/* ---------- NAVIGATION ---------- */
+
+.main-nav button{
+  color:#6d5665;
+  border-radius:20px;
+}
+
+.main-nav button:hover,
+.main-nav button.active{
+  color:var(--dark);
+  background:#f7e7ee;
+}
+
+
+/* ---------- SEARCH ---------- */
+
+.search-panel{
+  background:#fffdfb;
+  border-bottom:1px solid var(--border);
+}
+
+.search-panel .search-box input{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:25px;
+}
+
+.search-panel .search-box button{
+  background:var(--dark);
+  color:#fff;
+  border-radius:20px;
+}
+
+
+/* =========================================================
+   HERO
+   ========================================================= */
+
+.hero-section{
+  padding:18px 0 12px;
+}
+
+.hero-slider{
+  min-height:430px;
+  border-radius:30px;
+  background:#eadce5;
+  box-shadow:0 10px 30px rgba(99,52,94,.10);
+  overflow:hidden;
+}
+
+.hero-slide{
+  min-height:430px;
+  border-radius:30px;
+}
+
+.hero-slide::after{
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0,0,0,.52),
+      rgba(0,0,0,.20) 48%,
+      rgba(0,0,0,.04)
+    );
+}
+
+.hero-content{
+  width:min(560px,55%);
+  padding:42px;
+  color:#fff;
+}
+
+.hero-content h1{
+  color:#fff;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(32px,4vw,56px);
+  text-shadow:0 3px 15px rgba(0,0,0,.20);
+}
+
+.hero-content p{
+  color:#fff;
+  font-size:17px;
+}
+
+.hero-actions .btn{
+  border-radius:24px;
+}
+
+.btn-primary{
+  background:var(--primary);
+  color:#fff;
+}
+
+.btn-primary:hover{
+  background:#d8799b;
+}
+
+
+/* ---------- HERO DOTS ---------- */
+
+.slider-dot{
+  background:#ead2dc;
+}
+
+.slider-dot.active{
+  background:var(--primary);
+}
+
+
+/* =========================================================
+   SECTION HEADINGS
+   ========================================================= */
+
+.store-section{
+  padding:30px 0;
+}
+
+.section-heading h2{
+  color:var(--dark);
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:29px;
+}
+
+.section-heading > div span{
+  color:#9a668c;
+}
+
+.section-heading > button{
+  border:1px solid var(--border);
+  background:#fff;
+  color:var(--dark);
+  border-radius:22px;
+  padding:9px 16px;
+}
+
+.section-heading > button:hover{
+  background:#f7e7ee;
+}
+
+
+/* =========================================================
+   PRODUCT CARDS
+   ========================================================= */
+
+.product-slider{
+  gap:14px;
+  padding:5px 3px 15px;
+}
+
+.product-card{
+  flex:0 0 210px;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:20px;
+  box-shadow:0 7px 22px rgba(99,52,94,.07);
+}
+
+.product-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 14px 32px rgba(99,52,94,.13);
+}
+
+.product-image{
+  background:#f8edf2;
+}
+
+.product-badge{
+  background:var(--dark);
+}
+
+.product-favorite{
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.95);
+  color:var(--dark);
+}
+
+.product-favorite.active{
+  color:#d45c82;
+}
+
+.product-info{
+  padding:13px;
+}
+
+.product-brand{
+  color:#9a7b8b;
+}
+
+.product-name{
+  color:var(--text);
+}
+
+.price{
+  color:var(--dark);
+}
+
+.old-price{
+  color:#ad929e;
+}
+
+.product-actions .btn{
+  border-radius:20px;
+}
+
+.product-actions .btn-primary{
+  background:var(--primary);
+}
+
+
+/* =========================================================
+   CATEGORIES
+   ========================================================= */
+
+.categories-grid,
+.category-grid{
+  gap:13px;
+}
+
+.category-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:20px;
+  box-shadow:0 5px 18px rgba(99,52,94,.06);
+}
+
+.category-card:hover{
+  border-color:#d8a8bc;
+  transform:translateY(-3px);
+}
+
+.category-card img{
+  background:#f7e7ee;
+}
+
+.category-card span{
+  color:var(--dark);
+  font-weight:700;
+}
+
+
+/* =========================================================
+   BRANDS
+   ========================================================= */
+
+.brands-grid,
+.brand-grid{
+  gap:13px;
+}
+
+.brand-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:20px;
+  box-shadow:0 5px 18px rgba(99,52,94,.05);
+}
+
+.brand-card:hover{
+  border-color:#d8a8bc;
+  transform:translateY(-3px);
+}
+
+.brand-card span{
+  color:var(--dark);
+}
+
+
+/* =========================================================
+   OFFERS
+   ========================================================= */
+
+.offers-strip{
+  background:#f7e7ee;
+  padding:32px 0;
+  margin:10px 0;
+}
+
+.offers-slider{
+  gap:14px;
+}
+
+.offer-card{
+  background:linear-gradient(
+    135deg,
+    #fff,
+    #f7e7ee
+  );
+  border:1px solid var(--border);
+  border-radius:22px;
+}
+
+
+/* =========================================================
+   OTHER PAGES
+   ========================================================= */
+
+.page-header h1{
+  color:var(--dark);
+  font-family:Georgia,"Times New Roman",serif;
+}
+
+.back-button{
+  background:#fff;
+  color:var(--dark);
+  border:1px solid var(--border);
+  border-radius:22px;
+}
+
+.primary-button{
+  background:var(--primary);
+  color:#fff;
+  border-radius:24px;
+}
+
+.primary-button:hover{
+  background:#d8799b;
+}
+
+
+/* =========================================================
+   CART / CHECKOUT
+   ========================================================= */
+
+.cart-summary,
+.form-section,
+.checkout-form,
+.cart-items{
+  border-color:var(--border);
+}
+
+.cart-summary{
+  border-radius:22px;
+}
+
+.form-section{
+  border-radius:20px;
+}
+
+.whatsapp-button{
+  border-radius:22px;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media(max-width:760px){
+
+  .container{
+    width:calc(100% - 20px);
+  }
+
+  .header-inner{
+    min-height:62px;
+  }
+
+  .brand-en{
+    font-size:21px;
+  }
+
+  .brand-ar{
+    font-size:9px;
+    letter-spacing:1px;
+  }
+
+  .icon-button,
+  .account-button{
+    width:40px;
+    min-width:40px;
+    height:40px;
+  }
+
+  .account-button{
+    padding:0 8px;
+    font-size:11px;
+  }
+
+  .hero-section{
+    padding:10px 0;
+  }
+
+  .hero-slider{
+    min-height:350px;
+    border-radius:22px;
+  }
+
+  .hero-slide{
+    min-height:350px;
+    text-align:center;
+  }
+
+  .hero-content{
+    width:100%;
+    padding:24px 18px 12px;
+    text-align:center;
+  }
+
+  .hero-content h1{
+    font-size:34px;
+  }
+
+  .hero-content p{
+    font-size:15px;
+  }
+
+  .hero-actions{
+    justify-content:center;
+  }
+
+  .store-section{
+    padding:22px 0;
+  }
+
+  .section-heading h2{
+    font-size:22px;
+  }
+
+  .product-card{
+    flex-basis:170px;
+    border-radius:17px;
+  }
+
+  .categories-grid,
+  .category-grid,
+  .brands-grid,
+  .brand-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+  }
+
+  .category-card,
+  .brand-card{
+    border-radius:17px;
+  }
+
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+   ========================================================= */
+
+@media(max-width:420px){
+
+  .hero-slider,
+  .hero-slide{
+    min-height:330px;
+  }
+
+  .hero-content{
+    padding:20px 14px;
+  }
+
+  .hero-content h1{
+    font-size:29px;
+  }
+
+  .hero-content p{
+    font-size:14px;
+  }
+
+  .product-card{
+    flex-basis:160px;
+  }
+
+  .section-heading h2{
+    font-size:20px;
+  }
+
+}
 
 }
 /* =========================
