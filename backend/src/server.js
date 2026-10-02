@@ -1712,7 +1712,165 @@ app.get(
     }
   }
 );
+/* =========================================================
+   ADMIN - CREATE PRODUCT
+========================================================= */
 
+app.post(
+  "/api/admin/products",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const body = req.body || {};
+
+      const name =
+        cleanText(body.name);
+
+      const description =
+        nullableText(body.description);
+
+      const price =
+        money(body.price);
+
+      const oldPrice =
+        body.oldPrice === "" ||
+        body.oldPrice === null ||
+        body.oldPrice === undefined
+          ? null
+          : money(body.oldPrice);
+
+      const stock =
+        integer(body.stock, 0);
+
+      const imageUrl =
+        nullableText(
+          body.imageUrl ??
+          body.image_url
+        );
+
+      const categoryId =
+        body.categoryId === "" ||
+        body.categoryId === null ||
+        body.categoryId === undefined
+          ? null
+          : integer(
+              body.categoryId,
+              null
+            );
+
+      const brandId =
+        body.brandId === "" ||
+        body.brandId === null ||
+        body.brandId === undefined
+          ? null
+          : integer(
+              body.brandId,
+              null
+            );
+
+      const isFeatured =
+        Boolean(
+          body.isFeatured
+        );
+
+      const isBestSeller =
+        Boolean(
+          body.isBestSeller
+        );
+
+      if (!name) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "اسم المنتج مطلوب"
+        });
+      }
+
+      if (
+        !Number.isFinite(price) ||
+        price < 0
+      ) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "سعر المنتج غير صحيح"
+        });
+      }
+
+      if (stock < 0) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "المخزون لا يمكن أن يكون سالباً"
+        });
+      }
+
+      const result =
+        await db(
+          `
+          INSERT INTO products
+            (
+              name,
+              description,
+              price,
+              old_price,
+              stock,
+              image_url,
+              category_id,
+              brand_id,
+              is_active,
+              is_featured,
+              is_best_seller
+            )
+          VALUES
+            (
+              $1,$2,$3,$4,$5,
+              $6,$7,$8,TRUE,$9,$10
+            )
+          RETURNING id
+          `,
+          [
+            name,
+            description,
+            price,
+            oldPrice,
+            stock,
+            imageUrl,
+            categoryId,
+            brandId,
+            isFeatured,
+            isBestSeller
+          ]
+        );
+
+      const products =
+        await getProducts(
+          "AND p.id = $1",
+          [result.rows[0].id]
+        );
+
+      res.status(201).json({
+        ok: true,
+        product:
+          products[0] || null,
+        message:
+          "تمت إضافة المنتج بنجاح"
+      });
+    } catch (error) {
+      console.error(
+        "[ADMIN CREATE PRODUCT]",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        message:
+          "تعذر إضافة المنتج"
+      });
+    }
+  }
+);
 /* =========================================================
    SINGLE PRODUCT
 ========================================================= */
