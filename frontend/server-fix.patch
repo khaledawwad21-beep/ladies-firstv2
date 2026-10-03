@@ -1,0 +1,63 @@
+--- backend/src/server.js
++++ backend/src/server.js
+@@
+-                  INSERT INTO inventory_movements (
+-                    product_id,
+-                    variant_id,
+-                    quantity,
+-                    movement_type,
+-                    reference_type,
+-                    reference_id,
+-                    note,
+-                    created_at
+-                  )
++                  INSERT INTO inventory_movements (
++                    product_id,
++                    variant_id,
++                    quantity_change,
++                    reason,
++                    order_id,
++                    created_at
++                  )
+                   VALUES (
+                     $1,
+                     $2,
+                     $3,
+-                    'return',
+-                    'order',
+                     $4,
+                     'إرجاع مخزون بسبب إلغاء الطلب',
+                     NOW()
+                   )
+@@
+-                    INSERT INTO loyalty_points_transactions (
+-                      user_id,
+-                      order_id,
+-                      points,
+-                      transaction_type,
+-                      note,
+-                      created_at
+-                    )
++                    INSERT INTO loyalty_points_transactions (
++                      user_id,
++                      order_id,
++                      points,
++                      transaction_type,
++                      created_at
++                    )
+                     VALUES (
+                       $1,
+                       $2,
+                       $3,
+                       'order_reversal',
+-                      $4,
+                       NOW()
+                     )
+@@
+-                      orderId,
+-                      -awardedPoints,
+-                      `عكس نقاط الطلب #${orderId}`
++                      orderId,
++                      -awardedPoints
+                     ]
+*** End Patch
