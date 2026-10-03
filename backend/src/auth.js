@@ -82,11 +82,13 @@ function requireRole(...allowedRoles) {
 }
 
 function requireAdmin(req, res, next) {
-  return requireRole("owner", "admin", "staff")(req, res, next);
+  return requireAuth(req, res, () =>
+    requireRole("owner", "admin", "staff")(req, res, next)
+  );
 }
 
 function requireOwner(req, res, next) {
-  return requireRole("owner")(req, res, next);
+  return requireAuth(req, res, () => requireRole("owner")(req, res, next));
 }
 
 function normalizeEmail(email) {
@@ -114,6 +116,8 @@ function sanitizeUser(user) {
     name: user.name || "",
     email: user.email || null,
     phone: user.phone || null,
+    contact: user.email || user.phone || "",
+    is_owner: user.role === "owner" ? 1 : 0,
     gender: user.gender || null,
     age: user.age !== undefined && user.age !== null ? Number(user.age) : null,
     role: user.role || "customer",
