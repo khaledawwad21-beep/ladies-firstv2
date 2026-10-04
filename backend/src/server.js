@@ -733,6 +733,8 @@ async function initDatabase() {
   `);
 
   /* Keep existing production databases compatible with the current API. */
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ`);
+
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_discount NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS packaging_cost NUMERIC(12,2) NOT NULL DEFAULT 0`);
@@ -744,6 +746,27 @@ async function initDatabase() {
   await db(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS minimum_amount NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS starts_at TIMESTAMPTZ`);
   await db(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+
+  await db(`
+    CREATE TABLE IF NOT EXISTS return_requests (
+      id BIGSERIAL PRIMARY KEY,
+      order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      order_item_id BIGINT NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
+      request_type TEXT NOT NULL CHECK (request_type IN ('return','exchange')),
+      quantity INTEGER NOT NULL CHECK (quantity > 0),
+      reason TEXT NOT NULL,
+      notes TEXT,
+      images JSONB NOT NULL DEFAULT '[]'::jsonb,
+      status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending','approved','rejected','completed')),
+      admin_note TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db(`CREATE INDEX IF NOT EXISTS idx_return_requests_order ON return_requests(order_id)`);
+  await db(`CREATE INDEX IF NOT EXISTS idx_return_requests_user ON return_requests(user_id)`);
 
   await db(`
     CREATE TABLE IF NOT EXISTS favorites (
@@ -3270,6 +3293,74 @@ app.get(
 
 
 /* =========================================================
+   RETURNS / EXCHANGES — 12 hours from delivery
+   ========================================================= */
+
+app.post("/api/returns", requireAuth, async (req,res)=>{
+  const orderId=integer(req.body.orderId,NaN), orderItemId=integer(req.body.orderItemId,NaN);
+  const quantity=integer(req.body.quantity,NaN);
+  const requestType=cleanText(req.body.requestType||"").toLowerCase();
+  const reason=cleanText(req.body.reason||"");
+  const notes=cleanText(req.body.notes||"");
+  const images=Array.isArray(req.body.images)?req.body.images.filter(x=>typeof x==="string").slice(0,5):[];
+  if(!Number.isFinite(orderId)||!Number.isFinite(orderItemId)||!Number.isFinite(quantity)||quantity<1)
+    return res.status(400).json({ok:false,message:"بيانات طلب الإرجاع/الاستبدال غير مكتملة"});
+  if(!["return","exchange"].includes(requestType))
+    return res.status(400).json({ok:false,message:"اختاري إرجاع أو استبدال"});
+  if(!reason)return res.status(400).json({ok:false,message:"سبب الطلب مطلوب"});
+  try{
+    const result=await transaction(async client=>{
+      const o=await client.query(`SELECT * FROM orders WHERE id=$1 AND user_id=$2 FOR UPDATE`,[orderId,req.user.id]);
+      if(!o.rowCount)throw createHttpError(404,"ORDER_NOT_FOUND","الطلب غير موجود");
+      const order=o.rows[0];
+      if(!["delivered","completed"].includes(String(order.status||"").toLowerCase()))
+        throw createHttpError(400,"NOT_DELIVERED","يمكن تقديم الإرجاع أو الاستبدال بعد استلام الطلب فقط");
+      const deliveredAt=order.delivered_at||order.updated_at;
+      if(!deliveredAt || Date.now()-new Date(deliveredAt).getTime()>12*60*60*1000)
+        throw createHttpError(400,"RETURN_WINDOW_EXPIRED","انتهت مهلة الإرجاع/الاستبدال (12 ساعة من الاستلام)");
+      const item=await client.query(`SELECT * FROM order_items WHERE id=$1 AND order_id=$2`,[orderItemId,orderId]);
+      if(!item.rowCount)throw createHttpError(404,"ITEM_NOT_FOUND","المنتج غير موجود في هذا الطلب");
+      if(quantity>Number(item.rows[0].quantity||0))throw createHttpError(400,"BAD_QTY","الكمية المطلوبة أكبر من الكمية المشتراة");
+      const dup=await client.query(`SELECT 1 FROM return_requests WHERE order_item_id=$1 AND status IN ('pending','approved') LIMIT 1`,[orderItemId]);
+      if(dup.rowCount)throw createHttpError(409,"RETURN_EXISTS","يوجد طلب إرجاع/استبدال مفتوح لهذا المنتج");
+      const ins=await client.query(`INSERT INTO return_requests(order_id,user_id,order_item_id,request_type,quantity,reason,notes,images) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb) RETURNING *`,
+        [orderId,req.user.id,orderItemId,requestType,quantity,reason,notes,JSON.stringify(images)]);
+      return ins.rows[0];
+    });
+    res.status(201).json({ok:true,request:result,message:"تم إرسال طلبك للمراجعة"});
+  }catch(error){console.error("[RETURN CREATE]",error);res.status(error.status||500).json({ok:false,message:error.message||"تعذر إرسال الطلب"});}
+});
+
+app.get("/api/returns",requireAuth,async(req,res)=>{
+  try{const r=await db(`SELECT rr.*,oi.product_name,oi.variant_name,oi.image FROM return_requests rr JOIN order_items oi ON oi.id=rr.order_item_id WHERE rr.user_id=$1 ORDER BY rr.created_at DESC`,[req.user.id]);res.json({ok:true,requests:r.rows});}
+  catch(e){console.error("[RETURNS GET]",e);res.status(500).json({ok:false,message:"تعذر تحميل طلبات الإرجاع"});}
+});
+
+app.get("/api/admin/returns",requireAdmin,async(req,res)=>{
+  try{const r=await db(`SELECT rr.*,o.customer_name,o.customer_phone,oi.product_name,oi.variant_name,oi.image,oi.product_id,oi.variant_id FROM return_requests rr JOIN orders o ON o.id=rr.order_id JOIN order_items oi ON oi.id=rr.order_item_id ORDER BY rr.created_at DESC`);res.json({ok:true,requests:r.rows});}
+  catch(e){console.error("[ADMIN RETURNS]",e);res.status(500).json({ok:false,message:"تعذر تحميل طلبات الإرجاع"});}
+});
+
+app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
+  const id=integer(req.params.id,NaN),status=cleanText(req.body.status||"").toLowerCase(),adminNote=cleanText(req.body.adminNote||"");
+  if(!Number.isFinite(id)||!["pending","approved","rejected","completed"].includes(status))return res.status(400).json({ok:false,message:"بيانات الحالة غير صالحة"});
+  try{
+    const result=await transaction(async client=>{
+      const q=await client.query(`SELECT rr.*,oi.product_id,oi.variant_id FROM return_requests rr JOIN order_items oi ON oi.id=rr.order_item_id WHERE rr.id=$1 FOR UPDATE`,[id]);
+      if(!q.rowCount)throw createHttpError(404,"RETURN_NOT_FOUND","الطلب غير موجود");
+      const rr=q.rows[0], completing=status==="completed"&&rr.status!=="completed";
+      if(completing && rr.request_type==="return"){
+        if(rr.variant_id)await client.query(`UPDATE product_variants SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2`,[rr.quantity,rr.variant_id]);
+        else await client.query(`UPDATE products SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2`,[rr.quantity,rr.product_id]);
+        await client.query(`INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at) VALUES($1,$2,$3,'customer_return',$4,NOW())`,[rr.product_id,rr.variant_id,rr.quantity,rr.order_id]);
+      }
+      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,updated_at=NOW() WHERE id=$3 RETURNING *`,[status,adminNote,id]);return u.rows[0];
+    });
+    res.json({ok:true,request:result});
+  }catch(e){console.error("[RETURN STATUS]",e);res.status(e.status||500).json({ok:false,message:e.message||"تعذر تحديث الطلب"});}
+});
+
+/* =========================================================
    ADMIN ORDERS
    ========================================================= */
 
@@ -3726,6 +3817,7 @@ app.patch(
                 `
                 UPDATE orders
                 SET status = $1,
+                    delivered_at = CASE WHEN $1 = 'delivered' AND delivered_at IS NULL THEN NOW() ELSE delivered_at END,
                     updated_at = NOW()
                 WHERE id = $2
                 RETURNING *
