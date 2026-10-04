@@ -14,9 +14,15 @@ app.get("/api/health", (req, res) => {
   res.status(200).json({ ok: true, service: "ladies-firstv2" });
 });
 
+// Canonical admin entry: users always see the login/session check first.
+// After successful verification admin-login.html opens the actual panel with
+// ?panel=1, which is then served by the existing Ladies First application.
+app.get(["/admin", "/admin/", "/admin.html"], (req, res, next) => {
+  if (String(req.query.panel || "") === "1") return next();
+  return res.redirect(302, "/admin-login.html");
+});
+
 // A 20MB binary image becomes ~26.7MB when encoded as a base64 data URL.
-// Keep this parent parser above that size so Tripo's own 20MB validation is
-// actually reachable from the mobile Naya Studio.
 app.use(express.json({ limit: "30mb" }));
 app.use(express.urlencoded({ extended: true, limit: "30mb" }));
 
