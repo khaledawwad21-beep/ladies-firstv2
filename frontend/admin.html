@@ -71,11 +71,28 @@ async function uploadDataUrl(data){
   if(!result.url)throw new Error('لم يرجع الخادم رابط الصورة');
   return new URL(result.url,API_BASE+'/').href;
 }
+function fileDataUrl(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('تعذر قراءة ملف الصورة '+(file?.name||'')));
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.readAsDataURL(file);
+  });
+}
 async function selectedImages(input){
   const files=[...(input?.files||[])];
   const images=[];
   for(const file of files){
-    const data=await new Promise(resolve=>compressImage(file,resolve));
+    let data='';
+    const type=String(file?.type||'').toLowerCase();
+    // ارفع JPEG/PNG/WebP الصغيرة كما هي. هذا يتجنب فشل Image decoder في بعض
+    // هواتف Android عندما يكون اسم الملف غير معتاد مثل jpg.1000003422.
+    if(['image/jpeg','image/jpg','image/png','image/webp'].includes(type) && Number(file.size)<=3*1024*1024){
+      data=await fileDataUrl(file);
+      if(type==='image/jpg' && data.startsWith('data:image/jpg;'))data=data.replace(/^data:image\/jpg;/,'data:image/jpeg;');
+    }else{
+      data=await new Promise(resolve=>compressImage(file,resolve));
+    }
     if(!data)throw new Error('تعذر قراءة الصورة '+file.name+'؛ جرّبي JPG أو PNG.');
     images.push(await uploadDataUrl(data));
   }
