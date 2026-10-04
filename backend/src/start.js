@@ -2,30 +2,15 @@
 
 require("dotenv").config();
 
-const express = require("express");
-const tripoRouter = require("./tripo");
 const { app, initDatabase } = require("./server");
 
 const PORT = Number(process.env.PORT || 10000);
 
 /*
- * Production has one Express application only: the app exported by server.js.
- * start.js owns process startup and mounts integrations that are intentionally
- * separate from the core store. This avoids nesting one Express app inside
- * another and removes duplicate body parsers/static/admin routing.
+ * Single production entrypoint.
+ * All middleware and routes are owned by server.js so integrations are mounted
+ * before the SPA fallback, 404 handler and global error handler.
  */
-
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ ok: true, service: "ladies-firstv2" });
-});
-
-app.use(
-  "/api/tripo",
-  express.json({ limit: "30mb" }),
-  express.urlencoded({ extended: true, limit: "30mb" }),
-  tripoRouter
-);
-
 async function start() {
   try {
     if (!String(process.env.JWT_SECRET || "").trim()) {
