@@ -2785,6 +2785,7 @@ app.post(
               Number(
                 await getSetting(
                   "visa_discount_percent",
+                  0,
                   client
                 )
               ) || 0;
@@ -2837,7 +2838,7 @@ app.post(
 
           const total = Math.max(0, subtotal - couponDiscount - visaDiscount - loyaltyDiscount + shipping + packaging);
 
-          const pointsRate = Math.max(0, Number(await getSetting("loyalty_points_per_currency", client)) || 0);
+          const pointsRate = Math.max(0, Number(await getSetting("loyalty_points_per_currency", 1, client)) || 0);
           const pointsBase = Math.max(0, subtotal - couponDiscount - visaDiscount - loyaltyDiscount);
           const loyaltyPoints = loyaltyEnabled ? calculateLoyaltyPoints(pointsBase, pointsRate) : 0;
 
