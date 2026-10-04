@@ -9,6 +9,12 @@ const { app: ladiesFirstApp, initDatabase } = require("./server");
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
 
+// Render health check must be handled directly by the parent app and must not
+// depend on authentication, the database, static files, or downstream routes.
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ ok: true, service: "ladies-firstv2" });
+});
+
 // Tripo routes are mounted on the parent app before the existing Ladies First
 // application. This avoids modifying the large production server.js file.
 app.use(express.json({ limit: "5mb" }));
