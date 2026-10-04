@@ -5,7 +5,8 @@ const { requireAdmin } = require("./auth");
 
 const router = express.Router();
 const TRIPO_BASE_URL = "https://openapi.tripo3d.ai/v3";
-const DEFAULT_MODEL = "v3.1-20260211";
+// Use the current public model alias instead of a dated model id that may be retired.
+const DEFAULT_MODEL = "tripo-v3.1";
 
 function getApiKey() {
   return String(process.env.TRIPO_API_KEY || "").trim();
@@ -14,7 +15,7 @@ function getApiKey() {
 function authHeader() {
   const apiKey = getApiKey();
   if (!apiKey) {
-    const error = new Error("TRIPO_API_KEY is not configured");
+    const error = new Error("مفتاح Tripo غير موجود على Render (TRIPO_API_KEY)");
     error.status = 503;
     error.code = "TRIPO_NOT_CONFIGURED";
     throw error;
@@ -32,9 +33,10 @@ async function parseResponse(response) {
   }
 
   if (!response.ok || (payload?.code !== undefined && payload.code !== 0)) {
-    const error = new Error(payload?.message || payload?.suggestion || `Tripo request failed (${response.status})`);
+    const parts = [payload?.message, payload?.suggestion].filter(Boolean);
+    const error = new Error(parts.join(" — ") || `Tripo request failed (${response.status})`);
     error.status = response.status >= 400 && response.status < 500 ? 400 : 502;
-    error.code = "TRIPO_API_ERROR";
+    error.code = payload?.code ? `TRIPO_${payload.code}` : "TRIPO_API_ERROR";
     error.details = payload;
     throw error;
   }
@@ -73,6 +75,13 @@ function decodeImage(dataUrl) {
 
 async function uploadImageToTripo(dataUrl, filename = "naya.png") {
   const { buffer, mime, ext } = decodeImage(dataUrl);
+  // Tripo /v3/files currently documents JPEG and PNG uploads. Convert the
+  // filename only; browser studio already normally supplies PNG/JPEG.
+  if (mime === "image/webp") {
+    const error = new Error("للتوليد استخدم صورة PNG أو JPG؛ Tripo File Upload لا يقبل WebP حاليًا");
+    error.status = 400;
+    throw error;
+  }
   const form = new FormData();
   const safeName = String(filename || `naya.${ext}`).replace(/[^a-zA-Z0-9._-]/g, "_");
   form.append("file", new Blob([buffer], { type: mime }), safeName);
@@ -86,7 +95,7 @@ async function uploadImageToTripo(dataUrl, filename = "naya.png") {
   const payload = await parseResponse(response);
   const token = payload?.data?.file_token;
   if (!token) {
-    const error = new Error("Tripo did not return a file token");
+    const error = new Error("Tripo لم يرجع file_token بعد رفع الصورة");
     error.status = 502;
     throw error;
   }
@@ -94,11 +103,13 @@ async function uploadImageToTripo(dataUrl, filename = "naya.png") {
 }
 
 function generationBody(input, source = {}) {
+  // Keep the first request deliberately conservative and aligned with the
+  // documented v3 image-to-model example. Extra/legacy parameters can cause
+  // the whole request to be rejected before a task is created.
   return {
     input,
     model: String(source.model || DEFAULT_MODEL),
     enable_image_autofix: source.enable_image_autofix !== false,
-    texture_alignment: "original_image",
     orientation: "align_image",
     face_limit: Math.min(100000, Math.max(10000, Number(source.face_limit || 80000))),
     texture: true,
@@ -114,7 +125,6 @@ router.get("/status", (req, res) => {
   res.json({ ok: true, configured: Boolean(getApiKey()), apiVersion: "v3", model: DEFAULT_MODEL });
 });
 
-// Everything that can consume Tripo credits is admin-only.
 router.use(requireAdmin);
 
 router.get("/balance", async (req, res, next) => {
@@ -128,7 +138,6 @@ router.post("/image-to-model", async (req, res, next) => {
   try {
     const input = String(req.body?.input || req.body?.imageUrl || "").trim();
     if (!input) return res.status(400).json({ ok: false, message: "يلزم رابط صورة مباشر أو file_token من Tripo" });
-
     const result = await tripoJson("/generation/image-to-model", {
       method: "POST",
       body: JSON.stringify(generationBody(input, req.body || {}))
@@ -137,7 +146,6 @@ router.post("/image-to-model", async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-// Mobile-friendly: send a data URL, upload it to Tripo, then start Naya generation.
 router.post("/naya/generate", async (req, res, next) => {
   try {
     const image = req.body?.image || req.body?.dataUrl;
@@ -148,14 +156,13 @@ router.post("/naya/generate", async (req, res, next) => {
       method: "POST",
       body: JSON.stringify(generationBody(fileToken, req.body || {}))
     });
-
-    res.status(202).json({
-      ok: true,
-      fileToken,
-      taskId: result?.data?.task_id || null,
-      message: "بدأ إنشاء نموذج نايا ثلاثي الأبعاد",
-      data: result.data || result
-    });
+    const taskId = result?.data?.task_id || null;
+    if (!taskId) {
+      const error = new Error("Tripo قبل الطلب لكنه لم يرجع رقم مهمة");
+      error.status = 502;
+      throw error;
+    }
+    res.status(202).json({ ok: true, fileToken, taskId, message: "بدأ إنشاء نموذج نايا ثلاثي الأبعاد", data: result.data || result });
   } catch (error) { next(error); }
 });
 
@@ -163,7 +170,6 @@ router.get("/tasks/:taskId", async (req, res, next) => {
   try {
     const taskId = String(req.params.taskId || "").trim();
     if (!/^[-_a-zA-Z0-9]+$/.test(taskId)) return res.status(400).json({ ok: false, message: "رقم المهمة غير صالح" });
-
     const result = await tripoJson(`/tasks/${encodeURIComponent(taskId)}`, { method: "GET" });
     const data = result.data || result;
     res.json({
