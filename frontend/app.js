@@ -141,7 +141,11 @@ function renderProducts(){const q=(document.getElementById('search').value||'').
 function showSimilar(cat,id){document.getElementById('filter').value=cat;document.getElementById('search').value='';document.getElementById('products').scrollIntoView({behavior:'smooth'});const all=products.filter(p=>p.cat===cat&&p.id!==id);document.getElementById('grid').innerHTML=all.length?'':`<div class="empty">لا توجد أصناف مشابهة حاليًا.</div>`;if(all.length)renderProducts()}
 function completeLookProducts(p){
   if(!p)return [];
-  const available=products.filter(x=>x&&x.id!==p.id&&totalStock(x)>0);
+  const available=products.filter(x=>x&&String(x.id)!==String(p.id)&&totalStock(x)>0);
+  const manual=Array.isArray(p.completeLookIds)?p.completeLookIds.map(String).filter(Boolean):[];
+  if(manual.length){
+    return manual.map(id=>available.find(x=>String(x.id)===id)).filter(Boolean).slice(0,5);
+  }
   const different=available.filter(x=>x.cat!==p.cat);
   const sameBrand=different.filter(x=>p.brand&&x.brand===p.brand);
   const pool=[...sameBrand,...different.filter(x=>!sameBrand.includes(x))];
