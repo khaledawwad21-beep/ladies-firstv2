@@ -320,7 +320,23 @@ body.side-menu-open{overflow:hidden!important}
 .miniFeatureCarousel.dragging{cursor:grabbing!important;scroll-behavior:auto!important}
 .miniFeatureCarousel .featureCard{flex:0 0 190px!important;width:190px!important;min-width:190px!important;max-width:190px!important;direction:rtl!important}
 .miniFeatureCarousel .featureCard img{height:118px!important;object-fit:cover!important}
-@media(max-width:700px){.miniFeatureCarousel .featureCard{flex-basis:43vw!important;width:43vw!important;min-width:43vw!important;max-width:43vw!important}.miniFeatureCarousel .featureCard img{height:30vw!important;min-height:100px!important;max-height:135px!important}.featureNav button{width:31px;height:31px;font-size:21px}}</style><meta name="theme-color" content="#63345e"></head>
+@media(max-width:700px){.miniFeatureCarousel .featureCard{flex-basis:43vw!important;width:43vw!important;min-width:43vw!important;max-width:43vw!important}.miniFeatureCarousel .featureCard img{height:30vw!important;min-height:100px!important;max-height:135px!important}.featureNav button{width:31px;height:31px;font-size:21px}}
+/* v35: mobile hero overlay must never block slider controls */
+.heroSlider .heroText{pointer-events:none!important;z-index:4!important;width:auto!important;max-width:min(82%,720px)!important;left:auto!important;right:7%!important}
+.heroSlider .heroText .cta{pointer-events:auto!important}
+.heroSlider .heroArrow{z-index:12!important;pointer-events:auto!important;touch-action:manipulation!important}
+.heroSlider .heroDots{z-index:12!important;pointer-events:auto!important}
+.heroSlider .heroDots button{pointer-events:auto!important;touch-action:manipulation!important}
+@media(max-width:700px){
+ .heroSlider .heroText{left:12%!important;right:12%!important;width:auto!important;max-width:76%!important;padding:14px 16px!important;border-radius:22px!important;box-sizing:border-box!important}
+ .heroSlider .heroText h1{font-size:clamp(23px,6.2vw,34px)!important;line-height:1.35!important;margin:0 0 8px!important}
+ .heroSlider .heroText p{font-size:clamp(13px,3.6vw,17px)!important;line-height:1.55!important;margin:0 0 10px!important}
+ .heroSlider .heroText .cta{font-size:15px!important;padding:10px 18px!important}
+ .heroSlider .heroArrow{width:40px!important;height:40px!important;font-size:26px!important;background:#fff!important}
+ .heroSlider .heroPrev{left:8px!important}
+ .heroSlider .heroNext{right:8px!important}
+}
+</style><meta name="theme-color" content="#63345e"></head>
 <body>
 <div class="top" id="topBar"></div>
 <header><div class="nav"><button class="iconbtn menuBtn" type="button" onclick="toggleSideMenu()">☰</button><button class="iconbtn searchBtn" type="button" onclick="focusSearch()">⌕</button><img class="logo" id="logo" alt="Ladies First"><div class="brand"><b>Ladies First</b><small>ONLINE STORE</small></div><div class="actions"><button class="iconbtn" id="accountBtn" type="button" onclick="openAccount()">👤</button><button class="iconbtn" id="lang">EN</button><button class="iconbtn" id="cartBtn" type="button" onclick="openCart()">🛍️<i class="badge" id="count">0</i></button></div></div></header>
