@@ -772,6 +772,11 @@ async function initDatabase() {
   `);
   await db(`CREATE INDEX IF NOT EXISTS idx_return_requests_order ON return_requests(order_id)`);
   await db(`CREATE INDEX IF NOT EXISTS idx_return_requests_user ON return_requests(user_id)`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_product_id BIGINT REFERENCES products(id) ON DELETE SET NULL`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_variant_id BIGINT REFERENCES product_variants(id) ON DELETE SET NULL`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_product_name TEXT`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_variant_name TEXT`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_unit_price NUMERIC(12,2)`);
 
   await db(`
     CREATE TABLE IF NOT EXISTS favorites (
@@ -3360,15 +3365,36 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
       const q=await client.query(`SELECT rr.*,oi.product_id,oi.variant_id FROM return_requests rr JOIN order_items oi ON oi.id=rr.order_item_id WHERE rr.id=$1 FOR UPDATE`,[id]);
       if(!q.rowCount)throw createHttpError(404,"RETURN_NOT_FOUND","الطلب غير موجود");
       const rr=q.rows[0], completing=status==="completed"&&rr.status!=="completed";
-      if(completing && rr.request_type==="exchange"){
-        throw createHttpError(400,"EXCHANGE_REPLACEMENT_REQUIRED","حددي المنتج/اللون البديل قبل إتمام الاستبدال");
+      let replacementProductId=rr.replacement_product_id,replacementVariantId=rr.replacement_variant_id,replacementProductName=rr.replacement_product_name,replacementVariantName=rr.replacement_variant_name,replacementUnitPrice=rr.replacement_unit_price;
+      if(rr.request_type==="exchange" && ["approved","completed"].includes(status)){
+        replacementProductId=integer(req.body.replacementProductId??replacementProductId,NaN);
+        replacementVariantId=req.body.replacementVariantId?integer(req.body.replacementVariantId,NaN):null;
+        if(!Number.isFinite(replacementProductId))throw createHttpError(400,"EXCHANGE_REPLACEMENT_REQUIRED","حددي المنتج البديل");
+        const pq=await client.query("SELECT id,name,price,stock FROM products WHERE id=$1 FOR UPDATE",[replacementProductId]);
+        if(!pq.rowCount)throw createHttpError(404,"REPLACEMENT_NOT_FOUND","المنتج البديل غير موجود");
+        const rp=pq.rows[0]; replacementProductName=rp.name; replacementUnitPrice=Number(rp.price||0); replacementVariantName=null;
+        if(replacementVariantId){
+          const vq=await client.query("SELECT id,product_id,color,size,price,stock FROM product_variants WHERE id=$1 AND product_id=$2 AND is_active=TRUE FOR UPDATE",[replacementVariantId,replacementProductId]);
+          if(!vq.rowCount)throw createHttpError(400,"BAD_REPLACEMENT_VARIANT","اللون/الخيار البديل غير صالح");
+          const rv=vq.rows[0];replacementVariantName=[rv.color,rv.size].filter(Boolean).join(" / ");replacementUnitPrice=Number(rv.price??rp.price??0);
+          if(completing&&Number(rv.stock||0)<Number(rr.quantity))throw createHttpError(409,"REPLACEMENT_OUT_OF_STOCK","الكمية المطلوبة من البديل غير متوفرة");
+        }else if(completing&&Number(rp.stock||0)<Number(rr.quantity))throw createHttpError(409,"REPLACEMENT_OUT_OF_STOCK","الكمية المطلوبة من البديل غير متوفرة");
       }
-      if(completing && rr.request_type==="return"){
-        if(rr.variant_id)await client.query(`UPDATE product_variants SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2`,[rr.quantity,rr.variant_id]);
-        else await client.query(`UPDATE products SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2`,[rr.quantity,rr.product_id]);
-        await client.query(`INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at) VALUES($1,$2,$3,'customer_return',$4,NOW())`,[rr.product_id,rr.variant_id,rr.quantity,rr.order_id]);
+      if(completing){
+        if(rr.request_type==="return"){
+          if(rr.variant_id)await client.query("UPDATE product_variants SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2",[rr.quantity,rr.variant_id]);
+          else await client.query("UPDATE products SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2",[rr.quantity,rr.product_id]);
+          await client.query("INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at) VALUES($1,$2,$3,'customer_return',$4,NOW())",[rr.product_id,rr.variant_id,rr.quantity,rr.order_id]);
+        }else{
+          if(rr.variant_id)await client.query("UPDATE product_variants SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2",[rr.quantity,rr.variant_id]);
+          else await client.query("UPDATE products SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2",[rr.quantity,rr.product_id]);
+          await client.query("INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at) VALUES($1,$2,$3,'customer_exchange_return',$4,NOW())",[rr.product_id,rr.variant_id,rr.quantity,rr.order_id]);
+          if(replacementVariantId)await client.query("UPDATE product_variants SET stock=stock-$1,updated_at=NOW() WHERE id=$2",[rr.quantity,replacementVariantId]);
+          else await client.query("UPDATE products SET stock=stock-$1,updated_at=NOW() WHERE id=$2",[rr.quantity,replacementProductId]);
+          await client.query("INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at) VALUES($1,$2,$3,'customer_exchange_out',$4,NOW())",[replacementProductId,replacementVariantId,-Number(rr.quantity),rr.order_id]);
+        }
       }
-      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,updated_at=NOW() WHERE id=$3 RETURNING *`,[status,adminNote,id]);return u.rows[0];
+      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,replacement_product_id=$3,replacement_variant_id=$4,replacement_product_name=$5,replacement_variant_name=$6,replacement_unit_price=$7,updated_at=NOW() WHERE id=$8 RETURNING *`,[status,adminNote,replacementProductId,replacementVariantId,replacementProductName,replacementVariantName,replacementUnitPrice,id]);return u.rows[0];
     });
     res.json({ok:true,request:result});
   }catch(e){console.error("[RETURN STATUS]",e);res.status(e.status||500).json({ok:false,message:e.message||"تعذر تحديث الطلب"});}
