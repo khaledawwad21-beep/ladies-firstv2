@@ -58,32 +58,45 @@ async function uploadImageToTripo(dataUrl, filename = "naya.png") {
   form.append("file", new Blob([buffer], { type: mime }), safe);
   let response;
   try {
-    response = await fetch(`${TRIPO_BASE_URL}/upload`, { method: "POST", headers: authHeader(), body: form, signal: AbortSignal.timeout(45000) });
+    // Tripo's direct image-upload endpoint. It returns data.image_token;
+    // that token is supplied as file_token to image/multiview generation.
+    response = await fetch(`${TRIPO_BASE_URL}/upload/sts`, {
+      method: "POST",
+      headers: authHeader(),
+      body: form,
+      signal: AbortSignal.timeout(30000)
+    });
   } catch (err) {
     throw Object.assign(new Error(`تعذر رفع الصورة إلى Tripo: ${err.message}`), { status: 502, code: "TRIPO_UPLOAD_NETWORK_ERROR" });
   }
   const payload = await parseResponse(response);
-  const token = payload?.data?.file_token;
-  if (!token) throw Object.assign(new Error("Tripo لم يرجع file_token بعد رفع الصورة"), { status: 502 });
-  return { token, type: ext };
+  const token = payload?.data?.image_token || payload?.data?.file_token;
+  if (!token) throw Object.assign(new Error("Tripo قبل رفع الصورة لكنه لم يرجع image_token"), { status: 502, code: "TRIPO_UPLOAD_NO_TOKEN", details: payload });
+  return { token, type: ext === "jpg" ? "jpeg" : ext };
 }
 
 function qualityBody(source = {}) {
   const faceLimit = Math.min(20000, Math.max(1000, Number(source.face_limit || 12000)));
-  return { model_version: String(source.model_version || source.model || DEFAULT_MODEL), texture: true, pbr: true, face_limit: faceLimit, export_uv: true };
+  return {
+    model_version: String(source.model_version || source.model || DEFAULT_MODEL),
+    texture: true,
+    pbr: true,
+    face_limit: faceLimit,
+    export_uv: true,
+    geometry_quality: "standard",
+    enable_image_autofix: true
+  };
 }
 function taskOutput(d = {}) {
   const o = d.output || {};
   return { modelUrl: o.pbr_model || o.model || o.model_url || o.base_model || null, previewUrl: o.rendered_image || o.rendered_image_url || o.preview || null };
 }
 
-router.get("/status", (req, res) => res.json({ ok: true, configured: Boolean(getApiKey()), apiVersion: "v2/openapi", model: DEFAULT_MODEL }));
+router.get("/status", (req, res) => res.json({ ok: true, configured: Boolean(getApiKey()), apiVersion: "v2/openapi", uploadMode: "upload/sts", model: DEFAULT_MODEL }));
 router.use(requireAdmin);
 
 router.get("/balance", async (req, res, next) => { try { const r = await tripoJson("/user/balance", { method: "GET" }); res.json({ ok: true, data: r.data || r }); } catch (e) { next(e); } });
 
-// Upload one view per HTTP request. This keeps Render's request duration/memory low
-// instead of holding four base64 images while doing four upstream uploads.
 router.post("/naya/upload-view", async (req, res, next) => {
   try {
     const image = req.body?.image || req.body?.dataUrl;
@@ -114,9 +127,8 @@ router.post("/naya/multiview", async (req, res, next) => {
     let uploaded = {};
 
     if (tokens && typeof tokens === "object") {
-      for (const k of order) if (tokens[k]?.fileToken) uploaded[k] = { token: String(tokens[k].fileToken), type: String(tokens[k].fileType || "jpg") };
+      for (const k of order) if (tokens[k]?.fileToken) uploaded[k] = { token: String(tokens[k].fileToken), type: String(tokens[k].fileType || "jpeg") };
     } else {
-      // Backward compatibility for old page versions.
       const views = req.body?.views || {};
       const suppliedViews = order.filter(k => views[k]?.image);
       const results = await Promise.all(suppliedViews.map(async k => [k, await uploadImageToTripo(views[k].image, views[k].filename || `naya-${k}.jpg`)]));
@@ -141,7 +153,7 @@ router.get("/tasks/:taskId", async (req, res, next) => {
     if (!/^[-_a-zA-Z0-9]+$/.test(taskId)) return res.status(400).json({ ok: false, message: "رقم المهمة غير صالح" });
     const r = await tripoJson(`/task/${encodeURIComponent(taskId)}`, { method: "GET" });
     const d = r.data || r, out = taskOutput(d);
-    res.json({ ok: true, status: d.status || null, progress: d.progress ?? 0, modelUrl: out.modelUrl, previewUrl: out.previewUrl, creditsConsumed: d.credits ?? d.credits_consumed ?? null, data: d });
+    res.json({ ok: true, status: d.status || null, progress: d.progress ?? 0, modelUrl: out.modelUrl, previewUrl: out.previewUrl, creditsConsumed: d.credits ?? d.credits_consumed ?? d.consumed_credit ?? null, data: d });
   } catch (e) { next(e); }
 });
 
