@@ -19,9 +19,12 @@ async function parseResponse(response){
   try{payload=text?JSON.parse(text):{};}catch{payload={message:text||"Invalid response from Tripo"};}
   if(!response.ok || (payload?.code!==undefined && payload.code!==0)){
     const e=new Error([payload?.message,payload?.suggestion].filter(Boolean).join(" — ")||`Tripo request failed (${response.status})`);
-    e.status=response.status>=400&&response.status<500?400:502; e.upstreamStatus=response.status;
-    e.code=payload?.code?`TRIPO_${payload.code}`:"TRIPO_API_ERROR"; e.details=payload;
-    e.traceId=response.headers.get("x-tripo-trace-id")||null; throw e;
+    e.status=response.status>=400&&response.status<500?400:502;
+    e.upstreamStatus=response.status;
+    e.code=payload?.code?`TRIPO_${payload.code}`:"TRIPO_API_ERROR";
+    e.details=payload;
+    e.traceId=response.headers.get("x-tripo-trace-id")||null;
+    throw e;
   }
   return payload;
 }
@@ -33,7 +36,11 @@ async function tripoJson(endpoint,options={}){
       const response=await fetch(`${TRIPO_BASE_URL}${endpoint}`,{...options,headers:{...authHeader(),"Content-Type":"application/json",...(options.headers||{})},signal:AbortSignal.timeout(60000)});
       if([502,503,504].includes(response.status)&&attempt<3){await response.text();await sleep(1000*attempt);continue;}
       return await parseResponse(response);
-    }catch(err){lastError=err;if(err?.upstreamStatus&&![502,503,504].includes(err.upstreamStatus))throw err;if(attempt<3){await sleep(1000*attempt);continue;}}
+    }catch(err){
+      lastError=err;
+      if(err?.upstreamStatus&&![502,503,504].includes(err.upstreamStatus))throw err;
+      if(attempt<3){await sleep(1000*attempt);continue;}
+    }
   }
   if(lastError?.status)throw lastError;
   throw Object.assign(new Error(`تعذر الاتصال بخدمة Tripo: ${lastError?.message||"network error"}`),{status:502,code:"TRIPO_NETWORK_ERROR"});
@@ -47,16 +54,28 @@ function decodeImage(dataUrl){
   return {buffer,mime:m[1],ext:m[1].includes("jpeg")?"jpg":"png"};
 }
 function cleanupTemp(){const now=Date.now();for(const [id,v] of tempImages)if(now-v.created>TEMP_TTL)tempImages.delete(id);}
-function publicBase(req){const proto=String(req.headers["x-forwarded-proto"]||req.protocol||"https").split(",")[0].trim();return `${proto}://${req.get("host")}`;}
+function publicBase(req){
+  const forwardedHost=String(req.headers["x-forwarded-host"]||"").split(",")[0].trim();
+  const host=forwardedHost||req.get("host");
+  const proto=String(req.headers["x-forwarded-proto"]||req.protocol||"https").split(",")[0].trim();
+  return `${proto}://${host}`;
+}
 
-/* Public, unguessable temporary image URL for Tripo to fetch. */
 router.get("/naya/source/:id",(req,res)=>{
-  cleanupTemp(); const v=tempImages.get(String(req.params.id||""));
+  cleanupTemp();
+  const v=tempImages.get(String(req.params.id||""));
   if(!v)return res.status(404).end();
-  res.set("Content-Type",v.mime);res.set("Cache-Control","public, max-age=1800");res.send(v.buffer);
+  res.set("Content-Type",v.mime);
+  res.set("Content-Length",String(v.buffer.length));
+  res.set("Cache-Control","public, max-age=1800");
+  res.set("X-Content-Type-Options","nosniff");
+  res.send(v.buffer);
 });
 
-function qualityBody(source={}){const faceLimit=Math.min(20000,Math.max(1000,Number(source.face_limit||12000)));return {model_version:String(source.model_version||source.model||DEFAULT_MODEL),texture:true,pbr:true,face_limit:faceLimit,export_uv:true,enable_image_autofix:true};}
+function qualityBody(source={}){
+  const faceLimit=Math.min(20000,Math.max(1000,Number(source.face_limit||12000)));
+  return {model_version:String(source.model_version||source.model||DEFAULT_MODEL),texture:true,pbr:true,face_limit:faceLimit,export_uv:true,enable_image_autofix:true};
+}
 function taskOutput(d={}){const o=d.output||{};return {modelUrl:o.pbr_model||o.model||o.model_url||o.base_model||null,previewUrl:o.rendered_image||o.rendered_image_url||o.preview||null};}
 
 router.get("/status",(req,res)=>res.json({ok:true,configured:Boolean(getApiKey()),apiVersion:"v2/openapi",uploadMode:"public-url",model:DEFAULT_MODEL}));
@@ -65,28 +84,41 @@ router.get("/balance",async(req,res,next)=>{try{const r=await tripoJson("/user/b
 
 router.post("/naya/upload-view",(req,res,next)=>{
   try{
-    const image=req.body?.image||req.body?.dataUrl;if(!image)return res.status(400).json({ok:false,message:"الصورة مطلوبة"});
-    cleanupTemp();const decoded=decodeImage(image);const id=crypto.randomUUID();
+    const image=req.body?.image||req.body?.dataUrl;
+    if(!image)return res.status(400).json({ok:false,message:"الصورة مطلوبة"});
+    cleanupTemp();
+    const decoded=decodeImage(image);
+    const id=crypto.randomUUID();
     tempImages.set(id,{buffer:decoded.buffer,mime:decoded.mime,type:decoded.ext,created:Date.now()});
     const url=`${publicBase(req)}/api/tripo/naya/source/${id}`;
-    res.json({ok:true,url,fileType:decoded.ext});
+    res.json({ok:true,url,fileType:decoded.ext,size:decoded.buffer.length});
   }catch(e){next(e);}
 });
 
 router.post("/naya/multiview",async(req,res,next)=>{
   try{
-    const order=["front","left","back","right"];const refs=req.body?.fileTokens||req.body?.refs||{};
+    const order=["front","left","back","right"];
+    const refs=req.body?.fileTokens||req.body?.refs||{};
     if(!refs.front?.url)return res.status(400).json({ok:false,message:"الصورة الأمامية FRONT مطلوبة"});
-    const supplied=order.filter(k=>refs[k]?.url);if(supplied.length<2)return res.status(400).json({ok:false,message:"يلزم صورتان على الأقل: FRONT + زاوية أخرى"});
+    const supplied=order.filter(k=>refs[k]?.url);
+    if(supplied.length<2)return res.status(400).json({ok:false,message:"يلزم صورتان على الأقل: FRONT + زاوية أخرى"});
     const files=order.map(k=>refs[k]?.url?{type:String(refs[k].fileType||"jpg").replace("jpeg","jpg"),url:String(refs[k].url)}:{});
-    const r=await tripoJson("/task",{method:"POST",body:JSON.stringify({type:"multiview_to_model",files,...qualityBody(req.body||{})})});
-    const taskId=r?.data?.task_id;if(!taskId)throw Object.assign(new Error("Tripo قبل طلب Multi-View لكنه لم يرجع رقم مهمة"),{status:502});
+    const body={type:"multiview_to_model",files,...qualityBody(req.body||{})};
+    const r=await tripoJson("/task",{method:"POST",body:JSON.stringify(body)});
+    const taskId=r?.data?.task_id;
+    if(!taskId)throw Object.assign(new Error("Tripo قبل طلب Multi-View لكنه لم يرجع رقم مهمة"),{status:502,code:"TRIPO_NO_TASK_ID",details:r});
     res.status(202).json({ok:true,taskId,message:`بدأ إنشاء نايا من ${supplied.length} زوايا`,data:r.data||r});
   }catch(e){next(e);}
 });
 
 router.get("/tasks/:taskId",async(req,res,next)=>{
-  try{const taskId=String(req.params.taskId||"").trim();if(!/^[-_a-zA-Z0-9]+$/.test(taskId))return res.status(400).json({ok:false,message:"رقم المهمة غير صالح"});const r=await tripoJson(`/task/${encodeURIComponent(taskId)}`,{method:"GET"});const d=r.data||r,out=taskOutput(d);res.json({ok:true,status:d.status||null,progress:d.progress??0,modelUrl:out.modelUrl,previewUrl:out.previewUrl,creditsConsumed:d.credits??d.credits_consumed??d.consumed_credit??null,data:d});}catch(e){next(e);}
+  try{
+    const taskId=String(req.params.taskId||"").trim();
+    if(!/^[-_a-zA-Z0-9]+$/.test(taskId))return res.status(400).json({ok:false,message:"رقم المهمة غير صالح"});
+    const r=await tripoJson(`/task/${encodeURIComponent(taskId)}`,{method:"GET"});
+    const d=r.data||r,out=taskOutput(d);
+    res.json({ok:true,status:d.status||null,progress:d.progress??0,modelUrl:out.modelUrl,previewUrl:out.previewUrl,creditsConsumed:d.credits??d.credits_consumed??d.consumed_credit??null,data:d});
+  }catch(e){next(e);}
 });
 
 module.exports=router;
