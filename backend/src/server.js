@@ -2820,8 +2820,19 @@ app.post(
           const shippingWaived = req.body.shippingWaived === true && req.user && ["owner","admin"].includes(String(req.user.role||"").toLowerCase());
           const shipping = shippingWaived ? 0 : shippingFees[shippingRegion];
 
-          /* Packaging is still supplied as a cart snapshot; never allow a negative value. */
-          const packaging = Math.max(0, money(req.body.packaging ?? 0));
+          /* Packaging price is authoritative on the server. The browser only sends option ids per item. */
+          const packagingOptionsRaw = await getSetting("packaging_options", [], client);
+          const packagingOptions = Array.isArray(packagingOptionsRaw) ? packagingOptionsRaw : [];
+          const packagingById = new Map(packagingOptions.filter(x=>x&&x.active!==false&&x.id!=null).map(x=>[String(x.id),x]));
+          let packaging = 0;
+          for (let idx=0; idx<normalizedItems.length; idx++) {
+            const requestedId = cleanText(req.body.items?.[idx]?.packagingId || req.body.items?.[idx]?.packaging_id || "",100);
+            if (!requestedId) continue;
+            const option = packagingById.get(String(requestedId));
+            if (!option) throw createHttpError(400,"BAD_PACKAGING","خيار التغليف غير صالح أو غير فعال");
+            packaging += Math.max(0,money(option.price||0)) * normalizedItems[idx].quantity;
+          }
+          packaging = money(packaging);
 
           const requestedPoints = Math.max(0, integer(req.body.pointsToRedeem ?? req.body.points_to_redeem ?? 0, 0));
           const loyaltyEnabled = (await getSetting("loyalty_enabled", true, client)) !== false;
@@ -3871,6 +3882,27 @@ app.patch(
   }
 );
 
+
+/* =========================================================
+   ADMIN SHIPPING WAIVER
+   ========================================================= */
+app.patch("/api/admin/orders/:id/shipping-waiver",requireAdmin,async(req,res)=>{
+  const orderId=integer(req.params.id,NaN),waived=req.body?.waived===true;
+  if(!Number.isFinite(orderId))return res.status(400).json({ok:false,message:"رقم الطلب غير صالح"});
+  try{
+    const result=await transaction(async client=>{
+      const q=await client.query("SELECT * FROM orders WHERE id=$1 FOR UPDATE",[orderId]);
+      if(!q.rowCount)throw createHttpError(404,"ORDER_NOT_FOUND","الطلب غير موجود");
+      const o=q.rows[0],fees={westbank:20,jerusalem:35,inside:70};
+      const normalShipping=Math.max(0,Number(fees[String(o.shipping_region||"westbank").toLowerCase()] ?? o.shipping_cost ?? 0));
+      const shipping=waived?0:normalShipping;
+      const total=Math.max(0,Number(o.subtotal||0)-Number(o.coupon_discount||0)-Number(o.visa_discount||0)-Number(o.loyalty_discount||0)+Number(o.packaging_cost||0)+shipping);
+      const u=await client.query("UPDATE orders SET shipping_waived=$1,shipping_cost=$2,total=$3,updated_at=NOW() WHERE id=$4 RETURNING *",[waived,shipping,total,orderId]);
+      return u.rows[0];
+    });
+    res.json({ok:true,order:result,message:waived?"تم إعفاء الطلب من رسوم التوصيل":"تم إلغاء إعفاء التوصيل"});
+  }catch(e){console.error("[SHIPPING WAIVER]",e);res.status(e.status||500).json({ok:false,message:e.message||"تعذر تعديل رسوم التوصيل"});}
+});
 
 /* =========================================================
    INVENTORY
