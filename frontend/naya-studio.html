@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#63345e">
+<title>نايا 3D — Ladies First</title>
+<style>
+:root{--plum:#63345e;--pink:#e98eae;--cream:#fbf4ec;--line:#eadce3;--green:#64845c;--red:#a33d55}*{box-sizing:border-box}body{margin:0;background:var(--cream);color:#443542;font-family:Arial,Tahoma,sans-serif}.top{background:var(--plum);color:#fff;padding:16px}.topin{max-width:760px;margin:auto;display:flex;align-items:center;gap:10px}.top b{font-size:20px;flex:1}.top a{color:var(--plum);background:#fff;padding:9px 12px;border-radius:10px;text-decoration:none}.wrap{max-width:760px;margin:18px auto;padding:0 14px}.card{background:#fff;border-radius:18px;padding:18px;box-shadow:0 8px 28px #63345e14;margin-bottom:14px}.drop{display:block;border:2px dashed #d9b8ca;background:#fff8fb;border-radius:16px;padding:22px;text-align:center;cursor:pointer}.drop input{display:none}.preview{width:100%;max-height:420px;object-fit:contain;border-radius:14px;margin-top:12px;display:none;background:#f5edf1}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}button,.btn{border:0;border-radius:11px;padding:12px 15px;background:var(--plum);color:#fff;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}button:disabled{opacity:.5}.pink{background:var(--pink)}.green{background:var(--green)}.muted{color:#7d6d79;font-size:13px;line-height:1.7}.status{margin-top:14px;padding:13px;border-radius:12px;background:#f7edf2;white-space:pre-wrap}.bar{height:12px;background:#eee3e9;border-radius:999px;overflow:hidden;margin:12px 0}.bar>i{display:block;height:100%;width:0;background:var(--pink);transition:width .3s}.result{display:none}.result img{width:100%;max-height:420px;object-fit:contain;border-radius:14px;background:#f5edf1}.model{width:100%;height:520px;border:1px solid var(--line);border-radius:14px;background:#f7f1f4}code{direction:ltr;display:inline-block}@media(max-width:600px){.model{height:430px}.top b{font-size:17px}}
+</style>
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+</head>
+<body>
+<div class="top"><div class="topin"><b>🌸 استوديو نايا 3D</b><a href="admin.html">لوحة التحكم</a></div></div>
+<div class="wrap">
+<div class="card">
+<h2>إنشاء نايا من الصورة</h2>
+<p class="muted">اختاري صورة نايا المرجعية. الصورة تُرسل من جهازك إلى خادم Ladies First ثم إلى Tripo V3، ومفتاح Tripo يبقى مخفيًا على Render.</p>
+<label class="drop">📷 اضغطي لاختيار صورة نايا<input id="file" type="file" accept="image/png,image/jpeg,image/webp"></label>
+<img id="preview" class="preview" alt="معاينة نايا">
+<div class="actions"><button id="generate" disabled>✨ إنشاء نايا 3D</button><button id="check" class="pink" disabled>تحديث الحالة</button></div>
+<div class="bar"><i id="bar"></i></div><div id="status" class="status">جاهز لاختيار الصورة.</div>
+</div>
+<div id="result" class="card result"><h2>نتيجة نايا</h2><img id="render" alt="معاينة النموذج"><model-viewer id="viewer" class="model" camera-controls auto-rotate shadow-intensity="1" exposure="1"></model-viewer><div class="actions"><a id="glb" class="btn green" target="_blank" rel="noopener">فتح / حفظ GLB</a></div></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);let selected=null,taskId=null,timer=null;
+function token(){return localStorage.getItem('lf_token')||localStorage.getItem('token')||sessionStorage.getItem('lf_token')||sessionStorage.getItem('token')||''}
+function headers(extra={}){const t=token();return {...extra,...(t?{Authorization:'Bearer '+t}:{})}}
+function say(text){$('status').textContent=text}
+$('file').addEventListener('change',e=>{selected=e.target.files&&e.target.files[0];if(!selected)return;$('preview').src=URL.createObjectURL(selected);$('preview').style.display='block';$('generate').disabled=false;say('الصورة جاهزة. اضغطي إنشاء نايا 3D.')});
+$('generate').onclick=async()=>{if(!selected)return;try{$('generate').disabled=true;say('جاري رفع صورة نايا إلى Tripo…');const fd=new FormData();fd.append('file',selected,selected.name||'naya.png');const up=await fetch('/api/tripo/upload',{method:'POST',headers:headers(),body:fd});const uj=await up.json();if(!up.ok||!uj.ok)throw new Error(uj.message||'فشل رفع الصورة');const fileToken=uj.fileToken||uj.data?.image_token||uj.data?.file_token;if(!fileToken)throw new Error('لم يرجع Tripo file token');say('تم رفع الصورة. جاري بدء إنشاء النموذج…');const r=await fetch('/api/tripo/naya/generate',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({fileToken})});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.message||'تعذر بدء التوليد');taskId=j.taskId;if(!taskId)throw new Error('لم يرجع رقم المهمة');$('check').disabled=false;say('بدأ إنشاء نايا. رقم المهمة: '+taskId);poll();}catch(e){say('❌ '+e.message);$('generate').disabled=false;}};
+$('check').onclick=()=>check();
+async function check(){if(!taskId)return;try{const r=await fetch('/api/tripo/tasks/'+encodeURIComponent(taskId),{headers:headers()});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.message||'تعذر قراءة المهمة');const p=Number(j.progress||0);$('bar').style.width=Math.max(0,Math.min(100,p))+'%';say('الحالة: '+(j.status||'...')+'\nالتقدم: '+p+'%');if(j.modelUrl){clearInterval(timer);timer=null;$('result').style.display='block';$('viewer').src=j.modelUrl;$('glb').href=j.modelUrl;if(j.previewUrl){$('render').src=j.previewUrl;$('render').style.display='block'}say('✅ نايا جاهزة. افحصي النموذج من الأسفل.');$('generate').disabled=false;return}if(['failed','cancelled','error'].includes(String(j.status||'').toLowerCase())){clearInterval(timer);timer=null;$('generate').disabled=false;say('❌ فشل التوليد: '+(j.data?.message||j.status));}}catch(e){say('❌ '+e.message)}}
+function poll(){if(timer)clearInterval(timer);check();timer=setInterval(check,5000)}
+</script>
+</body></html>
