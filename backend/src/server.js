@@ -777,6 +777,10 @@ async function initDatabase() {
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_product_name TEXT`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_variant_name TEXT`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_unit_price NUMERIC(12,2)`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS fee_payer TEXT NOT NULL DEFAULT 'customer'`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS service_fee NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS fee_reason TEXT`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS price_difference NUMERIC(12,2) NOT NULL DEFAULT 0`);
 
   await db(`
     CREATE TABLE IF NOT EXISTS favorites (
@@ -3362,9 +3366,14 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
   if(!Number.isFinite(id)||!["pending","approved","rejected","completed"].includes(status))return res.status(400).json({ok:false,message:"بيانات الحالة غير صالحة"});
   try{
     const result=await transaction(async client=>{
-      const q=await client.query(`SELECT rr.*,oi.product_id,oi.variant_id FROM return_requests rr JOIN order_items oi ON oi.id=rr.order_item_id WHERE rr.id=$1 FOR UPDATE`,[id]);
+      const q=await client.query(`SELECT rr.*,oi.product_id,oi.variant_id,oi.unit_price FROM return_requests rr JOIN order_items oi ON oi.id=rr.order_item_id WHERE rr.id=$1 FOR UPDATE`,[id]);
       if(!q.rowCount)throw createHttpError(404,"RETURN_NOT_FOUND","الطلب غير موجود");
       const rr=q.rows[0], completing=status==="completed"&&rr.status!=="completed";
+      const requestedFeePayer=cleanText(req.body.feePayer??rr.fee_payer??"customer",20).toLowerCase();
+      if(!["customer","store","waived"].includes(requestedFeePayer))throw createHttpError(400,"BAD_FEE_PAYER","حددي من يتحمل رسوم الإرجاع/الاستبدال");
+      const serviceFee=requestedFeePayer==="customer"?Math.max(0,money(req.body.serviceFee??rr.service_fee??0)):0;
+      const feeReason=cleanText(req.body.feeReason??rr.fee_reason??"",500);
+      let priceDifference=Number(rr.price_difference||0);
       let replacementProductId=rr.replacement_product_id,replacementVariantId=rr.replacement_variant_id,replacementProductName=rr.replacement_product_name,replacementVariantName=rr.replacement_variant_name,replacementUnitPrice=rr.replacement_unit_price;
       if(rr.request_type==="exchange" && ["approved","completed"].includes(status)){
         replacementProductId=integer(req.body.replacementProductId??replacementProductId,NaN);
@@ -3378,7 +3387,11 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
           if(!vq.rowCount)throw createHttpError(400,"BAD_REPLACEMENT_VARIANT","اللون/الخيار البديل غير صالح");
           const rv=vq.rows[0];replacementVariantName=[rv.color,rv.size].filter(Boolean).join(" / ");replacementUnitPrice=Number(rv.price??rp.price??0);
           if(completing&&Number(rv.stock||0)<Number(rr.quantity))throw createHttpError(409,"REPLACEMENT_OUT_OF_STOCK","الكمية المطلوبة من البديل غير متوفرة");
-        }else if(completing&&Number(rp.stock||0)<Number(rr.quantity))throw createHttpError(409,"REPLACEMENT_OUT_OF_STOCK","الكمية المطلوبة من البديل غير متوفرة");
+          priceDifference=money((Number(replacementUnitPrice||0)-Number(rr.unit_price||0))*Number(rr.quantity||1));
+        }else{
+          priceDifference=money((Number(replacementUnitPrice||0)-Number(rr.unit_price||0))*Number(rr.quantity||1));
+          if(completing&&Number(rp.stock||0)<Number(rr.quantity))throw createHttpError(409,"REPLACEMENT_OUT_OF_STOCK","الكمية المطلوبة من البديل غير متوفرة");
+        }
       }
       if(completing){
         if(rr.request_type==="return"){
@@ -3394,7 +3407,7 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
           await client.query("INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at) VALUES($1,$2,$3,'customer_exchange_out',$4,NOW())",[replacementProductId,replacementVariantId,-Number(rr.quantity),rr.order_id]);
         }
       }
-      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,replacement_product_id=$3,replacement_variant_id=$4,replacement_product_name=$5,replacement_variant_name=$6,replacement_unit_price=$7,updated_at=NOW() WHERE id=$8 RETURNING *`,[status,adminNote,replacementProductId,replacementVariantId,replacementProductName,replacementVariantName,replacementUnitPrice,id]);return u.rows[0];
+      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,replacement_product_id=$3,replacement_variant_id=$4,replacement_product_name=$5,replacement_variant_name=$6,replacement_unit_price=$7,fee_payer=$8,service_fee=$9,fee_reason=$10,price_difference=$11,updated_at=NOW() WHERE id=$12 RETURNING *`,[status,adminNote,replacementProductId,replacementVariantId,replacementProductName,replacementVariantName,replacementUnitPrice,requestedFeePayer,serviceFee,feeReason,priceDifference,id]);return u.rows[0];
     });
     res.json({ok:true,request:result});
   }catch(e){console.error("[RETURN STATUS]",e);res.status(e.status||500).json({ok:false,message:e.message||"تعذر تحديث الطلب"});}
