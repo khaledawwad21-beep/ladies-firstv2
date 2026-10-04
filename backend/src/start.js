@@ -9,16 +9,21 @@ const { app: ladiesFirstApp, initDatabase } = require("./server");
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
 
-// Render health check must be handled directly by the parent app and must not
-// depend on authentication, the database, static files, or downstream routes.
+// Render health check is intentionally independent of auth/database/Tripo.
 app.get("/api/health", (req, res) => {
   res.status(200).json({ ok: true, service: "ladies-firstv2" });
 });
 
-// Tripo routes are mounted on the parent app before the existing Ladies First
-// application. This avoids modifying the large production server.js file.
-app.use(express.json({ limit: "5mb" }));
+// A 20MB binary image becomes ~26.7MB when encoded as a base64 data URL.
+// Keep this parent parser above that size so Tripo's own 20MB validation is
+// actually reachable from the mobile Naya Studio.
+app.use(express.json({ limit: "30mb" }));
+app.use(express.urlencoded({ extended: true, limit: "30mb" }));
+
+// Credit-consuming Tripo endpoints are protected by requireAdmin in tripo.js.
 app.use("/api/tripo", tripoRouter);
+
+// Existing Ladies First API + static frontend.
 app.use(ladiesFirstApp);
 
 async function start() {
