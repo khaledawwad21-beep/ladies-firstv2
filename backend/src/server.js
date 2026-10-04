@@ -729,6 +729,19 @@ async function initDatabase() {
     )
   `);
 
+  /* Keep existing production databases compatible with the current API. */
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_discount NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS packaging_cost NUMERIC(12,2) NOT NULL DEFAULT 0`);
+
+  await db(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS image TEXT`);
+  await db(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS total NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+
+  await db(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS minimum_amount NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS starts_at TIMESTAMPTZ`);
+  await db(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+
   await db(`
     CREATE TABLE IF NOT EXISTS favorites (
       user_id BIGINT NOT NULL
@@ -781,6 +794,8 @@ async function initDatabase() {
         NOT NULL DEFAULT NOW()
     )
   `);
+
+  await db(`ALTER TABLE loyalty_points_transactions ADD COLUMN IF NOT EXISTS note TEXT`);
 
   await db(`
     CREATE UNIQUE INDEX IF NOT EXISTS
@@ -3600,21 +3615,17 @@ app.patch(
                   INSERT INTO inventory_movements (
                     product_id,
                     variant_id,
-                    quantity,
-                    movement_type,
-                    reference_type,
-                    reference_id,
-                    note,
+                    quantity_change,
+                    reason,
+                    order_id,
                     created_at
                   )
                   VALUES (
                     $1,
                     $2,
                     $3,
-                    'return',
-                    'order',
+                    'order_cancel_return',
                     $4,
-                    'إرجاع مخزون بسبب إلغاء الطلب',
                     NOW()
                   )
                   `,
