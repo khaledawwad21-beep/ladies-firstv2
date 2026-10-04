@@ -2554,37 +2554,6 @@ app.post(
             subtotal +=
               lineTotal;
 
-            await client.query(
-              `
-              INSERT INTO inventory_movements (
-                product_id,
-                variant_id,
-                quantity,
-                movement_type,
-                reference_type,
-                reference_id,
-                note,
-                created_at
-              )
-              VALUES (
-                $1,
-                $2,
-                $3,
-                'sale',
-                'order',
-                NULL,
-                $4,
-                NOW()
-              )
-              `,
-              [
-                productId,
-                variantId,
-                -quantity,
-                `بيع ${product.name || ""}`
-              ]
-            );
-
             normalizedItems.push({
               productId,
               variantId,
@@ -3023,6 +2992,29 @@ app.post(
                 ]
               );
             }
+          }
+
+          for (const item of normalizedItems) {
+            await client.query(
+              `
+              INSERT INTO inventory_movements (
+                product_id,
+                variant_id,
+                quantity_change,
+                reason,
+                order_id,
+                created_at
+              )
+              VALUES ($1,$2,$3,$4,$5,NOW())
+              `,
+              [
+                item.productId,
+                item.variantId,
+                -item.quantity,
+                `sale: ${item.productName || ""}`,
+                order.id
+              ]
+            );
           }
 
           return {
