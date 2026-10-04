@@ -22,9 +22,11 @@ app.get(["/admin", "/admin/", "/admin.html"], (req, res, next) => {
   return res.redirect(302, "/admin-login.html");
 });
 
-// A 20MB binary image becomes ~26.7MB when encoded as a base64 data URL.
-app.use(express.json({ limit: "30mb" }));
-app.use(express.urlencoded({ extended: true, limit: "30mb" }));
+// Multi-view may contain four images. Tripo accepts up to 20MB per image and
+// base64 adds ~33%, so the previous 30MB request limit could reject a valid
+// multi-view request before it ever reached the Tripo router.
+app.use(express.json({ limit: "110mb" }));
+app.use(express.urlencoded({ extended: true, limit: "110mb" }));
 
 // Credit-consuming Tripo endpoints are protected by requireAdmin in tripo.js.
 app.use("/api/tripo", tripoRouter);
@@ -36,7 +38,7 @@ async function start() {
   try {
     await initDatabase();
     app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Ladies First + Tripo v3 running on port ${PORT}`);
+      console.log(`Ladies First + Tripo v2/openapi running on port ${PORT}`);
     });
   } catch (error) {
     console.error("[SERVER START ERROR]", error);
