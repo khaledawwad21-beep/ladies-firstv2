@@ -501,6 +501,9 @@ async function initDatabase() {
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb`);
 
+  await db(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+  await db(`ALTER TABLE brands ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+
   await db(`
     CREATE TABLE IF NOT EXISTS product_variants (
       id BIGSERIAL PRIMARY KEY,
@@ -3960,21 +3963,17 @@ app.patch(
                 INSERT INTO inventory_movements (
                   product_id,
                   variant_id,
-                  quantity,
-                  movement_type,
-                  reference_type,
-                  reference_id,
-                  note,
+                  quantity_change,
+                  reason,
+                  order_id,
                   created_at
                 )
                 VALUES (
                   $1,
                   NULL,
                   $2,
-                  'adjustment',
-                  'admin',
-                  NULL,
                   $3,
+                  NULL,
                   NOW()
                 )
                 `,
@@ -4120,21 +4119,17 @@ app.patch(
                 INSERT INTO inventory_movements (
                   product_id,
                   variant_id,
-                  quantity,
-                  movement_type,
-                  reference_type,
-                  reference_id,
-                  note,
+                  quantity_change,
+                  reason,
+                  order_id,
                   created_at
                 )
                 VALUES (
                   $1,
                   $2,
                   $3,
-                  'adjustment',
-                  'admin',
-                  NULL,
                   $4,
+                  NULL,
                   NOW()
                 )
                 `,
