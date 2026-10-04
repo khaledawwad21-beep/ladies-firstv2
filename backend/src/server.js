@@ -738,6 +738,11 @@ async function initDatabase() {
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_discount NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS packaging_cost NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS loyalty_discount NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS points_redeemed INTEGER NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_region TEXT`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_waived BOOLEAN NOT NULL DEFAULT FALSE`);
 
   await db(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS image TEXT`);
   await db(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS total NUMERIC(12,2) NOT NULL DEFAULT 0`);
@@ -2698,6 +2703,7 @@ app.post(
               Number(
                 coupon.minimum_amount ||
                 coupon.min_order_amount ||
+                coupon.min_order ||
                 0
               );
 
@@ -2805,62 +2811,35 @@ app.post(
                 100);
           }
 
-          const shipping =
-            Math.max(
-              0,
-              Number(
-                await getSetting(
-                  "shipping_cost",
-                  client
-                )
-              ) || 0
-            );
+          const shippingRegion = cleanText(req.body.shippingRegion || req.body.shipping_region || "westbank", 30).toLowerCase();
+          const shippingFees = { westbank: 20, jerusalem: 35, inside: 70 };
+          if (!Object.prototype.hasOwnProperty.call(shippingFees, shippingRegion)) {
+            throw createHttpError(400,"BAD_SHIPPING_REGION","منطقة التوصيل غير صالحة");
+          }
+          const shippingWaived = req.body.shippingWaived === true && req.user && ["owner","admin"].includes(String(req.user.role||"").toLowerCase());
+          const shipping = shippingWaived ? 0 : shippingFees[shippingRegion];
 
-          const packaging =
-            Math.max(
-              0,
-              Number(
-                await getSetting(
-                  "packaging_cost",
-                  client
-                )
-              ) || 0
-            );
+          /* Packaging is still supplied as a cart snapshot; never allow a negative value. */
+          const packaging = Math.max(0, money(req.body.packaging ?? 0));
 
-          const total =
-            Math.max(
-              0,
-              subtotal -
-                couponDiscount -
-                visaDiscount +
-                shipping +
-                packaging
-            );
+          const requestedPoints = Math.max(0, integer(req.body.pointsToRedeem ?? req.body.points_to_redeem ?? 0, 0));
+          const loyaltyEnabled = (await getSetting("loyalty_enabled", true, client)) !== false;
+          const redeemEnabled = (await getSetting("loyalty_redeem_enabled", true, client)) !== false;
+          const pointValue = Math.max(0, Number(await getSetting("loyalty_point_value", 0.1, client)) || 0);
+          let pointsRedeemed = 0;
+          let loyaltyDiscount = 0;
+          if (requestedPoints > 0 && loyaltyEnabled && redeemEnabled) {
+            const ur = await client.query("SELECT loyalty_points FROM users WHERE id=$1 FOR UPDATE",[userId]);
+            const balance = Number(ur.rows[0]?.loyalty_points || 0);
+            pointsRedeemed = Math.min(requestedPoints, balance);
+            loyaltyDiscount = Math.min(pointsRedeemed * pointValue, Math.max(0, subtotal - couponDiscount - visaDiscount));
+          }
 
-          const pointsRate =
-            Math.max(
-              0,
-              Number(
-                await getSetting(
-                  "loyalty_points_per_currency",
-                  client
-                )
-              ) || 0
-            );
+          const total = Math.max(0, subtotal - couponDiscount - visaDiscount - loyaltyDiscount + shipping + packaging);
 
-          const pointsBase =
-            Math.max(
-              0,
-              subtotal -
-                couponDiscount -
-                visaDiscount
-            );
-
-          const loyaltyPoints =
-            calculateLoyaltyPoints(
-              pointsBase,
-              pointsRate
-            );
+          const pointsRate = Math.max(0, Number(await getSetting("loyalty_points_per_currency", client)) || 0);
+          const pointsBase = Math.max(0, subtotal - couponDiscount - visaDiscount - loyaltyDiscount);
+          const loyaltyPoints = loyaltyEnabled ? calculateLoyaltyPoints(pointsBase, pointsRate) : 0;
 
           /*
            * Snapshot data داخل الطلب.
@@ -2876,8 +2855,13 @@ app.post(
                 notes,
                 subtotal,
                 coupon_discount,
+                coupon_code,
                 shipping_cost,
+                shipping_region,
+                shipping_waived,
                 packaging_cost,
+                loyalty_discount,
+                points_redeemed,
                 total,
                 payment_method,
                 visa_discount,
@@ -2901,6 +2885,11 @@ app.post(
                 $11,
                 $12,
                 $13,
+                $14,
+                $15,
+                $16,
+                $17,
+                $18,
                 0,
                 'pending',
                 NOW(),
@@ -2916,8 +2905,13 @@ app.post(
                 notes,
                 subtotal,
                 couponDiscount,
+                couponCode || null,
                 shipping,
+                shippingRegion,
+                shippingWaived,
                 packaging,
+                loyaltyDiscount,
+                pointsRedeemed,
                 total,
                 paymentMethod,
                 visaDiscount,
@@ -2927,6 +2921,11 @@ app.post(
 
           const order =
             orderResult.rows[0];
+
+          if (pointsRedeemed > 0) {
+            await client.query(`UPDATE users SET loyalty_points=GREATEST(0,COALESCE(loyalty_points,0)-$1),updated_at=NOW() WHERE id=$2`,[pointsRedeemed,userId]);
+            await client.query(`INSERT INTO loyalty_points_transactions(user_id,order_id,points,transaction_type,note,created_at) VALUES($1,$2,$3,'redeem',$4,NOW())`,[userId,order.id,-pointsRedeemed,`استبدال نقاط في الطلب #${order.id}`]);
+          }
 
           for (
             const item of normalizedItems
@@ -3349,6 +3348,9 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
       const q=await client.query(`SELECT rr.*,oi.product_id,oi.variant_id FROM return_requests rr JOIN order_items oi ON oi.id=rr.order_item_id WHERE rr.id=$1 FOR UPDATE`,[id]);
       if(!q.rowCount)throw createHttpError(404,"RETURN_NOT_FOUND","الطلب غير موجود");
       const rr=q.rows[0], completing=status==="completed"&&rr.status!=="completed";
+      if(completing && rr.request_type==="exchange"){
+        throw createHttpError(400,"EXCHANGE_REPLACEMENT_REQUIRED","حددي المنتج/اللون البديل قبل إتمام الاستبدال");
+      }
       if(completing && rr.request_type==="return"){
         if(rr.variant_id)await client.query(`UPDATE product_variants SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2`,[rr.quantity,rr.variant_id]);
         else await client.query(`UPDATE products SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2`,[rr.quantity,rr.product_id]);
@@ -3865,29 +3867,6 @@ app.patch(
           "تعذر تحديث حالة الطلب"
       });
     }
-  }
-);
-
-
-/* =========================================================
-   LEGACY CANCEL ROUTE
-   ========================================================= */
-
-app.patch(
-  "/api/admin/orders/:id/cancel",
-  requireAdmin,
-  async (req, res) => {
-    req.body =
-      req.body || {};
-
-    req.body.status =
-      "cancelled";
-
-    return app._router.handle(
-      req,
-      res,
-      () => {}
-    );
   }
 );
 
