@@ -5,18 +5,12 @@ require("dotenv").config();
 const express = require("express");
 const tripoRouter = require("./tripo");
 const { app: storeApp, initDatabase } = require("./server");
-const {
-  createPreStoreRouter,
-  hardenProductionSchema
-} = require("./production-hardening");
+const { createRequestPolicyRouter } = require("./request-policy");
+const { migrateDatabase } = require("./database-migrations");
 
 const PORT = Number(process.env.PORT || 10000);
 const gateway = express();
 
-/*
- * The gateway owns integrations and cross-cutting production rules before the
- * core store. The legacy store remains mounted once and only once.
- */
 gateway.get("/api/health", (req, res) => {
   res.status(200).json({
     ok: true,
@@ -32,8 +26,8 @@ gateway.use(
   tripoRouter
 );
 
-/* Enforce production-wide rules before the legacy route handlers. */
-gateway.use(createPreStoreRouter());
+/* Cross-cutting validation is applied once before the store routes. */
+gateway.use(createRequestPolicyRouter());
 gateway.use(storeApp);
 
 gateway.use((error, req, res, next) => {
@@ -57,7 +51,7 @@ async function start() {
     }
 
     await initDatabase();
-    await hardenProductionSchema();
+    await migrateDatabase();
 
     gateway.listen(PORT, "0.0.0.0", () => {
       console.log(`Ladies First production server running on port ${PORT}`);
