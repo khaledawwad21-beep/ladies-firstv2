@@ -5,15 +5,17 @@ require("dotenv").config();
 const express = require("express");
 const tripoRouter = require("./tripo");
 const { app: storeApp, initDatabase } = require("./server");
+const {
+  createPreStoreRouter,
+  hardenProductionSchema
+} = require("./production-hardening");
 
 const PORT = Number(process.env.PORT || 10000);
 const gateway = express();
 
 /*
- * The core store app contains its own SPA fallback + final 404/error handlers.
- * Integrations therefore MUST be mounted before the core app. The gateway is
- * deliberately tiny: it owns only health/integrations, then delegates every
- * remaining request to the single core store app.
+ * The gateway owns integrations and cross-cutting production rules before the
+ * core store. The legacy store remains mounted once and only once.
  */
 gateway.get("/api/health", (req, res) => {
   res.status(200).json({
@@ -30,9 +32,10 @@ gateway.use(
   tripoRouter
 );
 
+/* Enforce production-wide rules before the legacy route handlers. */
+gateway.use(createPreStoreRouter());
 gateway.use(storeApp);
 
-/* Last-resort gateway error handler for integration errors. */
 gateway.use((error, req, res, next) => {
   if (res.headersSent) return next(error);
   console.error("[GATEWAY ERROR]", error);
@@ -54,6 +57,7 @@ async function start() {
     }
 
     await initDatabase();
+    await hardenProductionSchema();
 
     gateway.listen(PORT, "0.0.0.0", () => {
       console.log(`Ladies First production server running on port ${PORT}`);
