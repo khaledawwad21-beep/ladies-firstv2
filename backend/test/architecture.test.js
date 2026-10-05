@@ -12,11 +12,12 @@ function read(name) {
   return fs.readFileSync(path.join(src, name), "utf8");
 }
 
-test("production entrypoint owns process startup", () => {
+test("production gateway owns normal startup and core server can only self-start when executed directly", () => {
   const start = read("start.js");
   const server = read("server.js");
-  assert.match(start, /\.listen\s*\(/, "start.js must start the HTTP server");
-  assert.doesNotMatch(server, /\.listen\s*\(/, "server.js must not start a second HTTP server");
+  assert.match(start, /\.listen\s*\(/, "start.js must start the production HTTP gateway");
+  assert.match(server, /if\s*\(\s*require\.main\s*===\s*module\s*\)\s*startServer\s*\(\s*\)/, "server.js listener must be protected by require.main guard");
+  assert.equal((server.match(/\.listen\s*\(/g) || []).length, 1, "server.js must not contain multiple listeners");
 });
 
 test("core server keeps store routes in the real runtime and has no missing store-routes dependency", () => {
