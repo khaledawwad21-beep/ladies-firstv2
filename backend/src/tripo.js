@@ -6,6 +6,7 @@ const router = express.Router();
 
 const TRIPO_BASE_URL = "https://api.tripo3d.ai/v2/openapi";
 const TRIPO_UPLOAD_URL = "https://api.tripo3d.ai/v2/openapi/upload";
+const TRIPO_V3_BASE_URL = "https://openapi.tripo3d.ai/v3";
 const DEFAULT_MODEL = "v3.1-20260211";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -78,6 +79,21 @@ async function tripoJson(endpoint, options = {}) {
     new Error(`تعذر الاتصال بخدمة Tripo: ${lastError?.message || "network error"}`),
     { status: 502, code: "TRIPO_NETWORK_ERROR" }
   );
+}
+
+async function tripoV3(endpoint, options = {}) {
+  const response = await fetch(`${TRIPO_V3_BASE_URL}${endpoint}`, {
+    ...options,
+    headers: { ...authHeader(), "Content-Type": "application/json", ...(options.headers || {}) },
+    signal: AbortSignal.timeout(90000)
+  });
+  return parseResponse(response);
+}
+
+function validTripoInput(value) {
+  const v=String(value||"").trim();
+  if (!v || v.length>500) throw Object.assign(new Error("مصدر موديل نايا غير صالح"),{status:400});
+  return v;
 }
 
 function decodeImage(dataUrl) {
@@ -243,6 +259,50 @@ router.post("/naya/multiview", async (req, res, next) => {
       data: result.data || result
     });
   } catch (error) { next(error); }
+});
+
+router.post("/naya/rig-check", async (req,res,next)=>{
+  try {
+    const input=validTripoInput(req.body?.input || req.body?.taskId || req.body?.fileToken);
+    const result=await tripoV3("/animations/rig-check",{method:"POST",body:JSON.stringify({input})});
+    res.json({ok:true,data:result.data||result});
+  } catch(error){next(error);}
+});
+
+router.post("/naya/rig", async (req,res,next)=>{
+  try {
+    const input=validTripoInput(req.body?.input || req.body?.taskId || req.body?.fileToken);
+    const result=await tripoV3("/animations/rig",{method:"POST",body:JSON.stringify({
+      input, model:"rig-v1.0", rig_type:"biped", spec:"tripo", out_format:"glb"
+    })});
+    res.status(202).json({ok:true,taskId:result?.data?.task_id,data:result.data||result});
+  } catch(error){next(error);}
+});
+
+router.post("/naya/animate", async (req,res,next)=>{
+  try {
+    const input=validTripoInput(req.body?.input || req.body?.taskId);
+    const allowed=new Set(["idle","walk","run","jump","turn"]);
+    const animations=(Array.isArray(req.body?.animations)?req.body.animations:["idle"])
+      .map(x=>String(x).toLowerCase()).filter(x=>allowed.has(x)).slice(0,5);
+    if(!animations.length) animations.push("idle");
+    const result=await tripoV3("/animations/retarget",{method:"POST",body:JSON.stringify({
+      input, animations:animations.map(preset=>({preset})), out_format:"glb", bake_animation:true, animate_in_place:true
+    })});
+    res.status(202).json({ok:true,taskId:result?.data?.task_id,animations,data:result.data||result});
+  } catch(error){next(error);}
+});
+
+router.get("/naya/v3-tasks/:taskId", async (req,res,next)=>{
+  try {
+    const id=String(req.params.taskId||"").trim();
+    if(!/^[-_a-zA-Z0-9]+$/.test(id)) return res.status(400).json({ok:false,message:"رقم المهمة غير صالح"});
+    const result=await tripoV3(`/tasks/${encodeURIComponent(id)}`,{method:"GET"});
+    const data=result.data||result, output=data.output||{};
+    res.json({ok:true,status:data.status||null,progress:data.progress??0,
+      modelUrl:output.model_url||output.pbr_model||output.model||null,
+      modelUrls:output.model_urls||null,creditsConsumed:data.credits_consumed??null,data});
+  } catch(error){next(error);}
 });
 
 router.get("/tasks/:taskId", async (req, res, next) => {
