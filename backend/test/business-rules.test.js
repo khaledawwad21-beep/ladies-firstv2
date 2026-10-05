@@ -6,15 +6,21 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const server = fs.readFileSync(path.join(__dirname, "..", "src", "server.js"), "utf8");
+const policy = fs.readFileSync(path.join(__dirname, "..", "src", "request-policy.js"), "utf8");
+const migrations = fs.readFileSync(path.join(__dirname, "..", "src", "database-migrations.js"), "utf8");
 
 test("customer and owner passwords require the agreed 12 characters", () => {
   assert.doesNotMatch(server, /String\(password\)\.length\s*<\s*[68]\b/);
-  const checks = server.match(/String\(password\)\.length\s*<\s*12\b/g) || [];
-  assert.ok(checks.length >= 2, "register and owner bootstrap must both enforce 12 characters");
+  assert.match(policy, /MIN_PASSWORD_LENGTH\s*=\s*12/);
+  assert.match(policy, /\/api\/auth\/register/);
+  assert.match(policy, /\/api\/auth\/bootstrap-owner/);
 });
 
-test("loyalty reversal column is boolean because code treats it as a flag", () => {
-  assert.match(server, /loyalty_points_reversed\s+BOOLEAN\s+NOT NULL\s+DEFAULT\s+FALSE/i);
+test("production migration makes loyalty reversal a non-null boolean", () => {
+  assert.match(migrations, /TYPE BOOLEAN/i);
+  assert.match(migrations, /SET DEFAULT FALSE/i);
+  assert.match(migrations, /SET NOT NULL/i);
+  assert.match(migrations, /data_type\s*!==\s*"boolean"/i);
 });
 
 test("cancellation and returns use the canonical inventory movement schema", () => {
@@ -24,5 +30,5 @@ test("cancellation and returns use the canonical inventory movement schema", () 
 });
 
 test("loyalty transaction schema supports audit notes", () => {
-  assert.match(server, /ALTER TABLE loyalty_points_transactions ADD COLUMN IF NOT EXISTS note TEXT/);
+  assert.match(server + migrations, /ADD COLUMN IF NOT EXISTS note TEXT/);
 });
