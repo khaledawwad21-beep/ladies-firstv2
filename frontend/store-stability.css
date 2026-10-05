@@ -1,107 +1,130 @@
 /* Ladies First storefront stability layer.
-   Keep interaction-critical rules in one place while legacy visual CSS is retired safely. */
+   Interaction-critical rules live here while legacy visual CSS is retired safely.
+   Critical declarations are intentionally !important because index.html still contains
+   legacy inline stylesheet rules loaded after index.css. */
 
-/* Horizontal product rails: native touch scrolling must win over page gestures. */
+/* Horizontal product rails: native touch scrolling must win over legacy layout rules. */
 .product-slider,
 .offers-slider,
-.mini-slider-track{
-  display:flex;
-  flex-wrap:nowrap;
-  gap:12px;
-  width:100%;
-  max-width:100%;
-  overflow-x:auto;
-  overflow-y:hidden;
-  overscroll-behavior-inline:contain;
-  -webkit-overflow-scrolling:touch;
-  touch-action:pan-x pan-y;
-  scroll-snap-type:x proximity;
-  scrollbar-width:none;
-  padding:4px 2px 12px;
+.mini-slider-track,
+.bestSellersGrid{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  gap:12px!important;
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  overscroll-behavior-inline:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  touch-action:pan-x pan-y!important;
+  scroll-snap-type:x proximity!important;
+  scrollbar-width:none!important;
+  padding:4px 2px 12px!important;
 }
 .product-slider::-webkit-scrollbar,
 .offers-slider::-webkit-scrollbar,
-.mini-slider-track::-webkit-scrollbar{display:none}
+.mini-slider-track::-webkit-scrollbar,
+.bestSellersGrid::-webkit-scrollbar{display:none!important}
 .product-slider>.product-card,
 .offers-slider>.product-card,
 .mini-slider-track>.product-card{
-  flex:0 0 210px;
-  min-width:0;
-  scroll-snap-align:start;
+  flex:0 0 210px!important;
+  min-width:0!important;
+  scroll-snap-align:start!important;
+}
+.bestSellersGrid>.featureCard{
+  flex:0 0 160px!important;
+  min-width:145px!important;
+  scroll-snap-align:start!important;
 }
 
 /* Product cards stay compact on phones and never force vertical text. */
 .product-card,
-.product-card *{
-  writing-mode:horizontal-tb;
-  text-orientation:mixed;
+.product-card *,
+.featureCard,
+.featureCard *{
+  writing-mode:horizontal-tb!important;
+  text-orientation:mixed!important;
 }
 .product-name,
 .product-brand,
-.product-price{
-  white-space:normal;
-  word-break:normal;
-  overflow-wrap:anywhere;
+.product-price,
+.featureCard b,
+.featureCard .fprice{
+  white-space:normal!important;
+  word-break:normal!important;
+  overflow-wrap:anywhere!important;
 }
 
-/* Menu overlay must never remain above the store after the menu is hidden. */
+/* Hidden overlays cannot intercept taps or scrolling. */
 .mobile-menu[hidden],
-.page-overlay[hidden]{display:none!important}
-.page-overlay{pointer-events:auto}
+.page-overlay[hidden],
+.drawer[hidden],
+.modal[hidden],
+.galleryModal[hidden]{
+  display:none!important;
+  pointer-events:none!important;
+}
+.mobile-menu:not(.open),
+.page-overlay:not(.open){pointer-events:none!important}
+.mobile-menu.open,
+.page-overlay.open{pointer-events:auto!important}
 
 /* Naya: one authoritative geometry/visibility model. */
 .naya-assistant{
-  position:fixed;
-  right:16px;
-  bottom:142px;
-  z-index:1400;
-  width:min(370px,calc(100vw - 32px));
-  height:min(560px,calc(100dvh - 180px));
-  max-height:calc(100dvh - 180px);
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  background:#fff;
-  border:1px solid #eadce3;
-  border-radius:22px;
-  box-shadow:0 18px 55px #3f334033;
-  opacity:0;
-  visibility:hidden;
-  transform:translateY(18px) scale(.98);
-  pointer-events:none;
-  transition:opacity .2s ease,transform .2s ease,visibility .2s ease;
+  position:fixed!important;
+  right:16px!important;
+  bottom:142px!important;
+  z-index:1400!important;
+  width:min(370px,calc(100vw - 32px))!important;
+  height:min(560px,calc(100dvh - 180px))!important;
+  max-height:calc(100dvh - 180px)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+  background:#fff!important;
+  border:1px solid #eadce3!important;
+  border-radius:22px!important;
+  box-shadow:0 18px 55px #3f334033!important;
+  opacity:0!important;
+  visibility:hidden!important;
+  transform:translateY(18px) scale(.98)!important;
+  pointer-events:none!important;
+  transition:opacity .2s ease,transform .2s ease,visibility .2s ease!important;
 }
 .naya-assistant.open{
-  opacity:1;
-  visibility:visible;
-  transform:none;
-  pointer-events:auto;
+  opacity:1!important;
+  visibility:visible!important;
+  transform:none!important;
+  pointer-events:auto!important;
 }
 .naya-assistant:not(.open){pointer-events:none!important}
-.naya-header{flex:0 0 auto}
-.naya-conversation{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.naya-input,.naya-quick{flex:0 0 auto}
+.naya-header{flex:0 0 auto!important}
+.naya-conversation{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
+.naya-input,.naya-quick{flex:0 0 auto!important}
 .naya-launcher{
-  position:fixed;
-  right:16px;
-  bottom:82px;
-  z-index:1401;
+  position:fixed!important;
+  right:16px!important;
+  bottom:82px!important;
+  z-index:1401!important;
 }
 
-/* A modal/drawer may lock page scrolling; closing Naya itself must not. */
-body.naya-open{overflow:auto}
+/* Closing Naya must always release the storefront. */
+body.naya-open{overflow:auto!important;touch-action:auto!important}
+body:not(.modal-open):not(.drawer-open){overflow-y:auto}
 
 @media(max-width:700px){
   .product-slider>.product-card,
   .offers-slider>.product-card,
-  .mini-slider-track>.product-card{flex-basis:164px}
+  .mini-slider-track>.product-card{flex-basis:164px!important}
   .naya-assistant{
-    right:10px;
-    bottom:138px;
-    width:calc(100vw - 20px);
-    height:min(520px,calc(100dvh - 165px));
-    max-height:calc(100dvh - 165px);
-    border-radius:18px;
+    right:10px!important;
+    bottom:138px!important;
+    width:calc(100vw - 20px)!important;
+    height:min(520px,calc(100dvh - 165px))!important;
+    max-height:calc(100dvh - 165px)!important;
+    border-radius:18px!important;
   }
-  .naya-launcher{right:12px;bottom:82px}
+  .naya-launcher{right:12px!important;bottom:82px!important}
 }
