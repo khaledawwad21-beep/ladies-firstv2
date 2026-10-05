@@ -36,13 +36,24 @@ async function migrateDatabase() {
       await client.query(`ALTER TABLE orders ALTER COLUMN loyalty_points_reversed SET NOT NULL`);
     }
 
+    /* Columns referenced by current product/admin routes but absent from early schemas. */
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT`);
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS slug TEXT`);
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS image TEXT`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS products_sku_unique ON products(sku) WHERE sku IS NOT NULL`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS products_slug_unique ON products(slug) WHERE slug IS NOT NULL`);
+
+    /* Current order writer stores the canonical line amount in total. Keep legacy total_price compatible. */
+    await client.query(`ALTER TABLE order_items ALTER COLUMN total_price SET DEFAULT 0`);
+    await client.query(`UPDATE order_items SET total_price = COALESCE(total, unit_price * quantity, 0) WHERE total_price = 0`);
+
     await client.query(`
       ALTER TABLE loyalty_points_transactions
       ADD COLUMN IF NOT EXISTS note TEXT
     `);
 
     const verified = await client.query(`
-      SELECT data_type, is_nullable, column_default
+      SELECT data_type, is_nullable
       FROM information_schema.columns
       WHERE table_schema = 'public'
         AND table_name = 'orders'
@@ -53,6 +64,16 @@ async function migrateDatabase() {
     const schema = verified.rows[0];
     if (!schema || schema.data_type !== "boolean" || schema.is_nullable !== "NO") {
       throw new Error("orders.loyalty_points_reversed schema migration did not complete safely");
+    }
+
+    const productColumns = await client.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='products'
+        AND column_name IN ('sku','slug','image')
+    `);
+    if (productColumns.rowCount !== 3) {
+      throw new Error("products production schema is incomplete");
     }
   });
 }
