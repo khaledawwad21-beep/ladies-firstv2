@@ -2,6 +2,14 @@
 
 require("dotenv").config();
 
+/* Legacy route modules use this shared factory. Define it before server.js is loaded. */
+global.createHttpError = function createHttpError(status, code, message) {
+  const error = new Error(message || "حدث خطأ غير متوقع");
+  error.status = Number(status) || 500;
+  error.code = code || "INTERNAL_ERROR";
+  return error;
+};
+
 const express = require("express");
 const tripoRouter = require("./tripo");
 const { app: storeApp, initDatabase } = require("./server");
@@ -26,7 +34,6 @@ gateway.use(
   tripoRouter
 );
 
-/* Cross-cutting validation is applied once before the store routes. */
 gateway.use(createRequestPolicyRouter());
 gateway.use(storeApp);
 
