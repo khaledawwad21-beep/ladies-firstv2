@@ -1,0 +1,107 @@
+/* Ladies First storefront stability layer.
+   Keep interaction-critical rules in one place while legacy visual CSS is retired safely. */
+
+/* Horizontal product rails: native touch scrolling must win over page gestures. */
+.product-slider,
+.offers-slider,
+.mini-slider-track{
+  display:flex;
+  flex-wrap:nowrap;
+  gap:12px;
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+  overscroll-behavior-inline:contain;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-x pan-y;
+  scroll-snap-type:x proximity;
+  scrollbar-width:none;
+  padding:4px 2px 12px;
+}
+.product-slider::-webkit-scrollbar,
+.offers-slider::-webkit-scrollbar,
+.mini-slider-track::-webkit-scrollbar{display:none}
+.product-slider>.product-card,
+.offers-slider>.product-card,
+.mini-slider-track>.product-card{
+  flex:0 0 210px;
+  min-width:0;
+  scroll-snap-align:start;
+}
+
+/* Product cards stay compact on phones and never force vertical text. */
+.product-card,
+.product-card *{
+  writing-mode:horizontal-tb;
+  text-orientation:mixed;
+}
+.product-name,
+.product-brand,
+.product-price{
+  white-space:normal;
+  word-break:normal;
+  overflow-wrap:anywhere;
+}
+
+/* Menu overlay must never remain above the store after the menu is hidden. */
+.mobile-menu[hidden],
+.page-overlay[hidden]{display:none!important}
+.page-overlay{pointer-events:auto}
+
+/* Naya: one authoritative geometry/visibility model. */
+.naya-assistant{
+  position:fixed;
+  right:16px;
+  bottom:142px;
+  z-index:1400;
+  width:min(370px,calc(100vw - 32px));
+  height:min(560px,calc(100dvh - 180px));
+  max-height:calc(100dvh - 180px);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:#fff;
+  border:1px solid #eadce3;
+  border-radius:22px;
+  box-shadow:0 18px 55px #3f334033;
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(18px) scale(.98);
+  pointer-events:none;
+  transition:opacity .2s ease,transform .2s ease,visibility .2s ease;
+}
+.naya-assistant.open{
+  opacity:1;
+  visibility:visible;
+  transform:none;
+  pointer-events:auto;
+}
+.naya-assistant:not(.open){pointer-events:none!important}
+.naya-header{flex:0 0 auto}
+.naya-conversation{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.naya-input,.naya-quick{flex:0 0 auto}
+.naya-launcher{
+  position:fixed;
+  right:16px;
+  bottom:82px;
+  z-index:1401;
+}
+
+/* A modal/drawer may lock page scrolling; closing Naya itself must not. */
+body.naya-open{overflow:auto}
+
+@media(max-width:700px){
+  .product-slider>.product-card,
+  .offers-slider>.product-card,
+  .mini-slider-track>.product-card{flex-basis:164px}
+  .naya-assistant{
+    right:10px;
+    bottom:138px;
+    width:calc(100vw - 20px);
+    height:min(520px,calc(100dvh - 165px));
+    max-height:calc(100dvh - 165px);
+    border-radius:18px;
+  }
+  .naya-launcher{right:12px;bottom:82px}
+}
