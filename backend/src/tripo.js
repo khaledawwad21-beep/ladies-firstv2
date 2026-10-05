@@ -5,6 +5,7 @@ const { requireAdmin } = require("./auth");
 const router = express.Router();
 
 const TRIPO_BASE_URL = "https://api.tripo3d.ai/v2/openapi";
+const TRIPO_UPLOAD_URL = "https://api.tripo3d.ai/v2/openapi/upload";
 const DEFAULT_MODEL = "v3.1-20260211";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -110,7 +111,7 @@ async function uploadToTripo(decoded, filename) {
 
       // V2 legacy multipart upload endpoint. /upload/sts is not a file-upload
       // endpoint; STS credentials live under /upload/sts/token.
-      const response = await fetch(`${TRIPO_BASE_URL}/upload`, {
+      const response = await fetch(TRIPO_UPLOAD_URL, {
         method: "POST",
         headers: authHeader(),
         body: form,
