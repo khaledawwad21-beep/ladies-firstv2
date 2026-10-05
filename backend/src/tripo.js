@@ -273,7 +273,7 @@ router.post("/naya/rig", async (req,res,next)=>{
   try {
     const input=validTripoInput(req.body?.input || req.body?.taskId || req.body?.fileToken);
     const result=await tripoV3("/animations/rig",{method:"POST",body:JSON.stringify({
-      input, model:"rig-v1.0", rig_type:"biped", spec:"tripo", out_format:"glb"
+      input, model:"v1.0-20240301", rig_type:"biped", spec:"tripo", out_format:"glb"
     })});
     res.status(202).json({ok:true,taskId:result?.data?.task_id,data:result.data||result});
   } catch(error){next(error);}
@@ -287,7 +287,7 @@ router.post("/naya/animate", async (req,res,next)=>{
       .map(x=>String(x).toLowerCase()).filter(x=>allowed.has(x)).slice(0,5);
     if(!animations.length) animations.push("idle");
     const result=await tripoV3("/animations/retarget",{method:"POST",body:JSON.stringify({
-      input, animations:animations.map(preset=>({preset})), out_format:"glb", bake_animation:true, animate_in_place:true
+      input, animations:animations.map(preset=>`preset:${preset}`), out_format:"glb", bake_animation:true, animate_in_place:true
     })});
     res.status(202).json({ok:true,taskId:result?.data?.task_id,animations,data:result.data||result});
   } catch(error){next(error);}
