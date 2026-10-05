@@ -20,5 +20,23 @@
     "Head",
     "Chest"
   ],
-  "note": "Runtime contract for Ladies First Naya 3D model."
+  "note": "Runtime contract for Ladies First Naya 3D model.",
+  "visualReference": {
+    "status": "approved",
+    "sourceFile": "a_polished_3d_cg_character_model_and_animation_sho.png",
+    "sourceConversationFileId": "file_00000000120c82108e2c20ac2f26545e",
+    "description": "Latest approved Naya look: realistic Middle Eastern sales assistant, long dark wavy hair, pink blazer/coat, cream top, light blue jeans, white sneakers.",
+    "lockIdentity": true,
+    "approvedFor": [
+      "3D modeling",
+      "rigging",
+      "animations",
+      "storefront Naya experience"
+    ]
+  },
+  "productionRules": [
+    "Preserve the approved face, hair, proportions and pink/cream/denim styling.",
+    "Do not silently substitute an older Naya mesh as the final identity.",
+    "Clothing uses body measurements; bags, perfume, earrings, glasses and accessories use attachment points and category animations."
+  ]
 }
