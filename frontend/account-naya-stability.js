@@ -3,7 +3,7 @@
   'use strict';
 
   const MIN_PASSWORD = 12;
-  const NAYA_IMAGE = 'naya-transparent-v2.png';
+  const NAYA_IMAGE = 'naya-fullbody-clean.png';
 
   function passwordFields(root = document) {
     return [...root.querySelectorAll('input[type="password"]')];
@@ -74,8 +74,6 @@
     modal.dataset.productId = product.id || '';
     const copy = modal.querySelector('#lfNayaProduct');
     if (copy) copy.textContent = product.name ? `اختيارك: ${product.name}. خلينا نشوف كيف ممكن تكتمل الإطلالة.` : 'اختاري منتجًا وسأساعدك في تصور الإطلالة.';
-    const visual = modal.querySelector('.lf-naya-visual');
-    if (visual && product.image) visual.style.setProperty('--lf-product-image', `url("${String(product.image).replace(/"/g, '\\"')}")`);
     setPageLocked(true);
     requestAnimationFrame(() => modal.querySelector('[data-naya-close]')?.focus());
   }
@@ -87,35 +85,21 @@
 
   document.addEventListener('click', (event) => {
     const close = event.target.closest('[data-naya-close]');
-    if (close) {
-      event.preventDefault();
-      closeNaya();
-      return;
-    }
+    if (close) { event.preventDefault(); closeNaya(); return; }
     const trigger = event.target.closest('button,a,[role="button"]');
-    if (trigger && looksLikeTryOn(trigger)) {
-      event.preventDefault();
-      openNaya(productFromElement(trigger));
-    }
+    if (trigger && looksLikeTryOn(trigger)) { event.preventDefault(); openNaya(productFromElement(trigger)); }
   }, true);
 
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeNaya();
-  });
-
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeNaya(); });
   document.addEventListener('submit', (event) => {
-    const fields = passwordFields(event.target);
-    const invalid = fields.find((field) => field.value && field.value.length < MIN_PASSWORD);
+    const invalid = passwordFields(event.target).find((field) => field.value && field.value.length < MIN_PASSWORD);
     if (!invalid) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    invalid.focus();
+    event.preventDefault(); event.stopImmediatePropagation(); invalid.focus();
     alert('كلمة المرور يجب أن تكون 12 خانة على الأقل');
   }, true);
 
   const observer = new MutationObserver(() => enforcePasswordPolicy());
   observer.observe(document.documentElement, { childList: true, subtree: true });
   enforcePasswordPolicy();
-
   window.LadiesFirstNaya = { open: openNaya, close: closeNaya };
 })();
