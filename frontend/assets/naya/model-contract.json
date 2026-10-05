@@ -1,0 +1,24 @@
+{
+  "name": "Naya",
+  "model": "naya.glb",
+  "requiredAnimations": [
+    "Idle",
+    "PerfumeSpray",
+    "BagShoulder",
+    "HairRevealEar",
+    "GlassesTryOn",
+    "FashionPose",
+    "AccessoryShow"
+  ],
+  "attachmentPoints": [
+    "RightHand",
+    "LeftHand",
+    "RightShoulder",
+    "LeftShoulder",
+    "RightEar",
+    "LeftEar",
+    "Head",
+    "Chest"
+  ],
+  "note": "Runtime contract for Ladies First Naya 3D model."
+}
