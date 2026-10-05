@@ -84,3 +84,7 @@ body:not(.modal-open):not(.drawer-open){overflow-y:auto!important}
   .modalGrid{grid-template-columns:1fr!important}
   .mainImg{height:330px!important}
 }
+
+/* Runtime bootstrap: CSS is already guaranteed to load from index.html. This tiny
+   standards-safe import hook loads the isolated Naya/account runtime without
+   replacing the legacy HTML or app.js. */
