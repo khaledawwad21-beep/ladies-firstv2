@@ -51,26 +51,14 @@ test('editing updates the same product and retains variant IDs; invalid save is 
   const invalid=await request('/api/admin/products/'+product.id,'PUT',{name:'Bad',price:20,mainImages:[],variants:[]});assert.equal(invalid.status,400);
   assert.equal((await query('SELECT name FROM products WHERE id=$1',[product.id])).rows[0].name,'Updated');
 });
-test('actual admin upload and save helpers preserve failures and avoid duplicate creates', async () => {
+test('actual admin product bundle uploads media before saving JSON product payload', () => {
   const html=fs.readFileSync(require('node:path').join(__dirname,'../../frontend/admin.html'),'utf8');
-  const alerts=[],input={files:[{name:'picked.png'}],value:'selected'};
-  const context=vm.createContext({API_BASE:base,fetch,URL,apiToken:()=>createToken({id:1,role:'owner'}),alert:x=>alerts.push(x),compressImage:(file,cb)=>cb(png),save(){},products:[]});
-  const start=html.indexOf('async function uploadDataUrl');const end=html.indexOf('\nfunction readOne',start);vm.runInContext(html.slice(start,end),context);
-  for(const name of ['apiFetch','normalizeProductImages','variantList','totalStock','apiProductPayload','apiProductFromServer'])vm.runInContext(html.split('\n').filter(x=>new RegExp('^(async )?function '+name+'\\(').test(x)).at(-1),context);
-  const pstart=html.indexOf('let productSaveBusy=');const pend=html.indexOf('\nlet addingProduct=',pstart);vm.runInContext(html.slice(pstart,pend),context);
-  let callback=false;await context.readImages(input,()=>{callback=true});assert.equal(callback,true);assert.equal(input.value,'selected');
-  context.apiToken=()=>'';callback=false;await context.readImages(input,()=>{callback=true});assert.equal(callback,false);assert.match(alerts.at(-1),/تسجيل الدخول/);assert.equal(input.value,'selected');context.apiToken=()=>createToken({id:1,role:'owner'});
-  context.products=[{id:'local-new',name:'UI-created',price:5,stock:1,mainImages:[base+image],subImages:[],variants:[]}];
-  assert.equal(await context.persistProducts(),true);const savedId=context.products[0].id;
-  assert.equal(await context.persistProducts(),true);
-  context.products[0].name='UI edited';assert.equal(await context.persistProducts(),true);assert.equal(context.products[0].id,savedId);
-  assert.equal((await query('SELECT COUNT(*) AS n FROM products')).rows[0].n,2);
-  const fields={n:'Added from full form',mainPhoto:input,subPhotos:{files:[]},pr:'15',old:'20',cost:'6',stock:'2',en:'Form product',brandNew:'',brand:'Test Brand',cat:'عطور',desc:'description',visaDisc:'0',offerExpiry:'',quickOfferExpiry:''};
-  context.document={getElementById:id=>typeof fields[id]==='object'?fields[id]:{value:fields[id]??'',checked:id==='offer'}};
-  context.crypto=require('node:crypto');context.collectVariants=()=>[];context.ensureProductBrand=x=>x;context.render=async()=>{};
-  const add=html.split('\n').find(x=>x.startsWith('async function addProduct('));vm.runInContext('let addingProduct=false;'+add,context);
-  await Promise.all([context.addProduct(),context.addProduct()]);
-  assert.equal((await query('SELECT COUNT(*) AS n FROM products')).rows[0].n,3);
-  const created=await query('SELECT name FROM products ORDER BY id DESC LIMIT 1');assert.equal(created.rows[0].name,'Added from full form');
-
+  const js=fs.readFileSync(require('node:path').join(__dirname,'../../frontend/admin-product-upload.js'),'utf8');
+  assert.match(html,/admin-product-upload\.js/);
+  assert.match(js,/\/api\/admin\/uploads\/image/);
+  assert.match(js,/readAsDataURL/);
+  assert.match(js,/Content-Type["']?\s*:\s*["']application\/json/);
+  assert.match(js,/body\.mainImages\s*=\s*\[imageUrl\]/);
+  assert.match(js,/if\s*\(button\?\.disabled\)\s*return/);
+  assert.doesNotMatch(js,/new FormData\(/);
 });

@@ -1,0 +1,31 @@
+name: Production Regression
+
+on:
+  push:
+    branches: [cleanup-production, main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Run regression suite
+        env:
+          JWT_SECRET: ci-regression-secret-12345678901234567890
+        run: npm test

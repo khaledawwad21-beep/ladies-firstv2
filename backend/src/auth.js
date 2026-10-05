@@ -3,6 +3,8 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
+const MIN_PASSWORD_LENGTH = 12;
+
 function getJwtSecret() {
   const secret = String(process.env.JWT_SECRET || "").trim();
   if (!secret) {
@@ -16,8 +18,15 @@ function getJwtSecret() {
 const TOKEN_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "30d";
 
 async function hashPassword(password) {
-  if (!password) throw new Error("Password is required");
-  return bcrypt.hash(String(password), 12);
+  const value = String(password || "");
+  if (!value) throw new Error("Password is required");
+  if (value.length < MIN_PASSWORD_LENGTH) {
+    const error = new Error("كلمة المرور يجب أن تكون 12 خانة على الأقل");
+    error.code = "PASSWORD_TOO_SHORT";
+    error.status = 400;
+    throw error;
+  }
+  return bcrypt.hash(value, 12);
 }
 
 async function verifyPassword(password, passwordHash) {
@@ -92,4 +101,4 @@ function sanitizeUser(user) {
   return {id:user.id,name:user.name||"",email:user.email||null,phone:user.phone||null,contact:user.email||user.phone||"",is_owner:user.role==="owner"?1:0,gender:user.gender||null,age:user.age!==undefined&&user.age!==null?Number(user.age):null,role:user.role||"customer",loyaltyPoints:Number(user.loyalty_points??user.loyaltyPoints??0),isActive:user.is_active!==undefined?Boolean(user.is_active):true,createdAt:user.created_at||user.createdAt||null,updatedAt:user.updated_at||user.updatedAt||null};
 }
 function getGenderGreeting(gender) { const value=String(gender||"").trim().toLowerCase(); if(value==="male"||value==="ذكر"||value==="m")return "نورتنا"; if(value==="female"||value==="أنثى"||value==="انثى"||value==="f")return "نورتينا"; return "أهلاً وسهلاً"; }
-module.exports={hashPassword,verifyPassword,createToken,getTokenFromRequest,verifyToken,optionalAuth,requireAuth,requireRole,requireAdmin,requireOwner,normalizeEmail,normalizePhone,normalizeContact,sanitizeUser,getGenderGreeting};
+module.exports={MIN_PASSWORD_LENGTH,hashPassword,verifyPassword,createToken,getTokenFromRequest,verifyToken,optionalAuth,requireAuth,requireRole,requireAdmin,requireOwner,normalizeEmail,normalizePhone,normalizeContact,sanitizeUser,getGenderGreeting};

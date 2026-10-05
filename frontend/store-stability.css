@@ -1,0 +1,90 @@
+/* Ladies First storefront stability layer.
+   This file is the authoritative storefront override while legacy CSS is retired.
+   index.html still contains old inline rules after index.css, therefore every
+   interaction/layout-critical declaration here is explicit and !important. */
+
+/* Global layout safety */
+html,body{max-width:100%!important;overflow-x:hidden!important}
+img{max-width:100%!important}
+button,a,input,select,textarea{touch-action:manipulation}
+
+/* Main catalog remains responsive and horizontal text only. */
+.grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:18px!important}
+.card,.product-card,.featureCard{min-width:0!important;max-width:100%!important}
+.card *,.product-card *,.featureCard *{writing-mode:horizontal-tb!important;text-orientation:mixed!important}
+.body h3,.body p,.product-name,.product-brand,.product-price,.featureCard b,.featureCard .fprice{
+  white-space:normal!important;word-break:normal!important;overflow-wrap:anywhere!important
+}
+
+/* Hero has one predictable geometry on desktop and mobile. */
+.heroCard{position:relative!important;display:block!important;overflow:hidden!important}
+.heroVisual{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important}
+.heroLogo,.heroLogoLayer{width:100%!important;height:100%!important;object-fit:cover!important;margin:0!important}
+.heroText{position:absolute!important;z-index:4!important;text-align:right!important}
+
+/* Horizontal product rails: native touch scrolling wins over legacy grid rules. */
+.product-slider,.offers-slider,.mini-slider-track,.bestSellersGrid,.featureGrid{
+  display:flex!important;flex-wrap:nowrap!important;gap:12px!important;width:100%!important;max-width:100%!important;
+  overflow-x:auto!important;overflow-y:hidden!important;overscroll-behavior-inline:contain!important;
+  -webkit-overflow-scrolling:touch!important;touch-action:pan-x pan-y!important;scroll-snap-type:x proximity!important;
+  scrollbar-width:none!important;padding:4px 2px 12px!important
+}
+.product-slider::-webkit-scrollbar,.offers-slider::-webkit-scrollbar,.mini-slider-track::-webkit-scrollbar,
+.bestSellersGrid::-webkit-scrollbar,.featureGrid::-webkit-scrollbar{display:none!important}
+.product-slider>.product-card,.offers-slider>.product-card,.mini-slider-track>.product-card{
+  flex:0 0 210px!important;min-width:0!important;scroll-snap-align:start!important
+}
+.bestSellersGrid>.featureCard,.featureGrid>.featureCard{
+  flex:0 0 160px!important;min-width:145px!important;max-width:180px!important;scroll-snap-align:start!important
+}
+
+/* Drawers/modals: closed means truly non-interactive. */
+.mobile-menu[hidden],.page-overlay[hidden],.drawer[hidden],.modal[hidden],.galleryModal[hidden]{
+  display:none!important;visibility:hidden!important;pointer-events:none!important
+}
+.mobile-menu:not(.open),.page-overlay:not(.open){pointer-events:none!important}
+.mobile-menu.open,.page-overlay.open{pointer-events:auto!important}
+.drawer,.modal,.galleryModal{touch-action:pan-y!important}
+.panel,.modalBox,.productModal{-webkit-overflow-scrolling:touch!important;overscroll-behavior:contain!important}
+
+/* Naya: one authoritative geometry/visibility model. */
+.naya-assistant{
+  position:fixed!important;right:16px!important;bottom:142px!important;z-index:1400!important;
+  width:min(370px,calc(100vw - 32px))!important;height:min(560px,calc(100dvh - 180px))!important;
+  max-height:calc(100dvh - 180px)!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;
+  background:#fff!important;border:1px solid #eadce3!important;border-radius:22px!important;
+  box-shadow:0 18px 55px #3f334033!important;opacity:0!important;visibility:hidden!important;
+  transform:translateY(18px) scale(.98)!important;pointer-events:none!important;
+  transition:opacity .2s ease,transform .2s ease,visibility .2s ease!important
+}
+.naya-assistant.open{opacity:1!important;visibility:visible!important;transform:none!important;pointer-events:auto!important}
+.naya-assistant:not(.open){pointer-events:none!important}
+.naya-header{flex:0 0 auto!important}
+.naya-conversation{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
+.naya-input,.naya-quick{flex:0 0 auto!important}
+.naya-launcher{position:fixed!important;right:16px!important;bottom:82px!important;z-index:1401!important}
+body.naya-open{overflow:auto!important;touch-action:auto!important}
+body:not(.modal-open):not(.drawer-open){overflow-y:auto!important}
+
+@media(max-width:850px){
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+  .cats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:700px){
+  .product-slider>.product-card,.offers-slider>.product-card,.mini-slider-track>.product-card{flex-basis:164px!important}
+  .featureGrid>.featureCard,.bestSellersGrid>.featureCard{flex-basis:150px!important;min-width:145px!important}
+  .naya-assistant{right:10px!important;bottom:138px!important;width:calc(100vw - 20px)!important;
+    height:min(520px,calc(100dvh - 165px))!important;max-height:calc(100dvh - 165px)!important;border-radius:18px!important}
+  .naya-launcher{right:12px!important;bottom:82px!important}
+}
+@media(max-width:550px){
+  .heroCard{min-height:430px!important;height:430px!important}
+  .heroText{right:5%!important;left:5%!important;top:auto!important;bottom:34px!important;transform:none!important;padding:18px!important}
+  .pic{height:190px!important}
+  .modalGrid{grid-template-columns:1fr!important}
+  .mainImg{height:330px!important}
+}
+
+/* Runtime bootstrap: CSS is already guaranteed to load from index.html. This tiny
+   standards-safe import hook loads the isolated Naya/account runtime without
+   replacing the legacy HTML or app.js. */

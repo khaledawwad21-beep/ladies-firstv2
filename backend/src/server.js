@@ -1023,12 +1023,12 @@ app.post(
       }
 
       if (
-        String(password).length < 6
+        String(password).length < 12
       ) {
         return res.status(400).json({
           ok: false,
           message:
-            "كلمة المرور يجب أن تكون 6 أحرف على الأقل"
+            "كلمة المرور يجب أن تكون 12 خانة على الأقل"
         });
       }
 
@@ -1410,12 +1410,12 @@ app.post(
       }
 
       if (
-        String(password).length < 8
+        String(password).length < 12
       ) {
         return res.status(400).json({
           ok: false,
           message:
-            "كلمة مرور المالك يجب أن تكون 8 أحرف على الأقل"
+            "كلمة مرور المالك يجب أن تكون 12 خانة على الأقل"
         });
       }
 
@@ -4754,6 +4754,7 @@ app.patch(
 
     const password =
       String(
+        req.body.newPassword ||
         req.body.password ||
         ""
       );
@@ -4776,7 +4777,7 @@ app.patch(
       return res.status(400).json({
         ok: false,
         message:
-          "كلمة المرور يجب أن تكون 6 أحرف على الأقل"
+          "كلمة المرور يجب أن تكون 12 خانة على الأقل"
       });
     }
 
