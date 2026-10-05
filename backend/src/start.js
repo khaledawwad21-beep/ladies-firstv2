@@ -10,6 +10,8 @@ global.createHttpError = function createHttpError(status, code, message) {
   return error;
 };
 
+const fs = require("fs");
+const path = require("path");
 const express = require("express");
 const tripoRouter = require("./tripo");
 const { app: storeApp, initDatabase } = require("./server");
@@ -18,6 +20,27 @@ const { migrateDatabase } = require("./database-migrations");
 
 const PORT = Number(process.env.PORT || 10000);
 const gateway = express();
+const FRONTEND_DIR = path.resolve(__dirname, "../../frontend");
+
+/*
+ * Keep the browser-side account policy aligned with the production API.
+ * app.js is an old bundled storefront file, so this compatibility route is
+ * intentionally owned by the gateway until that bundle is split into modules.
+ */
+gateway.get("/app.js", (req, res, next) => {
+  try {
+    const filename = path.join(FRONTEND_DIR, "app.js");
+    let source = fs.readFileSync(filename, "utf8");
+    source = source
+      .replace('minlength="4" placeholder="كلمة المرور"', 'minlength="12" placeholder="كلمة المرور — 12 خانة على الأقل"')
+      .replace("if(password.length<8)return alert('كلمة المرور يجب أن تكون 8 أحرف/أرقام على الأقل');", "if(password.length<12)return alert('كلمة المرور يجب أن تكون 12 خانة على الأقل');");
+    res.type("application/javascript; charset=utf-8");
+    res.set("Cache-Control", "no-cache");
+    return res.send(source);
+  } catch (error) {
+    return next(error);
+  }
+});
 
 gateway.get("/api/health", (req, res) => {
   res.status(200).json({
