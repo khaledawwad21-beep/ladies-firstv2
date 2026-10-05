@@ -1,2 +1,79 @@
-/* Ladies First - Naya stable storefront modal */
-.lf-naya-modal[hidden]{display:none!important}.lf-naya-modal{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:14px;isolation:isolate}.lf-naya-backdrop{position:absolute;inset:0;background:rgba(38,22,36,.62);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}.lf-naya-sheet{position:relative;z-index:1;width:min(760px,100%);max-height:min(88dvh,780px);overflow:auto;background:#fffafc;border:1px solid #eadce3;border-radius:28px;box-shadow:0 24px 70px rgba(48,23,43,.35);display:grid;grid-template-columns:minmax(240px,.9fr) minmax(280px,1.1fr);direction:rtl}.lf-naya-close{position:absolute;top:12px;left:12px;z-index:4;width:42px;height:42px;border-radius:50%;background:#fff;color:#63345e;border:1px solid #eadce3;font-size:28px;line-height:1}.lf-naya-visual{min-height:480px;background:linear-gradient(180deg,#f8e8ef,#f4dce7);position:relative;overflow:hidden;border-radius:0 28px 28px 0}.lf-naya-visual:after{content:"";position:absolute;left:12px;bottom:12px;width:92px;height:118px;border-radius:16px;background-image:var(--lf-product-image);background-size:cover;background-position:center;box-shadow:0 8px 22px #0002}.lf-naya-visual:not([style*="--lf-product-image"]):after{display:none}.lf-naya-visual img{width:100%;height:100%;position:absolute;inset:0;object-fit:contain;object-position:center bottom}.lf-naya-copy{padding:64px 28px 28px;align-self:center}.lf-naya-copy small{color:#a0618c;font-weight:800;letter-spacing:.08em}.lf-naya-copy h2{margin:8px 0;color:#63345e;font-size:34px}.lf-naya-copy p{line-height:1.8;color:#654f61}.lf-naya-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.lf-naya-primary,.lf-naya-secondary{padding:12px 18px;border-radius:18px;font-weight:800}.lf-naya-primary{background:#63345e;color:#fff}.lf-naya-secondary{background:#f4e5ed;color:#63345e}.lf-naya-privacy{font-size:12px!important;color:#8b7786!important;margin-top:18px}.lf-naya-open{overflow:hidden!important;overscroll-behavior:none}@media(max-width:650px){.lf-naya-modal{padding:8px;align-items:end}.lf-naya-sheet{grid-template-columns:1fr;max-height:94dvh;border-radius:26px 26px 16px 16px}.lf-naya-visual{min-height:44dvh;max-height:420px;border-radius:26px 26px 0 0}.lf-naya-copy{padding:20px 18px 24px}.lf-naya-copy h2{font-size:27px}.lf-naya-close{position:fixed;top:max(16px,env(safe-area-inset-top));left:16px}.lf-naya-actions>*{flex:1;min-width:130px}}
+/* Ladies First — Naya stability layer.
+   Loaded through index.css. High-specificity rules intentionally beat the
+   legacy inline !important blocks that still exist in index.html. */
+
+/* Current storefront markup still points at the removed naya-fullbody.png.
+   Force both live Naya images to the cleaned production asset without touching
+   the large legacy HTML document. */
+html body #nayaAssistant .naya-stage img.naya-real-avatar,
+html body #nayaAssistant #nayaTryOnPreview img#nayaBodyImage{
+  content:url("./naya-fullbody-clean.png")!important;
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  height:100%!important;
+  max-height:100%!important;
+  object-fit:contain!important;
+  object-position:center bottom!important;
+}
+
+/* Naya itself is the only interactive surface while open. */
+html.naya-locked,html body.naya-open{
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+}
+html body.naya-open{position:fixed!important;width:100%!important;left:0!important;right:0!important}
+html body #nayaAssistant.naya-assistant{pointer-events:none!important;visibility:hidden!important;opacity:0!important}
+html body #nayaAssistant.naya-assistant.open{
+  pointer-events:auto!important;
+  visibility:visible!important;
+  opacity:1!important;
+  display:flex!important;
+  flex-direction:column!important;
+  touch-action:auto!important;
+  overscroll-behavior:contain!important;
+}
+html body #nayaAssistant .naya-conversation,
+html body #nayaAssistant .naya-body-panel{
+  min-height:0!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+  touch-action:pan-y!important;
+  overscroll-behavior:contain!important;
+}
+html body #nayaAssistant .naya-header,
+html body #nayaAssistant .naya-input,
+html body #nayaAssistant .naya-quick{flex:0 0 auto!important}
+
+/* Body-profile panel is closed unless explicitly opened by app.js. */
+html body #nayaAssistant #nayaBodyPanel{display:none!important}
+html body #nayaAssistant #nayaBodyPanel.open{display:block!important}
+
+/* Keep the existing isolated try-on modal usable if/when its JS loader is
+   enabled later; these rules do not interfere with the current assistant. */
+.lf-naya-modal[hidden]{display:none!important}
+.lf-naya-modal{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:14px;isolation:isolate}
+.lf-naya-backdrop{position:absolute;inset:0;background:rgba(38,22,36,.62);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.lf-naya-sheet{position:relative;z-index:1;width:min(760px,100%);max-height:min(88dvh,780px);overflow:auto;background:#fffafc;border:1px solid #eadce3;border-radius:28px;box-shadow:0 24px 70px rgba(48,23,43,.35);display:grid;grid-template-columns:minmax(240px,.9fr) minmax(280px,1.1fr);direction:rtl}
+.lf-naya-close{position:absolute;top:12px;left:12px;z-index:4;width:42px;height:42px;border-radius:50%;background:#fff;color:#63345e;border:1px solid #eadce3;font-size:28px;line-height:1}
+.lf-naya-visual{min-height:480px;background:linear-gradient(180deg,#f8e8ef,#f4dce7);position:relative;overflow:hidden;border-radius:0 28px 28px 0}
+.lf-naya-visual:after{content:"";position:absolute;left:12px;bottom:12px;width:92px;height:118px;border-radius:16px;background-image:var(--lf-product-image);background-size:cover;background-position:center;box-shadow:0 8px 22px #0002}
+.lf-naya-visual:not([style*="--lf-product-image"]):after{display:none}
+.lf-naya-visual img{width:100%;height:100%;position:absolute;inset:0;object-fit:contain;object-position:center bottom}
+.lf-naya-copy{padding:64px 28px 28px;align-self:center}.lf-naya-copy small{color:#a0618c;font-weight:800;letter-spacing:.08em}.lf-naya-copy h2{margin:8px 0;color:#63345e;font-size:34px}.lf-naya-copy p{line-height:1.8;color:#654f61}.lf-naya-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.lf-naya-primary,.lf-naya-secondary{padding:12px 18px;border-radius:18px;font-weight:800}.lf-naya-primary{background:#63345e;color:#fff}.lf-naya-secondary{background:#f4e5ed;color:#63345e}.lf-naya-privacy{font-size:12px!important;color:#8b7786!important;margin-top:18px}.lf-naya-open{overflow:hidden!important;overscroll-behavior:none}
+
+@media(max-width:700px){
+  html body #nayaAssistant.naya-assistant{
+    left:8px!important;right:8px!important;bottom:70px!important;width:auto!important;
+    height:min(78dvh,720px)!important;max-height:calc(100dvh - 90px)!important;
+    border-radius:20px!important;overflow:hidden!important;
+  }
+  html body #nayaAssistant.naya-assistant.open{display:flex!important}
+  html body #nayaAssistant .naya-stage{flex:0 0 min(25dvh,220px)!important;min-height:120px!important;overflow:hidden!important}
+  html body #nayaAssistant .naya-conversation{flex:1 1 auto!important;min-height:120px!important}
+  html body #nayaAssistant .naya-quick{display:flex!important;overflow-x:auto!important;overflow-y:hidden!important;flex-wrap:nowrap!important;touch-action:pan-x!important;scrollbar-width:none!important}
+  html body #nayaAssistant .naya-quick::-webkit-scrollbar{display:none!important}
+  html body #nayaAssistant .naya-quick button{flex:0 0 auto!important;white-space:nowrap!important}
+}
+
+@media(max-width:650px){.lf-naya-modal{padding:8px;align-items:end}.lf-naya-sheet{grid-template-columns:1fr;max-height:94dvh;border-radius:26px 26px 16px 16px}.lf-naya-visual{min-height:44dvh;max-height:420px;border-radius:26px 26px 0 0}.lf-naya-copy{padding:20px 18px 24px}.lf-naya-copy h2{font-size:27px}.lf-naya-close{position:fixed;top:max(16px,env(safe-area-inset-top));left:16px}.lf-naya-actions>*{flex:1;min-width:130px}}
