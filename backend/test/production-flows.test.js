@@ -56,3 +56,16 @@ test("shipping waiver and loyalty ledger endpoints are protected", () => {
   assert.match(server, /app\.patch\(\s*"\/api\/admin\/orders\/:id\/shipping-waiver",\s*requireAdmin/s);
   assert.match(server, /app\.get\(\s*"\/api\/loyalty",\s*requireAuth/s);
 });
+
+
+test("checkout rejects duplicate product/variant cart lines", () => {
+  assert.match(server, /seenCartLines\s*=\s*new Set\(\)/);
+  assert.match(server, /DUPLICATE_CART_LINE/);
+  assert.match(server, /seenCartLines\.has\(cartLineKey\)/);
+});
+
+test("coupon type and value are server validated", () => {
+  assert.match(server, /\["fixed",\s*"percent"\]\.includes\(couponType\)/);
+  assert.match(server, /INVALID_COUPON_VALUE/);
+  assert.match(server, /couponType === "percent" && couponValue > 100/);
+});
