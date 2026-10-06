@@ -500,6 +500,7 @@ async function initDatabase() {
   `);
 
   await require('./product-media').initMedia();
+  await require('./waitlist').initWaitlist(db);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb`);
 
@@ -7743,6 +7744,18 @@ app.get(
     );
   }
 );
+
+
+/* =========================================================
+   WAITLIST
+========================================================= */
+
+require("./waitlist").registerWaitlistRoutes(app, {
+  db,
+  requireAdmin,
+  optionalAuth,
+  normalizePhone
+});
 
 
 /* =========================================================
