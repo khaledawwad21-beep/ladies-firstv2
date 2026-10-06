@@ -1,0 +1,67 @@
+'use strict';
+
+const hpFonts = [['Tahoma,Arial,sans-serif','Tahoma'],['Arial,Tahoma,sans-serif','Arial'],['Georgia,serif','Georgia']];
+const hpDefaultStyle = {font:hpFonts[0][0],color:'#ffffff',opacity:1,bgColor:'#63345e',bgOpacity:.58};
+let hpSlides = [], hpStyle = {...hpDefaultStyle}, hpBusy = false, hpLoadRequest = 0;
+
+window.homepage = async function homepage() {
+  const request = ++hpLoadRequest;
+  const container = $('#sections');
+  container.innerHTML = '<div id="hpLoading" class="card">جاري تحميل صور السلايدر…</div>';
+  try {
+    const d = await api('/api/admin/settings'), s = d.settings || {};
+    if (request !== hpLoadRequest || !$('#hpLoading')) return;
+    hpSlides = Array.isArray(s.hero_slides) ? s.hero_slides.map(x=>({...x})) : (s.hero?.image ? [{image:s.hero.image,titleAr:'كل ما تحتاجينه.. في مكان واحد',descAr:'منتجات مختارة بعناية لتكملي إطلالتك.'}] : []);
+    const style = s.hero_text_style || {};
+    hpStyle = {...hpDefaultStyle};
+    for(const key of ['color','bgColor']) if(/^#[a-f\d]{6}$/i.test(style[key] || '')) hpStyle[key]=style[key];
+    for(const key of ['opacity','bgOpacity']) if(Number.isFinite(Number(style[key]))) hpStyle[key]=Math.max(0,Math.min(1,Number(style[key])));
+    if(hpFonts.some(x=>x[0]===style.font)) hpStyle.font=style.font;
+    hpRender();
+  } catch(e) { if(request === hpLoadRequest && $('#hpLoading')) container.textContent=e.message; }
+};
+
+function hpCapture() {
+  if (!$('#hpEditor')) return;
+  hpSlides.forEach((slide,index)=>{
+    for(const key of ['image','titleAr','titleEn','descAr','descEn']) slide[key]=$(`#hp_${index}_${key}`).value.trim();
+  });
+  hpStyle={font:$('#hpFont').value,color:$('#hpColor').value,bgColor:$('#hpBg').value,opacity:Number($('#hpOpacity').value),bgOpacity:Number($('#hpBgOpacity').value)};
+}
+function hpPreviewUrl(value) {
+  const url=String(value||'');
+  return /^https?:\/\//i.test(url)||/^\/(?!\/)[^\\]+$/.test(url)?url:'';
+}
+function hpRender() {
+  $('#sections').innerHTML=`<div id="hpEditor" class="card"><h2>صور السلايدر والنصوص</h2><p>تظهر الصور بهذا الترتيب، وتتبدل تلقائيًا كل 3 ثوانٍ. عند حذف جميع الصور تظهر صورة المتجر الافتراضية.</p><fieldset id="hpFields" style="border:0;padding:0;min-width:0" ${hpBusy?'disabled':''}>
+    <div class="toolbar"><button class="btn" type="button" onclick="hpAdd()">+ صورة جديدة</button><label class="field">رفع صورة من الجهاز<input id="hpFile" type="file" accept="image/png,image/jpeg,image/webp" onchange="hpUpload(this)"></label></div>
+    ${hpSlides.map((slide,i)=>`<div class="card"><h3>الصورة ${i+1}</h3>${hpPreviewUrl(slide.image)?`<img src="${E(hpPreviewUrl(slide.image))}" alt="معاينة الصورة ${i+1}" style="display:block;width:100%;max-height:240px;object-fit:contain;border-radius:12px">`:""}<div class="formgrid"><label class="full">رابط الصورة<input id="hp_${i}_image" class="field" value="${E(slide.image||'')}" placeholder="https://… أو رابط الصورة المرفوعة"></label><label>العنوان بالعربية<input id="hp_${i}_titleAr" class="field" maxlength="200" value="${E(slide.titleAr||'')}"></label><label>العنوان بالإنجليزية<input id="hp_${i}_titleEn" class="field" maxlength="200" value="${E(slide.titleEn||'')}"></label><label>الوصف بالعربية<textarea id="hp_${i}_descAr" class="field" maxlength="1000">${E(slide.descAr||'')}</textarea></label><label>الوصف بالإنجليزية<textarea id="hp_${i}_descEn" class="field" maxlength="1000">${E(slide.descEn||'')}</textarea></label></div><div class="toolbar"><button type="button" class="btn" onclick="hpMove(${i},-1)" ${i===0?'disabled':''}>للأعلى</button><button type="button" class="btn" onclick="hpMove(${i},1)" ${i===hpSlides.length-1?'disabled':''}>للأسفل</button><button type="button" class="btn" onclick="hpRemove(${i})">حذف الصورة</button></div></div>`).join('')}
+    <h3>تنسيق النص</h3><div class="formgrid"><label>الخط<select id="hpFont" class="field">${hpFonts.map(([value,name])=>`<option value="${value}" ${hpStyle.font===value?'selected':''}>${name}</option>`).join('')}</select></label><label>لون النص<input id="hpColor" class="field" type="color" value="${hpStyle.color}"></label><label>لون خلفية النص<input id="hpBg" class="field" type="color" value="${hpStyle.bgColor}"></label><label>ظهور النص (0 شفاف، 1 كامل)<input id="hpOpacity" class="field" type="number" min="0" max="1" step=".05" value="${hpStyle.opacity}"></label><label>ظهور الخلفية (0 شفاف، 1 كامل)<input id="hpBgOpacity" class="field" type="number" min="0" max="1" step=".05" value="${hpStyle.bgOpacity}"></label></div>
+    <div class="actions"><button class="btn primary" type="button" onclick="hpSave()">حفظ السلايدر</button><a class="btn" href="/" target="_blank" rel="noopener">فتح المتجر</a></div>
+    </fieldset><p id="hpMessage" role="status">${hpBusy?'جاري الحفظ…':''}</p></div>`;
+}
+function hpAdd() {if(hpBusy)return;hpCapture();if(hpSlides.length>=12)return toast('الحد الأقصى 12 صورة');hpSlides.push({image:'',titleAr:'',titleEn:'',descAr:'',descEn:''});hpRender();}
+function hpRemove(index) {if(hpBusy)return;hpCapture();hpSlides.splice(index,1);hpRender();}
+function hpMove(index,delta) {if(hpBusy)return;hpCapture();const next=index+delta;if(next<0||next>=hpSlides.length)return;[hpSlides[index],hpSlides[next]]=[hpSlides[next],hpSlides[index]];hpRender();}
+async function hpUpload(input) {
+  if(hpBusy||!input.files?.[0])return;
+  hpCapture();if(hpSlides.length>=12){input.value='';return toast('الحد الأقصى 12 صورة');}
+  const editor=$('#hpEditor');hpBusy=true;$('#hpFields').disabled=true;$('#hpMessage').textContent='جاري رفع الصورة…';
+  try {
+    const url=await adminUploadProductImage(input.files[0]);
+    if($('#hpEditor')!==editor)return;
+    hpSlides.push({image:url,titleAr:'',titleEn:'',descAr:'',descEn:''});
+    hpBusy=false;hpRender();$('#hpMessage').textContent='تم رفع الصورة. اضغطي حفظ السلايدر لاعتمادها.';
+  }catch(e){if($('#hpEditor')===editor)$('#hpMessage').textContent=e.message;}
+  finally{hpBusy=false;if($('#hpFields'))$('#hpFields').disabled=false;input.value='';}
+}
+async function hpSave() {
+  if(hpBusy)return;hpCapture();
+  if(hpSlides.some(x=>!x.image)){ $('#hpMessage').textContent='أضيفي رابط صورة لكل شريحة أو احذفي الشريحة الفارغة.';return; }
+  const editor=$('#hpEditor');hpBusy=true;$('#hpFields').disabled=true;$('#hpMessage').textContent='جاري حفظ السلايدر…';
+  try {
+    await api('/api/admin/settings',{method:'PUT',body:JSON.stringify({hero_slides:hpSlides,hero_text_style:hpStyle})});
+    if($('#hpEditor')===editor)$('#hpMessage').textContent='تم حفظ السلايدر على الخادم. افتحي المتجر أو حدّثيه لمشاهدة التغييرات.';
+  }catch(e){if($('#hpEditor')===editor)$('#hpMessage').textContent=e.message;}
+  finally{hpBusy=false;if($('#hpFields'))$('#hpFields').disabled=false;}
+}

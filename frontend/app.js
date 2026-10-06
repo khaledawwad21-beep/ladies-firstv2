@@ -265,12 +265,11 @@ function heroSlides(){
   const base=load('lf_hero',DEFAULT_HERO)||DEFAULT_HERO;
   const custom=getCustomHeroSlides();
   const baseSlide={image:base.image||LOGO,titleAr:'كل ما تحتاجينه.. في مكان واحد',titleEn:'Everything you need.. in one place',descAr:'منتجات مختارة بعناية لتكملي إطلالتك.',descEn:'Carefully selected products to complete your look.',id:'main-site-image'};
-  const seen=new Set();
   const arr=[];
-  [baseSlide,...custom].forEach(x=>{
+  (custom.length?custom:[baseSlide]).forEach(x=>{
     const key=x.image||'';
-    if(!key||seen.has(key))return;
-    seen.add(key);arr.push({image:key,title:currentLang==='en'?(x.titleEn||x.titleAr||'Ladies First'):(x.titleAr||x.titleEn||'Ladies First'),desc:currentLang==='en'?(x.descEn||x.descAr||''):(x.descAr||x.descEn||''),id:x.id});
+    if(!key)return;
+    arr.push({image:key,title:currentLang==='en'?(x.titleEn||x.titleAr||'Ladies First'):(x.titleAr||x.titleEn||'Ladies First'),desc:currentLang==='en'?(x.descEn||x.descAr||''):(x.descAr||x.descEn||''),id:x.id});
   });
   return arr;
 }
@@ -337,7 +336,7 @@ async function lfSyncStoreSettings(){
     if(st.hero_text_style&&typeof st.hero_text_style==='object')save('lf_hero_text_style',st.hero_text_style);
     if(st.social_links&&typeof st.social_links==='object')save('lf_social_links',st.social_links);
     if(Array.isArray(st.packaging_options))save('lf_packaging_options',st.packaging_options);
-    renderHero();renderHeroSlider();renderCats();renderProducts();renderFeatureSections();
+    heroIndex=0;renderHero();renderHeroSlider();restartHeroTimer();renderCats();renderProducts();renderFeatureSections();
   }catch(e){console.warn('API settings unavailable',e.message)}
 }
 const lfOldJoinWaitlist=joinWaitlist;
