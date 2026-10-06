@@ -28,3 +28,13 @@ test("production startup wires and starts WhatsApp automation", () => {
   assert.match(server, /registerWhatsAppAutomationRoutes\(app/);
   assert.match(start, /startWhatsAppAutomation\(db\)/);
 });
+
+
+test("admin campaign routes require explicit confirmation and opt-in recipient source", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/whatsapp-automation.js"), "utf8");
+  assert.match(source, /\/api\/admin\/whatsapp-campaigns\/preview/);
+  assert.match(source, /\/api\/admin\/whatsapp-campaigns/);
+  assert.match(source, /whatsapp_opt_in = TRUE/);
+  assert.match(source, /req\.body\?\.confirm !== true/);
+  assert.match(source, /WHATSAPP_CAMPAIGN_TEMPLATE/);
+});
