@@ -41,8 +41,21 @@ test("admin can configure loyalty, packaging and Visa discount", () => {
 });
 
 test("storefront uses authoritative global Visa discount", () => {
-  assert.match(app, /storeCommerceSettings=\{visaDiscountPercent:0(?:,whatsappNumber:[^}]*)?\}/);
+  assert.match(app, /storeCommerceSettings=\{visaDiscountPercent:0/);
   assert.match(app, /st\.visa_discount_percent/);
   assert.match(app, /visaDiscount=subtotal\*/);
   assert.doesNotMatch(app, /p\.visaDiscount/);
+});
+
+
+test("shipping fees are configurable and authoritative on both server and storefront", () => {
+  assert.match(server, /'shipping_fees'/);
+  assert.match(server, /shippingFeesRaw = await getSetting/);
+  assert.match(server, /westbank: Math\.max\(0, money\(shippingFeesRaw\?\.westbank \?\? 20\)\)/);
+  assert.match(admin, /shipWestbank/);
+  assert.match(admin, /shipJerusalem/);
+  assert.match(admin, /shipInside/);
+  assert.match(admin, /shipping_fees:\{westbank:/);
+  assert.match(app, /shippingFees:\{westbank:20,jerusalem:35,inside:70\}/);
+  assert.match(app, /st\.shipping_fees/);
 });

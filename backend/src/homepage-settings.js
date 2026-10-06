@@ -52,6 +52,17 @@ function validateHomepageSettings(incoming) {
     clean.font = style.font;
     result.hero_text_style = clean;
   }
+  if (Object.hasOwn(incoming, 'shipping_fees')) {
+    const fees = incoming.shipping_fees;
+    if (!fees || typeof fees !== 'object' || Array.isArray(fees)) invalid('رسوم التوصيل غير صالحة');
+    const clean = {};
+    for (const key of ['westbank','jerusalem','inside']) {
+      const value = Number(fees[key]);
+      if (!Number.isFinite(value) || value < 0 || value > 10000) invalid('رسوم التوصيل غير صالحة');
+      clean[key] = Math.round(value * 100) / 100;
+    }
+    result.shipping_fees = clean;
+  }
   if (Object.hasOwn(incoming, 'social_links')) {
     const links = incoming.social_links;
     if (!links || typeof links !== 'object' || Array.isArray(links)) invalid('روابط التواصل غير صالحة');
