@@ -128,9 +128,27 @@ function returnFeeLabel(payer){return ({customer:'العميل',store:'المت�
 async function returnsAdmin(){
   const [d,p]=await Promise.all([api('/api/admin/returns'),api('/api/products')]);
   adminReturnRequests=d.requests||[];adminReturnProducts=p.products||[];
-  $('#sections').innerHTML=`<div class="card"><h2>الإرجاع والاستبدال</h2><p>تُطبق مهلة 12 ساعة من الاستلام من الخادم. عند إكمال الطلب يقوم الـBackend بإرجاع/خصم المخزون تلقائيًا وتسجيل حركة المخزون.</p>${table(['الطلب','النوع','العميل','المنتج','الكمية','السبب','الرسوم','فرق السعر','الحالة',''],adminReturnRequests.map(x=>`<tr><td>#${E(x.order_id||'-')}</td><td>${returnTypeLabel(x.request_type)}</td><td>${E(x.customer_name||'-')}<br><small>${E(x.customer_phone||'-')}</small></td><td>${x.image?`<img src="${E(x.image)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-left:6px">`:''}${E(x.product_name||'-')}<br><small>${E(x.variant_name||'-')}</small></td><td>${Number(x.quantity)||0}</td><td>${E(x.reason||'-')}</td><td>${returnFeeLabel(x.fee_payer)}${Number(x.service_fee)>0?'<br>'+M(x.service_fee)+' ₪':''}</td><td>${M(x.price_difference||0)} ₪</td><td>${returnStatusLabel(x.status)}</td><td><button class="btn primary" onclick="editReturnRequestById(${Number(x.id)})">إدارة</button></td></tr>`))}</div>`;
+  $('#sections').innerHTML=`<div class="card"><h2>الإرجاع والاستبدال</h2><p>تُطبق مهلة 12 ساعة من الاستلام من الخادم. عند إكمال الطلب يقوم الـBackend بإرجاع/خصم المخزون تلقائيًا وتسجيل حركة المخزون.</p>${table(['الطلب','النوع','العميل','المنتج','الكمية','السبب','الرسوم','فرق السعر','الحالة',''],adminReturnRequests.map(x=>`<tr><td>#${E(x.order_id||'-')}</td><td>${returnTypeLabel(x.request_type)}</td><td>${E(x.customer_name||'-')}<br><small>${E(x.customer_phone||'-')}</small></td><td>${x.image?`<img src="${E(x.image)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-left:6px">`:''}${E(x.product_name||'-')}<br><small>${E(x.variant_name||'-')}</small></td><td>${Number(x.quantity)||0}</td><td>${E(x.reason||'-')}</td><td>${returnFeeLabel(x.fee_payer)}${Number(x.service_fee)>0?'<br>'+M(x.service_fee)+' ₪':''}</td><td>${M(x.price_difference||0)} ₪</td><td>${returnStatusLabel(x.status)}</td><td><button class="btn primary" onclick="editReturnRequestById(${Number(x.id)})">إدارة</button>${x.status==='completed'?'<button class="btn" onclick="printReturnSettlement('+Number(x.id)+')">وصل التسوية</button>':''}</td></tr>`))}</div>`;
 }
 function editReturnRequestById(id){const x=adminReturnRequests.find(r=>Number(r.id)===Number(id));if(x)editReturnRequest(x)}
+function returnSettlementDirection(x){
+  if(x.request_type==='return')return 'مستحق للزبون';
+  if(x.exchange_settlement_direction==='customer_to_store')return 'على الزبون';
+  if(x.exchange_settlement_direction==='store_to_customer')return 'مستحق للزبون';
+  return 'لا يوجد فرق سعر';
+}
+function printReturnSettlement(id){
+  const x=adminReturnRequests.find(r=>Number(r.id)===Number(id));
+  if(!x||x.status!=='completed')return alert('وصل التسوية متاح للعملية المكتملة فقط');
+  const type=returnTypeLabel(x.request_type),direction=returnSettlementDirection(x);
+  const amount=x.request_type==='exchange'?Number(x.exchange_settlement_amount||0):Math.max(0,Number(x.returned_merchandise_value||0)-Number(x.service_fee||0));
+  const method=String(x.exchange_settlement_method||'').replace('cash','نقدي').replace('transfer','تحويل').replace('visa','فيزا').replace('store_credit','رصيد متجر')||'-';
+  const original=document.body.innerHTML;
+  document.body.innerHTML=`<div class="invoicePage" dir="rtl"><h1>Ladies First</h1><h2>وصل تسوية ${E(type)} #${Number(x.id)}</h2><p>مرتبط بالفاتورة/الطلب الأصلي: <b>#${Number(x.order_id)}</b></p><hr><p>العميل: <b>${E(x.customer_name||'-')}</b></p><p>المنتج: <b>${E(x.product_name||'-')}</b> ${x.variant_name?'— '+E(x.variant_name):''}</p><p>الكمية: <b>${Number(x.quantity)||0}</b></p><p>السبب: <b>${E(x.reason||'-')}</b></p>${x.replacement_product_name?`<p>البديل: <b>${E(x.replacement_product_name)} ${E(x.replacement_variant_name||'')}</b></p>`:''}<hr><p>من يتحمل رسوم التوصيل: <b>${E(returnFeeLabel(x.fee_payer))}</b></p>${Number(x.service_fee||0)>0?`<p>رسوم على العميل: <b>${M(x.service_fee)} ₪</b></p>`:''}${Number(x.store_delivery_cost||0)>0?`<p>تكلفة توصيل تحملها Ladies First: <b>${M(x.store_delivery_cost)} ₪</b> — مصروف على المتجر</p>`:''}${x.request_type==='exchange'?`<p>فرق السعر: <b>${M(x.exchange_settlement_amount||0)} ₪ — ${E(direction)}</b></p><p>طريقة التسوية: <b>${E(method)}</b></p>`:`<p>قيمة البضاعة المرتجعة: <b>${M(x.returned_merchandise_value||0)} ₪</b></p>`}<p class="invoiceTotal">صافي التسوية: <b>${M(amount)} ₪ — ${E(direction)}</b></p><hr><small>هذا وصل تسوية مرتبط بالفاتورة الأصلية ولا يستبدلها.</small></div>`;
+  window.print();
+  document.body.innerHTML=original;
+  location.reload();
+}
 function returnRequestImages(x){const images=Array.isArray(x.images)?x.images:[];return images.length?`<div class="full"><b>صور الزبون</b><div class="toolbar" style="flex-wrap:wrap">${images.map(url=>`<a href="${E(url)}" target="_blank" rel="noopener"><img src="${E(url)}" alt="صورة مرفقة" style="width:80px;height:80px;object-fit:cover;border-radius:10px"></a>`).join('')}</div></div>`:''}
 function editReturnRequest(x){
   const isExchange=String(x.request_type||'').toLowerCase()==='exchange';
