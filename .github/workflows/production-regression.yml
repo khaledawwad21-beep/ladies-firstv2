@@ -59,3 +59,15 @@ jobs:
           done
           echo "Render did not expose the expected commit within the smoke-check window."
           exit 1
+
+      - name: Verify live storefront and public APIs
+        env:
+          BASE_URL: https://ladies-firstv2.onrender.com
+        run: |
+          curl --fail --silent --show-error --max-time 20 "$BASE_URL/" | grep -qi "Ladies First"
+          curl --fail --silent --show-error --max-time 20 "$BASE_URL/admin.html" | grep -qi "Ladies First"
+          for endpoint in /api/products /api/settings /api/categories /api/brands; do
+            body="$(curl --fail --silent --show-error --max-time 20 "$BASE_URL$endpoint")"
+            printf '%s' "$body" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert isinstance(data, dict)'
+          done
+          echo "Live storefront, admin page and public APIs are responding correctly."
