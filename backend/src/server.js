@@ -895,6 +895,25 @@ async function initDatabase() {
   `);
 
   await db(`
+    INSERT INTO settings (key, value) VALUES
+      ('loyalty_enabled', 'true'::jsonb),
+      ('loyalty_redeem_enabled', 'true'::jsonb),
+      ('loyalty_point_value', '0.1'::jsonb),
+      ('loyalty_earning_mode', '"amount"'::jsonb),
+      ('loyalty_points_per_order', '10'::jsonb)
+    ON CONFLICT(key) DO NOTHING
+  `);
+
+  await db(`
+    INSERT INTO settings (key, value)
+    VALUES (
+      'packaging_options',
+      '[{"id":"clear-ribbon","nameAr":"تغليف شفاف مع شبرة","nameEn":"Clear wrapping with ribbon","price":5,"active":true},{"id":"paper-ribbon","nameAr":"تغليف ورقي مع شبرة","nameEn":"Paper wrapping with ribbon","price":15,"active":true}]'::jsonb
+    )
+    ON CONFLICT(key) DO NOTHING
+  `);
+
+  await db(`
     INSERT INTO settings
       (key, value)
     VALUES
@@ -2913,8 +2932,13 @@ app.post(
           const total = Math.max(0, subtotal - couponDiscount - visaDiscount - loyaltyDiscount + shipping + packaging);
 
           const pointsRate = Math.max(0, Number(await getSetting("loyalty_points_per_currency", 1, client)) || 0);
+          const earningModeRaw = String(await getSetting("loyalty_earning_mode", "amount", client) || "amount").toLowerCase();
+          const earningMode = earningModeRaw === "order" ? "order" : "amount";
+          const pointsPerOrder = Math.max(0, integer(await getSetting("loyalty_points_per_order", 10, client), 10));
           const pointsBase = Math.max(0, subtotal - couponDiscount - visaDiscount - loyaltyDiscount);
-          const loyaltyPoints = loyaltyEnabled ? calculateLoyaltyPoints(pointsBase, pointsRate) : 0;
+          const loyaltyPoints = loyaltyEnabled
+            ? (earningMode === "order" ? pointsPerOrder : calculateLoyaltyPoints(pointsBase, pointsRate))
+            : 0;
 
           /*
            * Snapshot data داخل الطلب.
@@ -7648,6 +7672,22 @@ app.get(
           [req.user.id]
         );
 
+      const [
+        enabled,
+        redeemEnabled,
+        pointValue,
+        pointsPerCurrency,
+        earningMode,
+        pointsPerOrder
+      ] = await Promise.all([
+        getSetting("loyalty_enabled", true),
+        getSetting("loyalty_redeem_enabled", true),
+        getSetting("loyalty_point_value", 0.1),
+        getSetting("loyalty_points_per_currency", 1),
+        getSetting("loyalty_earning_mode", "amount"),
+        getSetting("loyalty_points_per_order", 10)
+      ]);
+
       return res.json({
         ok: true,
         points:
@@ -7655,6 +7695,14 @@ app.get(
             userResult.rows[0]
               ?.loyalty_points || 0
           ),
+        settings: {
+          enabled: enabled !== false,
+          redeemEnabled: redeemEnabled !== false,
+          pointValue: Math.max(0, Number(pointValue) || 0),
+          pointsPerCurrency: Math.max(0, Number(pointsPerCurrency) || 0),
+          earningMode: String(earningMode || "amount") === "order" ? "order" : "amount",
+          pointsPerOrder: Math.max(0, Number(pointsPerOrder) || 0)
+        },
         transactions:
           transactions.rows
       });
