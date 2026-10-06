@@ -3620,13 +3620,35 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
         returnedCostValue=money(Number(rr.purchase_price||0)*Number(rr.quantity||0));
         if(rr.request_type==="return"){
           const subtotal=Math.max(0,Number(rr.subtotal||0));
-          const ratio=subtotal>0?Math.min(1,returnedMerchandiseValue/subtotal):0;
-          rr.allocated_coupon_discount=money(Number(rr.coupon_discount||0)*ratio);
-          rr.allocated_visa_discount=money(Number(rr.visa_discount||0)*ratio);
-          rr.allocated_loyalty_discount=money(Number(rr.loyalty_discount||0)*ratio);
+          const previousReturnTotals=await client.query(
+            `SELECT
+               COALESCE(SUM(returned_merchandise_value),0) AS gross,
+               COALESCE(SUM(allocated_coupon_discount),0) AS coupon,
+               COALESCE(SUM(allocated_visa_discount),0) AS visa,
+               COALESCE(SUM(allocated_loyalty_discount),0) AS loyalty,
+               COALESCE(SUM(loyalty_award_reversed),0) AS award_reversed,
+               COALESCE(SUM(loyalty_redeem_refunded),0) AS redeem_refunded
+             FROM return_requests
+             WHERE order_id=$1
+               AND request_type='return'
+               AND status='completed'`,
+            [rr.order_id]
+          );
+          const previous=previousReturnTotals.rows[0]||{};
+          const previousGross=Number(previous.gross||0);
+          const cumulativeGross=Math.min(subtotal,previousGross+returnedMerchandiseValue);
+          const cumulativeRatio=subtotal>0?Math.min(1,cumulativeGross/subtotal):0;
+          const targetCoupon=money(Number(rr.coupon_discount||0)*cumulativeRatio);
+          const targetVisa=money(Number(rr.visa_discount||0)*cumulativeRatio);
+          const targetLoyalty=money(Number(rr.loyalty_discount||0)*cumulativeRatio);
+          rr.allocated_coupon_discount=money(Math.max(0,targetCoupon-Number(previous.coupon||0)));
+          rr.allocated_visa_discount=money(Math.max(0,targetVisa-Number(previous.visa||0)));
+          rr.allocated_loyalty_discount=money(Math.max(0,targetLoyalty-Number(previous.loyalty||0)));
           rr.refundable_cash_value=money(Math.max(0,returnedMerchandiseValue-rr.allocated_coupon_discount-rr.allocated_visa_discount-rr.allocated_loyalty_discount));
-          const awardReversal=Math.min(Number(rr.loyalty_points_awarded||0),Math.round(Number(rr.loyalty_points_awarded||0)*ratio));
-          const redeemRefund=Math.min(Number(rr.points_redeemed||0),Math.round(Number(rr.points_redeemed||0)*ratio));
+          const targetAwardReversal=Math.min(Number(rr.loyalty_points_awarded||0),Math.round(Number(rr.loyalty_points_awarded||0)*cumulativeRatio));
+          const targetRedeemRefund=Math.min(Number(rr.points_redeemed||0),Math.round(Number(rr.points_redeemed||0)*cumulativeRatio));
+          const awardReversal=Math.max(0,targetAwardReversal-Number(previous.award_reversed||0));
+          const redeemRefund=Math.max(0,targetRedeemRefund-Number(previous.redeem_refunded||0));
           if(awardReversal>0){
             const note=`إرجاع نقاط مكتسبة — طلب إرجاع #${rr.id}`;
             const lr=await client.query(`INSERT INTO loyalty_points_transactions(user_id,order_id,points,transaction_type,note,created_at) VALUES($1,$2,$3,'return_award_reversal',$4,NOW()) ON CONFLICT DO NOTHING RETURNING id`,[rr.order_user_id,rr.order_id,-awardReversal,note]);
