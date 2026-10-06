@@ -11,6 +11,26 @@ function imageUrl(value) {
   if (typeof value !== 'string' || !(/^(https?:\/\/|\/api\/images\/|\/uploads\/)/.test(value))) invalid('رابط الصورة غير صالح');
   return value;
 }
+function videoUrl(value) {
+  if (typeof value !== 'string') invalid('رابط الفيديو غير صالح');
+  const url = value.trim();
+  if (!url || url.length > 2048) invalid('رابط الفيديو غير صالح');
+  try {
+    const parsed = new URL(url);
+    if (!['https:','http:'].includes(parsed.protocol) || parsed.username || parsed.password) invalid('رابط الفيديو غير صالح');
+    return parsed.href;
+  } catch {
+    invalid('رابط الفيديو غير صالح');
+  }
+}
+function cleanMetadata(value) {
+  const metadata = value && typeof value === 'object' && !Array.isArray(value) ? {...value} : {};
+  if (Object.hasOwn(metadata, 'videos')) {
+    if (!Array.isArray(metadata.videos) || metadata.videos.length > 8) invalid('الحد الأقصى 8 فيديوهات للمنتج');
+    metadata.videos = metadata.videos.map(videoUrl);
+  }
+  return metadata;
+}
 async function taxonomy(client, table, id, name) {
   if (id !== undefined && id !== null && id !== '') return numeric(id, 'القسم أو البراند', true);
   if (!String(name || '').trim()) return null;
@@ -56,7 +76,7 @@ function registerProductWrites(app, getProducts) {
         if (mains.length + subs.length > 40) invalid('الحد الأقصى 40 صورة للمنتج');
         mains.forEach(imageUrl); subs.forEach(imageUrl);
       }
-      const metadata = body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {};
+      const metadata = cleanMetadata(body.metadata);
       const productId = await transaction(async client => {
         const existing = id ? (await client.query('SELECT * FROM products WHERE id = $1 FOR UPDATE', [id])).rows[0] : null;
         if (id && !existing) { const error = new Error('المنتج غير موجود'); error.status = 404; throw error; }
@@ -94,4 +114,4 @@ function registerProductWrites(app, getProducts) {
   app.post('/api/admin/products', requireAdmin, save);
   app.put('/api/admin/products/:id', requireAdmin, save);
 }
-module.exports = { registerProductWrites };
+module.exports = { registerProductWrites, cleanMetadata, videoUrl };
