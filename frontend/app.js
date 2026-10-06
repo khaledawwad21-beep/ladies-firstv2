@@ -124,6 +124,8 @@ function renderAccountContent(){
       <input id="accountPassword" class="field" type="password" minlength="12" autocomplete="current-password" placeholder="كلمة المرور — 12 خانة على الأقل">
       <div id="accountActionHint" class="passwordNote">أدخلي بيانات حسابك لتسجيل الدخول.</div>
       <button id="accountSubmit" class="add" onclick="saveAccount()">تسجيل الدخول</button>
+      <button id="accountPasskeyLogin" class="add secondaryAdd" type="button" onclick="customerPasskeyLogin()">🔐 الدخول ببصمة / قفل الجهاز</button>
+      <div class="passwordNote">الدخول بالبصمة يظهر بعد تفعيله مرة واحدة من داخل الحساب على هذا الجهاز.</div>
       <hr><h3>❤️ المفضلة (${fav.length})</h3>
       <div class="favoritesRow">${fav.length?favoriteCards():'<div class="empty">لم تضيفي منتجات للمفضلة بعد.</div>'}</div>`;
     initCountrySelectors();
@@ -136,6 +138,9 @@ function renderAccountContent(){
   el.innerHTML=`<div class="accountGreeting">${greetingForAccount(a)}، ${esc(a.name||'سيدتي')} 🩷</div>
     <div class="success"><div class="accountContactValue">${a.type==='email'?'✉️ ':'💬 '}<span class="phoneValueLtr" dir="ltr">${esc(a.contact||a.email||a.phone||'')}</span></div><b>⭐ نقاطي: ${Number(a.points||0)}</b><br><label class="waPreference"><input id="waOptIn" type="checkbox" ${waChecked?'checked':''}> أوافق على استلام رسائل واتساب لطيفة عن السلة والمنتجات التي اخترتها والعروض ذات الصلة.</label><div class="accountActionRow"><button type="button" onclick="saveWhatsAppOptIn()">حفظ تفضيلات واتساب</button><button type="button" onclick="logoutAccount()">تسجيل خروج</button></div></div>
     ${contactEditor}
+    <h3>🔐 الدخول بالبصمة</h3>
+    <div id="customerPasskeyStatus" class="notice">جاري التحقق من حالة البصمة…</div>
+    <div class="accountActionRow"><button type="button" onclick="enableCustomerPasskey()">تفعيل بصمة هذا الجهاز</button></div>
     <h3>🔐 تغيير كلمة المرور</h3>
     <div class="formgrid"><input id="accountCurrentPassword" class="field" type="password" autocomplete="current-password" placeholder="كلمة المرور الحالية"><input id="accountNewPassword" class="field" type="password" minlength="12" autocomplete="new-password" placeholder="كلمة المرور الجديدة — 12 خانة على الأقل"></div>
     <button class="add secondaryAdd" type="button" onclick="changeAccountPassword()">تغيير كلمة المرور</button>
@@ -147,6 +152,7 @@ function renderAccountContent(){
     const sel=document.getElementById('accountCountryEdit');
     if(sel){sel.value=a.countryIso||'PS';syncCountryDialPreview('accountCountryEdit','accountContactEdit')}
   }
+  loadCustomerPasskeyStatus();
 }
 
 let accountMode='whatsapp',accountActionMode='login';
@@ -175,6 +181,85 @@ function setAccountActionMode(mode){
 function greetingForAccount(a){return a?.gender==='male'?'نورتنا':'نورتينا'}
 function registerUserRecord(account){let users=load('lf_users',[]);const key=(account.type||'')+':'+String(account.contact||'').trim().toLowerCase();const i=users.findIndex(u=>((u.type||'')+':'+String(u.contact||'').trim().toLowerCase())===key);const rec={...account,id:i>=0?users[i].id:Date.now(),updatedAt:Date.now()};if(i>=0)users[i]=rec;else users.unshift(rec);save('lf_users',users)}
 function saveAccount(){alert('جاري تجهيز تسجيل الدخول…')}
+function customerAuthContact(){
+  const raw=document.getElementById('accountContact')?.value.trim()||'';
+  const iso=document.getElementById('accountCountryCode')?.value||'PS';
+  return {
+    raw,
+    iso,
+    contact:accountMode==='whatsapp'?normalizePhone(raw,iso):raw.toLowerCase()
+  };
+}
+async function loadCustomerPasskeyStatus(){
+  const el=document.getElementById('customerPasskeyStatus');
+  if(!el||!lfToken())return;
+  if(!window.LFPasskeys?.supported()){
+    el.textContent='البصمة غير مدعومة على هذا الجهاز أو المتصفح. يمكنك الاستمرار بكلمة المرور.';
+    return;
+  }
+  try{
+    const d=await lfFetch('/api/passkeys/status');
+    const list=d.credentials||[];
+    el.innerHTML=list.length
+      ? 'البصمة مفعلة على '+list.length+' جهاز/مفتاح.'+list.map(x=>`<div class="toolbar"><span>${esc(x.label||'هذا الجهاز')}</span><button type="button" onclick="removeCustomerPasskey('${esc(x.id)}')">حذف</button></div>`).join('')
+      : 'لم يتم تفعيل بصمة دخول للحساب بعد.';
+  }catch(e){el.textContent=e.message||'تعذر تحميل حالة البصمة'}
+}
+async function enableCustomerPasskey(){
+  if(!window.LFPasskeys?.supported())return alert('هذا الجهاز أو المتصفح لا يدعم تسجيل الدخول بالبصمة.');
+  if(!lfToken())return alert('سجلي الدخول بكلمة المرور أولًا.');
+  try{
+    const options=await lfFetch('/api/passkeys/register/options',{method:'POST',body:'{}'});
+    const credential=await window.LFPasskeys.createCredential(options);
+    await lfFetch('/api/passkeys/register/verify',{method:'POST',body:JSON.stringify({challengeId:options.challengeId,credential,label:'جهاز العميل'})});
+    alert('تم تفعيل الدخول بالبصمة على هذا الجهاز 🌸');
+    await loadCustomerPasskeyStatus();
+  }catch(e){
+    if(e?.name==='NotAllowedError')return alert('تم إلغاء طلب البصمة أو انتهت المهلة.');
+    alert(e.message||'تعذر تفعيل البصمة');
+  }
+}
+async function removeCustomerPasskey(id){
+  if(!confirm('حذف هذه البصمة من الحساب؟'))return;
+  try{
+    await lfFetch('/api/passkeys/'+encodeURIComponent(id),{method:'DELETE'});
+    await loadCustomerPasskeyStatus();
+  }catch(e){alert(e.message||'تعذر حذف البصمة')}
+}
+async function customerPasskeyLogin(){
+  if(!window.LFPasskeys?.supported())return alert('هذا الجهاز أو المتصفح لا يدعم تسجيل الدخول بالبصمة.');
+  const info=customerAuthContact();
+  if(!info.raw)return alert('أدخلي رقم واتساب أو البريد أولًا.');
+  if(accountMode==='email'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.raw))return alert('أدخلي بريدًا إلكترونيًا صحيحًا');
+  if(accountMode==='whatsapp'&&!validMobile(info.raw,info.iso))return alert('أدخلي رقم واتساب صحيحًا مع اختيار الدولة');
+  try{
+    const options=await lfFetch('/api/passkeys/login/options',{method:'POST',body:JSON.stringify({contact:info.contact})});
+    const credential=await window.LFPasskeys.getCredential(options);
+    const result=await lfFetch('/api/passkeys/login/verify',{method:'POST',body:JSON.stringify({challengeId:options.challengeId,credential})});
+    localStorage.setItem(LF_TOKEN_KEY,result.token);
+    const user=result.user||{};
+    const safe={
+      ...user,
+      contact:accountMode==='email'?(user.email||info.contact):(user.phone||info.contact),
+      type:accountMode,
+      countryIso:accountMode==='whatsapp'?info.iso:'',
+      countryName:accountMode==='whatsapp'?countryName(info.iso):'',
+      updatedAt:Date.now()
+    };
+    save(ACCOUNT_KEY,safe);
+    registerUserRecord(safe);
+    await lfSyncMyOrders();
+    await lfLoadLoyalty();
+    await lfCartHeartbeat();
+    renderAccountContent();
+    updateAccountBadge();
+    alert('تم تسجيل الدخول بالبصمة 🌸');
+  }catch(e){
+    if(e?.name==='NotAllowedError')return alert('تم إلغاء طلب البصمة أو لم يتم التعرف عليها.');
+    alert(e.message||'تعذر تسجيل الدخول بالبصمة');
+  }
+}
+
 async function changeAccountPassword(){
   const currentPassword=document.getElementById('accountCurrentPassword')?.value||'',newPassword=document.getElementById('accountNewPassword')?.value||'';
   if(!currentPassword)return alert('أدخلي كلمة المرور الحالية');
