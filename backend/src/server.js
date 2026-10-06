@@ -501,6 +501,7 @@ async function initDatabase() {
 
   await require('./product-media').initMedia();
   await require('./waitlist').initWaitlist(db);
+  await require('./cart-tracking').initCartTracking(db);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb`);
 
@@ -5529,6 +5530,28 @@ app.patch(
       );
     }
 
+    if (
+      req.body.whatsapp_opt_in !==
+      undefined ||
+      req.body.whatsappOptIn !==
+      undefined
+    ) {
+      const enabled =
+        req.body.whatsapp_opt_in !== undefined
+          ? Boolean(req.body.whatsapp_opt_in)
+          : Boolean(req.body.whatsappOptIn);
+
+      add(
+        "whatsapp_opt_in",
+        enabled
+      );
+
+      add(
+        "whatsapp_opt_in_updated_at",
+        new Date()
+      );
+    }
+
     if (!fields.length) {
       return res.status(400).json({
         ok: false,
@@ -7755,6 +7778,17 @@ require("./waitlist").registerWaitlistRoutes(app, {
   requireAdmin,
   optionalAuth,
   normalizePhone
+});
+
+
+/* =========================================================
+   CART TRACKING
+========================================================= */
+
+require("./cart-tracking").registerCartTrackingRoutes(app, {
+  db,
+  requireAuth,
+  requireAdmin
 });
 
 
