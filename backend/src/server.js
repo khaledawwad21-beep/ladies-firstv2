@@ -828,8 +828,6 @@ async function initDatabase() {
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS allocated_visa_discount NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS allocated_loyalty_discount NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS refundable_cash_value NUMERIC(12,2) NOT NULL DEFAULT 0`);
-  await db(`CREATE UNIQUE INDEX IF NOT EXISTS loyalty_return_award_reversal_once ON loyalty_points_transactions(order_id, note) WHERE transaction_type='return_award_reversal'`);
-  await db(`CREATE UNIQUE INDEX IF NOT EXISTS loyalty_return_redeem_refund_once ON loyalty_points_transactions(order_id, note) WHERE transaction_type='return_redeem_refund'`);
 
   await db(`
     CREATE TABLE IF NOT EXISTS favorites (
@@ -883,6 +881,9 @@ async function initDatabase() {
         NOT NULL DEFAULT NOW()
     )
   `);
+
+  await db(`CREATE UNIQUE INDEX IF NOT EXISTS loyalty_return_award_reversal_once ON loyalty_points_transactions(order_id, note) WHERE transaction_type='return_award_reversal'`);
+  await db(`CREATE UNIQUE INDEX IF NOT EXISTS loyalty_return_redeem_refund_once ON loyalty_points_transactions(order_id, note) WHERE transaction_type='return_redeem_refund'`);
 
   await db(`ALTER TABLE loyalty_points_transactions ADD COLUMN IF NOT EXISTS note TEXT`);
 
