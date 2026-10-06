@@ -352,9 +352,6 @@ async function lfSyncStoreSettings(){
     heroIndex=0;renderHero();renderHeroSlider();restartHeroTimer();renderCats();renderProducts();renderFeatureSections();
   }catch(e){console.warn('API settings unavailable',e.message)}
 }
-const lfOldJoinWaitlist=joinWaitlist;
-joinWaitlist=async function(id){const p=products.find(x=>String(x.id)===String(id));if(!p)return;const name=prompt(currentLang==='en'?'Your name:':'اسمك:');if(!name)return;const phone=prompt(currentLang==='en'?'WhatsApp number in international format (+country code):':'رقم واتسابك بالصيغة الدولية (+مفتاح الدولة):');if(!phone)return;if(!validMobile(phone))return alert(currentLang==='en'?'Use an international number like +970...':'اكتبي الرقم بالصيغة الدولية مثل +970...');try{await lfFetch('/api/waitlist',{method:'POST',body:JSON.stringify({productId:String(id),contact:normalizePhone(phone)})});alert(currentLang==='en'?'You have been added to the availability list.':'💕 تم تسجيلك في قائمة التوفر. سنراسلك عند توفره 🌸')}catch(e){if(e.status===409)alert('أنتِ مسجلة مسبقًا لهذا المنتج');else{console.warn(e);lfOldJoinWaitlist(id)}}};
-
 async function lfSyncCatalog(){
   try{
     const [cd,bd]=await Promise.all([lfFetch('/api/categories'),lfFetch('/api/brands')]);
