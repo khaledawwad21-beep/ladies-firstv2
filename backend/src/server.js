@@ -5584,7 +5584,11 @@ app.get(
 
       const settlements=await db(
         `SELECT
-           COALESCE(SUM(returned_merchandise_value) FILTER (WHERE request_type='return'),0) AS returns_value,
+           COALESCE(SUM(refundable_cash_value) FILTER (WHERE request_type='return'),0) AS returns_value,
+           COALESCE(SUM(returned_merchandise_value) FILTER (WHERE request_type='return'),0) AS returns_gross_value,
+           COALESCE(SUM(allocated_coupon_discount) FILTER (WHERE request_type='return'),0) AS returned_coupon_discount,
+           COALESCE(SUM(allocated_visa_discount) FILTER (WHERE request_type='return'),0) AS returned_visa_discount,
+           COALESCE(SUM(allocated_loyalty_discount) FILTER (WHERE request_type='return'),0) AS returned_loyalty_discount,
            COALESCE(SUM(returned_cost_value) FILTER (WHERE request_type='return'),0) AS returned_cost,
            COALESCE(SUM(price_difference) FILTER (WHERE request_type='exchange'),0) AS exchange_difference,
            COALESCE(SUM(service_fee),0) AS return_service_fees,
@@ -5601,6 +5605,10 @@ app.get(
       const grossSales=Number(baseSummary.sales||0);
       const grossCost=Number(baseSummary.cost||0);
       const returnsValue=Number(rs.returns_value||0);
+      const returnsGrossValue=Number(rs.returns_gross_value||0);
+      const returnedCouponDiscount=Number(rs.returned_coupon_discount||0);
+      const returnedVisaDiscount=Number(rs.returned_visa_discount||0);
+      const returnedLoyaltyDiscount=Number(rs.returned_loyalty_discount||0);
       const returnedCost=Number(rs.returned_cost||0);
       const exchangeDifference=Number(rs.exchange_difference||0);
       const returnServiceFees=Number(rs.return_service_fees||0);
@@ -5610,7 +5618,7 @@ app.get(
       const netProfit=money(netSales-netCost-storeDeliveryCost);
       return res.json({
         ok:true,from,to,
-        summary:{...baseSummary,grossSales,grossCost,returnsValue,returnedCost,exchangeDifference,returnServiceFees,storeDeliveryCost,netSettlement:Number(rs.net_settlement||0),sales:netSales,cost:netCost,profit:netProfit},
+        summary:{...baseSummary,grossSales,grossCost,returnsValue,returnsGrossValue,returnedCouponDiscount,returnedVisaDiscount,returnedLoyaltyDiscount,returnedCost,exchangeDifference,returnServiceFees,storeDeliveryCost,netSettlement:Number(rs.net_settlement||0),sales:netSales,cost:netCost,profit:netProfit},
         rows:rows.rows
       });
     } catch (error) {
