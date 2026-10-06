@@ -41,10 +41,11 @@ function weeklyOrderDate(o){const raw=o?.createdAt||o?.timestamp||o?.date;const 
 function isThisWeekOrder(o){const d=weeklyOrderDate(o);return !!d&&d.getTime()>=Date.now()-7*24*60*60*1000}
 function salesMap(orders){const m={};(orders||[]).forEach(o=>(o.items||[]).forEach(it=>{const id=it.productId??it.id;if(id==null)return;m[String(id)]=(m[String(id)]||0)+(Number(it.qty)||0)}));return m}
 function getTop5(){
-  const eligible=products.filter(p=>totalStock(p)>0);
+  const eligible=products.filter(p=>totalStock(p)>0&&(!p.offerExpiry||new Date(p.offerExpiry+'T23:59:59').getTime()>=Date.now()));
+  const selected=eligible.filter(p=>p.top5);
   const offers=eligible.filter(p=>isOfferActive(p));
-  const pool=offers.length?offers:eligible;
-  return [...pool].sort((a,b)=>{const am=a.top5?1:0,bm=b.top5?1:0;if(am!==bm)return bm-am;const ad=Number(a.old)>Number(a.price)?(Number(a.old)-Number(a.price))/Math.max(1,Number(a.old)):0;const bd=Number(b.old)>Number(b.price)?(Number(b.old)-Number(b.price))/Math.max(1,Number(b.old)):0;return bd-ad}).slice(0,5);
+  const pool=selected.length?selected:offers;
+  return [...pool].sort((a,b)=>{const ad=Number(a.old)>Number(a.price)?(Number(a.old)-Number(a.price))/Math.max(1,Number(a.old)):0;const bd=Number(b.old)>Number(b.price)?(Number(b.old)-Number(b.price))/Math.max(1,Number(b.old)):0;return bd-ad}).slice(0,5);
 }
 function getBestSellers(){
   const server=Array.isArray(window.LF_BEST_SELLERS)?window.LF_BEST_SELLERS:[];

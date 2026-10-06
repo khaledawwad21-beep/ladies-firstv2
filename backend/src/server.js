@@ -1817,6 +1817,7 @@ app.get(
 
 require('./product-media').registerMedia(app);
 require('./product-write').registerProductWrites(app, getProducts);
+require('./product-offers').registerProductOffers(app);
 
 /* =========================================================
    SINGLE PRODUCT
