@@ -4394,6 +4394,18 @@ app.get(
       });
     }
 
+    const validDate = (value) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const date = new Date(value + "T00:00:00Z");
+      return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+    };
+    if (!validDate(from) || !validDate(to) || from > to) {
+      return res.status(400).json({
+        ok: false,
+        message: "اختاري تاريخين صحيحين، على أن يكون تاريخ البداية قبل النهاية أو مساوياً لها"
+      });
+    }
+
     try {
       const result =
         await db(
@@ -4413,7 +4425,7 @@ app.get(
             AND im.created_at <
               ($2::date + INTERVAL '1 day')
           ORDER BY
-            im.created_at DESC
+            im.created_at DESC, im.id DESC
           `,
           [
             from,
