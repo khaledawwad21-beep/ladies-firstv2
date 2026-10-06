@@ -8,9 +8,11 @@ if (!DATABASE_URL) {
   console.warn("[DB] WARNING: DATABASE_URL is not configured.");
 }
 
+const dbSslDisabled = String(process.env.DB_SSL || "").trim().toLowerCase() === "false";
+
 const pool = new Pool({
   connectionString: DATABASE_URL || undefined,
-  ssl: DATABASE_URL ? { rejectUnauthorized: false } : false,
+  ssl: DATABASE_URL && !dbSslDisabled ? { rejectUnauthorized: false } : false,
   max: Number(process.env.DB_POOL_MAX || 10),
   idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT || 30000),
   connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT || 10000)
