@@ -5346,7 +5346,7 @@ app.get(
             )::int AS orders,
 
             COALESCE(
-              SUM(total) FILTER (
+              SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
                 WHERE status <> 'cancelled'
               ),
               0
@@ -5366,7 +5366,9 @@ app.get(
             ),0) AS cost,
 
             COALESCE(
-              SUM(total) FILTER (WHERE status <> 'cancelled'),0
+              SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
+                WHERE status <> 'cancelled'
+              ),0
             ) - COALESCE((
               SELECT SUM(oi.purchase_price * oi.quantity)
               FROM order_items oi
@@ -5397,7 +5399,7 @@ app.get(
             )::int AS orders,
 
             COALESCE(
-              SUM(total) FILTER (
+              SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
                 WHERE status <> 'cancelled'
               ),
               0
@@ -5412,7 +5414,9 @@ app.get(
             ),0) AS cost,
 
             COALESCE(
-              SUM(total) FILTER (WHERE status <> 'cancelled'),0
+              SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
+                WHERE status <> 'cancelled'
+              ),0
             ) - COALESCE((
               SELECT SUM(oi.purchase_price * oi.quantity)
               FROM order_items oi
