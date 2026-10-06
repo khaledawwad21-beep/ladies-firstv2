@@ -30,6 +30,11 @@ const {
 } = require("./auth");
 
 const { validateHomepageSettings } = require("./homepage-settings");
+const {
+  normalizePermissions,
+  initAdminPermissions,
+  createAdminPermissionGuard
+} = require("./admin-permissions");
 
 const app = express();
 
@@ -72,6 +77,11 @@ app.use(
 app.use(
   "/uploads",
   express.static(UPLOADS_DIR)
+);
+
+app.use(
+  "/api/admin",
+  createAdminPermissionGuard(db, requireAuth)
 );
 
 /* =========================================================
@@ -447,6 +457,8 @@ async function initDatabase() {
     ADD COLUMN IF NOT EXISTS is_active
     BOOLEAN NOT NULL DEFAULT TRUE
   `);
+
+  await initAdminPermissions(db);
 
   await db(`
     CREATE TABLE IF NOT EXISTS categories (
@@ -1121,6 +1133,7 @@ app.post(
             gender,
             age,
             role,
+            permissions,
             loyalty_points,
             is_active,
             created_at,
@@ -1300,6 +1313,7 @@ app.get(
             gender,
             age,
             role,
+            permissions,
             loyalty_points,
             is_active,
             created_at,
@@ -4824,7 +4838,7 @@ app.patch(
     }
 
     if (
-      password.length < 6
+      password.length < 12
     ) {
       return res.status(400).json({
         ok: false,
@@ -6969,6 +6983,7 @@ app.get(
             email,
             phone,
             role,
+            permissions,
             is_active,
             created_at,
             updated_at
@@ -7048,7 +7063,7 @@ app.post(
     if (
       !name ||
       !email ||
-      password.length < 6
+      password.length < 12
     ) {
       return res.status(400).json({
         ok: false,
@@ -7084,6 +7099,7 @@ app.post(
             phone,
             password_hash,
             role,
+            permissions,
             is_active,
             created_at,
             updated_at
@@ -7094,6 +7110,7 @@ app.post(
             $3,
             $4,
             $5,
+            $6::jsonb,
             TRUE,
             NOW(),
             NOW()
@@ -7104,6 +7121,7 @@ app.post(
             email,
             phone,
             role,
+            permissions,
             is_active,
             created_at,
             updated_at
@@ -7113,7 +7131,12 @@ app.post(
             email,
             phone,
             passwordHash,
-            role
+            role,
+            JSON.stringify(
+              role === "staff"
+                ? normalizePermissions(req.body.permissions)
+                : []
+            )
           ]
         );
 
@@ -7157,89 +7180,95 @@ app.patch(
   "/api/admin/staff/:id",
   requireOwner,
   async (req, res) => {
-    const id =
-      integer(
-        req.params.id,
-        NaN
-      );
+    const id = integer(req.params.id, NaN);
 
-    if (
-      !Number.isFinite(id)
-    ) {
+    if (!Number.isFinite(id)) {
       return res.status(400).json({
         ok: false,
-        message:
-          "رقم الموظف غير صالح"
-      });
-    }
-
-    const role =
-      String(
-        req.body.role ||
-        ""
-      ).toLowerCase();
-
-    if (
-      !["admin", "staff"].includes(
-        role
-      )
-    ) {
-      return res.status(400).json({
-        ok: false,
-        message:
-          "الدور غير صالح"
+        message: "رقم الموظف غير صالح"
       });
     }
 
     try {
-      const result =
-        await db(
-          `
-          UPDATE users
-          SET
-            role = $1,
-            updated_at = NOW()
-          WHERE id = $2
-            AND role <> 'owner'
-          RETURNING
-            id,
-            name,
-            email,
-            phone,
-            role,
-            is_active
-          `,
-          [
-            role,
-            id
-          ]
-        );
+      const currentResult = await db(
+        `
+        SELECT id, role, permissions, is_active
+        FROM users
+        WHERE id = $1
+          AND role <> 'owner'
+        LIMIT 1
+        `,
+        [id]
+      );
 
-      if (
-        !result.rowCount
-      ) {
+      if (!currentResult.rowCount) {
         return res.status(404).json({
           ok: false,
-          message:
-            "الموظف غير موجود أو هو Owner"
+          message: "الموظف غير موجود أو هو Owner"
         });
       }
 
-      return res.json({
-        ok: true,
-        staff:
-          result.rows[0]
-      });
-    } catch (error) {
-      console.error(
-        "[STAFF UPDATE]",
-        error
+      const current = currentResult.rows[0];
+      const role = req.body.role !== undefined
+        ? String(req.body.role || "").toLowerCase()
+        : String(current.role || "staff").toLowerCase();
+
+      if (!["admin", "staff"].includes(role)) {
+        return res.status(400).json({
+          ok: false,
+          message: "الدور غير صالح"
+        });
+      }
+
+      const permissions = role === "staff"
+        ? normalizePermissions(
+            req.body.permissions !== undefined
+              ? req.body.permissions
+              : current.permissions
+          )
+        : [];
+
+      const active = req.body.is_active !== undefined
+        ? Boolean(req.body.is_active)
+        : Boolean(current.is_active);
+
+      const result = await db(
+        `
+        UPDATE users
+        SET
+          role = $1,
+          permissions = $2::jsonb,
+          is_active = $3,
+          updated_at = NOW()
+        WHERE id = $4
+          AND role <> 'owner'
+        RETURNING
+          id,
+          name,
+          email,
+          phone,
+          role,
+          permissions,
+          is_active,
+          updated_at
+        `,
+        [
+          role,
+          JSON.stringify(permissions),
+          active,
+          id
+        ]
       );
 
+      return res.json({
+        ok: true,
+        staff: result.rows[0]
+      });
+    } catch (error) {
+      console.error("[STAFF UPDATE]", error);
       return res.status(500).json({
         ok: false,
-        message:
-          "تعذر تعديل الموظف"
+        message: "تعذر تعديل الموظف"
       });
     }
   }
