@@ -62,3 +62,35 @@ test('actual admin product bundle uploads media before saving JSON product paylo
   assert.match(js,/if\s*\(button\?\.disabled\)\s*return/);
   assert.doesNotMatch(js,/new FormData\(/);
 });
+
+ test('offer updates persist flags and dates without rewriting stock, media or taxonomy', async () => {
+  const before=(await query('SELECT * FROM products WHERE id=$1',[product.id])).rows[0];
+  for(const role of [null,'customer']) assert.equal((await request('/api/admin/products/'+product.id+'/offers','PATCH',{top5:true},role)).status,role?403:401);
+  const offer={top5:true,quickOffer:true,onSale:false,offerExpiry:'2030-10-10',quickOfferExpiry:'2030-10-11'};
+  assert.equal((await request('/api/admin/products/'+product.id+'/offers','PATCH',offer)).status,200);
+  let row=(await query('SELECT * FROM products WHERE id=$1',[product.id])).rows[0];
+  for(const key of ['stock','price','cost_price','category_id','brand_id','image_url'])assert.equal(row[key],before[key]);
+  for(const [key,value] of Object.entries(offer))assert.equal(row.metadata[key],value);
+  assert.equal(row.is_featured,true);
+  assert.equal((await request('/api/admin/products/'+product.id+'/offers','PATCH',{offerExpiry:'2030-02-30',top5:false})).status,400);
+  assert.equal((await request('/api/admin/products/'+product.id+'/offers','PATCH',{quickOffer:'false'})).status,400);
+  assert.equal((await request('/api/admin/products/'+product.id+'/offers','PATCH',{onSale:true})).status,400);
+  row=(await query('SELECT * FROM products WHERE id=$1',[product.id])).rows[0];assert.equal(row.metadata.top5,true);
+  assert.equal((await request('/api/admin/products/999999/offers','PATCH',{top5:true})).status,404);
+  const edited=await request('/api/admin/products/'+product.id,'PUT',{name:'Edited after offer',price:26,stock:4});assert.equal(edited.status,200);
+  const listed=(await (await request('/api/products')).json()).products.find(x=>String(x.id)===String(product.id));
+  for(const [key,value] of Object.entries(offer))assert.equal(listed.metadata[key],value);
+  assert.equal((await request('/api/admin/products/'+product.id+'/offers','PATCH',{top5:false,quickOffer:false,offerExpiry:'',quickOfferExpiry:null})).status,200);
+  row=(await query('SELECT * FROM products WHERE id=$1',[product.id])).rows[0];assert.equal(row.is_featured,false);assert.equal(row.metadata.quickOffer,false);assert.equal(row.metadata.offerExpiry,'');
+});
+ test('storefront respects selected Top 5, expiry, stock and quick-offer expiry',()=>{
+  const source=fs.readFileSync(require('node:path').join(__dirname,'../../frontend/app.js'),'utf8');
+  const context=vm.createContext({products:[{id:1,top5:true,stock:2,price:20,old:20},{id:2,onSale:true,stock:2,price:10,old:20},{id:3,top5:true,stock:2,price:5,old:20,offerExpiry:'2000-01-01'},{id:4,top5:true,stock:0,price:5,old:20}],totalStock:p=>p.stock});
+  vm.runInContext(source.slice(source.indexOf('function isOfferActive('),source.indexOf('function getBestSellers(')),context);
+  assert.deepEqual(Array.from(context.getTop5(),x=>x.id),[1]);context.products[0].top5=false;
+  assert.deepEqual(Array.from(context.getTop5(),x=>x.id),[2]);context.products[1].onSale=false;
+  assert.equal(context.getTop5().length,0);
+  vm.runInContext(source.slice(source.indexOf('function quickOffers('),source.indexOf('function shareOfferWhatsApp(')),context);
+  context.products[0].quickOffer=true;context.products[0].quickOfferExpiry='2030-10-11';context.products[1].quickOffer=true;context.products[1].quickOfferExpiry='2000-01-01';
+  assert.deepEqual(Array.from(context.quickOffers(),x=>x.id),[1]);
+});
