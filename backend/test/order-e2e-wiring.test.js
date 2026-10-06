@@ -26,3 +26,9 @@ test("checkout locks only the products table when category and brand joins are n
   const server=fs.readFileSync(path.join(__dirname,"../src/server.js"),"utf8");
   assert.match(server,/WHERE p\.id = \$1\s+FOR UPDATE OF p/);
 });
+
+test("orders use a boolean loyalty reversal flag consistently",()=>{
+  const server=fs.readFileSync(path.join(__dirname,"../src/server.js"),"utf8");
+  assert.match(server,/loyalty_points_reversed BOOLEAN\s+NOT NULL DEFAULT FALSE/);
+  assert.match(server,/\$21,\s+FALSE,\s+'pending'/);
+});
