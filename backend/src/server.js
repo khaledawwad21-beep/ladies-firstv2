@@ -789,6 +789,7 @@ async function initDatabase() {
       order_item_id BIGINT NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
       request_type TEXT NOT NULL CHECK (request_type IN ('return','exchange')),
       quantity INTEGER NOT NULL CHECK (quantity > 0),
+      reason_code TEXT,
       reason TEXT NOT NULL,
       notes TEXT,
       images JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -801,6 +802,19 @@ async function initDatabase() {
   `);
   await db(`CREATE INDEX IF NOT EXISTS idx_return_requests_order ON return_requests(order_id)`);
   await db(`CREATE INDEX IF NOT EXISTS idx_return_requests_user ON return_requests(user_id)`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS reason_code TEXT`);
+  await db(`
+    UPDATE return_requests
+    SET reason_code=CASE
+      WHEN reason_code IS NOT NULL AND reason_code<>'' THEN reason_code
+      WHEN LOWER(reason) LIKE '%تالف%' OR LOWER(reason) LIKE '%damaged%' OR LOWER(reason) LIKE '%defective%' THEN 'store_damaged'
+      WHEN LOWER(reason) LIKE '%مختلف عن الطلب%' OR LOWER(reason) LIKE '%منتج خاطئ%' OR LOWER(reason) LIKE '%wrong item%' THEN 'store_wrong_item'
+      WHEN LOWER(reason) LIKE '%ناقص%' OR LOWER(reason) LIKE '%missing item%' THEN 'store_missing_item'
+      WHEN LOWER(reason) LIKE '%المقاس%' OR LOWER(reason) LIKE '%اللون%' THEN 'customer_size_color'
+      ELSE 'other'
+    END
+    WHERE reason_code IS NULL OR reason_code=''
+  `);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_product_id BIGINT REFERENCES products(id) ON DELETE SET NULL`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_variant_id BIGINT REFERENCES product_variants(id) ON DELETE SET NULL`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_product_name TEXT`);
@@ -3509,6 +3523,7 @@ app.post("/api/returns", requireAuth, async (req,res)=>{
   const orderId=integer(req.body.orderId,NaN), orderItemId=integer(req.body.orderItemId,NaN);
   const quantity=integer(req.body.quantity,NaN);
   const requestType=cleanText(req.body.requestType||"").toLowerCase();
+  const reasonCode=cleanText(req.body.reasonCode||"").toLowerCase();
   const reason=cleanText(req.body.reason||"");
   const notes=cleanText(req.body.notes||"");
   const images=Array.isArray(req.body.images)?req.body.images.filter(x=>typeof x==="string").slice(0,5):[];
@@ -3516,6 +3531,8 @@ app.post("/api/returns", requireAuth, async (req,res)=>{
     return res.status(400).json({ok:false,message:"بيانات طلب الإرجاع/الاستبدال غير مكتملة"});
   if(!["return","exchange"].includes(requestType))
     return res.status(400).json({ok:false,message:"اختاري إرجاع أو استبدال"});
+  const allowedReasonCodes=["store_damaged","store_wrong_item","store_missing_item","customer_size_color","customer_changed_mind","other"];
+  if(!allowedReasonCodes.includes(reasonCode))return res.status(400).json({ok:false,message:"اختاري سبب الإرجاع/الاستبدال من القائمة"});
   if(!reason)return res.status(400).json({ok:false,message:"سبب الطلب مطلوب"});
   try{
     const result=await transaction(async client=>{
@@ -3539,8 +3556,8 @@ app.post("/api/returns", requireAuth, async (req,res)=>{
       const alreadyRequested=Math.max(0,Number(reserved.rows[0]?.qty||0));
       const remainingQty=Math.max(0,purchasedQty-alreadyRequested);
       if(quantity>remainingQty)throw createHttpError(400,"BAD_QTY",remainingQty>0?`الكمية المتاحة للإرجاع/الاستبدال هي ${remainingQty} فقط`:"تم استخدام كامل كمية هذا المنتج في طلبات إرجاع/استبدال سابقة");
-      const ins=await client.query(`INSERT INTO return_requests(order_id,user_id,order_item_id,request_type,quantity,reason,notes,images) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb) RETURNING *`,
-        [orderId,req.user.id,orderItemId,requestType,quantity,reason,notes,JSON.stringify(images)]);
+      const ins=await client.query(`INSERT INTO return_requests(order_id,user_id,order_item_id,request_type,quantity,reason_code,reason,notes,images) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb) RETURNING *`,
+        [orderId,req.user.id,orderItemId,requestType,quantity,reasonCode,reason,notes,JSON.stringify(images)]);
       return ins.rows[0];
     });
     res.status(201).json({ok:true,request:result,message:"تم إرسال طلبك للمراجعة"});
@@ -3567,9 +3584,8 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
       const rr=q.rows[0], completing=status==="completed"&&rr.status!=="completed";
       if(String(rr.status||"").toLowerCase()==="completed" && status!=="completed")
         throw createHttpError(409,"RETURN_COMPLETED_FINAL","طلب الإرجاع/الاستبدال المكتمل نهائي ولا يمكن تغيير حالته بعد تنفيذ المخزون");
-      const normalizedReason=String(rr.reason||"").trim().toLowerCase();
-      const storeFaultReasons=["المنتج تالف","المنتج مختلف عن الطلب","منتج تالف","منتج خاطئ","wrong item","damaged","defective","missing item"];
-      const storeFault=storeFaultReasons.some(reason=>normalizedReason.includes(reason));
+      const canonicalStoreFaultCodes=new Set(["store_damaged","store_wrong_item","store_missing_item"]);
+      const storeFault=canonicalStoreFaultCodes.has(String(rr.reason_code||"").toLowerCase());
       let requestedFeePayer=cleanText(req.body.feePayer??rr.fee_payer??"customer",20).toLowerCase();
       if(storeFault)requestedFeePayer="store";
       if(!["customer","store","waived"].includes(requestedFeePayer))throw createHttpError(400,"BAD_FEE_PAYER","حددي من يتحمل رسوم الإرجاع/الاستبدال");
