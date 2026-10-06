@@ -56,9 +56,9 @@ async function saveUser(id){
     email:$('#ue').value.trim()||null,
     phone:$('#up').value.trim()||null,
     gender:$('#ug').value||null,
-    age:$('#ua').value?Number($('#ua').value):null,
     is_active:!!$('#uactive').checked
   };
+  if($('#ua').value)body.age=Number($('#ua').value);
   try{
     await api('/api/admin/users/'+id,{method:'PATCH',body:JSON.stringify(body)});
     if(nextPassword)await api('/api/admin/users/'+id+'/password',{method:'PATCH',body:JSON.stringify({newPassword:nextPassword})});
