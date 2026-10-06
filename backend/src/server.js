@@ -4094,10 +4094,15 @@ app.patch("/api/admin/orders/:id/shipping-waiver",requireAdmin,async(req,res)=>{
       const o=q.rows[0];
       const configuredFees=await getSetting("shipping_fees",{westbank:20,jerusalem:35,inside:70},client);
       const fees={westbank:Math.max(0,money(configuredFees?.westbank ?? 20)),jerusalem:Math.max(0,money(configuredFees?.jerusalem ?? 35)),inside:Math.max(0,money(configuredFees?.inside ?? 70))};
-      const normalShipping=Math.max(0,Number(fees[String(o.shipping_region||"westbank").toLowerCase()] ?? o.shipping_cost ?? 0));
+      const region=String(o.shipping_region||"westbank").toLowerCase();
+      const baseShipping=Math.max(0,Number(fees[region] ?? o.shipping_base_cost ?? o.shipping_cost ?? 0));
+      const configuredDiscounts=await getSetting("shipping_discount_percentages",{westbank:0,jerusalem:0,inside:0},client);
+      const discountPercent=Math.max(0,Math.min(100,Number(configuredDiscounts?.[region])||0));
+      const discountAmount=money(baseShipping*discountPercent/100);
+      const normalShipping=money(Math.max(0,baseShipping-discountAmount));
       const shipping=waived?0:normalShipping;
       const total=Math.max(0,Number(o.subtotal||0)-Number(o.coupon_discount||0)-Number(o.visa_discount||0)-Number(o.loyalty_discount||0)+Number(o.packaging_cost||0)+shipping);
-      const u=await client.query("UPDATE orders SET shipping_waived=$1,shipping_cost=$2,total=$3,updated_at=NOW() WHERE id=$4 RETURNING *",[waived,shipping,total,orderId]);
+      const u=await client.query("UPDATE orders SET shipping_waived=$1,shipping_cost=$2,shipping_base_cost=$3,shipping_discount_percent=$4,shipping_discount_amount=$5,total=$6,updated_at=NOW() WHERE id=$7 RETURNING *",[waived,shipping,baseShipping,discountPercent,discountAmount,total,orderId]);
       return u.rows[0];
     });
     res.json({ok:true,order:result,message:waived?"تم إعفاء الطلب من رسوم التوصيل":"تم إلغاء إعفاء التوصيل"});
