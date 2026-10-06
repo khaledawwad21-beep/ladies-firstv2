@@ -30,3 +30,12 @@ test("storefront waitlist uses backend API instead of local-only storage", () =>
   assert.match(source, /lfFetch\(['"]\/api\/waitlist['"]/);
   assert.doesNotMatch(source, /lf_waitlist/);
 });
+
+
+test("storefront has one authoritative waitlist implementation", () => {
+  const app = fs.readFileSync(path.join(__dirname, "../../frontend/app.js"), "utf8");
+  const declarations = app.match(/async function joinWaitlist\s*\(/g) || [];
+  assert.equal(declarations.length, 1, "joinWaitlist should be defined exactly once");
+  assert.doesNotMatch(app, /lfOldJoinWaitlist/);
+  assert.doesNotMatch(app, /joinWaitlist\s*=\s*async function/);
+});
