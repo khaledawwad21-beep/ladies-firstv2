@@ -5125,7 +5125,27 @@ app.get(
 
             COUNT(*) FILTER (
               WHERE status = 'cancelled'
-            )::int AS cancelled
+            )::int AS cancelled,
+
+            COALESCE((
+              SELECT SUM(oi.purchase_price * oi.quantity)
+              FROM order_items oi
+              JOIN orders po ON po.id = oi.order_id
+              WHERE po.status <> 'cancelled'
+                AND po.created_at >= $1::date
+                AND po.created_at < ($2::date + INTERVAL '1 day')
+            ),0) AS cost,
+
+            COALESCE(
+              SUM(total) FILTER (WHERE status <> 'cancelled'),0
+            ) - COALESCE((
+              SELECT SUM(oi.purchase_price * oi.quantity)
+              FROM order_items oi
+              JOIN orders po ON po.id = oi.order_id
+              WHERE po.status <> 'cancelled'
+                AND po.created_at >= $1::date
+                AND po.created_at < ($2::date + INTERVAL '1 day')
+            ),0) AS profit
 
           FROM orders
           WHERE created_at >= $1::date
@@ -5152,7 +5172,25 @@ app.get(
                 WHERE status <> 'cancelled'
               ),
               0
-            ) AS sales
+            ) AS sales,
+
+            COALESCE((
+              SELECT SUM(oi.purchase_price * oi.quantity)
+              FROM order_items oi
+              JOIN orders po ON po.id = oi.order_id
+              WHERE po.status <> 'cancelled'
+                AND DATE(po.created_at) = DATE(orders.created_at)
+            ),0) AS cost,
+
+            COALESCE(
+              SUM(total) FILTER (WHERE status <> 'cancelled'),0
+            ) - COALESCE((
+              SELECT SUM(oi.purchase_price * oi.quantity)
+              FROM order_items oi
+              JOIN orders po ON po.id = oi.order_id
+              WHERE po.status <> 'cancelled'
+                AND DATE(po.created_at) = DATE(orders.created_at)
+            ),0) AS profit
 
           FROM orders
 
