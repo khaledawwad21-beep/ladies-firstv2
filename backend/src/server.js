@@ -883,6 +883,12 @@ async function initDatabase() {
   `);
 
   await db(`
+    CREATE UNIQUE INDEX IF NOT EXISTS loyalty_points_redeem_refund_once
+    ON loyalty_points_transactions(order_id)
+    WHERE transaction_type = 'redeem_refund'
+  `);
+
+  await db(`
     INSERT INTO settings
       (key, value)
     VALUES
@@ -3941,6 +3947,31 @@ app.patch(
                     qty,
                     orderId
                   ]
+                );
+              }
+
+              const redeemedPoints = Math.max(0,Number(order.points_redeemed||0));
+              if (redeemedPoints > 0 && order.user_id) {
+                const refund = await client.query(
+                  `INSERT INTO loyalty_points_transactions(user_id,order_id,points,transaction_type,note,created_at)
+                   VALUES($1,$2,$3,'redeem_refund',$4,NOW())
+                   ON CONFLICT DO NOTHING RETURNING id`,
+                  [order.user_id,orderId,redeemedPoints,`إعادة نقاط مستخدمة للطلب الملغي #${orderId}`]
+                );
+                if (refund.rowCount) {
+                  await client.query(
+                    "UPDATE users SET loyalty_points=COALESCE(loyalty_points,0)+$1,updated_at=NOW() WHERE id=$2",
+                    [redeemedPoints,order.user_id]
+                  );
+                }
+              }
+
+              const cancelledCouponCode = cleanText(order.coupon_code||"",100).toUpperCase();
+              if (cancelledCouponCode) {
+                await client.query(
+                  `UPDATE coupons SET used_count=GREATEST(0,COALESCE(used_count,0)-1)
+                   WHERE UPPER(code)=$1`,
+                  [cancelledCouponCode]
                 );
               }
 
