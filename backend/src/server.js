@@ -810,6 +810,10 @@ async function initDatabase() {
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS service_fee NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS fee_reason TEXT`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS price_difference NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS returned_merchandise_value NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS returned_cost_value NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS net_settlement NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`);
 
   await db(`
     CREATE TABLE IF NOT EXISTS favorites (
@@ -3527,7 +3531,7 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
   if(!Number.isFinite(id)||!["pending","approved","rejected","completed"].includes(status))return res.status(400).json({ok:false,message:"بيانات الحالة غير صالحة"});
   try{
     const result=await transaction(async client=>{
-      const q=await client.query(`SELECT rr.*,oi.product_id,oi.variant_id,oi.unit_price FROM return_requests rr JOIN order_items oi ON oi.id=rr.order_item_id WHERE rr.id=$1 FOR UPDATE`,[id]);
+      const q=await client.query(`SELECT rr.*,oi.product_id,oi.variant_id,oi.unit_price,oi.purchase_price FROM return_requests rr JOIN order_items oi ON oi.id=rr.order_item_id WHERE rr.id=$1 FOR UPDATE`,[id]);
       if(!q.rowCount)throw createHttpError(404,"RETURN_NOT_FOUND","الطلب غير موجود");
       const rr=q.rows[0], completing=status==="completed"&&rr.status!=="completed";
       if(String(rr.status||"").toLowerCase()==="completed" && status!=="completed")
@@ -3556,7 +3560,15 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
           if(completing&&Number(rp.stock||0)<Number(rr.quantity))throw createHttpError(409,"REPLACEMENT_OUT_OF_STOCK","الكمية المطلوبة من البديل غير متوفرة");
         }
       }
+      let returnedMerchandiseValue=Number(rr.returned_merchandise_value||0);
+      let returnedCostValue=Number(rr.returned_cost_value||0);
+      let netSettlement=Number(rr.net_settlement||0);
       if(completing){
+        returnedMerchandiseValue=money(Number(rr.unit_price||0)*Number(rr.quantity||0));
+        returnedCostValue=money(Number(rr.purchase_price||0)*Number(rr.quantity||0));
+        netSettlement=rr.request_type==="return"
+          ? money(-returnedMerchandiseValue+serviceFee)
+          : money(priceDifference+serviceFee);
         if(rr.request_type==="return"){
           if(rr.variant_id)await client.query("UPDATE product_variants SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2",[rr.quantity,rr.variant_id]);
           else await client.query("UPDATE products SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2",[rr.quantity,rr.product_id]);
@@ -3570,7 +3582,7 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
           await client.query("INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at) VALUES($1,$2,$3,'customer_exchange_out',$4,NOW())",[replacementProductId,replacementVariantId,-Number(rr.quantity),rr.order_id]);
         }
       }
-      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,replacement_product_id=$3,replacement_variant_id=$4,replacement_product_name=$5,replacement_variant_name=$6,replacement_unit_price=$7,fee_payer=$8,service_fee=$9,fee_reason=$10,price_difference=$11,updated_at=NOW() WHERE id=$12 RETURNING *`,[status,adminNote,replacementProductId,replacementVariantId,replacementProductName,replacementVariantName,replacementUnitPrice,requestedFeePayer,serviceFee,feeReason,priceDifference,id]);return u.rows[0];
+      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,replacement_product_id=$3,replacement_variant_id=$4,replacement_product_name=$5,replacement_variant_name=$6,replacement_unit_price=$7,fee_payer=$8,service_fee=$9,fee_reason=$10,price_difference=$11,returned_merchandise_value=$12,returned_cost_value=$13,net_settlement=$14,completed_at=CASE WHEN $1='completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END,updated_at=NOW() WHERE id=$15 RETURNING *`,[status,adminNote,replacementProductId,replacementVariantId,replacementProductName,replacementVariantName,replacementUnitPrice,requestedFeePayer,serviceFee,feeReason,priceDifference,returnedMerchandiseValue,returnedCostValue,netSettlement,id]);return u.rows[0];
     });
     res.json({ok:true,request:result});
   }catch(e){console.error("[RETURN STATUS]",e);res.status(e.status||500).json({ok:false,message:e.message||"تعذر تحديث الطلب"});}
@@ -5486,14 +5498,34 @@ app.get(
           ]
         );
 
+      const settlements=await db(
+        `SELECT
+           COALESCE(SUM(returned_merchandise_value) FILTER (WHERE request_type='return'),0) AS returns_value,
+           COALESCE(SUM(returned_cost_value) FILTER (WHERE request_type='return'),0) AS returned_cost,
+           COALESCE(SUM(price_difference) FILTER (WHERE request_type='exchange'),0) AS exchange_difference,
+           COALESCE(SUM(service_fee),0) AS return_service_fees,
+           COALESCE(SUM(net_settlement),0) AS net_settlement
+         FROM return_requests
+         WHERE status='completed'
+           AND completed_at >= $1::date
+           AND completed_at < ($2::date + INTERVAL '1 day')`,
+        [from,to]
+      );
+      const baseSummary=summary.rows[0]||{};
+      const rs=settlements.rows[0]||{};
+      const grossSales=Number(baseSummary.sales||0);
+      const grossCost=Number(baseSummary.cost||0);
+      const returnsValue=Number(rs.returns_value||0);
+      const returnedCost=Number(rs.returned_cost||0);
+      const exchangeDifference=Number(rs.exchange_difference||0);
+      const returnServiceFees=Number(rs.return_service_fees||0);
+      const netSales=money(grossSales-returnsValue+exchangeDifference+returnServiceFees);
+      const netCost=money(grossCost-returnedCost);
+      const netProfit=money(netSales-netCost);
       return res.json({
-        ok: true,
-        from,
-        to,
-        summary:
-          summary.rows[0],
-        rows:
-          rows.rows
+        ok:true,from,to,
+        summary:{...baseSummary,grossSales,grossCost,returnsValue,returnedCost,exchangeDifference,returnServiceFees,netSettlement:Number(rs.net_settlement||0),sales:netSales,cost:netCost,profit:netProfit},
+        rows:rows.rows
       });
     } catch (error) {
       console.error(
