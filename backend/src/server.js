@@ -663,6 +663,15 @@ async function initDatabase() {
   `);
 
   await db(`
+    ALTER TABLE orders
+      ADD COLUMN IF NOT EXISTS shipping_region TEXT,
+      ADD COLUMN IF NOT EXISTS shipping_waived BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS shipping_base_cost NUMERIC(12,2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS shipping_discount_percent NUMERIC(5,2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS shipping_discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0
+  `);
+
+  await db(`
     CREATE TABLE IF NOT EXISTS order_items (
       id BIGSERIAL PRIMARY KEY,
 
@@ -938,6 +947,12 @@ async function initDatabase() {
       )
     ON CONFLICT(key)
     DO NOTHING
+  `);
+
+  await db(`
+    INSERT INTO settings (key, value)
+    VALUES ('shipping_discount_percentages','{"westbank":0,"jerusalem":0,"inside":0}'::jsonb)
+    ON CONFLICT(key) DO NOTHING
   `);
 
   await db(`
@@ -2941,8 +2956,12 @@ app.post(
           if (!Object.prototype.hasOwnProperty.call(shippingFees, shippingRegion)) {
             throw createHttpError(400,"BAD_SHIPPING_REGION","منطقة التوصيل غير صالحة");
           }
+          const shippingDiscountsRaw = await getSetting("shipping_discount_percentages",{westbank:0,jerusalem:0,inside:0},client);
+          const shippingDiscountPercent = Math.max(0,Math.min(100,Number(shippingDiscountsRaw?.[shippingRegion])||0));
+          const shippingBaseCost = shippingFees[shippingRegion];
+          const shippingDiscountAmount = money(shippingBaseCost * shippingDiscountPercent / 100);
           const shippingWaived = req.body.shippingWaived === true && req.user && ["owner","admin"].includes(String(req.user.role||"").toLowerCase());
-          const shipping = shippingWaived ? 0 : shippingFees[shippingRegion];
+          const shipping = shippingWaived ? 0 : money(Math.max(0,shippingBaseCost-shippingDiscountAmount));
 
           /* Packaging price is authoritative on the server. The browser only sends option ids per item. */
           const packagingOptionsRaw = await getSetting("packaging_options", [], client);
@@ -3000,6 +3019,9 @@ app.post(
                 shipping_cost,
                 shipping_region,
                 shipping_waived,
+                shipping_base_cost,
+                shipping_discount_percent,
+                shipping_discount_amount,
                 packaging_cost,
                 loyalty_discount,
                 points_redeemed,
@@ -3031,6 +3053,9 @@ app.post(
                 $16,
                 $17,
                 $18,
+                $19,
+                $20,
+                $21,
                 0,
                 'pending',
                 NOW(),
@@ -3050,6 +3075,9 @@ app.post(
                 shipping,
                 shippingRegion,
                 shippingWaived,
+                shippingBaseCost,
+                shippingDiscountPercent,
+                shippingDiscountAmount,
                 packaging,
                 loyaltyDiscount,
                 pointsRedeemed,
@@ -4066,10 +4094,15 @@ app.patch("/api/admin/orders/:id/shipping-waiver",requireAdmin,async(req,res)=>{
       const o=q.rows[0];
       const configuredFees=await getSetting("shipping_fees",{westbank:20,jerusalem:35,inside:70},client);
       const fees={westbank:Math.max(0,money(configuredFees?.westbank ?? 20)),jerusalem:Math.max(0,money(configuredFees?.jerusalem ?? 35)),inside:Math.max(0,money(configuredFees?.inside ?? 70))};
-      const normalShipping=Math.max(0,Number(fees[String(o.shipping_region||"westbank").toLowerCase()] ?? o.shipping_cost ?? 0));
+      const region=String(o.shipping_region||"westbank").toLowerCase();
+      const baseShipping=Math.max(0,Number(fees[region] ?? o.shipping_base_cost ?? o.shipping_cost ?? 0));
+      const configuredDiscounts=await getSetting("shipping_discount_percentages",{westbank:0,jerusalem:0,inside:0},client);
+      const discountPercent=Math.max(0,Math.min(100,Number(configuredDiscounts?.[region])||0));
+      const discountAmount=money(baseShipping*discountPercent/100);
+      const normalShipping=money(Math.max(0,baseShipping-discountAmount));
       const shipping=waived?0:normalShipping;
       const total=Math.max(0,Number(o.subtotal||0)-Number(o.coupon_discount||0)-Number(o.visa_discount||0)-Number(o.loyalty_discount||0)+Number(o.packaging_cost||0)+shipping);
-      const u=await client.query("UPDATE orders SET shipping_waived=$1,shipping_cost=$2,total=$3,updated_at=NOW() WHERE id=$4 RETURNING *",[waived,shipping,total,orderId]);
+      const u=await client.query("UPDATE orders SET shipping_waived=$1,shipping_cost=$2,shipping_base_cost=$3,shipping_discount_percent=$4,shipping_discount_amount=$5,total=$6,updated_at=NOW() WHERE id=$7 RETURNING *",[waived,shipping,baseShipping,discountPercent,discountAmount,total,orderId]);
       return u.rows[0];
     });
     res.json({ok:true,order:result,message:waived?"تم إعفاء الطلب من رسوم التوصيل":"تم إلغاء إعفاء التوصيل"});
@@ -5318,7 +5351,7 @@ app.get(
             )::int AS orders,
 
             COALESCE(
-              SUM(total) FILTER (
+              SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
                 WHERE status <> 'cancelled'
               ),
               0
@@ -5338,7 +5371,9 @@ app.get(
             ),0) AS cost,
 
             COALESCE(
-              SUM(total) FILTER (WHERE status <> 'cancelled'),0
+              SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
+                WHERE status <> 'cancelled'
+              ),0
             ) - COALESCE((
               SELECT SUM(oi.purchase_price * oi.quantity)
               FROM order_items oi
@@ -5369,7 +5404,7 @@ app.get(
             )::int AS orders,
 
             COALESCE(
-              SUM(total) FILTER (
+              SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
                 WHERE status <> 'cancelled'
               ),
               0
@@ -5384,7 +5419,9 @@ app.get(
             ),0) AS cost,
 
             COALESCE(
-              SUM(total) FILTER (WHERE status <> 'cancelled'),0
+              SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
+                WHERE status <> 'cancelled'
+              ),0
             ) - COALESCE((
               SELECT SUM(oi.purchase_price * oi.quantity)
               FROM order_items oi
