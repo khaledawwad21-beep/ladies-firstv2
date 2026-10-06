@@ -946,8 +946,15 @@ async function initDatabase() {
         '"0562499924"'::jsonb
       )
     ON CONFLICT(key)
-    DO UPDATE SET
-      value = '"0562499924"'::jsonb
+    DO NOTHING
+  `);
+
+  await db(`
+    INSERT INTO settings (key, value)
+    SELECT 'social_links', value
+    FROM settings
+    WHERE key = 'social'
+    ON CONFLICT(key) DO NOTHING
   `);
 
   console.log(
@@ -2127,7 +2134,18 @@ app.get(
       }
 
       settings.whatsapp_number =
+        settings.whatsapp_number ||
+        settings.whatsapp ||
         "0562499924";
+
+      if (
+        !settings.social_links &&
+        settings.social &&
+        typeof settings.social === "object"
+      ) {
+        settings.social_links =
+          settings.social;
+      }
 
       res.json({
         ok: true,
@@ -6914,12 +6932,12 @@ app.patch(
       );
 
     if (
-      newPassword.length < 6
+      newPassword.length < 12
     ) {
       return res.status(400).json({
         ok: false,
         message:
-          "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل"
+          "كلمة المرور الجديدة يجب أن تكون 12 خانة على الأقل"
       });
     }
 

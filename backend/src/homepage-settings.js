@@ -9,6 +9,18 @@ function imageUrl(value) {
   try { const parsed = new URL(url); if (['https:', 'http:'].includes(parsed.protocol) && !parsed.username && !parsed.password) return parsed.href; } catch {}
   invalid('استخدمي رابط صورة HTTP أو HTTPS أو صورة مرفوعة للمتجر');
 }
+function socialUrl(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string' || value.length > 2048) invalid('رابط التواصل غير صالح');
+  try {
+    const parsed = new URL(value.trim());
+    if (!['https:','http:'].includes(parsed.protocol) || parsed.username || parsed.password) invalid('رابط التواصل غير صالح');
+    return parsed.href;
+  } catch {
+    invalid('رابط التواصل غير صالح');
+  }
+}
+
 function validateHomepageSettings(incoming) {
   const result = {...incoming};
   if (Object.hasOwn(incoming, 'hero_slides')) {
@@ -39,6 +51,22 @@ function validateHomepageSettings(incoming) {
     if (!HERO_FONTS.includes(style.font)) invalid('خط السلايدر غير مدعوم');
     clean.font = style.font;
     result.hero_text_style = clean;
+  }
+  if (Object.hasOwn(incoming, 'social_links')) {
+    const links = incoming.social_links;
+    if (!links || typeof links !== 'object' || Array.isArray(links)) invalid('روابط التواصل غير صالحة');
+    const supported = ['whatsapp','instagram','snapchat','facebook','tiktok'];
+    const clean = {};
+    for (const key of supported) {
+      const item = links[key];
+      if (item === undefined) continue;
+      if (!item || typeof item !== 'object' || Array.isArray(item)) invalid('بيانات رابط التواصل غير صالحة');
+      clean[key] = {
+        url: socialUrl(item.url ?? ''),
+        enabled: item.enabled !== false
+      };
+    }
+    result.social_links = clean;
   }
   return result;
 }
