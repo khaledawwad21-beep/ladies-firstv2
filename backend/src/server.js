@@ -29,6 +29,8 @@ const {
   getGenderGreeting
 } = require("./auth");
 
+const { validateHomepageSettings } = require("./homepage-settings");
+
 const app = express();
 
 const PORT = Number(process.env.PORT || 10000);
@@ -6732,7 +6734,7 @@ app.put(
   "/api/admin/settings",
   requireAdmin,
   async (req, res) => {
-    const incoming =
+    let incoming =
       req.body &&
       typeof req.body ===
         "object"
@@ -6740,6 +6742,7 @@ app.put(
         : {};
 
     try {
+      incoming = validateHomepageSettings(incoming);
       await transaction(
         async (client) => {
           for (
@@ -6801,10 +6804,10 @@ app.put(
         error
       );
 
-      return res.status(500).json({
+      return res.status(error.status || 500).json({
         ok: false,
         message:
-          "تعذر حفظ الإعدادات"
+          error.status === 400 ? error.message : "تعذر حفظ الإعدادات"
       });
     }
   }
