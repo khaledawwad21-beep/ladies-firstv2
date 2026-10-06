@@ -3494,9 +3494,16 @@ app.post("/api/returns", requireAuth, async (req,res)=>{
         throw createHttpError(400,"RETURN_WINDOW_EXPIRED","انتهت مهلة الإرجاع/الاستبدال (12 ساعة من الاستلام)");
       const item=await client.query(`SELECT * FROM order_items WHERE id=$1 AND order_id=$2`,[orderItemId,orderId]);
       if(!item.rowCount)throw createHttpError(404,"ITEM_NOT_FOUND","المنتج غير موجود في هذا الطلب");
-      if(quantity>Number(item.rows[0].quantity||0))throw createHttpError(400,"BAD_QTY","الكمية المطلوبة أكبر من الكمية المشتراة");
-      const dup=await client.query(`SELECT 1 FROM return_requests WHERE order_item_id=$1 AND status IN ('pending','approved') LIMIT 1`,[orderItemId]);
-      if(dup.rowCount)throw createHttpError(409,"RETURN_EXISTS","يوجد طلب إرجاع/استبدال مفتوح لهذا المنتج");
+      const purchasedQty=Number(item.rows[0].quantity||0);
+      const reserved=await client.query(
+        `SELECT COALESCE(SUM(quantity),0)::int AS qty
+         FROM return_requests
+         WHERE order_item_id=$1 AND status IN ('pending','approved','completed')`,
+        [orderItemId]
+      );
+      const alreadyRequested=Math.max(0,Number(reserved.rows[0]?.qty||0));
+      const remainingQty=Math.max(0,purchasedQty-alreadyRequested);
+      if(quantity>remainingQty)throw createHttpError(400,"BAD_QTY",remainingQty>0?`الكمية المتاحة للإرجاع/الاستبدال هي ${remainingQty} فقط`:"تم استخدام كامل كمية هذا المنتج في طلبات إرجاع/استبدال سابقة");
       const ins=await client.query(`INSERT INTO return_requests(order_id,user_id,order_item_id,request_type,quantity,reason,notes,images) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb) RETURNING *`,
         [orderId,req.user.id,orderItemId,requestType,quantity,reason,notes,JSON.stringify(images)]);
       return ins.rows[0];
@@ -3523,6 +3530,8 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
       const q=await client.query(`SELECT rr.*,oi.product_id,oi.variant_id,oi.unit_price FROM return_requests rr JOIN order_items oi ON oi.id=rr.order_item_id WHERE rr.id=$1 FOR UPDATE`,[id]);
       if(!q.rowCount)throw createHttpError(404,"RETURN_NOT_FOUND","الطلب غير موجود");
       const rr=q.rows[0], completing=status==="completed"&&rr.status!=="completed";
+      if(String(rr.status||"").toLowerCase()==="completed" && status!=="completed")
+        throw createHttpError(409,"RETURN_COMPLETED_FINAL","طلب الإرجاع/الاستبدال المكتمل نهائي ولا يمكن تغيير حالته بعد تنفيذ المخزون");
       const requestedFeePayer=cleanText(req.body.feePayer??rr.fee_payer??"customer",20).toLowerCase();
       if(!["customer","store","waived"].includes(requestedFeePayer))throw createHttpError(400,"BAD_FEE_PAYER","حددي من يتحمل رسوم الإرجاع/الاستبدال");
       const serviceFee=requestedFeePayer==="customer"?Math.max(0,money(req.body.serviceFee??rr.service_fee??0)):0;
