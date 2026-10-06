@@ -5530,6 +5530,28 @@ app.patch(
       );
     }
 
+    if (
+      req.body.whatsapp_opt_in !==
+      undefined ||
+      req.body.whatsappOptIn !==
+      undefined
+    ) {
+      const enabled =
+        req.body.whatsapp_opt_in !== undefined
+          ? Boolean(req.body.whatsapp_opt_in)
+          : Boolean(req.body.whatsappOptIn);
+
+      add(
+        "whatsapp_opt_in",
+        enabled
+      );
+
+      add(
+        "whatsapp_opt_in_updated_at",
+        new Date()
+      );
+    }
+
     if (!fields.length) {
       return res.status(400).json({
         ok: false,
