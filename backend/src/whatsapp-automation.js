@@ -14,7 +14,8 @@ function getWhatsAppConfig() {
     language: env("WHATSAPP_TEMPLATE_LANGUAGE", "ar"),
     abandonedTemplate: env("WHATSAPP_ABANDONED_TEMPLATE"),
     lowStockTemplate: env("WHATSAPP_LOW_STOCK_TEMPLATE"),
-    waitlistTemplate: env("WHATSAPP_WAITLIST_TEMPLATE")
+    waitlistTemplate: env("WHATSAPP_WAITLIST_TEMPLATE"),
+    campaignTemplate: env("WHATSAPP_CAMPAIGN_TEMPLATE")
   };
 }
 
@@ -409,6 +410,80 @@ function startWhatsAppAutomation(db) {
   return timer;
 }
 
+
+async function campaignRecipients(db) {
+  const result = await db(`
+    SELECT id, name, phone
+    FROM users
+    WHERE role = 'customer'
+      AND is_active = TRUE
+      AND whatsapp_opt_in = TRUE
+      AND phone IS NOT NULL
+    ORDER BY id ASC
+    LIMIT 5000
+  `);
+  return result.rows.filter(row => normalizeRecipient(row.phone));
+}
+
+async function runWhatsAppCampaign(db, input = {}) {
+  const config = getWhatsAppConfig();
+  const title = String(input.title || "").trim().slice(0, 300);
+  const message = String(input.message || "").trim().slice(0, 1200);
+  const link = String(input.link || "").trim().slice(0, 1000);
+  if (!title || !message) {
+    const error = new Error("عنوان العرض والرسالة مطلوبان");
+    error.status = 400;
+    throw error;
+  }
+  if (!config.accessToken || !config.phoneNumberId || !config.campaignTemplate) {
+    const error = new Error("إعداد WhatsApp Business أو قالب الحملة غير مكتمل");
+    error.status = 409;
+    throw error;
+  }
+
+  const recipients = await campaignRecipients(db);
+  const result = { recipients: recipients.length, sent: 0, failed: 0 };
+
+  for (let i = 0; i < recipients.length; i += 5) {
+    const batch = recipients.slice(i, i + 5);
+    const outcomes = await Promise.all(batch.map(async row => {
+      try {
+        const sent = await sendTemplate(
+          config,
+          row.phone,
+          config.campaignTemplate,
+          [row.name || "سيدتي", title, message, link || "-"]
+        );
+        await logResult(db, {
+          userId: row.id,
+          type: "campaign",
+          recipient: normalizeRecipient(row.phone),
+          templateName: config.campaignTemplate,
+          status: "sent",
+          providerMessageId: sent.id
+        });
+        return true;
+      } catch (error) {
+        await logResult(db, {
+          userId: row.id,
+          type: "campaign",
+          recipient: normalizeRecipient(row.phone),
+          templateName: config.campaignTemplate,
+          status: "failed",
+          errorMessage: String(error.message || error).slice(0, 800)
+        });
+        return false;
+      }
+    }));
+    for (const ok of outcomes) {
+      if (ok) result.sent++;
+      else result.failed++;
+    }
+  }
+
+  return result;
+}
+
 function registerWhatsAppAutomationRoutes(app, deps) {
   const { db, requireAdmin } = deps;
 
@@ -428,12 +503,47 @@ function registerWhatsAppAutomationRoutes(app, deps) {
         templates: {
           abandoned: Boolean(config.abandonedTemplate),
           lowStock: Boolean(config.lowStockTemplate),
-          waitlist: Boolean(config.waitlistTemplate)
+          waitlist: Boolean(config.waitlistTemplate),
+          campaign: Boolean(config.campaignTemplate)
         },
         recent: recent.rows
       });
     } catch (error) {
       return res.status(500).json({ ok: false, message: "تعذر تحميل حالة واتساب" });
+    }
+  });
+
+  app.get("/api/admin/whatsapp-campaigns/preview", requireAdmin, async (req, res) => {
+    try {
+      const config = getWhatsAppConfig();
+      const recipients = await campaignRecipients(db);
+      return res.json({
+        ok: true,
+        configured: Boolean(
+          config.accessToken &&
+          config.phoneNumberId &&
+          config.campaignTemplate
+        ),
+        recipients: recipients.length
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, message: "تعذر تجهيز قائمة مستلمي الحملة" });
+    }
+  });
+
+  app.post("/api/admin/whatsapp-campaigns", requireAdmin, async (req, res) => {
+    if (req.body?.confirm !== true) {
+      return res.status(400).json({ ok: false, message: "يجب تأكيد الإرسال الجماعي" });
+    }
+    try {
+      const result = await runWhatsAppCampaign(db, req.body || {});
+      return res.json({ ok: true, result });
+    } catch (error) {
+      console.error("[WHATSAPP CAMPAIGN]", error);
+      return res.status(error.status || 500).json({
+        ok: false,
+        message: error.message || "تعذر إرسال حملة واتساب"
+      });
     }
   });
 
@@ -455,5 +565,7 @@ module.exports = {
   initWhatsAppAutomation,
   runWhatsAppAutomation,
   startWhatsAppAutomation,
-  registerWhatsAppAutomationRoutes
+  registerWhatsAppAutomationRoutes,
+  runWhatsAppCampaign,
+  campaignRecipients
 };
