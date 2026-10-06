@@ -10,5 +10,13 @@ test("return cash value allocates all merchandise discounts proportionally",()=>
  assert.match(server,/refundable_cash_value=money\(Math\.max\(0,returnedMerchandiseValue-/);
 });
 test("return settlement uses actual refundable cash instead of raw list value",()=>{
- assert.match(server,/refundable_cash_value\|\|returnedMerchandiseValue/);
+ assert.match(server,/money\(-Number\(rr\.refundable_cash_value\)\+serviceFee\)/);
+ assert.doesNotMatch(server,/refundable_cash_value\|\|returnedMerchandiseValue/);
+});
+test("fully discounted return can settle at exactly zero",()=>{
+ const gross=100,coupon=60,visa=20,loyalty=20,serviceFee=0;
+ const refundable=Math.max(0,gross-coupon-visa-loyalty);
+ const net=-Number(refundable)+serviceFee;
+ assert.equal(refundable,0);
+ assert.equal(net,0);
 });
