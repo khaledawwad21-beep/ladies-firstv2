@@ -2569,7 +2569,7 @@ app.post(
                 LEFT JOIN brands b
                   ON b.id = p.brand_id
                 WHERE p.id = $1
-                FOR UPDATE
+                FOR UPDATE OF p
                 `,
                 [productId]
               );
