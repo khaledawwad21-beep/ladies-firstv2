@@ -12,7 +12,21 @@ permissions:
 jobs:
   backend-regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ladies
+          POSTGRES_DB: ladies_ci
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ladies -d ladies_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: backend
@@ -29,6 +43,13 @@ jobs:
         env:
           JWT_SECRET: ci-regression-secret-12345678901234567890
         run: npm test
+      - name: Run isolated order lifecycle E2E
+        env:
+          RUN_DB_E2E: "1"
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          DB_SSL: "false"
+          JWT_SECRET: ci-e2e-secret-123456789012345678901234
+        run: node --test test/order-e2e.integration.test.js
 
 
   live-render-smoke:
