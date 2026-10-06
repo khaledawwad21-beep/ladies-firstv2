@@ -5498,14 +5498,34 @@ app.get(
           ]
         );
 
+      const settlements=await db(
+        `SELECT
+           COALESCE(SUM(returned_merchandise_value) FILTER (WHERE request_type='return'),0) AS returns_value,
+           COALESCE(SUM(returned_cost_value) FILTER (WHERE request_type='return'),0) AS returned_cost,
+           COALESCE(SUM(price_difference) FILTER (WHERE request_type='exchange'),0) AS exchange_difference,
+           COALESCE(SUM(service_fee),0) AS return_service_fees,
+           COALESCE(SUM(net_settlement),0) AS net_settlement
+         FROM return_requests
+         WHERE status='completed'
+           AND completed_at >= $1::date
+           AND completed_at < ($2::date + INTERVAL '1 day')`,
+        [from,to]
+      );
+      const baseSummary=summary.rows[0]||{};
+      const rs=settlements.rows[0]||{};
+      const grossSales=Number(baseSummary.sales||0);
+      const grossCost=Number(baseSummary.cost||0);
+      const returnsValue=Number(rs.returns_value||0);
+      const returnedCost=Number(rs.returned_cost||0);
+      const exchangeDifference=Number(rs.exchange_difference||0);
+      const returnServiceFees=Number(rs.return_service_fees||0);
+      const netSales=money(grossSales-returnsValue+exchangeDifference+returnServiceFees);
+      const netCost=money(grossCost-returnedCost);
+      const netProfit=money(netSales-netCost);
       return res.json({
-        ok: true,
-        from,
-        to,
-        summary:
-          summary.rows[0],
-        rows:
-          rows.rows
+        ok:true,from,to,
+        summary:{...baseSummary,grossSales,grossCost,returnsValue,returnedCost,exchangeDifference,returnServiceFees,netSettlement:Number(rs.net_settlement||0),sales:netSales,cost:netCost,profit:netProfit},
+        rows:rows.rows
       });
     } catch (error) {
       console.error(
