@@ -21,3 +21,8 @@ test("production regression runs isolated PostgreSQL order lifecycle E2E",()=>{
   assert.match(workflow,/order-e2e\.integration\.test\.js/);
   assert.match(workflow,/DB_SSL:/);
 });
+
+test("checkout locks only the products table when category and brand joins are nullable",()=>{
+  const server=fs.readFileSync(path.join(__dirname,"../src/server.js"),"utf8");
+  assert.match(server,/WHERE p\.id = \$1\s+FOR UPDATE OF p/);
+});
