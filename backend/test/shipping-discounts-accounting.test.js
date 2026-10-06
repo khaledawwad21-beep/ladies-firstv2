@@ -11,7 +11,7 @@ test("regional delivery discounts are server authoritative and snapshotted",()=>
   assert.match(server,/shipping_base_cost/);
   assert.match(server,/shipping_discount_percent/);
   assert.match(server,/shipping_discount_amount/);
-  assert.match(server,/shippingBaseCost\*shippingDiscountPercent \/ 100/);
+  assert.match(server,/shippingBaseCost\s*\*\s*shippingDiscountPercent\s*\/\s*100/);
 });
 
 test("admin can configure a percentage for every delivery region",()=>{
