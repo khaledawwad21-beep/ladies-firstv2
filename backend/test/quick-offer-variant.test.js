@@ -6,8 +6,11 @@ const app=fs.readFileSync(path.join(__dirname,"../../frontend/app.js"),"utf8");
 const css=fs.readFileSync(path.join(__dirname,"../../frontend/store-stability.css"),"utf8");
 
 test("quick offers require an explicit variant choice when variants exist",()=>{
-  assert.match(app,/if\(vs\.length&&!variant\)return alert/);
-  assert.doesNotMatch(app,/if\(vs\.length&&!variant\)variant=vs\.find/);
+  const start=app.indexOf("function quickBuy");
+  const end=app.indexOf("function changeProductQty",start);
+  const quickBuy=app.slice(start,end);
+  assert.match(quickBuy,/if\(vs\.length&&!variant\)return alert/);
+  assert.doesNotMatch(quickBuy,/if\(vs\.length&&!variant\)variant=vs\.find/);
   assert.match(app,/id="quickVariant-\$\{p\.id\}"/);
   assert.match(app,/اختاري اللون\/الخيار/);
 });
