@@ -514,6 +514,7 @@ async function initDatabase() {
   await require('./product-media').initMedia();
   await require('./waitlist').initWaitlist(db);
   await require('./cart-tracking').initCartTracking(db);
+  await require('./account-state').initAccountState(db);
   await require('./whatsapp-automation').initWhatsAppAutomation(db);
   await require('./passkeys').initPasskeys(db);
   await require('./password-recovery').initPasswordRecovery(db);
@@ -7898,6 +7899,16 @@ require("./cart-tracking").registerCartTrackingRoutes(app, {
   db,
   requireAuth,
   requireAdmin
+});
+
+/* =========================================================
+   CUSTOMER ACCOUNT STATE
+========================================================= */
+
+require("./account-state").registerAccountStateRoutes(app, {
+  db,
+  requireAuth,
+  transaction
 });
 
 
