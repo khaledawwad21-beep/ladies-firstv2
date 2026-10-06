@@ -663,6 +663,15 @@ async function initDatabase() {
   `);
 
   await db(`
+    ALTER TABLE orders
+      ADD COLUMN IF NOT EXISTS shipping_region TEXT,
+      ADD COLUMN IF NOT EXISTS shipping_waived BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS shipping_base_cost NUMERIC(12,2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS shipping_discount_percent NUMERIC(5,2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS shipping_discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0
+  `);
+
+  await db(`
     CREATE TABLE IF NOT EXISTS order_items (
       id BIGSERIAL PRIMARY KEY,
 
@@ -938,6 +947,12 @@ async function initDatabase() {
       )
     ON CONFLICT(key)
     DO NOTHING
+  `);
+
+  await db(`
+    INSERT INTO settings (key, value)
+    VALUES ('shipping_discount_percentages','{"westbank":0,"jerusalem":0,"inside":0}'::jsonb)
+    ON CONFLICT(key) DO NOTHING
   `);
 
   await db(`
@@ -2941,8 +2956,12 @@ app.post(
           if (!Object.prototype.hasOwnProperty.call(shippingFees, shippingRegion)) {
             throw createHttpError(400,"BAD_SHIPPING_REGION","منطقة التوصيل غير صالحة");
           }
+          const shippingDiscountsRaw = await getSetting("shipping_discount_percentages",{westbank:0,jerusalem:0,inside:0},client);
+          const shippingDiscountPercent = Math.max(0,Math.min(100,Number(shippingDiscountsRaw?.[shippingRegion])||0));
+          const shippingBaseCost = shippingFees[shippingRegion];
+          const shippingDiscountAmount = money(shippingBaseCost * shippingDiscountPercent / 100);
           const shippingWaived = req.body.shippingWaived === true && req.user && ["owner","admin"].includes(String(req.user.role||"").toLowerCase());
-          const shipping = shippingWaived ? 0 : shippingFees[shippingRegion];
+          const shipping = shippingWaived ? 0 : money(Math.max(0,shippingBaseCost-shippingDiscountAmount));
 
           /* Packaging price is authoritative on the server. The browser only sends option ids per item. */
           const packagingOptionsRaw = await getSetting("packaging_options", [], client);
@@ -3000,6 +3019,9 @@ app.post(
                 shipping_cost,
                 shipping_region,
                 shipping_waived,
+                shipping_base_cost,
+                shipping_discount_percent,
+                shipping_discount_amount,
                 packaging_cost,
                 loyalty_discount,
                 points_redeemed,
@@ -3031,6 +3053,9 @@ app.post(
                 $16,
                 $17,
                 $18,
+                $19,
+                $20,
+                $21,
                 0,
                 'pending',
                 NOW(),
@@ -3050,6 +3075,9 @@ app.post(
                 shipping,
                 shippingRegion,
                 shippingWaived,
+                shippingBaseCost,
+                shippingDiscountPercent,
+                shippingDiscountAmount,
                 packaging,
                 loyaltyDiscount,
                 pointsRedeemed,
