@@ -814,6 +814,8 @@ async function initDatabase() {
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS returned_cost_value NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS net_settlement NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS store_delivery_cost NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS store_fault BOOLEAN NOT NULL DEFAULT FALSE`);
 
   await db(`
     CREATE TABLE IF NOT EXISTS favorites (
@@ -3536,9 +3538,14 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
       const rr=q.rows[0], completing=status==="completed"&&rr.status!=="completed";
       if(String(rr.status||"").toLowerCase()==="completed" && status!=="completed")
         throw createHttpError(409,"RETURN_COMPLETED_FINAL","طلب الإرجاع/الاستبدال المكتمل نهائي ولا يمكن تغيير حالته بعد تنفيذ المخزون");
-      const requestedFeePayer=cleanText(req.body.feePayer??rr.fee_payer??"customer",20).toLowerCase();
+      const normalizedReason=String(rr.reason||"").trim().toLowerCase();
+      const storeFaultReasons=["المنتج تالف","المنتج مختلف عن الطلب","منتج تالف","منتج خاطئ","wrong item","damaged","defective","missing item"];
+      const storeFault=storeFaultReasons.some(reason=>normalizedReason.includes(reason));
+      let requestedFeePayer=cleanText(req.body.feePayer??rr.fee_payer??"customer",20).toLowerCase();
+      if(storeFault)requestedFeePayer="store";
       if(!["customer","store","waived"].includes(requestedFeePayer))throw createHttpError(400,"BAD_FEE_PAYER","حددي من يتحمل رسوم الإرجاع/الاستبدال");
       const serviceFee=requestedFeePayer==="customer"?Math.max(0,money(req.body.serviceFee??rr.service_fee??0)):0;
+      const storeDeliveryCost=requestedFeePayer==="store"?Math.max(0,money(req.body.storeDeliveryCost??rr.store_delivery_cost??0)):0;
       const feeReason=cleanText(req.body.feeReason??rr.fee_reason??"",500);
       let priceDifference=Number(rr.price_difference||0);
       let replacementProductId=rr.replacement_product_id,replacementVariantId=rr.replacement_variant_id,replacementProductName=rr.replacement_product_name,replacementVariantName=rr.replacement_variant_name,replacementUnitPrice=rr.replacement_unit_price;
@@ -3582,7 +3589,7 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
           await client.query("INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at) VALUES($1,$2,$3,'customer_exchange_out',$4,NOW())",[replacementProductId,replacementVariantId,-Number(rr.quantity),rr.order_id]);
         }
       }
-      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,replacement_product_id=$3,replacement_variant_id=$4,replacement_product_name=$5,replacement_variant_name=$6,replacement_unit_price=$7,fee_payer=$8,service_fee=$9,fee_reason=$10,price_difference=$11,returned_merchandise_value=$12,returned_cost_value=$13,net_settlement=$14,completed_at=CASE WHEN $1='completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END,updated_at=NOW() WHERE id=$15 RETURNING *`,[status,adminNote,replacementProductId,replacementVariantId,replacementProductName,replacementVariantName,replacementUnitPrice,requestedFeePayer,serviceFee,feeReason,priceDifference,returnedMerchandiseValue,returnedCostValue,netSettlement,id]);return u.rows[0];
+      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,replacement_product_id=$3,replacement_variant_id=$4,replacement_product_name=$5,replacement_variant_name=$6,replacement_unit_price=$7,fee_payer=$8,service_fee=$9,fee_reason=$10,price_difference=$11,returned_merchandise_value=$12,returned_cost_value=$13,net_settlement=$14,store_delivery_cost=$15,store_fault=$16,completed_at=CASE WHEN $1='completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END,updated_at=NOW() WHERE id=$17 RETURNING *`,[status,adminNote,replacementProductId,replacementVariantId,replacementProductName,replacementVariantName,replacementUnitPrice,requestedFeePayer,serviceFee,feeReason,priceDifference,returnedMerchandiseValue,returnedCostValue,netSettlement,storeDeliveryCost,storeFault,id]);return u.rows[0];
     });
     res.json({ok:true,request:result});
   }catch(e){console.error("[RETURN STATUS]",e);res.status(e.status||500).json({ok:false,message:e.message||"تعذر تحديث الطلب"});}
@@ -5504,6 +5511,7 @@ app.get(
            COALESCE(SUM(returned_cost_value) FILTER (WHERE request_type='return'),0) AS returned_cost,
            COALESCE(SUM(price_difference) FILTER (WHERE request_type='exchange'),0) AS exchange_difference,
            COALESCE(SUM(service_fee),0) AS return_service_fees,
+           COALESCE(SUM(store_delivery_cost),0) AS store_delivery_cost,
            COALESCE(SUM(net_settlement),0) AS net_settlement
          FROM return_requests
          WHERE status='completed'
@@ -5519,12 +5527,13 @@ app.get(
       const returnedCost=Number(rs.returned_cost||0);
       const exchangeDifference=Number(rs.exchange_difference||0);
       const returnServiceFees=Number(rs.return_service_fees||0);
+      const storeDeliveryCost=Number(rs.store_delivery_cost||0);
       const netSales=money(grossSales-returnsValue+exchangeDifference+returnServiceFees);
       const netCost=money(grossCost-returnedCost);
-      const netProfit=money(netSales-netCost);
+      const netProfit=money(netSales-netCost-storeDeliveryCost);
       return res.json({
         ok:true,from,to,
-        summary:{...baseSummary,grossSales,grossCost,returnsValue,returnedCost,exchangeDifference,returnServiceFees,netSettlement:Number(rs.net_settlement||0),sales:netSales,cost:netCost,profit:netProfit},
+        summary:{...baseSummary,grossSales,grossCost,returnsValue,returnedCost,exchangeDifference,returnServiceFees,storeDeliveryCost,netSettlement:Number(rs.net_settlement||0),sales:netSales,cost:netCost,profit:netProfit},
         rows:rows.rows
       });
     } catch (error) {
