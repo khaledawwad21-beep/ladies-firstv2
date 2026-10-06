@@ -41,7 +41,7 @@ test("admin can configure loyalty, packaging and Visa discount", () => {
 });
 
 test("storefront uses authoritative global Visa discount", () => {
-  assert.match(app, /storeCommerceSettings=\{visaDiscountPercent:0\}/);
+  assert.match(app, /storeCommerceSettings=\{visaDiscountPercent:0(?:,whatsappNumber:[^}]*)?\}/);
   assert.match(app, /st\.visa_discount_percent/);
   assert.match(app, /visaDiscount=subtotal\*/);
   assert.doesNotMatch(app, /p\.visaDiscount/);
