@@ -14,10 +14,11 @@ function normalizeCartItems(raw) {
     if (!Number.isInteger(productId) || productId <= 0) continue;
     if (!Number.isInteger(qty) || qty <= 0 || qty > 1000) continue;
     const variant = cleanText(item?.variant ?? item?.variantName ?? "", 120);
-    const key = productId + ":" + variant;
+    const packagingId = cleanText(item?.packagingId ?? item?.packaging_id ?? "", 120);
+    const key = productId + ":" + variant + ":" + packagingId;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ productId, qty, variant });
+    out.push({ productId, qty, variant, packagingId });
   }
   return out;
 }

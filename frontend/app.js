@@ -88,7 +88,7 @@ function getAccount(){
   return synced;
 }
 function getFavorites(){return load(FAV_KEY,[]).map(Number).filter(id=>products.some(p=>Number(p.id)===id))}
-function saveFavorites(v){save(FAV_KEY,[...new Set(v.map(Number))]);updateAccountBadge()}
+function saveFavorites(v){const normalized=[...new Set((Array.isArray(v)?v:[]).map(Number).filter(Number.isInteger))];save(FAV_KEY,normalized);updateAccountBadge();if(lfToken())lfPersistFavorites(normalized).catch(e=>console.warn('Favorites save unavailable',e.message))}
 function isFavorite(id){return getFavorites().includes(Number(id))}
 function toggleFavorite(id){const fav=getFavorites(),n=Number(id);saveFavorites(fav.includes(n)?fav.filter(x=>x!==n):fav.concat(n));renderProducts();renderQuickOffers();if(document.getElementById('accountModal')?.style.display==='flex')renderAccountContent()}
 function favoriteCards(){return getFavorites().map(id=>products.find(p=>Number(p.id)===id)).filter(Boolean).map(p=>{const img=safeImg(mainImagesOf(p)[0],LOGO);return `<div class="favCard"><img src="${img}" onclick="openProduct(${p.id})"><div class="fcbody"><b>${esc(currentLang==='en'?(p.en||p.name):p.name)}</b><div>${Number(p.price)||0} ₪</div><button onclick="addSingleToCart(${p.id},selectedVariant(${p.id}));renderAccountContent()">🛍️ نقل للسلة</button><button onclick="toggleFavorite(${p.id})">♥ إزالة</button></div></div>`}).join('')}
@@ -308,7 +308,7 @@ async function customerPasskeyLogin(){
     registerUserRecord(safe);
     await lfSyncMyOrders();
     await lfLoadLoyalty();
-    await lfCartHeartbeat();
+    await lfSyncAccountState();
     renderAccountContent();
     updateAccountBadge();
     alert('تم تسجيل الدخول بالبصمة 🌸');
@@ -596,7 +596,63 @@ async function lfSyncMe(){if(!lfToken())return null;try{const d=await lfFetch('/
 async function lfSyncMyOrders(){if(!lfToken())return;try{const d=await lfFetch('/api/orders');if(Array.isArray(d.orders))save('lf_orders',d.orders.map(o=>({id:o.id,createdAt:o.created_at,date:new Date(o.created_at).toLocaleString('ar-PS'),name:o.customer_name,phone:o.customer_phone||o.customer_contact,address:o.shipping_address||o.customer_address,total:o.total,subtotal:o.subtotal,couponDiscount:o.coupon_discount??o.discount??0,loyaltyDiscount:o.loyalty_discount||0,pointsRedeemed:o.points_redeemed||0,shippingFee:o.shipping_cost??o.shipping??0,shippingRegion:o.shipping_region||'',shippingWaived:o.shipping_waived===true,packagingTotal:o.packaging_cost??o.packaging??0,status:o.status,inventoryState:o.inventory_state,items:(o.items||[]).map(i=>({orderItemId:i.id,productId:i.productId??i.product_id,variant:i.variantName??i.variant_name??'',qty:i.quantity,name:i.productName??i.product_name??i.name_snapshot??'منتج',price:i.unitPrice??i.unit_price??i.price_snapshot??0,image:i.image||''}))})))}catch(e){console.warn('API orders unavailable',e.message)}}
 async function saveWhatsAppOptIn(){const v=!!document.getElementById('waOptIn')?.checked;let a={...load(ACCOUNT_KEY,{}),whatsapp_opt_in:v,whatsapp_opt_in_updated_at:Date.now()};try{if(lfToken()){const d=await lfFetch('/api/users/me',{method:'PATCH',body:JSON.stringify({whatsapp_opt_in:v})});a={...a,...(d.user||{}),whatsapp_opt_in:v}}save(ACCOUNT_KEY,a);registerUserRecord(a);renderAccountContent();if(v)await lfCartHeartbeat();alert(v?'تم حفظ تفضيلات واتساب 🌸':'تم حفظ إيقاف رسائل واتساب.')}catch(e){alert('تعذر حفظ تفضيلات واتساب: '+e.message)}}
 async function updateAccountWhatsAppNumber(){let a=load(ACCOUNT_KEY,null);if(!a||a.type!=='whatsapp')return;const iso=document.getElementById('accountCountryEdit')?.value||a.countryIso||'PS';const raw=document.getElementById('accountContactEdit')?.value.trim()||'';if(!raw)return alert('أدخلي رقم واتساب.');if(!validMobile(raw,iso))return alert('أدخلي رقم واتساب صحيحًا مع اختيار الدولة.');const contact=normalizePhone(raw,iso);try{if(lfToken()){const d=await lfFetch('/api/users/me',{method:'PATCH',body:JSON.stringify({phone:contact})});a={...a,...(d.user||{})}}a.contact=contact;a.countryIso=iso;a.countryName=countryName(iso);save(ACCOUNT_KEY,a);registerUserRecord(a);renderAccountContent();updateAccountBadge();alert('تم تحديث الدولة والمفتاح ورقم واتساب 🌍💬')}catch(e){alert('تعذر تحديث رقم واتساب: '+e.message)}} 
-async function lfCartHeartbeat(){if(!lfToken())return;if(!cart.length)return lfClearCartHeartbeat();const items=cart.map(i=>({productId:Number(i.id),qty:Math.max(1,Number(i.qty)||1),variant:i.variant||''})).filter(i=>Number.isInteger(i.productId)&&i.productId>0);if(!items.length)return;try{await lfFetch('/api/cart/snapshot',{method:'PUT',body:JSON.stringify({items})})}catch(e){console.warn('Cart snapshot unavailable',e.message)}}
+function normalizedFavoriteIds(list){return [...new Set((Array.isArray(list)?list:[]).map(Number).filter(id=>Number.isInteger(id)&&id>0))].slice(0,200)}
+async function lfPersistFavorites(list=getFavorites()){
+  if(!lfToken())return [];
+  const favorites=normalizedFavoriteIds(list);
+  const d=await lfFetch('/api/account/favorites',{method:'PUT',body:JSON.stringify({favorites})});
+  return normalizedFavoriteIds(d.favorites||favorites);
+}
+async function lfSyncFavorites(){
+  if(!lfToken())return;
+  try{
+    const d=await lfFetch('/api/account/favorites');
+    const local=normalizedFavoriteIds(load(FAV_KEY,[]));
+    const remote=normalizedFavoriteIds(d.favorites||[]);
+    const merged=normalizedFavoriteIds([...remote,...local]);
+    save(FAV_KEY,merged);
+    if(merged.length!==remote.length||merged.some(id=>!remote.includes(id)))await lfPersistFavorites(merged);
+    updateAccountBadge();
+    renderProducts();
+    renderQuickOffers();
+  }catch(e){console.warn('Favorites sync unavailable',e.message)}
+}
+function mergeCartSnapshot(localItems,remoteItems){
+  const merged=new Map();
+  const add=(item,remote=false)=>{
+    const id=Number(item?.id??item?.productId),qty=Math.max(1,Number(item?.qty??item?.quantity)||1);
+    if(!Number.isInteger(id)||id<=0)return;
+    const variant=String(item?.variant??item?.variantName??'').trim();
+    const packagingId=String(item?.packagingId??item?.packaging_id??'').trim();
+    const key=id+'|'+variant+'|'+packagingId;
+    const existing=merged.get(key);
+    if(existing)existing.qty=Math.max(existing.qty,qty);
+    else merged.set(key,{id,qty,variant,packagingId});
+  };
+  (Array.isArray(remoteItems)?remoteItems:[]).forEach(x=>add(x,true));
+  (Array.isArray(localItems)?localItems:[]).forEach(x=>add(x,false));
+  return [...merged.values()].slice(0,100);
+}
+async function lfRestoreCartSnapshot(){
+  if(!lfToken())return;
+  try{
+    const d=await lfFetch('/api/cart/snapshot');
+    const remote=d.snapshot?.items||[];
+    const merged=mergeCartSnapshot(cart,remote);
+    cart=merged;
+    save('lf_cart',cart);
+    renderCart();
+    renderProducts();
+    updateCount();
+    await lfCartHeartbeat();
+  }catch(e){console.warn('Cart restore unavailable',e.message)}
+}
+async function lfSyncAccountState(){
+  if(!lfToken())return;
+  await lfSyncFavorites();
+  await lfRestoreCartSnapshot();
+}
+async function lfCartHeartbeat(){if(!lfToken())return;if(!cart.length)return lfClearCartHeartbeat();const items=cart.map(i=>({productId:Number(i.id),qty:Math.max(1,Number(i.qty)||1),variant:i.variant||'',packagingId:i.packagingId||''})).filter(i=>Number.isInteger(i.productId)&&i.productId>0);if(!items.length)return;try{await lfFetch('/api/cart/snapshot',{method:'PUT',body:JSON.stringify({items})})}catch(e){console.warn('Cart snapshot unavailable',e.message)}}
 async function lfClearCartHeartbeat(){if(!lfToken())return;try{await lfFetch('/api/cart/snapshot',{method:'DELETE'})}catch(e){console.warn('Cart snapshot clear unavailable',e.message)}}
 async function lfLoginAccount(contact,password){
   const d=await lfFetch('/api/auth/login',{method:'POST',body:JSON.stringify({contact,password})});
@@ -656,7 +712,7 @@ saveAccount=async function(){
     registerUserRecord(safe);
     await lfSyncMyOrders();
     await lfLoadLoyalty();
-    await lfCartHeartbeat();
+    await lfSyncAccountState();
     renderAccountContent();
     updateAccountBadge();
     alert(isRegister?'تم إنشاء الحساب وتسجيل الدخول 🌸':'تم تسجيل الدخول بنجاح 🌸');
@@ -723,4 +779,4 @@ function nayaAddMessage(text,user=false){const box=document.getElementById('naya
 function nayaAnswer(q){const t=String(q||'').trim().toLowerCase();const a=getAccount();if(!t)return 'أنا معكِ 🌸 اكتبي لي ماذا تريدين وسأساعدك.';if(t.includes('جسم')||t.includes('مقاس')||t.includes('تجربة')||t.includes('جربي')){openNayaBodyProfile();return 'أكيد 🌸 افتحي لوحة المقاسات ووافقي على رسالة الخصوصية، وبعدها أعطيكِ معاينة تقريبية على نايا.';}if(t.includes('سلة')||t.includes('cart'))return `عندكِ حاليًا ${cart.reduce((n,i)=>n+(Number(i.qty)||0),0)} قطعة في السلة 🛍️`+(cart.length?' ويمكنكِ فتحها من زر السلة.':'، والسلة فارغة حاليًا.');if(t.includes('مفضل')||t.includes('favorite'))return `عندكِ ${getFavorites().length} منتج في المفضلة ❤️`;if(t.includes('حساب')||t.includes('account'))return a?`حسابكِ محفوظ باسم ${a.name||'سيدتي'} 🩷 ويمكنكِ تعديل بياناته من حسابي.`:'يمكنكِ فتح حسابي وإنشاء حساب اختياري لحفظ بياناتك وطلباتك.';if(t.includes('واتس')||t.includes('whatsapp'))return 'يمكنكِ اختيار الدولة والمفتاح يدويًا أو استخدام تحديد الموقع، وبعدها حفظ تفضيلات رسائل واتساب 🌍💬';if(t.includes('عرض')||t.includes('سعر')||t.includes('منتج')){const hits=products.filter(p=>String(p.name||'').toLowerCase().includes(t)||String(p.en||'').toLowerCase().includes(t)).slice(0,3);if(hits.length)return 'وجدت لكِ: '+hits.map(p=>`${p.name} — ${Number(p.price)||0} ₪`).join(' | ');const offers=quickOffers().slice(0,3);if(offers.length)return 'هذه بعض العروض السريعة الآن: '+offers.map(p=>`${p.name} — ${Number(p.price)||0} ₪`).join(' | ')}if(t.includes('شحن')||t.includes('توصيل'))return 'التوصيل المعروض في المتجر يعتمد على منطقة الشحن عند إتمام الطلب 🚚';return `أهلًا ${a?.name||'فيكِ'} 🌸 أنا نايا، أقدر أساعدكِ في المنتجات والسلة والمفضلة والحساب والطلبات.`}
 function sendNaya(){const input=document.getElementById('nayaInput');if(!input)return;const q=input.value.trim();if(!q)return;input.value='';nayaAddMessage(q,true);setTimeout(()=>nayaAddMessage(nayaAnswer(q),false),180)}
 function nayaQuick(text){const input=document.getElementById('nayaInput');if(input){input.value=text;sendNaya()}}
-window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings();await lfSyncMe();await lfLoadLoyalty();await lfSyncProducts();await lfSyncCatalog();await lfSyncMyOrders();renderAccountContent();initCountrySelectors();updateAccountBadge();restartFeatureAuto()});
+window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings();await lfSyncMe();await lfLoadLoyalty();await lfSyncProducts();await lfSyncAccountState();await lfSyncCatalog();await lfSyncMyOrders();renderAccountContent();initCountrySelectors();updateAccountBadge();restartFeatureAuto()});

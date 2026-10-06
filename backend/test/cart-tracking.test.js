@@ -20,8 +20,8 @@ test("cart snapshots normalize valid lines and remove duplicates", () => {
   ]);
 
   assert.deepEqual(items, [
-    { productId: 7, qty: 2, variant: "وردي" },
-    { productId: 8, qty: 1, variant: "" }
+    { productId: 7, qty: 2, variant: "وردي", packagingId: "" },
+    { productId: 8, qty: 1, variant: "", packagingId: "" }
   ]);
 });
 
