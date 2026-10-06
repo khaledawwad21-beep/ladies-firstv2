@@ -1313,6 +1313,7 @@ app.get(
             gender,
             age,
             role,
+            permissions,
             loyalty_points,
             is_active,
             created_at,
@@ -7062,7 +7063,7 @@ app.post(
     if (
       !name ||
       !email ||
-      password.length < 6
+      password.length < 12
     ) {
       return res.status(400).json({
         ok: false,
