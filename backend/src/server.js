@@ -803,6 +803,18 @@ async function initDatabase() {
   await db(`CREATE INDEX IF NOT EXISTS idx_return_requests_order ON return_requests(order_id)`);
   await db(`CREATE INDEX IF NOT EXISTS idx_return_requests_user ON return_requests(user_id)`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS reason_code TEXT`);
+  await db(`
+    UPDATE return_requests
+    SET reason_code=CASE
+      WHEN reason_code IS NOT NULL AND reason_code<>'' THEN reason_code
+      WHEN LOWER(reason) LIKE '%تالف%' OR LOWER(reason) LIKE '%damaged%' OR LOWER(reason) LIKE '%defective%' THEN 'store_damaged'
+      WHEN LOWER(reason) LIKE '%مختلف عن الطلب%' OR LOWER(reason) LIKE '%منتج خاطئ%' OR LOWER(reason) LIKE '%wrong item%' THEN 'store_wrong_item'
+      WHEN LOWER(reason) LIKE '%ناقص%' OR LOWER(reason) LIKE '%missing item%' THEN 'store_missing_item'
+      WHEN LOWER(reason) LIKE '%المقاس%' OR LOWER(reason) LIKE '%اللون%' THEN 'customer_size_color'
+      ELSE 'other'
+    END
+    WHERE reason_code IS NULL OR reason_code=''
+  `);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_product_id BIGINT REFERENCES products(id) ON DELETE SET NULL`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_variant_id BIGINT REFERENCES product_variants(id) ON DELETE SET NULL`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS replacement_product_name TEXT`);
