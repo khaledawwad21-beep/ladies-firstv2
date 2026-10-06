@@ -131,6 +131,9 @@ function returnHistoryHtml(o){
       const direction=r.exchange_settlement_direction==='customer_to_store'?'على الزبون':'مستحق للزبون';
       const st=r.exchange_settlement_status==='settled'?'تمت التسوية':'التسوية معلقة';
       settlement='<br>فرق السعر: '+Number(r.exchange_settlement_amount).toFixed(2)+' ₪ '+direction+' — '+st+(r.exchange_settlement_method?' ('+esc(r.exchange_settlement_method)+')':'');
+    }else if(r.request_type==='return'&&Number(r.return_refund_amount||0)>0){
+      const st=r.return_refund_status==='settled'?'تم رد المبلغ':'رد المبلغ معلّق';
+      settlement='<br>المبلغ المستحق: '+Number(r.return_refund_amount).toFixed(2)+' ₪ — '+st+(r.return_refund_method?' ('+esc(r.return_refund_method)+')':'');
     }
     return '<div class="notice" style="margin-top:8px"><b>'+type+' × '+Number(r.quantity||1)+'</b> — '+(status[r.status]||esc(r.status||''))+'<br>'+esc(r.reason||'')+'<br>'+payer+settlement+(r.replacement_product_name?'<br>البديل: '+esc(r.replacement_product_name)+(r.replacement_variant_name?' — '+esc(r.replacement_variant_name):''):'')+'</div>';
   }).join('')+'</div>';
