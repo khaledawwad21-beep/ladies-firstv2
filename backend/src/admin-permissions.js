@@ -63,6 +63,21 @@ async function initAdminPermissions(db) {
 function createAdminPermissionGuard(db, requireAuth) {
   return function adminPermissionGuard(req, res, next) {
     return requireAuth(req, res, async () => {
+      const tokenRole = String(req.user?.role || "").toLowerCase();
+
+      // Preserve the existing full-access behavior for Owner/Admin.
+      // Granular database-backed checks are only needed for Staff accounts.
+      if (tokenRole === "owner" || tokenRole === "admin") {
+        return next();
+      }
+
+      if (tokenRole !== "staff") {
+        return res.status(403).json({
+          ok: false,
+          message: "هذا الحساب ليس حساب إدارة"
+        });
+      }
+
       try {
         const result = await db(
           `
