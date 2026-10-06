@@ -29,3 +29,33 @@ jobs:
         env:
           JWT_SECRET: ci-regression-secret-12345678901234567890
         run: npm test
+
+
+  live-render-smoke:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: backend-regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wait for Render to deploy this commit
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          HEALTH_URL: https://ladies-firstv2.onrender.com/api/health
+        run: |
+          for attempt in $(seq 1 30); do
+            echo "Live deploy check $attempt/30"
+            body="$(curl --fail --silent --show-error --max-time 20 "$HEALTH_URL" || true)"
+            if [ -n "$body" ]; then
+              echo "$body"
+              live_sha="$(printf '%s' "$body" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("gitCommit") or "").strip())' 2>/dev/null || true)"
+              ok="$(printf '%s' "$body" | python3 -c 'import json,sys; print(str(bool(json.load(sys.stdin).get("ok"))).lower())' 2>/dev/null || true)"
+              if [ "$ok" = "true" ] && [ "$live_sha" = "$EXPECTED_SHA" ]; then
+                echo "Render is live on expected commit $EXPECTED_SHA"
+                exit 0
+              fi
+              echo "Render currently reports commit: ${live_sha:-unknown}"
+            fi
+            sleep 20
+          done
+          echo "Render did not expose the expected commit within the smoke-check window."
+          exit 1
