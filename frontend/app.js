@@ -125,6 +125,8 @@ function renderAccountContent(){
       <div id="accountActionHint" class="passwordNote">أدخلي بيانات حسابك لتسجيل الدخول.</div>
       <button id="accountSubmit" class="add" onclick="saveAccount()">تسجيل الدخول</button>
       <button id="accountPasskeyLogin" class="add secondaryAdd" type="button" onclick="customerPasskeyLogin()">🔐 الدخول ببصمة / قفل الجهاز</button>
+      <button id="accountRecoveryButton" class="add secondaryAdd" type="button" onclick="showCustomerRecovery()">نسيت كلمة المرور</button>
+      <div id="customerRecoveryBox"></div>
       <div class="passwordNote">الدخول بالبصمة يظهر بعد تفعيله مرة واحدة من داخل الحساب على هذا الجهاز.</div>
       <hr><h3>❤️ المفضلة (${fav.length})</h3>
       <div class="favoritesRow">${fav.length?favoriteCards():'<div class="empty">لم تضيفي منتجات للمفضلة بعد.</div>'}</div>`;
@@ -190,6 +192,48 @@ function customerAuthContact(){
     contact:accountMode==='whatsapp'?normalizePhone(raw,iso):raw.toLowerCase()
   };
 }
+function showCustomerRecovery(){
+  const box=document.getElementById('customerRecoveryBox');
+  if(!box)return;
+  const info=customerAuthContact();
+  box.innerHTML=`<div class="notice" style="margin-top:10px"><b>استرداد كلمة المرور</b><br><span>سيتم إرسال رمز من 6 أرقام إلى وسيلة التواصل الموجودة أعلاه.</span><div class="accountActionRow" style="margin-top:8px"><button type="button" onclick="requestCustomerRecovery()">إرسال رمز الاسترداد</button></div><div id="customerRecoveryConfirm"></div></div>`;
+  if(!info.raw){
+    const contact=document.getElementById('accountContact');
+    if(contact)contact.focus();
+  }
+}
+async function requestCustomerRecovery(){
+  const info=customerAuthContact();
+  if(!info.raw)return alert('أدخلي رقم واتساب أو البريد أولًا.');
+  if(accountMode==='email'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.raw))return alert('أدخلي بريدًا إلكترونيًا صحيحًا');
+  if(accountMode==='whatsapp'&&!validMobile(info.raw,info.iso))return alert('أدخلي رقم واتساب صحيحًا مع اختيار الدولة');
+  const target=document.getElementById('customerRecoveryConfirm');
+  try{
+    const d=await lfFetch('/api/auth/password-recovery/request',{method:'POST',body:JSON.stringify({contact:info.contact})});
+    if(target)target.innerHTML=`<div class="success" style="margin-top:10px">${esc(d.message||'تم إرسال الرمز')}<input id="customerRecoveryCode" class="field" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="رمز الاسترداد"><input id="customerRecoveryPassword" class="field" type="password" minlength="12" autocomplete="new-password" placeholder="كلمة المرور الجديدة — 12 خانة على الأقل"><button type="button" class="add" onclick="confirmCustomerRecovery()">تأكيد وتغيير كلمة المرور</button></div>`;
+  }catch(e){
+    alert(e.message||'تعذر إرسال رمز الاسترداد');
+  }
+}
+async function confirmCustomerRecovery(){
+  const info=customerAuthContact();
+  const code=document.getElementById('customerRecoveryCode')?.value.trim()||'';
+  const newPassword=document.getElementById('customerRecoveryPassword')?.value||'';
+  if(!/^\d{6}$/.test(code))return alert('أدخلي رمز الاسترداد المكون من 6 أرقام');
+  if(newPassword.length<12)return alert('كلمة المرور الجديدة يجب أن تكون 12 خانة على الأقل');
+  try{
+    const d=await lfFetch('/api/auth/password-recovery/confirm',{method:'POST',body:JSON.stringify({contact:info.contact,code,newPassword})});
+    alert(d.message||'تم تغيير كلمة المرور');
+    const password=document.getElementById('accountPassword');
+    if(password)password.value='';
+    const box=document.getElementById('customerRecoveryBox');
+    if(box)box.innerHTML='<div class="success">تم تغيير كلمة المرور. يمكنك تسجيل الدخول الآن.</div>';
+    setAccountActionMode('login');
+  }catch(e){
+    alert(e.message||'تعذر تغيير كلمة المرور');
+  }
+}
+
 async function loadCustomerPasskeyStatus(){
   const el=document.getElementById('customerPasskeyStatus');
   if(!el||!lfToken())return;
