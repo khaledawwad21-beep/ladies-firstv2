@@ -816,6 +816,11 @@ async function initDatabase() {
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS store_delivery_cost NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS store_fault BOOLEAN NOT NULL DEFAULT FALSE`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS loyalty_award_reversed INTEGER NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS loyalty_redeem_refunded INTEGER NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS coupon_released BOOLEAN NOT NULL DEFAULT FALSE`);
+  await db(`CREATE UNIQUE INDEX IF NOT EXISTS loyalty_return_award_reversal_once ON loyalty_points_transactions(order_id, note) WHERE transaction_type='return_award_reversal'`);
+  await db(`CREATE UNIQUE INDEX IF NOT EXISTS loyalty_return_redeem_refund_once ON loyalty_points_transactions(order_id, note) WHERE transaction_type='return_redeem_refund'`);
 
   await db(`
     CREATE TABLE IF NOT EXISTS favorites (
@@ -3533,7 +3538,7 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
   if(!Number.isFinite(id)||!["pending","approved","rejected","completed"].includes(status))return res.status(400).json({ok:false,message:"بيانات الحالة غير صالحة"});
   try{
     const result=await transaction(async client=>{
-      const q=await client.query(`SELECT rr.*,oi.product_id,oi.variant_id,oi.unit_price,oi.purchase_price FROM return_requests rr JOIN order_items oi ON oi.id=rr.order_item_id WHERE rr.id=$1 FOR UPDATE`,[id]);
+      const q=await client.query(`SELECT rr.*,oi.product_id,oi.variant_id,oi.unit_price,oi.purchase_price,o.subtotal,o.coupon_discount,o.coupon_code,o.loyalty_points_awarded,o.points_redeemed,o.user_id AS order_user_id FROM return_requests rr JOIN order_items oi ON oi.id=rr.order_item_id JOIN orders o ON o.id=rr.order_id WHERE rr.id=$1 FOR UPDATE`,[id]);
       if(!q.rowCount)throw createHttpError(404,"RETURN_NOT_FOUND","الطلب غير موجود");
       const rr=q.rows[0], completing=status==="completed"&&rr.status!=="completed";
       if(String(rr.status||"").toLowerCase()==="completed" && status!=="completed")
@@ -3573,6 +3578,35 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
       if(completing){
         returnedMerchandiseValue=money(Number(rr.unit_price||0)*Number(rr.quantity||0));
         returnedCostValue=money(Number(rr.purchase_price||0)*Number(rr.quantity||0));
+        if(rr.request_type==="return"){
+          const subtotal=Math.max(0,Number(rr.subtotal||0));
+          const ratio=subtotal>0?Math.min(1,returnedMerchandiseValue/subtotal):0;
+          const awardReversal=Math.min(Number(rr.loyalty_points_awarded||0),Math.round(Number(rr.loyalty_points_awarded||0)*ratio));
+          const redeemRefund=Math.min(Number(rr.points_redeemed||0),Math.round(Number(rr.points_redeemed||0)*ratio));
+          if(awardReversal>0){
+            const note=`إرجاع نقاط مكتسبة — طلب إرجاع #${rr.id}`;
+            const lr=await client.query(`INSERT INTO loyalty_points_transactions(user_id,order_id,points,transaction_type,note,created_at) VALUES($1,$2,$3,'return_award_reversal',$4,NOW()) ON CONFLICT DO NOTHING RETURNING id`,[rr.order_user_id,rr.order_id,-awardReversal,note]);
+            if(lr.rowCount)await client.query("UPDATE users SET loyalty_points=GREATEST(0,COALESCE(loyalty_points,0)-$1),updated_at=NOW() WHERE id=$2",[awardReversal,rr.order_user_id]);
+          }
+          if(redeemRefund>0){
+            const note=`إعادة نقاط مصروفة — طلب إرجاع #${rr.id}`;
+            const lr=await client.query(`INSERT INTO loyalty_points_transactions(user_id,order_id,points,transaction_type,note,created_at) VALUES($1,$2,$3,'return_redeem_refund',$4,NOW()) ON CONFLICT DO NOTHING RETURNING id`,[rr.order_user_id,rr.order_id,redeemRefund,note]);
+            if(lr.rowCount)await client.query("UPDATE users SET loyalty_points=COALESCE(loyalty_points,0)+$1,updated_at=NOW() WHERE id=$2",[redeemRefund,rr.order_user_id]);
+          }
+          rr.loyalty_award_reversed=awardReversal;
+          rr.loyalty_redeem_refunded=redeemRefund;
+          const returnedTotals=await client.query(
+            `SELECT COALESCE(SUM(returned_merchandise_value),0) AS value
+             FROM return_requests
+             WHERE order_id=$1 AND request_type='return' AND status='completed'`,
+            [rr.order_id]
+          );
+          const cumulativeReturned=Number(returnedTotals.rows[0]?.value||0)+returnedMerchandiseValue;
+          if(rr.coupon_code && !rr.coupon_released && cumulativeReturned>=subtotal){
+            await client.query("UPDATE coupons SET used_count=GREATEST(0,COALESCE(used_count,0)-1) WHERE UPPER(code)=UPPER($1)",[rr.coupon_code]);
+            rr.coupon_released=true;
+          }
+        }
         netSettlement=rr.request_type==="return"
           ? money(-returnedMerchandiseValue+serviceFee)
           : money(priceDifference+serviceFee);
@@ -3589,7 +3623,7 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
           await client.query("INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at) VALUES($1,$2,$3,'customer_exchange_out',$4,NOW())",[replacementProductId,replacementVariantId,-Number(rr.quantity),rr.order_id]);
         }
       }
-      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,replacement_product_id=$3,replacement_variant_id=$4,replacement_product_name=$5,replacement_variant_name=$6,replacement_unit_price=$7,fee_payer=$8,service_fee=$9,fee_reason=$10,price_difference=$11,returned_merchandise_value=$12,returned_cost_value=$13,net_settlement=$14,store_delivery_cost=$15,store_fault=$16,completed_at=CASE WHEN $1='completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END,updated_at=NOW() WHERE id=$17 RETURNING *`,[status,adminNote,replacementProductId,replacementVariantId,replacementProductName,replacementVariantName,replacementUnitPrice,requestedFeePayer,serviceFee,feeReason,priceDifference,returnedMerchandiseValue,returnedCostValue,netSettlement,storeDeliveryCost,storeFault,id]);return u.rows[0];
+      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,replacement_product_id=$3,replacement_variant_id=$4,replacement_product_name=$5,replacement_variant_name=$6,replacement_unit_price=$7,fee_payer=$8,service_fee=$9,fee_reason=$10,price_difference=$11,returned_merchandise_value=$12,returned_cost_value=$13,net_settlement=$14,store_delivery_cost=$15,store_fault=$16,loyalty_award_reversed=$17,loyalty_redeem_refunded=$18,coupon_released=$19,completed_at=CASE WHEN $1='completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END,updated_at=NOW() WHERE id=$20 RETURNING *`,[status,adminNote,replacementProductId,replacementVariantId,replacementProductName,replacementVariantName,replacementUnitPrice,requestedFeePayer,serviceFee,feeReason,priceDifference,returnedMerchandiseValue,returnedCostValue,netSettlement,storeDeliveryCost,storeFault,Number(rr.loyalty_award_reversed||0),Number(rr.loyalty_redeem_refunded||0),rr.coupon_released===true,id]);return u.rows[0];
     });
     res.json({ok:true,request:result});
   }catch(e){console.error("[RETURN STATUS]",e);res.status(e.status||500).json({ok:false,message:e.message||"تعذر تحديث الطلب"});}
