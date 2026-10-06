@@ -501,6 +501,7 @@ async function initDatabase() {
 
   await require('./product-media').initMedia();
   await require('./waitlist').initWaitlist(db);
+  await require('./cart-tracking').initCartTracking(db);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb`);
 
@@ -7755,6 +7756,17 @@ require("./waitlist").registerWaitlistRoutes(app, {
   requireAdmin,
   optionalAuth,
   normalizePhone
+});
+
+
+/* =========================================================
+   CART TRACKING
+========================================================= */
+
+require("./cart-tracking").registerCartTrackingRoutes(app, {
+  db,
+  requireAuth,
+  requireAdmin
 });
 
 
