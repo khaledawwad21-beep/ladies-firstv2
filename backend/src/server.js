@@ -3652,7 +3652,7 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
           }
         }
         netSettlement=rr.request_type==="return"
-          ? money(-Number(rr.refundable_cash_value||returnedMerchandiseValue)+serviceFee)
+          ? money(-Number(rr.refundable_cash_value)+serviceFee)
           : money(priceDifference+serviceFee);
         if(rr.request_type==="return"){
           if(rr.variant_id)await client.query("UPDATE product_variants SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2",[rr.quantity,rr.variant_id]);
