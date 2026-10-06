@@ -26,9 +26,47 @@ const navs=[...document.querySelectorAll('.nav')];navs.forEach(n=>n.onclick=()=>
 function table(h,rows){return rows.length?`<div class="tablewrap"><table class="table"><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`:'<p>لا توجد بيانات.</p>'}
 async function load(){try{if(sec==='dashboard')return dash();if(sec==='users')return users();if(sec==='products')return products();if(sec==='inventory')return inventory();if(sec==='orders')return orders();if(sec==='returns')return returnsAdmin();if(sec==='waitlist')return waitlist();if(sec==='finance')return finance();if(sec==='catalog')return catalog();if(sec==='coupons')return coupons();if(sec==='reports')return reports();if(sec==='social')return social();if(sec==='settings')return settings();if(sec==='staff')return staff();if(sec==='offers')return offers();if(sec==='homepage')return homepage()}catch(e){toast(e.message)}}
 async function dash(){let d=await api('/api/admin/dashboard'),x=d.dashboard;$('#sections').innerHTML=`<div class="cards">${[['العملاء',x.customers],['المنتجات',x.products],['الطلبات',x.orders],['المبيعات',M(x.sales)],['قيد التنفيذ',x.pendingOrders],['مخزون منخفض',x.lowStock]].map(a=>`<div class="stat"><small>${a[0]}</small><b>${a[1]}</b></div>`).join('')}</div><div class="grid"><div class="card"><h2>تنبيهات</h2>${x.lowStock?`يوجد ${x.lowStock} منتج منخفض المخزون.`:'لا يوجد تنبيه مخزون ضمن الحد الحالي.'}</div><div class="card"><h2>ملاحظة</h2>هذه الواجهة مرتبطة بالـAPI الموجود حاليًا ولن تغيّر بيانات الموقع بدون طلب صريح.</div></div>`}
-async function users(){let q=encodeURIComponent($('#uq')?.value||''),d=await api('/api/admin/users?search='+q);$('#sections').innerHTML=`<div class="card"><h2>المستخدمون</h2><div class="toolbar"><input id="uq" class="field" placeholder="بحث بالاسم أو البريد أو الهاتف" value="${E(decodeURIComponent(q))}"><button class="btn primary" onclick="users()">بحث</button></div>${table(['الاسم','البريد','الهاتف','الجنس','العمر','الدور','الحالة',''],(d.users||[]).map(u=>`<tr><td>${E(u.name)}</td><td>${E(u.email)}</td><td>${E(u.phone||'-')}</td><td>${E(u.gender||'-')}</td><td>${u.age||'-'}</td><td>${E(u.role)}</td><td>${u.is_active?'فعال':'متوقف'}</td><td><button class="btn" onclick='editUser(${JSON.stringify(u)})'>تعديل</button></td></tr>`))}</div>`}
-function editUser(u){modal('تعديل المستخدم',`<div class="formgrid"><input id="un" class="field" value="${E(u.name)}" placeholder="الاسم"><input id="ue" class="field" value="${E(u.email)}" placeholder="البريد"><input id="up" class="field" value="${E(u.phone||'')}" placeholder="الهاتف"><select id="ug" class="field"><option value="">غير محدد</option><option value="male" ${u.gender==='male'?'selected':''}>ذكر</option><option value="female" ${u.gender==='female'?'selected':''}>أنثى</option></select><input id="ua" class="field" type="number" value="${u.age||''}" placeholder="العمر"></div><div class="actions"><button class="btn primary" onclick="saveUser(${u.id})">حفظ</button></div>`)}
-async function saveUser(id){await api('/api/admin/users/'+id,{method:'PATCH',body:JSON.stringify({name:$('#un').value,email:$('#ue').value,phone:$('#up').value,gender:$('#ug').value||null,age:$('#ua').value?Number($('#ua').value):null})});closeModal();toast('تم الحفظ');users()}
+let adminUsersCache=[];
+async function users(){
+  const search=$('#uq')?.value||'';
+  const d=await api('/api/admin/users?search='+encodeURIComponent(search));
+  adminUsersCache=d.users||[];
+  $('#sections').innerHTML=`<div class="card"><h2>المستخدمون</h2><div class="toolbar"><input id="uq" class="field" placeholder="بحث بالاسم أو البريد أو الهاتف" value="${E(search)}"><button class="btn primary" onclick="users()">بحث</button></div>${table(['الاسم','البريد','الهاتف','الجنس','العمر','الدور','النقاط','الحالة',''],adminUsersCache.map(u=>{const active=u.isActive!==false;const owner=String(u.role||'').toLowerCase()==='owner';return `<tr><td>${E(u.name||'-')}</td><td>${E(u.email||'-')}</td><td>${E(u.phone||'-')}</td><td>${E(u.gender||'-')}</td><td>${u.age??'-'}</td><td>${E(u.role||'-')}</td><td>${Number(u.loyaltyPoints||0)}</td><td>${active?'فعال':'متوقف'}</td><td>${owner?'<span class="small-note">المالك يُدار من إعدادات الحساب</span>':`<button class="btn" onclick="editUser(${Number(u.id)})">تعديل</button>`}</td></tr>`}).join(''))}</div>`;
+}
+function editUser(id){
+  const u=adminUsersCache.find(x=>Number(x.id)===Number(id));
+  if(!u)return alert('المستخدم غير موجود في القائمة الحالية');
+  const active=u.isActive!==false;
+  modal('تعديل المستخدم',`<div class="formgrid">
+    <input id="un" class="field" value="${E(u.name||'')}" placeholder="الاسم">
+    <input id="ue" class="field" value="${E(u.email||'')}" placeholder="البريد">
+    <input id="up" class="field" value="${E(u.phone||'')}" placeholder="الهاتف">
+    <select id="ug" class="field"><option value="">غير محدد</option><option value="male" ${u.gender==='male'?'selected':''}>ذكر</option><option value="female" ${u.gender==='female'?'selected':''}>أنثى</option></select>
+    <input id="ua" class="field" type="number" min="1" max="120" value="${u.age||''}" placeholder="العمر">
+    <label class="toolbar"><input id="uactive" type="checkbox" ${active?'checked':''}> الحساب فعال</label>
+    <div class="full notice">الدور الحالي: <b>${E(u.role||'customer')}</b>. تغيير أدوار الإدارة والموظفين يتم من قسم الموظفين والصلاحيات.</div>
+    <label class="full">تعيين كلمة مرور جديدة — اختياري<input id="unewpass" class="field" type="password" minlength="12" autocomplete="new-password" placeholder="اتركها فارغة إن لم ترد تغيير كلمة المرور"></label>
+  </div><div class="actions"><button class="btn primary" onclick="saveUser(${Number(u.id)})">حفظ</button></div>`);
+}
+async function saveUser(id){
+  const nextPassword=$('#unewpass')?.value||'';
+  if(nextPassword&&nextPassword.length<12)return alert('كلمة المرور الجديدة يجب أن تكون 12 خانة على الأقل');
+  const body={
+    name:$('#un').value.trim(),
+    email:$('#ue').value.trim()||null,
+    phone:$('#up').value.trim()||null,
+    gender:$('#ug').value||null,
+    age:$('#ua').value?Number($('#ua').value):null,
+    is_active:!!$('#uactive').checked
+  };
+  try{
+    await api('/api/admin/users/'+id,{method:'PATCH',body:JSON.stringify(body)});
+    if(nextPassword)await api('/api/admin/users/'+id+'/password',{method:'PATCH',body:JSON.stringify({newPassword:nextPassword})});
+    closeModal();
+    toast(nextPassword?'تم حفظ البيانات وتغيير كلمة المرور':'تم حفظ بيانات المستخدم');
+    await users();
+  }catch(e){alert(e.message||'تعذر حفظ المستخدم')}
+}
 async function products(){let d=await api('/api/products');$('#sections').innerHTML=`<div class="card"><h2>المنتجات</h2><div class="toolbar"><input id="pq" class="field" placeholder="بحث"><button class="btn" onclick="productForm()">+ منتج جديد</button></div>${table(['المنتج','السعر','المخزون','الحالة',''],(d.products||[]).filter(p=>(p.name||'').includes($('#pq')?.value||'')).map(p=>`<tr><td>${E(p.name)}</td><td>${M(p.price)}</td><td>${p.stock??0}</td><td>${p.is_active?'فعال':'متوقف'}</td><td><button class="btn" onclick='productForm(${JSON.stringify(p)})'>تعديل</button></td></tr>`))}</div>`}
 function productForm(p={}){modal(p.id?'تعديل المنتج':'منتج جديد',`<div class="formgrid"><input id="pn" class="field" value="${E(p.name||'')}" placeholder="اسم المنتج"><input id="pp" class="field" type="number" step=".01" value="${p.price??''}" placeholder="السعر"><input id="po" class="field" type="number" step=".01" value="${p.old_price??''}" placeholder="السعر القديم"><input id="ps" class="field" type="number" value="${p.stock??0}" placeholder="المخزون"><input id="pi" class="field full" value="${E(p.image_url||'')}" placeholder="رابط الصورة"><textarea id="pd" class="field full" rows="5" placeholder="الوصف">${E(p.description||'')}</textarea><div class="full">الفيديوهات ستُفعّل بعد إضافة حقول/Endpoint الفيديو إلى الـBackend؛ لن يتم تخزين بيانات غير مدعومة.</div></div><div class="actions"><button class="btn primary" onclick="saveProduct(${p.id||0})">حفظ</button></div>`)}
 async function saveProduct(id){let b={name:$('#pn').value,price:Number($('#pp').value),oldPrice:$('#po').value?Number($('#po').value):null,stock:Number($('#ps').value),imageUrl:$('#pi').value,description:$('#pd').value};await api(id?'/api/admin/products/'+id:'/api/admin/products',{method:id?'PUT':'POST',body:JSON.stringify(b)});closeModal();toast('تم حفظ المنتج');products()}
