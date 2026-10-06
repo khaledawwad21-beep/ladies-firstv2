@@ -4063,7 +4063,9 @@ app.patch("/api/admin/orders/:id/shipping-waiver",requireAdmin,async(req,res)=>{
     const result=await transaction(async client=>{
       const q=await client.query("SELECT * FROM orders WHERE id=$1 FOR UPDATE",[orderId]);
       if(!q.rowCount)throw createHttpError(404,"ORDER_NOT_FOUND","الطلب غير موجود");
-      const o=q.rows[0],fees={westbank:20,jerusalem:35,inside:70};
+      const o=q.rows[0];
+      const configuredFees=await getSetting("shipping_fees",{westbank:20,jerusalem:35,inside:70},client);
+      const fees={westbank:Math.max(0,money(configuredFees?.westbank ?? 20)),jerusalem:Math.max(0,money(configuredFees?.jerusalem ?? 35)),inside:Math.max(0,money(configuredFees?.inside ?? 70))};
       const normalShipping=Math.max(0,Number(fees[String(o.shipping_region||"westbank").toLowerCase()] ?? o.shipping_cost ?? 0));
       const shipping=waived?0:normalShipping;
       const total=Math.max(0,Number(o.subtotal||0)-Number(o.coupon_discount||0)-Number(o.visa_discount||0)-Number(o.loyalty_discount||0)+Number(o.packaging_cost||0)+shipping);
