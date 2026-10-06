@@ -48,6 +48,8 @@ gateway.get("/api/health", (req, res) => {
   res.status(200).json({
     ok: true,
     service: "ladies-firstv2",
+    gitCommit: String(process.env.RENDER_GIT_COMMIT || "").trim() || null,
+    gitBranch: String(process.env.RENDER_GIT_BRANCH || "").trim() || null,
     tripoConfigured: Boolean(String(process.env.TRIPO_API_KEY || "").trim())
   });
 });
