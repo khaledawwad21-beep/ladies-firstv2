@@ -90,14 +90,105 @@ function closeOrderDetail(){const m=document.getElementById('orderDetailModal');
 function reorder(id){const o=load('lf_orders',[]).find(x=>String(x.id)===String(id));if(!o)return;let added=0,skipped=0;(o.items||[]).forEach(it=>{const p=products.find(x=>Number(x.id)===Number(it.productId));if(!p){skipped++;return}const available=variantStock(p,it.variant||'');const want=Math.max(1,Number(it.qty)||1);if(available<=0){skipped++;return}const qty=Math.min(want,available);addToCart(p.id,qty,it.variant||'',it.packagingId||'');added+=qty;if(qty<want)skipped++});closeOrderDetail();closeAccount();openCart();if(skipped)alert(`تمت إعادة إضافة ${added} قطعة 🌸\n${skipped} من القطع لم تعد متوفرة بالكمية المطلوبة.`)}
 function renderSideAccountGreeting(){const el=document.getElementById('sideAccountGreeting');if(!el)return;const a=getAccount();el.innerHTML=a?`<div class="sideGreeting">${greetingForAccount(a)}، <b>${esc(a.name||'سيدتي')}</b> 🩷</div><button class="sideAccountBtn" onclick="openAccount();toggleSideMenu()">👤 حسابي وطلباتي</button>`:`<button class="sideAccountBtn" onclick="openAccount();toggleSideMenu()">👤 تسجيل الدخول الاختياري</button>`}
 function localPhoneForAccount(a){const raw=String(a?.contact||'').trim();if(!raw)return '';const n=normalizePhone(raw,a?.countryIso||'PS');if(!n.startsWith('+'))return raw;const dial=String(COUNTRY_DIAL_CODES[a?.countryIso||'PS']||'');if(dial&&n.slice(1,1+dial.length)===dial)return '0'+n.slice(1+dial.length);return n.slice(1)}
-function renderAccountContent(){const el=document.getElementById('accountContent');if(!el)return;const a=getAccount(),fav=getFavorites(),orders=getAccountOrders();renderSideAccountGreeting();if(!a){el.innerHTML=`<div class="notice">تسجيل الدخول اختياري، ويحفظ السلة والمفضلة وتفاصيل مشترياتك على هذا الجهاز.</div><div class="accountMode"><button id="modeWhats" class="active" onclick="setAccountMode('whatsapp')">💬 واتساب</button><button id="modeEmail" onclick="setAccountMode('email')">✉️ إيميل</button></div><input id="accountName" class="field" placeholder="الاسم"><div class="genderRow"><select id="accountGender" class="field"><option value="female">أنثى</option><option value="male">ذكر</option></select><input id="accountAge" class="field" type="number" min="13" max="120" placeholder="العمر"></div><div id="accountPhoneBox" class="phoneIntlBox"><div class="phoneIntlTop"><select id="accountCountryCode" class="field countrySelect" onchange="syncCountryDialPreview('accountCountryCode','accountContact')"></select><span class="phoneDialHint" id="accountDialHint">+970</span><button id="gpsCountryBtn" type="button" class="gpsBtn" onclick="detectCountryByGPS('accountCountryCode')">📍 تحديد الدولة تلقائيًا</button></div><input id="accountContact" class="field" placeholder="رقم الواتساب بدون مفتاح الدولة" inputmode="tel" autocomplete="tel-national"></div><div class="gpsNote">📍 الموقع اختياري ويُستخدم فقط لتحديد الدولة تلقائيًا، ولا نحتاج حفظ إحداثياتك.</div><input id="accountPassword" class="field" type="password" minlength="4" placeholder="كلمة المرور"><div class="passwordNote">كلمة المرور تُستخدم للحساب، ويمكن للإدارة إصدار كلمة مرور مؤقتة عند الحاجة.</div><button class="add" onclick="saveAccount()">حفظ الحساب</button><hr><h3>❤️ المفضلة (${fav.length})</h3><div class="favoritesRow">${fav.length?favoriteCards():'<div class="empty">لم تضيفي منتجات للمفضلة بعد.</div>'}</div>`;return}const waChecked=a.whatsapp_opt_in===true||a.whatsapp_opt_in===1||a.whatsapp_opt_in==='1'||a.whatsapp_opt_in==='true';const contactEditor=a.type==='whatsapp'?`<div class="accountContactEditor"><b>🌍 الدولة ومفتاح واتساب</b><div class="phoneIntlTop"><select id="accountCountryEdit" class="field countrySelect" onchange="syncCountryDialPreview('accountCountryEdit','accountContactEdit')"></select><span class="phoneDialHint" id="accountDialEdit">+970</span><button id="gpsCountryEditBtn" type="button" class="gpsBtn" onclick="detectCountryByGPS('accountCountryEdit')">📍 تحديد تلقائي</button></div><input id="accountContactEdit" class="field phoneValueLtr" dir="ltr" inputmode="tel" autocomplete="tel-national" value="${esc(localPhoneForAccount(a))}" placeholder="رقم واتسابك بدون مفتاح الدولة"><button class="add secondaryAdd" type="button" onclick="updateAccountWhatsAppNumber()">حفظ الدولة / المفتاح / الرقم</button><div class="gpsNote">يمكنك تغيير الدولة أو المفتاح يدويًا في أي وقت حتى لو استخدمتِ GPS.</div></div>`:'';el.innerHTML=`<div class="accountGreeting">${greetingForAccount(a)}، ${esc(a.name||'سيدتي')} 🩷</div><div class="success"><div class="accountContactValue">${a.type==='email'?'✉️ ':'💬 '}<span class="phoneValueLtr" dir="ltr">${esc(a.contact)}</span></div><b>⭐ نقاطي: ${Number(a.points||0)}</b><br><label class="waPreference"><input id="waOptIn" type="checkbox" ${waChecked?'checked':''}> أوافق على استلام رسائل واتساب لطيفة عن السلة والمنتجات التي اخترتها والعروض ذات الصلة.</label><div class="accountActionRow"><button type="button" onclick="saveWhatsAppOptIn()">حفظ تفضيلات واتساب</button><button type="button" onclick="logoutAccount()">تسجيل خروج</button></div></div>${contactEditor}<h3>❤️ المفضلة (${fav.length})</h3><div class="favoritesRow">${fav.length?favoriteCards():'<div class="empty">لم تضيفي منتجات للمفضلة بعد.</div>'}</div><h3>🛍️ السلة الحالية: ${cart.length} أصناف</h3><button class="add" onclick="closeAccount();openCart()">فتح السلة</button><h3 style="margin-top:16px">📋 مشترياتي السابقة</h3><div class="ordersList">${orders.length?orders.map(o=>`<div class="orderSummaryCard"><div><b>#${o.id}</b><br><small>${esc(o.date||'')}</small></div><div><b>${Number(o.total||0).toFixed(2)} ₪</b><br><small>${esc(o.status||'جديد')}</small></div><button type="button" onclick="viewOrder(${o.id})">التفاصيل</button></div>`).join(''):'<div class="empty">لا توجد طلبات محفوظة لهذا الحساب بعد.</div>'}</div>`;if(a.type==='whatsapp'){initCountrySelectors();const sel=document.getElementById('accountCountryEdit');if(sel){sel.value=a.countryIso||'PS';syncCountryDialPreview('accountCountryEdit','accountContactEdit')}}}
+function renderAccountContent(){
+  const el=document.getElementById('accountContent');
+  if(!el)return;
+  const a=getAccount(),fav=getFavorites(),orders=getAccountOrders();
+  renderSideAccountGreeting();
+  if(!a){
+    el.innerHTML=`<div class="notice">تسجيل الدخول اختياري. عند تسجيل الدخول تُحفظ طلباتك ومفضلتك وتفضيلاتك مع حسابك.</div>
+      <div class="accountMode">
+        <button id="actionLogin" class="active" type="button" onclick="setAccountActionMode('login')">تسجيل الدخول</button>
+        <button id="actionRegister" type="button" onclick="setAccountActionMode('register')">إنشاء حساب</button>
+      </div>
+      <div class="accountMode">
+        <button id="modeWhats" class="active" type="button" onclick="setAccountMode('whatsapp')">💬 واتساب</button>
+        <button id="modeEmail" type="button" onclick="setAccountMode('email')">✉️ إيميل</button>
+      </div>
+      <div id="accountRegisterFields">
+        <input id="accountName" class="field" placeholder="الاسم">
+        <div class="genderRow">
+          <select id="accountGender" class="field"><option value="female">أنثى</option><option value="male">ذكر</option></select>
+          <input id="accountAge" class="field" type="number" min="13" max="120" placeholder="العمر">
+        </div>
+      </div>
+      <div class="phoneIntlBox">
+        <div id="accountCountryTools" class="phoneIntlTop">
+          <select id="accountCountryCode" class="field countrySelect" onchange="syncCountryDialPreview('accountCountryCode','accountContact')"></select>
+          <span class="phoneDialHint" id="accountDialHint">+970</span>
+          <button id="gpsCountryBtn" type="button" class="gpsBtn" onclick="detectCountryByGPS('accountCountryCode')">📍 تحديد الدولة تلقائيًا</button>
+        </div>
+        <input id="accountContact" class="field" placeholder="رقم الواتساب بدون مفتاح الدولة" inputmode="tel" autocomplete="username">
+      </div>
+      <div id="accountGpsNote" class="gpsNote">📍 الموقع اختياري ويُستخدم فقط لتحديد الدولة تلقائيًا، ولا نحتاج حفظ إحداثياتك.</div>
+      <input id="accountPassword" class="field" type="password" minlength="12" autocomplete="current-password" placeholder="كلمة المرور — 12 خانة على الأقل">
+      <div id="accountActionHint" class="passwordNote">أدخلي بيانات حسابك لتسجيل الدخول.</div>
+      <button id="accountSubmit" class="add" onclick="saveAccount()">تسجيل الدخول</button>
+      <hr><h3>❤️ المفضلة (${fav.length})</h3>
+      <div class="favoritesRow">${fav.length?favoriteCards():'<div class="empty">لم تضيفي منتجات للمفضلة بعد.</div>'}</div>`;
+    initCountrySelectors();
+    setAccountMode(accountMode);
+    setAccountActionMode(accountActionMode);
+    return;
+  }
+  const waChecked=a.whatsapp_opt_in===true||a.whatsapp_opt_in===1||a.whatsapp_opt_in==='1'||a.whatsapp_opt_in==='true';
+  const contactEditor=a.type==='whatsapp'?`<div class="accountContactEditor"><b>🌍 الدولة ومفتاح واتساب</b><div class="phoneIntlTop"><select id="accountCountryEdit" class="field countrySelect" onchange="syncCountryDialPreview('accountCountryEdit','accountContactEdit')"></select><span class="phoneDialHint" id="accountDialEdit">+970</span><button id="gpsCountryEditBtn" type="button" class="gpsBtn" onclick="detectCountryByGPS('accountCountryEdit')">📍 تحديد تلقائي</button></div><input id="accountContactEdit" class="field phoneValueLtr" dir="ltr" inputmode="tel" autocomplete="tel-national" value="${esc(localPhoneForAccount(a))}" placeholder="رقم واتسابك بدون مفتاح الدولة"><button class="add secondaryAdd" type="button" onclick="updateAccountWhatsAppNumber()">حفظ الدولة / المفتاح / الرقم</button><div class="gpsNote">يمكنك تغيير الدولة أو المفتاح يدويًا في أي وقت حتى لو استخدمتِ GPS.</div></div>`:'';
+  el.innerHTML=`<div class="accountGreeting">${greetingForAccount(a)}، ${esc(a.name||'سيدتي')} 🩷</div>
+    <div class="success"><div class="accountContactValue">${a.type==='email'?'✉️ ':'💬 '}<span class="phoneValueLtr" dir="ltr">${esc(a.contact||a.email||a.phone||'')}</span></div><b>⭐ نقاطي: ${Number(a.points||0)}</b><br><label class="waPreference"><input id="waOptIn" type="checkbox" ${waChecked?'checked':''}> أوافق على استلام رسائل واتساب لطيفة عن السلة والمنتجات التي اخترتها والعروض ذات الصلة.</label><div class="accountActionRow"><button type="button" onclick="saveWhatsAppOptIn()">حفظ تفضيلات واتساب</button><button type="button" onclick="logoutAccount()">تسجيل خروج</button></div></div>
+    ${contactEditor}
+    <h3>🔐 تغيير كلمة المرور</h3>
+    <div class="formgrid"><input id="accountCurrentPassword" class="field" type="password" autocomplete="current-password" placeholder="كلمة المرور الحالية"><input id="accountNewPassword" class="field" type="password" minlength="12" autocomplete="new-password" placeholder="كلمة المرور الجديدة — 12 خانة على الأقل"></div>
+    <button class="add secondaryAdd" type="button" onclick="changeAccountPassword()">تغيير كلمة المرور</button>
+    <h3>❤️ المفضلة (${fav.length})</h3><div class="favoritesRow">${fav.length?favoriteCards():'<div class="empty">لم تضيفي منتجات للمفضلة بعد.</div>'}</div>
+    <h3>🛍️ السلة الحالية: ${cart.length} أصناف</h3><button class="add" onclick="closeAccount();openCart()">فتح السلة</button>
+    <h3 style="margin-top:16px">📋 مشترياتي السابقة</h3><div class="ordersList">${orders.length?orders.map(o=>`<div class="orderSummaryCard"><div><b>#${o.id}</b><br><small>${esc(o.date||'')}</small></div><div><b>${Number(o.total||0).toFixed(2)} ₪</b><br><small>${esc(o.status||'جديد')}</small></div><button type="button" onclick="viewOrder(${o.id})">التفاصيل</button></div>`).join(''):'<div class="empty">لا توجد طلبات محفوظة لهذا الحساب بعد.</div>'}</div>`;
+  if(a.type==='whatsapp'){
+    initCountrySelectors();
+    const sel=document.getElementById('accountCountryEdit');
+    if(sel){sel.value=a.countryIso||'PS';syncCountryDialPreview('accountCountryEdit','accountContactEdit')}
+  }
+}
 
-let accountMode='whatsapp';
-function setAccountMode(mode){accountMode=mode;const w=document.getElementById('modeWhats'),e=document.getElementById('modeEmail'),c=document.getElementById('accountContact'),box=document.getElementById('accountPhoneBox');if(w&&e){w.classList.toggle('active',mode==='whatsapp');e.classList.toggle('active',mode==='email')}if(c){c.type=mode==='email'?'email':'tel';c.placeholder=mode==='email'?'البريد الإلكتروني':'رقم الواتساب بدون مفتاح الدولة'}if(box)box.style.display=mode==='email'?'none':'block'}
+let accountMode='whatsapp',accountActionMode='login';
+function setAccountMode(mode){
+  accountMode=mode==='email'?'email':'whatsapp';
+  const w=document.getElementById('modeWhats'),e=document.getElementById('modeEmail'),contact=document.getElementById('accountContact'),tools=document.getElementById('accountCountryTools'),note=document.getElementById('accountGpsNote');
+  if(w&&e){w.classList.toggle('active',accountMode==='whatsapp');e.classList.toggle('active',accountMode==='email')}
+  if(contact){
+    contact.type=accountMode==='email'?'email':'tel';
+    contact.inputMode=accountMode==='email'?'email':'tel';
+    contact.placeholder=accountMode==='email'?'البريد الإلكتروني':'رقم الواتساب بدون مفتاح الدولة';
+    contact.autocomplete='username';
+  }
+  if(tools)tools.style.display=accountMode==='email'?'none':'flex';
+  if(note)note.style.display=accountMode==='email'?'none':'block';
+}
+function setAccountActionMode(mode){
+  accountActionMode=mode==='register'?'register':'login';
+  const login=document.getElementById('actionLogin'),register=document.getElementById('actionRegister'),fields=document.getElementById('accountRegisterFields'),submit=document.getElementById('accountSubmit'),hint=document.getElementById('accountActionHint'),password=document.getElementById('accountPassword');
+  if(login&&register){login.classList.toggle('active',accountActionMode==='login');register.classList.toggle('active',accountActionMode==='register')}
+  if(fields)fields.style.display=accountActionMode==='register'?'block':'none';
+  if(submit)submit.textContent=accountActionMode==='register'?'إنشاء الحساب':'تسجيل الدخول';
+  if(hint)hint.textContent=accountActionMode==='register'?'أنشئي حسابًا اختياريًا لحفظ الطلبات والمفضلة بين الزيارات.':'أدخلي رقم واتساب أو البريد وكلمة المرور لتسجيل الدخول.';
+  if(password)password.autocomplete=accountActionMode==='register'?'new-password':'current-password';
+}
 function greetingForAccount(a){return a?.gender==='male'?'نورتنا':'نورتينا'}
 function registerUserRecord(account){let users=load('lf_users',[]);const key=(account.type||'')+':'+String(account.contact||'').trim().toLowerCase();const i=users.findIndex(u=>((u.type||'')+':'+String(u.contact||'').trim().toLowerCase())===key);const rec={...account,id:i>=0?users[i].id:Date.now(),updatedAt:Date.now()};if(i>=0)users[i]=rec;else users.unshift(rec);save('lf_users',users)}
-function saveAccount(){const name=document.getElementById('accountName')?.value.trim(),contactRaw=document.getElementById('accountContact')?.value.trim(),countryIso=document.getElementById('accountCountryCode')?.value||'PS',contact=accountMode==='whatsapp'?normalizePhone(contactRaw,countryIso):contactRaw,gender=document.getElementById('accountGender')?.value||'female',age=Math.max(13,Math.min(120,Number(document.getElementById('accountAge')?.value)||0)),password=document.getElementById('accountPassword')?.value||'';if(!name||!contactRaw||!age||!password)return alert('أدخلي الاسم والجنس والعمر ووسيلة التواصل وكلمة المرور');if(password.length<12)return alert('كلمة المرور يجب أن تكون 12 خانة على الأقل');if(accountMode==='email'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactRaw))return alert('أدخلي بريدًا إلكترونيًا صحيحًا');if(accountMode==='whatsapp'&&!validMobile(contactRaw,countryIso))return alert('أدخلي رقم واتساب صحيحًا مع اختيار الدولة');const existing=load(ACCOUNT_KEY,null);const account={name,contact,type:accountMode,gender,age,password,id:existing?.id||Date.now(),createdAt:existing?.createdAt||Date.now(),updatedAt:Date.now()};save(ACCOUNT_KEY,account);registerUserRecord(account);renderAccountContent();initCountrySelectors();syncCountryDialPreview('accountCountryCode','accountContact');updateAccountBadge()}
+function saveAccount(){alert('جاري تجهيز تسجيل الدخول…')}
+async function changeAccountPassword(){
+  const currentPassword=document.getElementById('accountCurrentPassword')?.value||'',newPassword=document.getElementById('accountNewPassword')?.value||'';
+  if(!currentPassword)return alert('أدخلي كلمة المرور الحالية');
+  if(newPassword.length<12)return alert('كلمة المرور الجديدة يجب أن تكون 12 خانة على الأقل');
+  try{
+    await lfFetch('/api/auth/password',{method:'PATCH',body:JSON.stringify({currentPassword,newPassword})});
+    const current=document.getElementById('accountCurrentPassword'),next=document.getElementById('accountNewPassword');
+    if(current)current.value='';if(next)next.value='';
+    alert('تم تغيير كلمة المرور بنجاح 🌸');
+  }catch(e){alert(e.message||'تعذر تغيير كلمة المرور')}
+}
 function logoutAccount(){localStorage.removeItem(ACCOUNT_KEY);renderAccountContent();updateAccountBadge()}
+
+
 function updateAccountBadge(){const a=getAccount(),b=document.getElementById('accountBtn');if(b){b.innerHTML=a?'👤<i class="accountBadge">✓</i>':'👤';b.title=a?`${greetingForAccount(a)}، ${a.name||'سيدتي'} 🩷`:'حسابي';b.setAttribute('aria-label',b.title)}}
 function quickOffers(){const now=Date.now();return products.filter(p=>p.quickOffer&&(!p.quickOfferExpiry||new Date(p.quickOfferExpiry+'T23:59:59').getTime()>=now)&&totalStock(p)>0).slice(0,8)}
 function shareOfferWhatsApp(id){const p=products.find(x=>x.id===id);if(!p)return;const name=currentLang==='en'?(p.en||p.name):p.name,url=location.href.split('#')[0]+'#product-'+p.id,msg=`⚡ عرض سريع من Ladies First\n${name}\nالسعر: ${Number(p.price)||0} ₪${p.old&&p.old>p.price?` بدل ${Number(p.old)} ₪`:''}\nللطلب: ${url}`;window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank')}
@@ -364,8 +455,73 @@ async function saveWhatsAppOptIn(){const v=!!document.getElementById('waOptIn')?
 async function updateAccountWhatsAppNumber(){let a=load(ACCOUNT_KEY,null);if(!a||a.type!=='whatsapp')return;const iso=document.getElementById('accountCountryEdit')?.value||a.countryIso||'PS';const raw=document.getElementById('accountContactEdit')?.value.trim()||'';if(!raw)return alert('أدخلي رقم واتساب.');if(!validMobile(raw,iso))return alert('أدخلي رقم واتساب صحيحًا مع اختيار الدولة.');const contact=normalizePhone(raw,iso);try{if(lfToken()){const d=await lfFetch('/api/users/me',{method:'PATCH',body:JSON.stringify({phone:contact})});a={...a,...(d.user||{})}}a.contact=contact;a.countryIso=iso;a.countryName=countryName(iso);save(ACCOUNT_KEY,a);registerUserRecord(a);renderAccountContent();updateAccountBadge();alert('تم تحديث الدولة والمفتاح ورقم واتساب 🌍💬')}catch(e){alert('تعذر تحديث رقم واتساب: '+e.message)}} 
 async function lfCartHeartbeat(){if(!lfToken())return;if(!cart.length)return lfClearCartHeartbeat();const items=cart.map(i=>({productId:Number(i.id),qty:Math.max(1,Number(i.qty)||1),variant:i.variant||''})).filter(i=>Number.isInteger(i.productId)&&i.productId>0);if(!items.length)return;try{await lfFetch('/api/cart/snapshot',{method:'PUT',body:JSON.stringify({items})})}catch(e){console.warn('Cart snapshot unavailable',e.message)}}
 async function lfClearCartHeartbeat(){if(!lfToken())return;try{await lfFetch('/api/cart/snapshot',{method:'DELETE'})}catch(e){console.warn('Cart snapshot clear unavailable',e.message)}}
-async function lfRegisterOrLogin(a){try{const d=await lfFetch('/api/auth/register',{method:'POST',body:JSON.stringify({name:a.name,email:a.type==='email'?a.contact:'',phone:a.type==='whatsapp'?a.contact:'',password:a.password,gender:a.gender,age:a.age})});localStorage.setItem(LF_TOKEN_KEY,d.token);return d.user}catch(e){if(e.status!==409)throw e;const d=await lfFetch('/api/auth/login',{method:'POST',body:JSON.stringify({contact:a.contact,password:a.password})});localStorage.setItem(LF_TOKEN_KEY,d.token);return d.user}}
-saveAccount=async function(){const name=document.getElementById('accountName')?.value.trim(),contactRaw=document.getElementById('accountContact')?.value.trim(),countryIso=document.getElementById('accountCountryCode')?.value||'PS',contact=accountMode==='whatsapp'?normalizePhone(contactRaw,countryIso):contactRaw,gender=document.getElementById('accountGender')?.value||'female',age=Math.max(13,Math.min(120,Number(document.getElementById('accountAge')?.value)||0)),password=document.getElementById('accountPassword')?.value||'';if(!name||!contactRaw||!age||!password)return alert('أدخلي الاسم والجنس والعمر ووسيلة التواصل وكلمة المرور');if(password.length<8)return alert('كلمة المرور يجب أن تكون 8 أحرف/أرقام على الأقل');if(accountMode==='email'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactRaw))return alert('أدخلي بريدًا إلكترونيًا صحيحًا');if(accountMode==='whatsapp'&&!validMobile(contactRaw,countryIso))return alert('أدخلي رقم واتساب صحيحًا مع اختيار الدولة');const old=load(ACCOUNT_KEY,null);const a={name,contact,type:accountMode,gender,age,password,countryIso:accountMode==='whatsapp'?countryIso:'',countryName:accountMode==='whatsapp'?countryName(countryIso):'',id:old?.id||Date.now(),createdAt:old?.createdAt||Date.now(),updatedAt:Date.now()};try{let u=await lfRegisterOrLogin(a);if(lfToken()){try{const d=await lfFetch('/api/users/me',{method:'PATCH',body:JSON.stringify({name,email:accountMode==='email'?contact:'',phone:accountMode==='whatsapp'?contact:'',gender,age})});u=d.user}catch(e){if(e.status!==409)throw e}}const safe={...a,...u};delete safe.password;save(ACCOUNT_KEY,safe);registerUserRecord(safe);await lfSyncMyOrders();await lfCartHeartbeat();renderAccountContent();initCountrySelectors();syncCountryDialPreview('accountCountryCode','accountContact');updateAccountBadge();alert('تم حفظ الحساب وتحديثه على الخادم 🌸')}catch(e){alert('تعذر حفظ الحساب: '+e.message)}};
+async function lfLoginAccount(contact,password){
+  const d=await lfFetch('/api/auth/login',{method:'POST',body:JSON.stringify({contact,password})});
+  localStorage.setItem(LF_TOKEN_KEY,d.token);
+  return d.user;
+}
+async function lfRegisterAccount(a){
+  const d=await lfFetch('/api/auth/register',{method:'POST',body:JSON.stringify({name:a.name,email:a.type==='email'?a.contact:'',phone:a.type==='whatsapp'?a.contact:'',password:a.password,gender:a.gender,age:a.age})});
+  localStorage.setItem(LF_TOKEN_KEY,d.token);
+  return d.user;
+}
+saveAccount=async function(){
+  const contactRaw=document.getElementById('accountContact')?.value.trim()||'';
+  const countryIso=document.getElementById('accountCountryCode')?.value||'PS';
+  const contact=accountMode==='whatsapp'?normalizePhone(contactRaw,countryIso):contactRaw.toLowerCase();
+  const password=document.getElementById('accountPassword')?.value||'';
+  if(!contactRaw||!password)return alert('أدخلي وسيلة التواصل وكلمة المرور');
+  if(password.length<12)return alert('كلمة المرور يجب أن تكون 12 خانة على الأقل');
+  if(accountMode==='email'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactRaw))return alert('أدخلي بريدًا إلكترونيًا صحيحًا');
+  if(accountMode==='whatsapp'&&!validMobile(contactRaw,countryIso))return alert('أدخلي رقم واتساب صحيحًا مع اختيار الدولة');
+
+  const isRegister=accountActionMode==='register';
+  const name=document.getElementById('accountName')?.value.trim()||'';
+  const gender=document.getElementById('accountGender')?.value||'female';
+  const age=Math.max(13,Math.min(120,Number(document.getElementById('accountAge')?.value)||0));
+  if(isRegister&&(!name||!age))return alert('أدخلي الاسم والجنس والعمر لإنشاء الحساب');
+
+  try{
+    let user;
+    if(isRegister){
+      try{
+        user=await lfRegisterAccount({name,contact,type:accountMode,gender,age,password});
+      }catch(e){
+        if(e.status===409){
+          setAccountActionMode('login');
+          return alert('هذا الحساب موجود مسبقًا. اختاري تسجيل الدخول واستخدمي كلمة المرور الخاصة بك.');
+        }
+        throw e;
+      }
+    }else{
+      user=await lfLoginAccount(contact,password);
+    }
+
+    const userContact=accountMode==='email'?(user?.email||contact):(user?.phone||contact);
+    const safe={
+      ...(user||{}),
+      name:user?.name||name||'',
+      contact:userContact,
+      type:accountMode,
+      gender:user?.gender||gender,
+      age:user?.age||age||null,
+      countryIso:accountMode==='whatsapp'?countryIso:'',
+      countryName:accountMode==='whatsapp'?countryName(countryIso):'',
+      updatedAt:Date.now()
+    };
+    save(ACCOUNT_KEY,safe);
+    registerUserRecord(safe);
+    await lfSyncMyOrders();
+    await lfLoadLoyalty();
+    await lfCartHeartbeat();
+    renderAccountContent();
+    updateAccountBadge();
+    alert(isRegister?'تم إنشاء الحساب وتسجيل الدخول 🌸':'تم تسجيل الدخول بنجاح 🌸');
+  }catch(e){
+    if(e.status===401)return alert('بيانات تسجيل الدخول غير صحيحة');
+    alert((isRegister?'تعذر إنشاء الحساب: ':'تعذر تسجيل الدخول: ')+(e.message||'خطأ غير معروف'));
+  }
+};
 const lfOldLogout=logoutAccount;logoutAccount=function(){localStorage.removeItem(LF_TOKEN_KEY);lfOldLogout()};
 const lfOldPlaceOrder=placeOrder;
 placeOrder=async function(){if(!cart.length)return alert('السلة فارغة');const name=document.getElementById('name').value.trim(),phoneRaw=document.getElementById('phone').value.trim(),countryIso=document.getElementById('checkoutCountryCode')?.value||'PS',phone=normalizePhone(phoneRaw,countryIso),city=document.getElementById('city').value.trim(),address=document.getElementById('address').value.trim();if(!name||!phoneRaw||!city||!address)return alert('يرجى تعبئة الاسم والجوال والمدينة والعنوان');if(!validMobile(phoneRaw,countryIso))return alert('أدخل رقم جوال صحيح');const pay=document.querySelector('input[name="pay"]:checked')?.value||'cod',items=makeOrderItems(pay);if(!items.length)return alert('تعذر تجهيز المنتجات');let userId=null;if(lfToken()){const me=await lfSyncMe();userId=me?.id||null;await lfLoadLoyalty()}const totals=getCartTotals(pay),a=load(ACCOUNT_KEY,null);try{const d=await lfFetch('/api/orders',{method:'POST',body:JSON.stringify({userId,name,phone,contact:phone,city,address,customerName:name,customerPhone:phone,customer:{name,contact:phone,phone,address:`${city} - ${address}`,city,gender:a?.gender,age:a?.age},paymentMethod:pay,shippingRegion:totals.shippingRegion,shipping:totals.shippingFee,packaging:totals.packagingTotal,couponCode:totals.coupon?.code||null,pointsToRedeem:totals.pointsRedeemed||0,items:items.map(i=>({productId:String(i.productId),variantId:i.variantId||null,variantName:i.variant||null,packagingId:i.packagingId||null,quantity:i.qty}))})});cart=[];save('lf_cart',cart);await lfClearCartHeartbeat();couponCode='';localStorage.removeItem('lf_coupon');clearCheckoutDraft();await lfSyncProducts();await lfSyncMyOrders();renderCart();updateCount();document.getElementById('drawer').style.display='block';document.getElementById('checkout').innerHTML=`<div class="success"><b>تم استلام طلبك بنجاح 🌸</b><br>رقم الطلب: #${d.orderId||d.order?.id||''}<br>السلة أصبحت فارغة.</div>`}catch(e){alert('تعذر تنفيذ الطلب: '+e.message);await lfSyncProducts()}};
