@@ -933,6 +933,18 @@ async function initDatabase() {
       (key, value)
     VALUES
       (
+        'shipping_fees',
+        '{"westbank":20,"jerusalem":35,"inside":70}'::jsonb
+      )
+    ON CONFLICT(key)
+    DO NOTHING
+  `);
+
+  await db(`
+    INSERT INTO settings
+      (key, value)
+    VALUES
+      (
         'packaging_fee',
         '0'::jsonb
       )
@@ -2916,7 +2928,16 @@ app.post(
           }
 
           const shippingRegion = cleanText(req.body.shippingRegion || req.body.shipping_region || "westbank", 30).toLowerCase();
-          const shippingFees = { westbank: 20, jerusalem: 35, inside: 70 };
+          const shippingFeesRaw = await getSetting(
+            "shipping_fees",
+            { westbank: 20, jerusalem: 35, inside: 70 },
+            client
+          );
+          const shippingFees = {
+            westbank: Math.max(0, money(shippingFeesRaw?.westbank ?? 20)),
+            jerusalem: Math.max(0, money(shippingFeesRaw?.jerusalem ?? 35)),
+            inside: Math.max(0, money(shippingFeesRaw?.inside ?? 70))
+          };
           if (!Object.prototype.hasOwnProperty.call(shippingFees, shippingRegion)) {
             throw createHttpError(400,"BAD_SHIPPING_REGION","منطقة التوصيل غير صالحة");
           }
