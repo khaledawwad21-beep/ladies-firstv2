@@ -11,7 +11,7 @@ function normalizeProductImages(p){if(!p)return p;const mains=Array.isArray(p.ma
 function mainImagesOf(p){return normalizeProductImages(p).mainImages||[]}
 function subImagesOf(p){return normalizeProductImages(p).subImages||[]}
 let products=[],cats={},brands={},cart=load('lf_cart',[]),heroSettings=load('lf_hero',DEFAULT_HERO);
-let storeCommerceSettings={visaDiscountPercent:0,whatsappNumber:'0562499924'};
+let storeCommerceSettings={visaDiscountPercent:0,whatsappNumber:'0562499924',shippingFees:{westbank:20,jerusalem:35,inside:70}};
 function storeWhatsAppDigits(value=storeCommerceSettings.whatsappNumber){
   let digits=String(value||'').replace(/\D/g,'');
   if(digits.startsWith('00'))digits=digits.slice(2);
@@ -49,7 +49,7 @@ function useHistory(x){document.getElementById('search').value=x;renderProducts(
 async function joinWaitlist(id){const p=products.find(x=>x.id===id);if(!p)return;const a=getAccount();const defaultName=a?.name||'';const defaultPhone=a?.phone||((a?.type==='whatsapp')?a.contact:'')||'';const name=prompt(currentLang==='en'?'Your name:':'اسمك:',defaultName);if(!name)return;const phone=prompt(currentLang==='en'?'WhatsApp number:':'رقم واتسابك:',defaultPhone);if(!phone)return;const variant=selectedVariant(id)||'';try{const d=await lfFetch('/api/waitlist',{method:'POST',body:JSON.stringify({productId:id,name,phone,variant})});alert(d.alreadyWaiting?(currentLang==='en'?'You are already on the availability list for this item.':'💕 سيدتي، طلبك موجود أصلًا في قائمة التوفر لهذا المنتج 🌸'):(currentLang==='en'?'You have been added to the availability list. We will contact you when it is available.':'💕 تم تسجيلك في قائمة التوفر. سنراسلك على واتساب عند توفره 🌸'))}catch(e){alert(e.message||'تعذر التسجيل في قائمة التوفر') }}
 function openPolicy(type){const en=currentLang==='en';const text=type==='returns'?(en?'<h2>Exchange & Return Policy</h2><p>Please contact the store within 12 hours of receiving the order for exchange or return requests. The item must be unused and in its original condition and packaging. Clearance, opened cosmetics, and perfumes cannot be returned unless there is a defect.</p><p>Shipping/return costs are handled according to the reason for return and the store confirmation.</p>':'<h2>سياسة التبديل والإرجاع</h2><p>يرجى التواصل مع المتجر خلال 12 ساعة من استلام الطلب لطلبات التبديل أو الإرجاع. يجب أن يكون المنتج غير مستخدم وبحالته وتغليفه الأصليين. المنتجات المخفضة جدًا ومستحضرات التجميل والعطور المفتوحة لا تُرجع إلا في حال وجود عيب.</p><p>تكاليف الشحن أو الإرجاع تحدد حسب سبب الإرجاع وبعد تأكيد المتجر.</p>'):(en?'<h2>Privacy</h2><p>Your order information is used only to process and contact you about your order.</p>':'<h2>الخصوصية</h2><p>تُستخدم بيانات الطلب فقط لمعالجة الطلب والتواصل معك بخصوصه.</p>');document.getElementById('policyContent').innerHTML=text;document.getElementById('policyModal').style.display='flex'}
 function closePolicy(){document.getElementById('policyModal').style.display='none'}
-function shippingInfo(region){const map={westbank:{fee:20,ar:'الضفة الغربية',en:'West Bank'},jerusalem:{fee:35,ar:'القدس',en:'Jerusalem'},inside:{fee:70,ar:'الداخل',en:'Inside 1948'}};return map[region]||map.westbank}
+function shippingInfo(region){const fees=storeCommerceSettings.shippingFees||{westbank:20,jerusalem:35,inside:70};const map={westbank:{fee:Math.max(0,Number(fees.westbank??20)||0),ar:'الضفة الغربية',en:'West Bank'},jerusalem:{fee:Math.max(0,Number(fees.jerusalem??35)||0),ar:'القدس',en:'Jerusalem'},inside:{fee:Math.max(0,Number(fees.inside??70)||0),ar:'الداخل',en:'Inside 1948'}};return map[region]||map.westbank}
 function currentShipping(){const r=document.getElementById('shippingRegion')?.value||'westbank';return shippingInfo(r)}
 function isOfferActive(p){return !!p.onSale&&Number(p.old)>Number(p.price)&&(!p.offerExpiry||new Date(p.offerExpiry+'T23:59:59').getTime()>=Date.now())}
 function weeklyOrderDate(o){const raw=o?.createdAt||o?.timestamp||o?.date;const d=raw instanceof Date?raw:new Date(raw);return Number.isNaN(d.getTime())?null:d}
@@ -758,6 +758,12 @@ async function lfSyncStoreSettings(){
     if(st.social_links&&typeof st.social_links==='object')save('lf_social_links',st.social_links);
     if(Array.isArray(st.packaging_options))save('lf_packaging_options',st.packaging_options);
     storeCommerceSettings.visaDiscountPercent=Math.min(100,Math.max(0,Number(st.visa_discount_percent)||0));
+    const shippingFees=st.shipping_fees&&typeof st.shipping_fees==='object'?st.shipping_fees:{};
+    storeCommerceSettings.shippingFees={
+      westbank:Math.max(0,Number(shippingFees.westbank??20)||0),
+      jerusalem:Math.max(0,Number(shippingFees.jerusalem??35)||0),
+      inside:Math.max(0,Number(shippingFees.inside??70)||0)
+    };
     storeCommerceSettings.whatsappNumber=String(st.whatsapp_number||st.whatsapp||storeCommerceSettings.whatsappNumber||'0562499924');
     DEFAULT_SOCIAL_LINKS.whatsapp.url=storeWhatsAppHref();
     updateStoreWhatsAppLinks();
