@@ -40,9 +40,9 @@ test("delivery timestamp is persisted for the 12-hour return window", () => {
 
 test("return/exchange processing is authenticated and inventory-aware", () => {
   assert.match(server, /app\.post\("\/api\/returns",\s*requireAuth/);
-  assert.match(server, /"customer_return"/);
-  assert.match(server, /"customer_exchange_return"/);
-  assert.match(server, /"customer_exchange_out"/);
+  assert.match(server, /['"]customer_return['"]/);
+  assert.match(server, /['"]customer_exchange_return['"]/);
+  assert.match(server, /['"]customer_exchange_out['"]/);
   assert.match(server, /REPLACEMENT_OUT_OF_STOCK/);
 });
 
