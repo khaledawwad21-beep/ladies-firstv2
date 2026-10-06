@@ -75,31 +75,19 @@
     }
 
     const response = credential.response;
-    if (
-      typeof response.getPublicKey !== "function" ||
-      typeof response.getAuthenticatorData !== "function"
-    ) {
-      throw new Error("المتصفح لا يوفّر مفتاح البصمة المطلوب. حدّثي المتصفح أو استخدمي كلمة المرور.");
-    }
-
-    const publicKey = response.getPublicKey();
-    const authenticatorData = response.getAuthenticatorData();
-    if (!publicKey || !authenticatorData) {
-      throw new Error("تعذر قراءة بيانات البصمة من الجهاز.");
-    }
 
     return {
       id: credential.id,
       rawId: toBase64Url(credential.rawId),
       type: credential.type,
+      authenticatorAttachment: credential.authenticatorAttachment || null,
+      clientExtensionResults:
+        typeof credential.getClientExtensionResults === "function"
+          ? credential.getClientExtensionResults()
+          : {},
       response: {
         clientDataJSON: toBase64Url(response.clientDataJSON),
-        authenticatorData: toBase64Url(authenticatorData),
-        publicKey: toBase64Url(publicKey),
-        publicKeyAlgorithm:
-          typeof response.getPublicKeyAlgorithm === "function"
-            ? response.getPublicKeyAlgorithm()
-            : null,
+        attestationObject: toBase64Url(response.attestationObject),
         transports:
           typeof response.getTransports === "function"
             ? response.getTransports()
@@ -125,6 +113,11 @@
       id: credential.id,
       rawId: toBase64Url(credential.rawId),
       type: credential.type,
+      authenticatorAttachment: credential.authenticatorAttachment || null,
+      clientExtensionResults:
+        typeof credential.getClientExtensionResults === "function"
+          ? credential.getClientExtensionResults()
+          : {},
       response: {
         clientDataJSON: toBase64Url(credential.response.clientDataJSON),
         authenticatorData: toBase64Url(credential.response.authenticatorData),
