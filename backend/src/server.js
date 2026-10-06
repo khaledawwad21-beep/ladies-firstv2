@@ -516,6 +516,7 @@ async function initDatabase() {
   await require('./cart-tracking').initCartTracking(db);
   await require('./whatsapp-automation').initWhatsAppAutomation(db);
   await require('./passkeys').initPasskeys(db);
+  await require('./password-recovery').initPasswordRecovery(db);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb`);
 
@@ -7916,6 +7917,15 @@ require("./whatsapp-automation").registerWhatsAppAutomationRoutes(app, {
 require("./passkeys").registerPasskeyRoutes(app, {
   db,
   requireAuth
+});
+
+/* =========================================================
+   PASSWORD RECOVERY
+========================================================= */
+
+require("./password-recovery").registerPasswordRecoveryRoutes(app, {
+  db,
+  transaction
 });
 
 
