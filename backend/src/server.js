@@ -3722,6 +3722,7 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
           returnRefundMethod=null;
           returnRefundReference=null;
         }else{
+          if(returnRefundStatus==="not_required")returnRefundStatus="pending";
           if(!["pending","settled"].includes(returnRefundStatus))throw createHttpError(400,"BAD_RETURN_REFUND_STATUS","حالة استرداد مبلغ الإرجاع غير صالحة");
           if(returnRefundStatus==="settled"){
             if(!["cash","transfer","visa","store_credit"].includes(String(returnRefundMethod||"")))throw createHttpError(400,"RETURN_REFUND_METHOD_REQUIRED","حددي طريقة رد المبلغ للزبون");
