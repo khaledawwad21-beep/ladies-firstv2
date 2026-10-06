@@ -3488,7 +3488,9 @@ app.get(
                 replacement_product_name,replacement_variant_name,replacement_unit_price,
                 fee_payer,service_fee,store_delivery_cost,store_fault,price_difference,
                 exchange_settlement_direction,exchange_settlement_amount,
-                exchange_settlement_method,exchange_settlement_status,completed_at,created_at
+                exchange_settlement_method,exchange_settlement_status,
+                return_refund_amount,return_refund_status,return_refund_method,return_refund_reference,return_refund_settled_at,
+                completed_at,created_at
          FROM return_requests
          WHERE order_id=$1 AND user_id=$2
          ORDER BY created_at DESC,id DESC`,
