@@ -7939,6 +7939,15 @@ require("./password-recovery").registerPasswordRecoveryRoutes(app, {
   transaction
 });
 
+/* =========================================================
+   SECURE PUBLIC ORDER QR
+========================================================= */
+
+require("./order-public-access").registerOrderPublicAccessRoutes(app, {
+  db,
+  requireAdmin
+});
+
 
 /* =========================================================
    SPA FALLBACK
