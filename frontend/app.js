@@ -47,13 +47,14 @@ function getTop5(){
   return [...pool].sort((a,b)=>{const am=a.top5?1:0,bm=b.top5?1:0;if(am!==bm)return bm-am;const ad=Number(a.old)>Number(a.price)?(Number(a.old)-Number(a.price))/Math.max(1,Number(a.old)):0;const bd=Number(b.old)>Number(b.price)?(Number(b.old)-Number(b.price))/Math.max(1,Number(b.old)):0;return bd-ad}).slice(0,5);
 }
 function getBestSellers(){
-  const server=Array.isArray(window.LF_BEST_SELLERS)?window.LF_BEST_SELLERS:null;
-  if(server){return server.map(x=>({p:products.find(p=>String(p.id)===String(x.productId)),qty:Number(x.quantity)||0})).filter(x=>x.p&&totalStock(x.p)>0).slice(0,5);}
-  const all=load('lf_orders',[]).filter(o=>o.status!=='ملغي');
-  const week=all.filter(isThisWeekOrder);
-  const weeklyMap=salesMap(week), allMap=salesMap(all);
-  const useMap=Object.keys(weeklyMap).length?weeklyMap:allMap;
-  return Object.entries(useMap).map(([id,qty])=>({p:products.find(p=>String(p.id)===String(id)),qty})).filter(x=>x.p&&totalStock(x.p)>0).sort((a,b)=>b.qty-a.qty).slice(0,5);
+  const server=Array.isArray(window.LF_BEST_SELLERS)?window.LF_BEST_SELLERS:[];
+  return server.map(x=>({p:products.find(p=>String(p.id)===String(x.productId)),qty:Number(x.quantity)||0})).filter(x=>x.p&&totalStock(x.p)>0).slice(0,5);
+}
+function bestSellersEmptyMessage(){
+  const en=currentLang==='en',status=window.LF_BEST_SELLERS_STATUS;
+  if(status==='error')return en?'Unable to load best sellers. Please refresh to try again.':'تعذر تحميل الأكثر مبيعًا. حدّثي الصفحة للمحاولة مجددًا.';
+  if(status!=='ready')return en?'Loading best sellers…':'جاري تحميل الأكثر مبيعًا…';
+  return en?'No available best sellers yet.':'لا توجد منتجات متاحة ضمن الأكثر مبيعًا حاليًا.';
 }
 function scrollFeature(id,dir){const el=document.getElementById(id);if(!el)return;const amount=Math.max(180,Math.round(el.clientWidth*.72));const before=el.scrollLeft;el.scrollBy({left:dir==='left'?-amount:amount,behavior:'smooth'});setTimeout(()=>{if(Math.abs(el.scrollLeft-before)<2){const max=Math.max(0,el.scrollWidth-el.clientWidth);if(max>8)el.scrollLeft=dir==='left'?Math.max(0,before-amount):Math.min(max,before+amount)}},450);}
 const ACCOUNT_KEY='lf_account', FAV_KEY='lf_favorites';
@@ -131,7 +132,7 @@ function renderFeatureSections(){
   if(!t||!b)return;
   const top=getTop5(),best=getBestSellers();
   t.innerHTML=top.length?top.map(p=>featureCardHtml(p)).join(''):'<div class="empty">لا توجد عروض حالياً</div>';
-  b.innerHTML=best.length?best.map(x=>featureCardHtml(x.p,`<div class="soldCount">مباع: ${x.qty}</div>`)).join(''):'<div class="empty">لا توجد مبيعات بعد</div>';
+  b.innerHTML=best.length?best.map(x=>featureCardHtml(x.p,`<div class="soldCount">${currentLang==='en'?'Sold':'مباع'}: ${x.qty} ${window.LF_BEST_SELLERS_PERIOD==='week'?(currentLang==='en'?'in the last 7 days':'خلال آخر 7 أيام'):(currentLang==='en'?'all time':'خلال كل الفترة')}</div>`)).join(''):`<div class="empty">${bestSellersEmptyMessage()}</div>`;
   t.scrollLeft=0;b.scrollLeft=0;
   initFeatureCarousels();
   restartFeatureAuto();
@@ -314,8 +315,19 @@ const LF_TOKEN_KEY='lf_token';
 function lfToken(){return localStorage.getItem(LF_TOKEN_KEY)||''}
 async function lfFetch(path,options={}){const headers={'Content-Type':'application/json',...(options.headers||{})};const t=lfToken();if(t)headers.Authorization='Bearer '+t;const r=await fetch(window.LF_API_URL+path,{...options,headers});let d={};try{d=await r.json()}catch{}if(!r.ok)throw Object.assign(new Error(d.message||d.error||('HTTP_'+r.status)),{status:r.status,data:d});return d}
 function lfMapProduct(p){const m=p.metadata||{},images=Array.isArray(p.images)&&p.images.length?p.images:[p.imageUrl||p.image_url].filter(Boolean),hasMain=Array.isArray(p.mainImages)&&p.mainImages.length;return normalizeProductImages({...p,...m,id:isNaN(Number(p.id))?p.id:Number(p.id),en:m.en||p.en||p.name,old:p.old_price??p.oldPrice??p.old??0,cost:p.cost_price??p.cost??0,cat:p.category??p.cat??'',desc:p.description??p.desc??'',mainImages:hasMain?p.mainImages:images.slice(0,1),subImages:hasMain?(p.subImages||[]):images.slice(1),images,variants:(p.variants||[]).map(v=>({...v,name:v.name||v.color||''}))})}
-async function lfSyncProducts(){try{const d=await lfFetch('/api/products');if(Array.isArray(d.products)){products=d.products.map(lfMapProduct);save('lf_products',products);renderProducts();renderFeatureSections()}}catch(e){console.warn('API products unavailable',e.message)}}
-async function lfSyncFeatured(){try{const list=Array.isArray(products)?products:[];const best=list.filter(p=>p&&p.isBestSeller).slice(0,5);window.LF_BEST_SELLERS=best;renderFeatureSections()}catch(e){console.warn('Featured products unavailable',e.message)}}
+async function lfSyncProducts(){try{const d=await lfFetch('/api/products');if(Array.isArray(d.products)){products=d.products.map(lfMapProduct);save('lf_products',products);renderProducts();await lfSyncFeatured()}}catch(e){console.warn('API products unavailable',e.message)}}
+let lfFeaturedRequest=0;
+async function lfSyncFeatured(){
+  const request=++lfFeaturedRequest;
+  window.LF_BEST_SELLERS=[];window.LF_BEST_SELLERS_STATUS='loading';renderFeatureSections();
+  try{
+    const d=await lfFetch('/api/store/best-sellers');
+    if(request!==lfFeaturedRequest)return;
+    if(!Array.isArray(d.bestSellers))throw Error('Invalid best-seller response');
+    window.LF_BEST_SELLERS=d.bestSellers;window.LF_BEST_SELLERS_PERIOD=d.period;window.LF_BEST_SELLERS_STATUS='ready';
+  }catch(e){if(request!==lfFeaturedRequest)return;window.LF_BEST_SELLERS_STATUS='error';console.warn('Best sellers unavailable',e.message)}
+  renderFeatureSections();
+}
 async function lfSyncMe(){if(!lfToken())return null;try{const d=await lfFetch('/api/auth/me');if(d.user){const old=load(ACCOUNT_KEY,null)||{};const a={...old,...d.user,type:old.type||(d.user.email?'email':'whatsapp'),whatsapp_opt_in:old.whatsapp_opt_in===true||old.whatsapp_opt_in===1||old.whatsapp_opt_in==='1'||old.whatsapp_opt_in==='true'};save(ACCOUNT_KEY,a);registerUserRecord(a);return a}}catch(e){if(e.status===401){localStorage.removeItem(LF_TOKEN_KEY);localStorage.removeItem(ACCOUNT_KEY)}}return null}
 async function lfSyncMyOrders(){if(!lfToken())return;try{const d=await lfFetch('/api/orders');if(Array.isArray(d.orders))save('lf_orders',d.orders.map(o=>({id:o.id,createdAt:o.created_at,date:new Date(o.created_at).toLocaleString('ar-PS'),name:o.customer_name,phone:o.customer_phone||o.customer_contact,address:o.shipping_address||o.customer_address,total:o.total,subtotal:o.subtotal,couponDiscount:o.coupon_discount??o.discount??0,loyaltyDiscount:o.loyalty_discount||0,pointsRedeemed:o.points_redeemed||0,shippingFee:o.shipping_cost??o.shipping??0,shippingRegion:o.shipping_region||'',shippingWaived:o.shipping_waived===true,packagingTotal:o.packaging_cost??o.packaging??0,status:o.status,inventoryState:o.inventory_state,items:(o.items||[]).map(i=>({orderItemId:i.id,productId:i.productId??i.product_id,variant:i.variantName??i.variant_name??'',qty:i.quantity,name:i.productName??i.product_name??i.name_snapshot??'منتج',price:i.unitPrice??i.unit_price??i.price_snapshot??0,image:i.image||''}))})))}catch(e){console.warn('API orders unavailable',e.message)}}
 async function saveWhatsAppOptIn(){const v=!!document.getElementById('waOptIn')?.checked;const a={...load(ACCOUNT_KEY,{}),whatsapp_opt_in:v,whatsapp_opt_in_updated_at:Date.now()};save(ACCOUNT_KEY,a);registerUserRecord(a);renderAccountContent();alert(v?'تم حفظ تفضيلات واتساب 🌸':'تم حفظ إيقاف رسائل واتساب.')}
@@ -380,4 +392,4 @@ function nayaAddMessage(text,user=false){const box=document.getElementById('naya
 function nayaAnswer(q){const t=String(q||'').trim().toLowerCase();const a=getAccount();if(!t)return 'أنا معكِ 🌸 اكتبي لي ماذا تريدين وسأساعدك.';if(t.includes('جسم')||t.includes('مقاس')||t.includes('تجربة')||t.includes('جربي')){openNayaBodyProfile();return 'أكيد 🌸 افتحي لوحة المقاسات ووافقي على رسالة الخصوصية، وبعدها أعطيكِ معاينة تقريبية على نايا.';}if(t.includes('سلة')||t.includes('cart'))return `عندكِ حاليًا ${cart.reduce((n,i)=>n+(Number(i.qty)||0),0)} قطعة في السلة 🛍️`+(cart.length?' ويمكنكِ فتحها من زر السلة.':'، والسلة فارغة حاليًا.');if(t.includes('مفضل')||t.includes('favorite'))return `عندكِ ${getFavorites().length} منتج في المفضلة ❤️`;if(t.includes('حساب')||t.includes('account'))return a?`حسابكِ محفوظ باسم ${a.name||'سيدتي'} 🩷 ويمكنكِ تعديل بياناته من حسابي.`:'يمكنكِ فتح حسابي وإنشاء حساب اختياري لحفظ بياناتك وطلباتك.';if(t.includes('واتس')||t.includes('whatsapp'))return 'يمكنكِ اختيار الدولة والمفتاح يدويًا أو استخدام تحديد الموقع، وبعدها حفظ تفضيلات رسائل واتساب 🌍💬';if(t.includes('عرض')||t.includes('سعر')||t.includes('منتج')){const hits=products.filter(p=>String(p.name||'').toLowerCase().includes(t)||String(p.en||'').toLowerCase().includes(t)).slice(0,3);if(hits.length)return 'وجدت لكِ: '+hits.map(p=>`${p.name} — ${Number(p.price)||0} ₪`).join(' | ');const offers=quickOffers().slice(0,3);if(offers.length)return 'هذه بعض العروض السريعة الآن: '+offers.map(p=>`${p.name} — ${Number(p.price)||0} ₪`).join(' | ')}if(t.includes('شحن')||t.includes('توصيل'))return 'التوصيل المعروض في المتجر يعتمد على منطقة الشحن عند إتمام الطلب 🚚';return `أهلًا ${a?.name||'فيكِ'} 🌸 أنا نايا، أقدر أساعدكِ في المنتجات والسلة والمفضلة والحساب والطلبات.`}
 function sendNaya(){const input=document.getElementById('nayaInput');if(!input)return;const q=input.value.trim();if(!q)return;input.value='';nayaAddMessage(q,true);setTimeout(()=>nayaAddMessage(nayaAnswer(q),false),180)}
 function nayaQuick(text){const input=document.getElementById('nayaInput');if(input){input.value=text;sendNaya()}}
-window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings();await lfSyncMe();await lfLoadLoyalty();await lfSyncProducts();await lfSyncCatalog();await lfSyncFeatured();await lfSyncMyOrders();renderAccountContent();initCountrySelectors();updateAccountBadge();restartFeatureAuto()});
+window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings();await lfSyncMe();await lfLoadLoyalty();await lfSyncProducts();await lfSyncCatalog();await lfSyncMyOrders();renderAccountContent();initCountrySelectors();updateAccountBadge();restartFeatureAuto()});
