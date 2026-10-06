@@ -842,6 +842,11 @@ async function initDatabase() {
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS allocated_visa_discount NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS allocated_loyalty_discount NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS refundable_cash_value NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS return_refund_amount NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS return_refund_status TEXT NOT NULL DEFAULT 'not_required'`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS return_refund_method TEXT`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS return_refund_reference TEXT`);
+  await db(`ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS return_refund_settled_at TIMESTAMPTZ`);
 
   await db(`
     CREATE TABLE IF NOT EXISTS favorites (
@@ -3619,6 +3624,10 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
       let exchangeSettlementAmount=Math.max(0,Number(rr.exchange_settlement_amount||0));
       let exchangeSettlementMethod=cleanText(req.body.exchangeSettlementMethod??rr.exchange_settlement_method??"",50)||null;
       let exchangeSettlementStatus=cleanText(req.body.exchangeSettlementStatus??rr.exchange_settlement_status??"not_required",30).toLowerCase();
+      let returnRefundAmount=Math.max(0,Number(rr.return_refund_amount||0));
+      let returnRefundStatus=cleanText(req.body.returnRefundStatus??rr.return_refund_status??"not_required",30).toLowerCase();
+      let returnRefundMethod=cleanText(req.body.returnRefundMethod??rr.return_refund_method??"",50)||null;
+      let returnRefundReference=cleanText(req.body.returnRefundReference??rr.return_refund_reference??"",120)||null;
       if(rr.request_type==="exchange"){
         exchangeSettlementAmount=money(Math.abs(priceDifference));
         exchangeSettlementDirection=priceDifference>0?"customer_to_store":priceDifference<0?"store_to_customer":"none";
@@ -3705,7 +3714,22 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
           await client.query("INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at) VALUES($1,$2,$3,'customer_exchange_out',$4,NOW())",[replacementProductId,replacementVariantId,-Number(rr.quantity),rr.order_id]);
         }
       }
-      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,replacement_product_id=$3,replacement_variant_id=$4,replacement_product_name=$5,replacement_variant_name=$6,replacement_unit_price=$7,fee_payer=$8,service_fee=$9,fee_reason=$10,price_difference=$11,returned_merchandise_value=$12,returned_cost_value=$13,net_settlement=$14,store_delivery_cost=$15,store_fault=$16,loyalty_award_reversed=$17,loyalty_redeem_refunded=$18,coupon_released=$19,exchange_settlement_direction=$20,exchange_settlement_amount=$21,exchange_settlement_method=$22,exchange_settlement_status=$23,allocated_coupon_discount=$24,allocated_visa_discount=$25,allocated_loyalty_discount=$26,refundable_cash_value=$27,exchange_settled_at=CASE WHEN $23='settled' AND exchange_settled_at IS NULL THEN NOW() ELSE exchange_settled_at END,completed_at=CASE WHEN $1='completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END,updated_at=NOW() WHERE id=$28 RETURNING *`,[status,adminNote,replacementProductId,replacementVariantId,replacementProductName,replacementVariantName,replacementUnitPrice,requestedFeePayer,serviceFee,feeReason,priceDifference,returnedMerchandiseValue,returnedCostValue,netSettlement,storeDeliveryCost,storeFault,Number(rr.loyalty_award_reversed||0),Number(rr.loyalty_redeem_refunded||0),rr.coupon_released===true,exchangeSettlementDirection,exchangeSettlementAmount,exchangeSettlementMethod,exchangeSettlementStatus,Number(rr.allocated_coupon_discount||0),Number(rr.allocated_visa_discount||0),Number(rr.allocated_loyalty_discount||0),Number(rr.refundable_cash_value||0),id]);return u.rows[0];
+      if(rr.request_type==="return"){
+        const refundableCash=Number(rr.refundable_cash_value||0);
+        returnRefundAmount=money(Math.max(0,refundableCash-serviceFee));
+        if(returnRefundAmount<=0){
+          returnRefundStatus="not_required";
+          returnRefundMethod=null;
+          returnRefundReference=null;
+        }else{
+          if(!["pending","settled"].includes(returnRefundStatus))throw createHttpError(400,"BAD_RETURN_REFUND_STATUS","حالة استرداد مبلغ الإرجاع غير صالحة");
+          if(returnRefundStatus==="settled"){
+            if(!["cash","transfer","visa","store_credit"].includes(String(returnRefundMethod||"")))throw createHttpError(400,"RETURN_REFUND_METHOD_REQUIRED","حددي طريقة رد المبلغ للزبون");
+            if(["transfer","visa","store_credit"].includes(returnRefundMethod)&&!returnRefundReference)throw createHttpError(400,"RETURN_REFUND_REFERENCE_REQUIRED","أدخلي مرجع تسوية مبلغ الإرجاع");
+          }
+        }
+      }
+      const u=await client.query(`UPDATE return_requests SET status=$1,admin_note=$2,replacement_product_id=$3,replacement_variant_id=$4,replacement_product_name=$5,replacement_variant_name=$6,replacement_unit_price=$7,fee_payer=$8,service_fee=$9,fee_reason=$10,price_difference=$11,returned_merchandise_value=$12,returned_cost_value=$13,net_settlement=$14,store_delivery_cost=$15,store_fault=$16,loyalty_award_reversed=$17,loyalty_redeem_refunded=$18,coupon_released=$19,exchange_settlement_direction=$20,exchange_settlement_amount=$21,exchange_settlement_method=$22,exchange_settlement_status=$23,allocated_coupon_discount=$24,allocated_visa_discount=$25,allocated_loyalty_discount=$26,refundable_cash_value=$27,return_refund_amount=$28,return_refund_status=$29,return_refund_method=$30,return_refund_reference=$31,exchange_settled_at=CASE WHEN $23='settled' AND exchange_settled_at IS NULL THEN NOW() ELSE exchange_settled_at END,return_refund_settled_at=CASE WHEN $29='settled' AND return_refund_settled_at IS NULL THEN NOW() ELSE return_refund_settled_at END,completed_at=CASE WHEN $1='completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END,updated_at=NOW() WHERE id=$32 RETURNING *`,[status,adminNote,replacementProductId,replacementVariantId,replacementProductName,replacementVariantName,replacementUnitPrice,requestedFeePayer,serviceFee,feeReason,priceDifference,returnedMerchandiseValue,returnedCostValue,netSettlement,storeDeliveryCost,storeFault,Number(rr.loyalty_award_reversed||0),Number(rr.loyalty_redeem_refunded||0),rr.coupon_released===true,exchangeSettlementDirection,exchangeSettlementAmount,exchangeSettlementMethod,exchangeSettlementStatus,Number(rr.allocated_coupon_discount||0),Number(rr.allocated_visa_discount||0),Number(rr.allocated_loyalty_discount||0),Number(rr.refundable_cash_value||0),returnRefundAmount,returnRefundStatus,returnRefundMethod,returnRefundReference,id]);return u.rows[0];
     });
     res.json({ok:true,request:result});
   }catch(e){console.error("[RETURN STATUS]",e);res.status(e.status||500).json({ok:false,message:e.message||"تعذر تحديث الطلب"});}
