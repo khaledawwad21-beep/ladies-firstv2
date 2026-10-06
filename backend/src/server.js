@@ -3757,6 +3757,17 @@ app.patch(
                 order.status || ""
               ).toLowerCase();
 
+            if (
+              oldStatus === "cancelled" &&
+              newStatus !== "cancelled"
+            ) {
+              throw createHttpError(
+                409,
+                "CANCELLED_ORDER_FINAL",
+                "الطلب الملغي نهائي ولا يمكن إعادته لحالة نشطة لأن المخزون والنقاط تمت إعادتهما"
+              );
+            }
+
             /*
              * الإلغاء يحدث مرة واحدة فقط.
              */
