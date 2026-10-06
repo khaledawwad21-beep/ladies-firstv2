@@ -2339,6 +2339,7 @@ app.post(
           let visaDiscount = 0;
 
           const normalizedItems = [];
+          const seenCartLines = new Set();
 
           for (const item of items) {
             const productId =
@@ -2390,6 +2391,24 @@ app.post(
                 item.qty,
                 0
               );
+
+            /*
+             * Never allow the same product/variant to be submitted as
+             * separate cart lines. Otherwise two stock deductions can
+             * bypass the user's intended single-line quantity guard.
+             */
+            const cartLineKey =
+              `${productId}:${variantId === null ? "product" : variantId}`;
+
+            if (seenCartLines.has(cartLineKey)) {
+              throw createHttpError(
+                400,
+                "DUPLICATE_CART_LINE",
+                "يوجد منتج مكرر في السلة، يرجى تحديث السلة والمحاولة مرة أخرى"
+              );
+            }
+
+            seenCartLines.add(cartLineKey);
 
             if (
               quantity <= 0 ||
@@ -2740,6 +2759,19 @@ app.post(
                 coupon.value ??
                 0
               );
+
+            if (
+              !["fixed", "percent"].includes(couponType) ||
+              !Number.isFinite(couponValue) ||
+              couponValue < 0 ||
+              (couponType === "percent" && couponValue > 100)
+            ) {
+              throw createHttpError(
+                400,
+                "INVALID_COUPON_VALUE",
+                "قيمة الكوبون غير صالحة"
+              );
+            }
 
             if (
               couponType ===
