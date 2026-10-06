@@ -3459,12 +3459,26 @@ app.get(
           [orderId]
         );
 
+      const returnsResult=await db(
+        `SELECT id,order_item_id,request_type,quantity,reason,status,admin_note,
+                replacement_product_name,replacement_variant_name,replacement_unit_price,
+                fee_payer,service_fee,store_delivery_cost,store_fault,price_difference,
+                exchange_settlement_direction,exchange_settlement_amount,
+                exchange_settlement_method,exchange_settlement_status,completed_at,created_at
+         FROM return_requests
+         WHERE order_id=$1 AND user_id=$2
+         ORDER BY created_at DESC,id DESC`,
+        [orderId,req.user.id]
+      );
+
       return res.json({
         ok: true,
         order:
           orderResult.rows[0],
         items:
-          itemsResult.rows
+          itemsResult.rows,
+        returns:
+          returnsResult.rows
       });
     } catch (error) {
       console.error(
