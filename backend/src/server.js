@@ -5511,6 +5511,7 @@ app.get(
            COALESCE(SUM(returned_cost_value) FILTER (WHERE request_type='return'),0) AS returned_cost,
            COALESCE(SUM(price_difference) FILTER (WHERE request_type='exchange'),0) AS exchange_difference,
            COALESCE(SUM(service_fee),0) AS return_service_fees,
+           COALESCE(SUM(store_delivery_cost),0) AS store_delivery_cost,
            COALESCE(SUM(net_settlement),0) AS net_settlement
          FROM return_requests
          WHERE status='completed'
@@ -5526,12 +5527,13 @@ app.get(
       const returnedCost=Number(rs.returned_cost||0);
       const exchangeDifference=Number(rs.exchange_difference||0);
       const returnServiceFees=Number(rs.return_service_fees||0);
+      const storeDeliveryCost=Number(rs.store_delivery_cost||0);
       const netSales=money(grossSales-returnsValue+exchangeDifference+returnServiceFees);
       const netCost=money(grossCost-returnedCost);
-      const netProfit=money(netSales-netCost);
+      const netProfit=money(netSales-netCost-storeDeliveryCost);
       return res.json({
         ok:true,from,to,
-        summary:{...baseSummary,grossSales,grossCost,returnsValue,returnedCost,exchangeDifference,returnServiceFees,netSettlement:Number(rs.net_settlement||0),sales:netSales,cost:netCost,profit:netProfit},
+        summary:{...baseSummary,grossSales,grossCost,returnsValue,returnedCost,exchangeDifference,returnServiceFees,storeDeliveryCost,netSettlement:Number(rs.net_settlement||0),sales:netSales,cost:netCost,profit:netProfit},
         rows:rows.rows
       });
     } catch (error) {
