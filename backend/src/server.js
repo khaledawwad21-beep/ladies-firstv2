@@ -4662,6 +4662,42 @@ app.patch(
     }
 
     try {
+      const targetUser = await db(
+        `
+        SELECT id, role
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [userId]
+      );
+
+      if (!targetUser.rowCount) {
+        return res.status(404).json({
+          ok: false,
+          message: "المستخدم غير موجود"
+        });
+      }
+
+      if (
+        String(targetUser.rows[0].role || "").toLowerCase() === "owner"
+      ) {
+        return res.status(403).json({
+          ok: false,
+          message: "لا يمكن تعديل حساب المالك من إدارة المستخدمين"
+        });
+      }
+
+      if (
+        req.body.role !== undefined &&
+        String(req.user?.role || "").toLowerCase() !== "owner"
+      ) {
+        return res.status(403).json({
+          ok: false,
+          message: "تغيير دور المستخدم متاح للمالك فقط"
+        });
+      }
+
       const fields = [];
       const values = [];
 
@@ -4925,6 +4961,32 @@ app.patch(
     }
 
     try {
+      const targetUser = await db(
+        `
+        SELECT id, role
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [userId]
+      );
+
+      if (!targetUser.rowCount) {
+        return res.status(404).json({
+          ok: false,
+          message: "المستخدم غير موجود"
+        });
+      }
+
+      if (
+        String(targetUser.rows[0].role || "").toLowerCase() === "owner"
+      ) {
+        return res.status(403).json({
+          ok: false,
+          message: "لا يمكن تغيير كلمة مرور المالك من إدارة المستخدمين"
+        });
+      }
+
       const passwordHash =
         await hashPassword(
           password
@@ -5013,6 +5075,32 @@ app.patch(
           );
 
     try {
+      const targetUser = await db(
+        `
+        SELECT id, role
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [userId]
+      );
+
+      if (!targetUser.rowCount) {
+        return res.status(404).json({
+          ok: false,
+          message: "المستخدم غير موجود"
+        });
+      }
+
+      if (
+        String(targetUser.rows[0].role || "").toLowerCase() === "owner"
+      ) {
+        return res.status(403).json({
+          ok: false,
+          message: "لا يمكن إيقاف أو تفعيل حساب المالك من إدارة المستخدمين"
+        });
+      }
+
       const result =
         await db(
           `
