@@ -11,7 +11,7 @@ test("finance dashboard uses the real sales and profit report", () => {
   assert.match(admin, /async function financeRun\(/);
   assert.match(admin, /\/api\/admin\/reports\/sales\?from=/);
   assert.match(admin, /تكلفة البضاعة/);
-  assert.match(admin, /الربح الإجمالي/);
+  assert.match(admin, /صافي الربح/);
   assert.match(admin, /الطلبات الملغاة لا تدخل في المبيعات أو الربح/);
 });
 
