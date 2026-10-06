@@ -882,10 +882,10 @@ async function initDatabase() {
     )
   `);
 
+  await db(`ALTER TABLE loyalty_points_transactions ADD COLUMN IF NOT EXISTS note TEXT`);
+
   await db(`CREATE UNIQUE INDEX IF NOT EXISTS loyalty_return_award_reversal_once ON loyalty_points_transactions(order_id, note) WHERE transaction_type='return_award_reversal'`);
   await db(`CREATE UNIQUE INDEX IF NOT EXISTS loyalty_return_redeem_refund_once ON loyalty_points_transactions(order_id, note) WHERE transaction_type='return_redeem_refund'`);
-
-  await db(`ALTER TABLE loyalty_points_transactions ADD COLUMN IF NOT EXISTS note TEXT`);
 
   await db(`
     CREATE UNIQUE INDEX IF NOT EXISTS
