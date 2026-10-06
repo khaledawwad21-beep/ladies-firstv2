@@ -595,8 +595,8 @@ async function initDatabase() {
       loyalty_points_awarded INTEGER
         NOT NULL DEFAULT 0,
 
-      loyalty_points_reversed INTEGER
-        NOT NULL DEFAULT 0,
+      loyalty_points_reversed BOOLEAN
+        NOT NULL DEFAULT FALSE,
 
       customer_name TEXT,
 
@@ -635,7 +635,7 @@ async function initDatabase() {
   await db(`
     ALTER TABLE orders
     ADD COLUMN IF NOT EXISTS loyalty_points_reversed
-    INTEGER NOT NULL DEFAULT 0
+    BOOLEAN NOT NULL DEFAULT FALSE
   `);
 
   await db(`
@@ -2569,7 +2569,7 @@ app.post(
                 LEFT JOIN brands b
                   ON b.id = p.brand_id
                 WHERE p.id = $1
-                FOR UPDATE
+                FOR UPDATE OF p
                 `,
                 [productId]
               );
@@ -3102,7 +3102,7 @@ app.post(
                 $19,
                 $20,
                 $21,
-                0,
+                FALSE,
                 'pending',
                 NOW(),
                 NOW()
