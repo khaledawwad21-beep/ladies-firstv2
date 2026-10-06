@@ -20,3 +20,23 @@ test("fully discounted return can settle at exactly zero",()=>{
  assert.equal(refundable,0);
  assert.equal(net,0);
 });
+
+test("partial returns use cumulative target-minus-previous allocation",()=>{
+ assert.match(server,/previousReturnTotals=await client\.query/);
+ assert.match(server,/const cumulativeGross=Math\.min\(subtotal,previousGross\+returnedMerchandiseValue\)/);
+ assert.match(server,/targetCoupon=money\(Number\(rr\.coupon_discount\|\|0\)\*cumulativeRatio\)/);
+ assert.match(server,/allocated_coupon_discount=money\(Math\.max\(0,targetCoupon-Number\(previous\.coupon\|\|0\)\)\)/);
+ assert.match(server,/targetAwardReversal=Math\.min/);
+ assert.match(server,/awardReversal=Math\.max\(0,targetAwardReversal-Number\(previous\.award_reversed\|\|0\)\)/);
+ const total=100,discount=10,parts=[33.33,33.33,33.34];
+ let previousGross=0,previousAllocated=0,allocated=0;
+ for(const gross of parts){
+   const cumulativeGross=Math.min(total,previousGross+gross);
+   const target=Math.round((discount*(cumulativeGross/total))*100)/100;
+   const current=Math.max(0,Math.round((target-previousAllocated)*100)/100);
+   allocated=Math.round((allocated+current)*100)/100;
+   previousGross=cumulativeGross;
+   previousAllocated=target;
+ }
+ assert.equal(allocated,discount);
+});
