@@ -701,7 +701,7 @@ function heroSlides(){
   (custom.length?custom:[baseSlide]).forEach(x=>{
     const key=x.image||'';
     if(!key)return;
-    arr.push({image:key,title:currentLang==='en'?(x.titleEn||x.titleAr||'Ladies First'):(x.titleAr||x.titleEn||'Ladies First'),desc:currentLang==='en'?(x.descEn||x.descAr||''):(x.descAr||x.descEn||''),id:x.id});
+    arr.push({image:key,mobileImage:x.mobileImage||'',title:currentLang==='en'?(x.titleEn||x.titleAr||'Ladies First'):(x.titleAr||x.titleEn||'Ladies First'),desc:currentLang==='en'?(x.descEn||x.descAr||''):(x.descAr||x.descEn||''),id:x.id});
   });
   return arr;
 }
@@ -715,11 +715,12 @@ function renderHeroSlider(fade=true){
   if(title)title.textContent=s.title;if(desc)desc.textContent=s.desc;if(cta)cta.textContent=currentLang==='en'?'Shop now':'تسوقي الآن';
   const active=document.getElementById(heroLayer==='A'?'heroLogoA':'heroLogoB');
   const inactive=document.getElementById(heroLayer==='A'?'heroLogoB':'heroLogoA');
-  if(active){active.src=safeImg(s.image,LOGO);active.onerror=()=>{active.onerror=null;active.src=LOGO};active.classList.add('active')}
+  if(active){const mobile=typeof window!=='undefined'&&window.matchMedia&&window.matchMedia('(max-width: 700px)').matches;const image=mobile&&s.mobileImage?s.mobileImage:s.image;active.src=safeImg(image,LOGO);active.onerror=()=>{active.onerror=null;active.src=LOGO};active.classList.add('active')}
   if(inactive)inactive.classList.remove('active');
   const dots=document.getElementById('heroDots');
   if(dots)dots.innerHTML=slides.map((_,i)=>`<button class="${i===heroIndex?'active':''}" onclick="heroGo(${i})"></button>`).join('');
 }
+if(typeof window!=='undefined'&&window.matchMedia){const heroMobileQuery=window.matchMedia('(max-width: 700px)');const heroMobileChange=()=>renderHeroSlider(false);if(heroMobileQuery.addEventListener)heroMobileQuery.addEventListener('change',heroMobileChange);else if(heroMobileQuery.addListener)heroMobileQuery.addListener(heroMobileChange)}
 function heroGo(i){heroIndex=i;heroLayer=heroLayer==='A'?'B':'A';renderHeroSlider(true);restartHeroTimer()}
 function heroMove(d){const n=heroSlides().length;if(n<2)return;heroIndex=(heroIndex+d+n)%n;heroLayer=heroLayer==='A'?'B':'A';renderHeroSlider(true);restartHeroTimer()}
 function restartHeroTimer(){clearTimeout(heroTimer);if(heroSlides().length<2)return;heroTimer=setTimeout(()=>{heroMove(1)},3000)}
