@@ -88,12 +88,18 @@ function registerProductWrites(app, getProducts) {
         const mergedMetadata = {...(existing?.metadata || {}), ...metadata};
         const category = await taxonomy(client, 'categories', body.categoryId ?? body.category_id, body.category);
         const brand = await taxonomy(client, 'brands', body.brandId ?? body.brand_id, body.brand);
+        const supplier = String(
+          body.supplierName ??
+          body.supplier_name ??
+          existing?.supplier_name ??
+          ''
+        ).trim().slice(0,200) || null;
         const values = [name, String(body.description || ''), price, oldPrice === '' ? null : oldPrice, stock, mains ? mains[0] : existing.image_url,
-          category, brand, body.active ?? body.isActive ?? true, body.isFeatured ?? mergedMetadata.top5 ?? existing?.is_featured ?? false, body.isBestSeller ?? existing?.is_best_seller ?? false, cost, JSON.stringify(mergedMetadata)];
+          category, brand, body.active ?? body.isActive ?? true, body.isFeatured ?? mergedMetadata.top5 ?? existing?.is_featured ?? false, body.isBestSeller ?? existing?.is_best_seller ?? false, cost, supplier, JSON.stringify(mergedMetadata)];
         const result = id ? await client.query(`UPDATE products SET name=$1, description=$2, price=$3, old_price=$4, stock=$5, image_url=$6,
-          category_id=$7, brand_id=$8, is_active=$9, is_featured=$10, is_best_seller=$11, cost_price=$12, metadata=$13::jsonb, updated_at=NOW() WHERE id=$14 RETURNING id`, [...values, id])
-          : await client.query(`INSERT INTO products (name, description, price, old_price, stock, image_url, category_id, brand_id, is_active, is_featured, is_best_seller, cost_price, metadata)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb) RETURNING id`, values);
+          category_id=$7, brand_id=$8, is_active=$9, is_featured=$10, is_best_seller=$11, cost_price=$12, supplier_name=$13, metadata=$14::jsonb, updated_at=NOW() WHERE id=$15 RETURNING id`, [...values, id])
+          : await client.query(`INSERT INTO products (name, description, price, old_price, stock, image_url, category_id, brand_id, is_active, is_featured, is_best_seller, cost_price, supplier_name, metadata)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb) RETURNING id`, values);
         const savedId = result.rows[0].id;
         if (mains) {
           await client.query('DELETE FROM product_images WHERE product_id = $1', [savedId]);
