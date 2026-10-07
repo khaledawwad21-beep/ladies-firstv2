@@ -92,3 +92,18 @@ input[type="date"]{cursor:pointer}
 .catalog-add-row{align-items:center}
 .catalog-add-row .field{flex:0 1 280px;max-width:100%;min-width:180px}
 @media(max-width:600px){.catalog-add-row .field{flex:1 1 100%;width:100%;min-width:0}}
+
+
+/* Invoice print hardening: fit the invoice cleanly on one A4 page when content is reasonable. */
+@media print{
+  html,body{width:210mm!important;min-width:0!important;margin:0!important;padding:0!important}
+  .print{width:100%!important;max-width:196mm!important;margin:0 auto!important;overflow:visible!important}
+  .print .invoicePage{box-sizing:border-box!important;width:100%!important;max-width:196mm!important;margin:0!important;padding:0!important}
+  .print .tablewrap{overflow:visible!important;border-radius:0!important}
+  .print table,.print .table{width:100%!important;min-width:0!important;max-width:100%!important;table-layout:fixed!important}
+  .print th,.print td{overflow-wrap:anywhere!important;word-break:break-word!important;vertical-align:top!important}
+  .print tr,.print .invoiceCustomer,.print .invoiceTotals,.print .qrrow{break-inside:avoid!important;page-break-inside:avoid!important}
+  .print .invoiceTotals.compact{grid-template-columns:1fr 1fr!important}
+  .print .invoiceGrandTotal{font-size:13px!important;padding-top:2px!important}
+  .print .qrrow{margin-top:5px!important}
+}
