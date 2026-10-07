@@ -42,6 +42,22 @@ async function migrateDatabase() {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ordering_blocked BOOLEAN NOT NULL DEFAULT FALSE`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ordering_block_reason TEXT`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ordering_block_until TIMESTAMPTZ`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS customer_order_block_events (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        action TEXT NOT NULL,
+        source TEXT NOT NULL DEFAULT 'manual',
+        reason TEXT,
+        blocked_until TIMESTAMPTZ,
+        actor_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS customer_order_block_events_user_created_idx
+      ON customer_order_block_events(user_id,created_at DESC,id DESC)
+    `);
     await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_source TEXT`);
     await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_reason TEXT`);
     await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`);
