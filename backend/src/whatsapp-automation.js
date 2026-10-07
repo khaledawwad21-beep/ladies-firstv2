@@ -196,7 +196,7 @@ async function cartContext(db) {
   return { snapshots: snapshots.rows, productMap, variantMap };
 }
 
-async function processAbandoned(db, config, context, result) {
+async function processAbandoned(db, config, context, result, sender = sendTemplate) {
   if (!config.abandonedTemplate) return;
   if (!(await settingEnabled(db, "abandoned_cart_whatsapp_enabled"))) return;
   const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -204,7 +204,7 @@ async function processAbandoned(db, config, context, result) {
     if (new Date(row.lastActivityAt).getTime() > cutoff) continue;
     if (await sentRecently(db, row.userId, "abandoned_cart", 168)) continue;
     try {
-      const sent = await sendTemplate(
+      const sent = await sender(
         config,
         row.phone,
         config.abandonedTemplate,
@@ -233,7 +233,7 @@ async function processAbandoned(db, config, context, result) {
   }
 }
 
-async function processLowStock(db, config, context, result) {
+async function processLowStock(db, config, context, result, sender = sendTemplate) {
   if (!config.lowStockTemplate) return;
   if (!(await settingEnabled(db, "low_stock_whatsapp_enabled"))) return;
   for (const row of context.snapshots) {
@@ -249,7 +249,7 @@ async function processLowStock(db, config, context, result) {
     if (await sentRecently(db, row.userId, "low_stock_cart", 24)) continue;
     const productText = low.map(x => `${x.name} (${x.stock})`).join("، ").slice(0, 700);
     try {
-      const sent = await sendTemplate(
+      const sent = await sender(
         config,
         row.phone,
         config.lowStockTemplate,
@@ -278,7 +278,7 @@ async function processLowStock(db, config, context, result) {
   }
 }
 
-async function processWaitlist(db, config, result) {
+async function processWaitlist(db, config, result, sender = sendTemplate) {
   if (!config.waitlistTemplate) return;
   const waiting = await db(`
     SELECT
@@ -333,7 +333,7 @@ async function processWaitlist(db, config, result) {
     );
     if (duplicate.rowCount) continue;
     try {
-      const sent = await sendTemplate(
+      const sent = await sender(
         config,
         row.phone,
         config.waitlistTemplate,
@@ -370,10 +370,11 @@ async function processWaitlist(db, config, result) {
 
 let activeRun = null;
 
-async function runWhatsAppAutomation(db) {
+async function runWhatsAppAutomation(db, options = {}) {
   if (activeRun) return activeRun;
   activeRun = (async () => {
     const config = getWhatsAppConfig();
+    const sender = typeof options.sendTemplate === "function" ? options.sendTemplate : sendTemplate;
     const result = { configured: false, sent: 0, failed: 0, skipped: false };
     if (!config.accessToken || !config.phoneNumberId) {
       result.skipped = true;
@@ -381,9 +382,9 @@ async function runWhatsAppAutomation(db) {
     }
     result.configured = true;
     const context = await cartContext(db);
-    await processAbandoned(db, config, context, result);
-    await processLowStock(db, config, context, result);
-    await processWaitlist(db, config, result);
+    await processAbandoned(db, config, context, result, sender);
+    await processLowStock(db, config, context, result, sender);
+    await processWaitlist(db, config, result, sender);
     return result;
   })();
   try {
@@ -425,8 +426,9 @@ async function campaignRecipients(db) {
   return result.rows.filter(row => normalizeRecipient(row.phone));
 }
 
-async function runWhatsAppCampaign(db, input = {}) {
+async function runWhatsAppCampaign(db, input = {}, options = {}) {
   const config = getWhatsAppConfig();
+  const sender = typeof options.sendTemplate === "function" ? options.sendTemplate : sendTemplate;
   const title = String(input.title || "").trim().slice(0, 300);
   const message = String(input.message || "").trim().slice(0, 1200);
   const link = String(input.link || "").trim().slice(0, 1000);
@@ -448,7 +450,7 @@ async function runWhatsAppCampaign(db, input = {}) {
     const batch = recipients.slice(i, i + 5);
     const outcomes = await Promise.all(batch.map(async row => {
       try {
-        const sent = await sendTemplate(
+        const sent = await sender(
           config,
           row.phone,
           config.campaignTemplate,
