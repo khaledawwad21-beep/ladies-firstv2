@@ -38,10 +38,14 @@ test("sales report excludes courier delivery money",()=>{
   assert.doesNotMatch(block,/SUM\(total\) FILTER/);
 });
 
-test("removing a waiver reapplies configured regional delivery discount",()=>{
+test("removing a waiver restores the order's snapshotted automatic and manual discounts",()=>{
   const start=server.indexOf('app.patch("/api/admin/orders/:id/shipping-waiver"');
   const block=server.slice(start,start+3500);
-  assert.match(block,/shipping_discount_percentages/);
-  assert.match(block,/baseShipping\*discountPercent\/100/);
-  assert.match(block,/shipping_discount_amount=\$5/);
+  assert.match(block,/shipping_base_cost/);
+  assert.match(block,/shipping_discount_percent/);
+  assert.match(block,/shipping_discount_amount/);
+  assert.match(block,/shipping_manual_discount_percent/);
+  assert.match(block,/shipping_manual_discount_amount/);
+  assert.match(block,/baseShipping-autoAmount-manualAmount/);
+  assert.doesNotMatch(block,/getSetting\("shipping_fees"/);
 });
