@@ -47,3 +47,9 @@ test("admin UI hides unauthorized sections and supports permission editing", () 
   assert.match(admin, /saveStaffEdit\(/);
   assert.match(admin, /بدون صلاحيات/);
 });
+
+
+test("product media upload permissions cover images and videos",()=>{
+  assert.equal(permissionForAdminRequest({originalUrl:"/api/admin/uploads/image"}),"products");
+  assert.equal(permissionForAdminRequest({originalUrl:"/api/admin/uploads/video"}),"products");
+});
