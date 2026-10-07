@@ -4411,21 +4411,190 @@ app.patch("/api/admin/orders/:id/shipping-waiver",requireAdmin,async(req,res)=>{
       const q=await client.query("SELECT * FROM orders WHERE id=$1 FOR UPDATE",[orderId]);
       if(!q.rowCount)throw createHttpError(404,"ORDER_NOT_FOUND","الطلب غير موجود");
       const o=q.rows[0];
-      const configuredFees=await getSetting("shipping_fees",{westbank:20,jerusalem:35,inside:70},client);
-      const fees={westbank:Math.max(0,money(configuredFees?.westbank ?? 20)),jerusalem:Math.max(0,money(configuredFees?.jerusalem ?? 35)),inside:Math.max(0,money(configuredFees?.inside ?? 70))};
-      const region=String(o.shipping_region||"westbank").toLowerCase();
-      const baseShipping=Math.max(0,Number(fees[region] ?? o.shipping_base_cost ?? o.shipping_cost ?? 0));
-      const configuredDiscounts=await getSetting("shipping_discount_percentages",{westbank:0,jerusalem:0,inside:0},client);
-      const discountPercent=Math.max(0,Math.min(100,Number(configuredDiscounts?.[region])||0));
-      const discountAmount=money(baseShipping*discountPercent/100);
-      const normalShipping=money(Math.max(0,baseShipping-discountAmount));
+      if(String(o.status||"").toLowerCase()==="cancelled")throw createHttpError(409,"CANCELLED_ORDER_FINAL","لا يمكن تعديل رسوم طلب ملغي");
+      const baseShipping=Math.max(0,Number(o.shipping_base_cost||o.shipping_cost||0));
+      const autoPercent=Math.max(0,Math.min(100,Number(o.shipping_discount_percent||0)||0));
+      const autoAmount=Math.max(0,Math.min(baseShipping,Number(o.shipping_discount_amount||0)||money(baseShipping*autoPercent/100)));
+      const manualPercent=Math.max(0,Math.min(100,Number(o.shipping_manual_discount_percent||0)||0));
+      const manualBase=Math.max(0,baseShipping-autoAmount);
+      const manualAmount=Math.max(0,Math.min(manualBase,Number(o.shipping_manual_discount_amount||0)||money(manualBase*manualPercent/100)));
+      const normalShipping=money(Math.max(0,baseShipping-autoAmount-manualAmount));
       const shipping=waived?0:normalShipping;
-      const total=Math.max(0,Number(o.subtotal||0)-Number(o.coupon_discount||0)-Number(o.visa_discount||0)-Number(o.loyalty_discount||0)+Number(o.packaging_cost||0)+shipping);
-      const u=await client.query("UPDATE orders SET shipping_waived=$1,shipping_cost=$2,shipping_base_cost=$3,shipping_discount_percent=$4,shipping_discount_amount=$5,total=$6,updated_at=NOW() WHERE id=$7 RETURNING *",[waived,shipping,baseShipping,discountPercent,discountAmount,total,orderId]);
+      const total=money(Math.max(0,Number(o.subtotal||0)-Number(o.coupon_discount||0)-Number(o.visa_discount||0)-Number(o.loyalty_discount||0)+Number(o.packaging_cost||0)+shipping));
+      const u=await client.query(
+        "UPDATE orders SET shipping_waived=$1,shipping_cost=$2,total=$3,updated_at=NOW() WHERE id=$4 RETURNING *",
+        [waived,shipping,total,orderId]
+      );
       return u.rows[0];
     });
     res.json({ok:true,order:result,message:waived?"تم إعفاء الطلب من رسوم التوصيل":"تم إلغاء إعفاء التوصيل"});
-  }catch(e){console.error("[SHIPPING WAIVER]",e);res.status(e.status||500).json({ok:false,message:e.message||"تعذر تعديل رسوم التوصيل"});}
+  }catch(e){console.error("[SHIPPING WAIVER]",e);res.status(e.status||500).json({ok:false,code:e.code||"SHIPPING_WAIVER_ERROR",message:e.message||"تعذر تعديل رسوم التوصيل"});}
+});
+
+/* =========================================================
+   ADMIN MANUAL SHIPPING DISCOUNT
+   ========================================================= */
+app.patch("/api/admin/orders/:id/shipping-discount",requireAdmin,async(req,res)=>{
+  const orderId=integer(req.params.id,NaN);
+  const manualPercent=Number(req.body?.percent ?? req.body?.discountPercent ?? 0);
+  const confirmStack=req.body?.confirmStack===true;
+  if(!Number.isFinite(orderId))return res.status(400).json({ok:false,message:"رقم الطلب غير صالح"});
+  if(!Number.isFinite(manualPercent)||manualPercent<0||manualPercent>100)return res.status(400).json({ok:false,message:"نسبة خصم التوصيل يجب أن تكون بين 0 و100"});
+  try{
+    const result=await transaction(async client=>{
+      const q=await client.query("SELECT * FROM orders WHERE id=$1 FOR UPDATE",[orderId]);
+      if(!q.rowCount)throw createHttpError(404,"ORDER_NOT_FOUND","الطلب غير موجود");
+      const o=q.rows[0];
+      if(String(o.status||"").toLowerCase()==="cancelled")throw createHttpError(409,"CANCELLED_ORDER_FINAL","لا يمكن تعديل طلب ملغي");
+      const baseShipping=Math.max(0,Number(o.shipping_base_cost||o.shipping_cost||0));
+      const autoPercent=Math.max(0,Math.min(100,Number(o.shipping_discount_percent||0)||0));
+      const autoAmount=Math.max(0,Math.min(baseShipping,Number(o.shipping_discount_amount||0)||money(baseShipping*autoPercent/100)));
+      if(manualPercent>0&&autoPercent>0&&!confirmStack){
+        throw createHttpError(
+          409,
+          "SHIPPING_AUTO_DISCOUNT_PRESENT",
+          `يوجد أصلًا خصم توصيل تلقائي بنسبة ${money(autoPercent)}%. إضافة خصم يدوي ستطبق خصمًا إضافيًا على المبلغ المتبقي.`
+        );
+      }
+      const manualBase=Math.max(0,baseShipping-autoAmount);
+      const manualAmount=money(manualBase*(manualPercent/100));
+      const shipping=Boolean(o.shipping_waived)?0:money(Math.max(0,manualBase-manualAmount));
+      const total=money(Math.max(0,Number(o.subtotal||0)-Number(o.coupon_discount||0)-Number(o.visa_discount||0)-Number(o.loyalty_discount||0)+Number(o.packaging_cost||0)+shipping));
+      const u=await client.query(
+        `UPDATE orders
+         SET shipping_manual_discount_percent=$1,
+             shipping_manual_discount_amount=$2,
+             shipping_cost=$3,
+             total=$4,
+             updated_at=NOW()
+         WHERE id=$5
+         RETURNING *`,
+        [money(manualPercent),manualAmount,shipping,total,orderId]
+      );
+      return {order:u.rows[0],autoPercent,autoAmount,manualPercent:money(manualPercent),manualAmount};
+    });
+    return res.json({ok:true,...result,message:manualPercent>0?"تم تطبيق خصم التوصيل اليدوي":"تم إلغاء خصم التوصيل اليدوي"});
+  }catch(e){
+    console.error("[SHIPPING DISCOUNT]",e);
+    return res.status(e.status||500).json({
+      ok:false,
+      code:e.code||"SHIPPING_DISCOUNT_ERROR",
+      message:e.message||"تعذر تعديل خصم التوصيل"
+    });
+  }
+});
+
+/* =========================================================
+   ADMIN ORDER GIFTS
+   ========================================================= */
+app.post("/api/admin/orders/:id/gifts",requireAdmin,async(req,res)=>{
+  const orderId=integer(req.params.id,NaN);
+  const productId=integer(req.body?.productId ?? req.body?.product_id,NaN);
+  const rawVariant=req.body?.variantId ?? req.body?.variant_id ?? null;
+  const variantId=rawVariant===null||rawVariant===undefined||rawVariant===""?null:integer(rawVariant,NaN);
+  const quantity=integer(req.body?.quantity ?? req.body?.qty ?? 1,1);
+  if(!Number.isFinite(orderId)||!Number.isFinite(productId)||!Number.isInteger(quantity)||quantity<1||quantity>1000){
+    return res.status(400).json({ok:false,message:"بيانات الهدية غير صالحة"});
+  }
+  if(rawVariant!==null&&rawVariant!==undefined&&rawVariant!==""&&!Number.isFinite(variantId)){
+    return res.status(400).json({ok:false,message:"خيار الهدية غير صالح"});
+  }
+  try{
+    const result=await transaction(async client=>{
+      const oq=await client.query("SELECT * FROM orders WHERE id=$1 FOR UPDATE",[orderId]);
+      if(!oq.rowCount)throw createHttpError(404,"ORDER_NOT_FOUND","الطلب غير موجود");
+      const order=oq.rows[0],status=String(order.status||"").toLowerCase();
+      if(!["pending","confirmed","processing"].includes(status)){
+        throw createHttpError(409,"GIFT_ORDER_LOCKED","يمكن إضافة هدية قبل شحن أو تسليم الطلب فقط");
+      }
+      const pq=await client.query("SELECT * FROM products WHERE id=$1 FOR UPDATE",[productId]);
+      if(!pq.rowCount)throw createHttpError(404,"PRODUCT_NOT_FOUND","منتج الهدية غير موجود");
+      const product=pq.rows[0];
+      const activeVariants=await client.query(
+        "SELECT id,color,size,stock,is_active FROM product_variants WHERE product_id=$1 AND is_active=TRUE ORDER BY id",
+        [productId]
+      );
+      if(activeVariants.rowCount>0&&variantId===null){
+        throw createHttpError(400,"GIFT_VARIANT_REQUIRED","اختاري لون/خيار الهدية");
+      }
+      let variant=null;
+      if(variantId!==null){
+        const vq=await client.query(
+          "SELECT * FROM product_variants WHERE id=$1 AND product_id=$2 FOR UPDATE",
+          [variantId,productId]
+        );
+        if(!vq.rowCount||vq.rows[0].is_active===false)throw createHttpError(400,"INVALID_VARIANT","خيار الهدية غير متوفر");
+        variant=vq.rows[0];
+      }
+      const available=Math.max(0,Number(variant?variant.stock:product.stock)||0);
+      if(quantity>available)throw createHttpError(409,"OUT_OF_STOCK",stockAvailabilityMessage(available));
+      const stockUpdate=variant
+        ? await client.query(
+            "UPDATE product_variants SET stock=stock-$1,updated_at=NOW() WHERE id=$2 AND stock >= $1 RETURNING stock",
+            [quantity,variant.id]
+          )
+        : await client.query(
+            "UPDATE products SET stock=stock-$1,updated_at=NOW() WHERE id=$2 AND stock >= $1 RETURNING stock",
+            [quantity,product.id]
+          );
+      if(!stockUpdate.rowCount)throw createHttpError(409,"OUT_OF_STOCK",stockAvailabilityMessage(0));
+      const variantName=variant?[variant.color,variant.size].filter(Boolean).join(" / "):"";
+      const purchasePrice=Math.max(0,Number(product.purchase_price||product.cost_price||0)||0);
+      const ins=await client.query(
+        `INSERT INTO order_items(
+          order_id,product_id,variant_id,product_name,variant_name,image,quantity,unit_price,total,purchase_price,is_gift,created_at
+        ) VALUES($1,$2,$3,$4,$5,$6,$7,0,0,$8,TRUE,NOW())
+        RETURNING *`,
+        [orderId,product.id,variant?variant.id:null,product.name||"هدية",variantName,product.image||product.image_url||null,quantity,purchasePrice]
+      );
+      await client.query(
+        `INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at)
+         VALUES($1,$2,$3,$4,$5,NOW())`,
+        [product.id,variant?variant.id:null,-quantity,`gift: ${product.name||"هدية"}`,orderId]
+      );
+      return ins.rows[0];
+    });
+    return res.status(201).json({ok:true,item:result,message:"تمت إضافة الهدية للطلب وخصمها من المخزون"});
+  }catch(e){
+    console.error("[ORDER GIFT ADD]",e);
+    return res.status(e.status||500).json({ok:false,code:e.code||"ORDER_GIFT_ERROR",message:e.message||"تعذر إضافة الهدية"});
+  }
+});
+
+app.delete("/api/admin/orders/:id/gifts/:itemId",requireAdmin,async(req,res)=>{
+  const orderId=integer(req.params.id,NaN),itemId=integer(req.params.itemId,NaN);
+  if(!Number.isFinite(orderId)||!Number.isFinite(itemId))return res.status(400).json({ok:false,message:"بيانات الهدية غير صالحة"});
+  try{
+    const result=await transaction(async client=>{
+      const oq=await client.query("SELECT status FROM orders WHERE id=$1 FOR UPDATE",[orderId]);
+      if(!oq.rowCount)throw createHttpError(404,"ORDER_NOT_FOUND","الطلب غير موجود");
+      if(!["pending","confirmed","processing"].includes(String(oq.rows[0].status||"").toLowerCase())){
+        throw createHttpError(409,"GIFT_ORDER_LOCKED","لا يمكن حذف هدية بعد شحن أو تسليم الطلب");
+      }
+      const iq=await client.query(
+        "SELECT * FROM order_items WHERE id=$1 AND order_id=$2 AND is_gift=TRUE FOR UPDATE",
+        [itemId,orderId]
+      );
+      if(!iq.rowCount)throw createHttpError(404,"GIFT_NOT_FOUND","الهدية غير موجودة");
+      const item=iq.rows[0],qty=Math.max(0,Number(item.quantity||0));
+      if(item.variant_id){
+        await client.query("UPDATE product_variants SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2",[qty,item.variant_id]);
+      }else{
+        await client.query("UPDATE products SET stock=COALESCE(stock,0)+$1,updated_at=NOW() WHERE id=$2",[qty,item.product_id]);
+      }
+      await client.query(
+        `INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at)
+         VALUES($1,$2,$3,$4,$5,NOW())`,
+        [item.product_id,item.variant_id,qty,`gift_removed: ${item.product_name||"هدية"}`,orderId]
+      );
+      await client.query("DELETE FROM order_items WHERE id=$1",[itemId]);
+      return item;
+    });
+    return res.json({ok:true,item:result,message:"تم حذف الهدية وإعادة الكمية للمخزون"});
+  }catch(e){
+    console.error("[ORDER GIFT DELETE]",e);
+    return res.status(e.status||500).json({ok:false,code:e.code||"ORDER_GIFT_DELETE_ERROR",message:e.message||"تعذر حذف الهدية"});
+  }
 });
 
 /* =========================================================
