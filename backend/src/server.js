@@ -5154,6 +5154,9 @@ app.get(
             age,
             role,
             is_active,
+            ordering_blocked,
+            ordering_block_reason,
+            ordering_block_until,
             loyalty_points,
             created_at,
             updated_at
@@ -5359,6 +5362,33 @@ app.patch(
         );
       }
 
+      if (req.body.ordering_blocked !== undefined || req.body.orderingBlocked !== undefined) {
+        const blocked=Boolean(req.body.ordering_blocked ?? req.body.orderingBlocked);
+        addField("ordering_blocked",blocked);
+        if(!blocked){
+          if(req.body.ordering_block_reason===undefined&&req.body.orderingBlockReason===undefined)addField("ordering_block_reason",null);
+          if(req.body.ordering_block_until===undefined&&req.body.orderingBlockUntil===undefined)addField("ordering_block_until",null);
+        }
+      }
+
+      if (req.body.ordering_block_reason !== undefined || req.body.orderingBlockReason !== undefined) {
+        addField(
+          "ordering_block_reason",
+          cleanText(req.body.ordering_block_reason ?? req.body.orderingBlockReason).slice(0,500) || null
+        );
+      }
+
+      if (req.body.ordering_block_until !== undefined || req.body.orderingBlockUntil !== undefined) {
+        const rawUntil=req.body.ordering_block_until ?? req.body.orderingBlockUntil;
+        if(rawUntil===null||rawUntil===""){
+          addField("ordering_block_until",null);
+        }else{
+          const untilDate=new Date(rawUntil);
+          if(Number.isNaN(untilDate.getTime()))return res.status(400).json({ok:false,message:"تاريخ انتهاء منع الطلب غير صالح"});
+          addField("ordering_block_until",untilDate.toISOString());
+        }
+      }
+
       /*
        * لا يستطيع الـ Admin
        * تحويل نفسه أو غيره إلى Owner.
@@ -5423,6 +5453,9 @@ app.patch(
             age,
             role,
             is_active,
+            ordering_blocked,
+            ordering_block_reason,
+            ordering_block_until,
             loyalty_points,
             created_at,
             updated_at
