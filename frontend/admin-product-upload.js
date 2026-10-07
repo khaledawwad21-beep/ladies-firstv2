@@ -105,6 +105,41 @@ async function adminUploadProductImage(file) {
   return payload.url;
 }
 
+async function adminUploadProductVideo(file) {
+  if (!file) return "";
+  const type=String(file.type||"").toLowerCase();
+  if (!["video/mp4","video/webm","video/quicktime"].includes(type)) {
+    throw new Error("صيغة الفيديو غير مدعومة. استخدمي MP4 أو WebM.");
+  }
+  if (Number(file.size||0) > 50 * 1024 * 1024) {
+    throw new Error("حجم الفيديو أكبر من 50 ميغابايت.");
+  }
+  const token=localStorage.getItem("lf_admin_token")||"";
+  if(!token)throw new Error("يجب تسجيل الدخول أولاً");
+  const response=await fetch("/api/admin/uploads/video",{
+    method:"POST",
+    headers:{Authorization:"Bearer "+token,"Content-Type":type},
+    body:file
+  });
+  let payload={};try{payload=await response.json()}catch{}
+  if(response.status===401){localStorage.removeItem("lf_admin_token");showLogin()}
+  if(!response.ok||payload.ok===false)throw new Error(payload.message||"تعذر رفع الفيديو");
+  if(!payload.url)throw new Error("لم يرجع الخادم رابط الفيديو");
+  return payload.url;
+}
+
+async function adminUploadManyVideos(files) {
+  const result=[];
+  for(const file of [...(files||[])]) result.push(await adminUploadProductVideo(file));
+  return result;
+}
+
+window.adminPreviewVideoFiles=function(inputId,targetId){
+  const input=document.getElementById(inputId),box=document.getElementById(targetId);
+  if(!input||!box)return;
+  box.innerHTML=[...(input.files||[])].map(file=>`<span class="admin-video-chip">🎥 ${E(file.name)} — ${(Number(file.size||0)/1024/1024).toFixed(1)} MB</span>`).join('');
+};
+
 let adminProductDraft = null;
 
 function adminProductImages(p) {
@@ -229,7 +264,11 @@ window.productForm = async function productForm(p={}) {
 
     <div id="productExistingImages" class="full"></div>
     <label class="full">وصف المنتج<textarea id="pd" class="field" rows="5" placeholder="وصف المنتج">${E(p.description||p.desc||"")}</textarea></label>
-    <label class="full">روابط فيديوهات المنتج — رابط بكل سطر<textarea id="pvideos" class="field" rows="4" placeholder="https://youtube.com/...">${E(adminProductDraft.videos.join("\n"))}</textarea></label>
+    <label class="full">فيديوهات من الجهاز — يمكنك اختيار عدة فيديوهات
+      <input id="pVideoFiles" type="file" multiple accept="video/mp4,video/webm,video/quicktime" style="display:block;margin-top:8px" onchange="adminPreviewVideoFiles('pVideoFiles','productVideoPreview')">
+      <span id="productVideoPreview" class="admin-video-preview"></span>
+    </label>
+    <label class="full">روابط فيديوهات إضافية — رابط بكل سطر<textarea id="pvideos" class="field" rows="4" placeholder="https://youtube.com/...">${E(adminProductDraft.videos.join("\n"))}</textarea></label>
     <div class="full"><div class="toolbar"><b>الألوان / الخيارات والمخزون لكل واحد</b><button type="button" class="btn" onclick="adminAddVariant()">+ إضافة لون/خيار</button></div><div id="productVariants"></div></div>
   </div><div class="actions"><button class="btn primary" type="button" onclick="saveProduct(${p.id||0})">حفظ المنتج</button></div>`);
   adminRenderExistingImages();
@@ -260,7 +299,9 @@ window.saveProduct = async function saveProduct(id) {
     if (!mainImages.length) throw new Error("اختاري صورة رئيسية واحدة على الأقل");
     if(mainImages.length+subImages.length>40)throw new Error("الحد الأقصى 40 صورة للمنتج");
 
-    const videos=$("#pvideos").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    const uploadedVideos=await adminUploadManyVideos($("#pVideoFiles")?.files);
+    const linkedVideos=$("#pvideos").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    const videos=[...new Set([...linkedVideos,...uploadedVideos])];
     if(videos.length>8)throw new Error("الحد الأقصى 8 فيديوهات للمنتج");
 
     const body = {
