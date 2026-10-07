@@ -32,6 +32,18 @@ test("storefront waitlist uses backend API instead of local-only storage", () =>
 });
 
 
+test("customer account exposes authenticated waitlist history with clickable product cards", () => {
+  const waitlist = fs.readFileSync(path.join(__dirname, "../src/waitlist.js"), "utf8");
+  const app = fs.readFileSync(path.join(__dirname, "../../frontend/app.js"), "utf8");
+  assert.match(waitlist, /\/api\/waitlist\/mine/);
+  assert.match(waitlist, /requireAuth/);
+  assert.match(waitlist, /productImage/);
+  assert.match(app, /function lfLoadMyWaitlist\(/);
+  assert.match(app, /accountWaitlistHistory/);
+  assert.match(app, /waitlistHistoryCard/);
+  assert.match(app, /openAccountWaitlistProduct/);
+});
+
 test("storefront has one authoritative waitlist implementation", () => {
   const app = fs.readFileSync(path.join(__dirname, "../../frontend/app.js"), "utf8");
   const declarations = app.match(/async function joinWaitlist\s*\(/g) || [];
