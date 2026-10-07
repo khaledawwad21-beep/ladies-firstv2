@@ -27,7 +27,8 @@ test.before(async()=>{
     INSERT INTO users(id,name,email,password_hash,role,is_active,permissions)
     VALUES
       (1,'Owner','owner-controls@example.test','fixture','owner',TRUE,'[]'::jsonb),
-      (2,'Staff','staff-controls@example.test','fixture','staff',TRUE,'["dashboard","settings"]'::jsonb)
+      (2,'Staff','staff-controls@example.test','fixture','staff',TRUE,'["dashboard","settings"]'::jsonb),
+      (3,'Customer','customer-controls@example.test','fixture','customer',TRUE,'[]'::jsonb)
   `);
   server=app.listen(0,"127.0.0.1");
   await new Promise((resolve,reject)=>{
@@ -110,6 +111,40 @@ test("staff with settings permission cannot publish employee announcements",asyn
   });
   assert.equal(r.response.status,403);
   assert.equal(r.data.code,"MANAGEMENT_ONLY");
+});
+
+test("manual customer order block changes are written to history",async()=>{
+  let r=await json("/api/admin/users/3",{
+    method:"PATCH",
+    token:ownerToken,
+    body:{
+      ordering_blocked:true,
+      ordering_block_reason:"Manual CI block",
+      ordering_block_until:null
+    }
+  });
+  assert.equal(r.response.status,200,JSON.stringify(r.data));
+  assert.equal(r.data.user.orderingBlocked,true);
+
+  r=await json("/api/admin/users/3/order-block-history",{token:ownerToken});
+  assert.equal(r.response.status,200,JSON.stringify(r.data));
+  assert.equal(r.data.events.length,1);
+  assert.equal(r.data.events[0].action,"blocked");
+  assert.equal(r.data.events[0].source,"manual");
+  assert.equal(r.data.events[0].reason,"Manual CI block");
+  assert.equal(Number(r.data.events[0].actorUserId),1);
+
+  r=await json("/api/admin/users/3",{
+    method:"PATCH",
+    token:ownerToken,
+    body:{ordering_blocked:false}
+  });
+  assert.equal(r.response.status,200);
+
+  r=await json("/api/admin/users/3/order-block-history",{token:ownerToken});
+  assert.equal(r.response.status,200);
+  assert.equal(r.data.events.length,2);
+  assert.equal(r.data.events[0].action,"unblocked");
 });
 
 test("staff announcement appears once per published version and tracks read state",async()=>{
