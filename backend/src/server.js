@@ -548,6 +548,33 @@ async function initDatabase() {
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb`);
 
   await db(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+
+  const categorySeeds = [
+    { name: "ساعات ستاتي", slug: "womens-watches", image: "/category-images/womens-watches.jpg", aliases: ["ساعات ستاتي", "ساعات"] },
+    { name: "ساعات رجالي", slug: "mens-watches", image: "/category-images/mens-watches.jpg", aliases: ["ساعات رجالي"] },
+    { name: "مكياج", slug: "makeup", image: "/category-images/makeup.jpg", aliases: ["مكياج"] },
+    { name: "اكسسوارات", slug: "accessories", image: "/category-images/accessories.jpg", aliases: ["اكسسوارات", "إكسسوارات"] },
+    { name: "شنط", slug: "bags", image: "/category-images/bags.jpg", aliases: ["شنط"] },
+    { name: "عطور", slug: "perfumes", image: "/category-images/perfume.jpg", aliases: ["عطور", "عطر"] }
+  ];
+  for (const category of categorySeeds) {
+    const existing = await db(
+      `SELECT id FROM categories WHERE slug = $1 OR name = ANY($2::text[]) ORDER BY CASE WHEN slug = $1 THEN 0 ELSE 1 END, id LIMIT 1`,
+      [category.slug, category.aliases]
+    );
+    if (existing.rows.length) {
+      await db(
+        `UPDATE categories SET name = $1, slug = $2, image_url = $3, is_active = TRUE, updated_at = NOW() WHERE id = $4`,
+        [category.name, category.slug, category.image, existing.rows[0].id]
+      );
+    } else {
+      await db(
+        `INSERT INTO categories (name, slug, image_url, is_active, created_at, updated_at) VALUES ($1, $2, $3, TRUE, NOW(), NOW()) ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, image_url = EXCLUDED.image_url, is_active = TRUE, updated_at = NOW()`,
+        [category.name, category.slug, category.image]
+      );
+    }
+  }
+
   await db(`ALTER TABLE brands ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
 
   await db(`
