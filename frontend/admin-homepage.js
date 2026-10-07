@@ -34,11 +34,23 @@ function hpPreviewUrl(value) {
 }
 function hpRender() {
   $('#sections').innerHTML=`<div id="hpEditor" class="card"><h2>صور السلايدر والنصوص</h2><p>تظهر الصور بهذا الترتيب، وتتبدل تلقائيًا كل 3 ثوانٍ. عند حذف جميع الصور تظهر صورة المتجر الافتراضية.</p><fieldset id="hpFields" style="border:0;padding:0;min-width:0" ${hpBusy?'disabled':''}>
-    <div class="toolbar"><button class="btn" type="button" onclick="hpAdd()">+ شريحة يدوية</button><label class="field">رفع عدة صور من الجهاز<input id="hpFile" type="file" multiple accept="image/png,image/jpeg,image/webp" onchange="hpUpload(this)"></label></div>
+    <div class="toolbar"><button class="btn" type="button" onclick="hpUseWarmCampaign()">تحميل سلايدات الحملة الدافئة</button><button class="btn" type="button" onclick="hpAdd()">+ شريحة يدوية</button><label class="field">رفع عدة صور من الجهاز<input id="hpFile" type="file" multiple accept="image/png,image/jpeg,image/webp" onchange="hpUpload(this)"></label></div>
     ${hpSlides.map((slide,i)=>`<div class="card"><h3>الصورة ${i+1}</h3>${hpPreviewUrl(slide.image)?`<img src="${E(hpPreviewUrl(slide.image))}" alt="معاينة الصورة ${i+1}" style="display:block;width:100%;max-height:240px;object-fit:contain;border-radius:12px">`:""}<div class="formgrid"><label class="full">رابط الصورة<input id="hp_${i}_image" class="field" value="${E(slide.image||'')}" placeholder="https://… أو رابط الصورة المرفوعة"></label><label>العنوان بالعربية<input id="hp_${i}_titleAr" class="field" maxlength="200" value="${E(slide.titleAr||'')}"></label><label>العنوان بالإنجليزية<input id="hp_${i}_titleEn" class="field" maxlength="200" value="${E(slide.titleEn||'')}"></label><label>الوصف بالعربية<textarea id="hp_${i}_descAr" class="field" maxlength="1000">${E(slide.descAr||'')}</textarea></label><label>الوصف بالإنجليزية<textarea id="hp_${i}_descEn" class="field" maxlength="1000">${E(slide.descEn||'')}</textarea></label></div><div class="toolbar"><button type="button" class="btn" onclick="hpMove(${i},-1)" ${i===0?'disabled':''}>للأعلى</button><button type="button" class="btn" onclick="hpMove(${i},1)" ${i===hpSlides.length-1?'disabled':''}>للأسفل</button><button type="button" class="btn" onclick="hpRemove(${i})">حذف الصورة</button></div></div>`).join('')}
     <h3>تنسيق النص</h3><div class="formgrid"><label>الخط<select id="hpFont" class="field">${hpFonts.map(([value,name])=>`<option value="${value}" ${hpStyle.font===value?'selected':''}>${name}</option>`).join('')}</select></label><label>لون النص<input id="hpColor" class="field" type="color" value="${hpStyle.color}"></label><label>لون خلفية النص<input id="hpBg" class="field" type="color" value="${hpStyle.bgColor}"></label><label>ظهور النص (0 شفاف، 1 كامل)<input id="hpOpacity" class="field" type="number" min="0" max="1" step=".05" value="${hpStyle.opacity}"></label><label>ظهور الخلفية (0 شفاف، 1 كامل)<input id="hpBgOpacity" class="field" type="number" min="0" max="1" step=".05" value="${hpStyle.bgOpacity}"></label></div>
     <div class="actions"><button class="btn primary" type="button" onclick="hpSave()">حفظ السلايدر</button><a class="btn" href="/" target="_blank" rel="noopener">فتح المتجر</a></div>
     </fieldset><p id="hpMessage" role="status">${hpBusy?'جاري الحفظ…':''}</p></div>`;
+}
+function hpUseWarmCampaign() {
+  if(hpBusy)return;
+  hpCapture();
+  hpSlides=[
+    {image:'/assets/campaign/slide-01-boutique.webp',titleAr:'مساحة أنيقة… صُممت لأجلكِ',titleEn:'An elegant space, made for you',descAr:'اختيارات نحبّها، وتفاصيل صغيرة تصنع فرقًا كبيرًا في يومكِ.',descEn:'Thoughtful choices and little details that make your day.'},
+    {image:'/assets/campaign/slide-02-bag.webp',titleAr:'قطعتكِ المميزة تبدأ من هنا',titleEn:'Your signature piece starts here',descAr:'أناقة ترافقكِ كل يوم، وتُشبه ذوقكِ الجميل.',descEn:'Everyday elegance that feels just like you.'},
+    {image:'/assets/campaign/slide-03-beauty.webp',titleAr:'دلّلي نفسكِ… فأنتِ تستحقين',titleEn:'A little care, just for you',descAr:'لحظات عناية جميلة، لأن راحتكِ ورضاكِ يليقان بكِ.',descEn:'Beautiful moments of care, because you deserve them.'},
+    {image:'/assets/campaign/slide-04-jewelry.webp',titleAr:'تفاصيل ناعمة… وفرحة كبيرة',titleEn:'Soft details, a little more joy',descAr:'لمسات تكمل حضوركِ، وتضيف إلى يومكِ شيئًا من البهجة.',descEn:'Delicate touches that complete your look and brighten your day.'}
+  ];
+  hpRender();
+  $('#hpMessage').textContent='تم تحميل 4 سلايدات. راجعي النصوص ثم اضغطي «حفظ السلايدر» لنشرها على المتجر.';
 }
 function hpAdd() {if(hpBusy)return;hpCapture();if(hpSlides.length>=12)return toast('الحد الأقصى 12 صورة');hpSlides.push({image:'',titleAr:'',titleEn:'',descAr:'',descEn:''});hpRender();}
 function hpRemove(index) {if(hpBusy)return;hpCapture();hpSlides.splice(index,1);hpRender();}
