@@ -32,3 +32,32 @@ test("admin order details show product image variant and totals", () => {
   assert.match(admin, /loyalty_discount/);
   assert.match(admin, /invoice\(/);
 });
+
+
+test("per-order shipping discount warns before stacking with automation", () => {
+  assert.match(server, /\/api\/admin\/orders\/:id\/shipping-discount/);
+  assert.match(server, /SHIPPING_AUTO_DISCOUNT_PRESENT/);
+  assert.match(server, /shipping_manual_discount_percent/);
+  assert.match(server, /shipping_manual_discount_amount/);
+  assert.match(admin, /saveOrderShippingDiscount/);
+  assert.match(admin, /يوجد خصم توصيل تلقائي/);
+});
+
+test("admin gifts are inventory-backed zero-price order lines", () => {
+  assert.match(server, /\/api\/admin\/orders\/:id\/gifts/);
+  assert.match(server, /is_gift=TRUE/);
+  assert.match(server, /gift:/);
+  assert.match(server, /gift_removed:/);
+  assert.match(admin, /openGiftPicker/);
+  assert.match(admin, /saveOrderGift/);
+  assert.match(admin, /removeOrderGift/);
+  assert.match(admin, /تكلفة الهدايا/);
+});
+
+test("invoice shows gift lines and separate automatic/manual shipping discounts", () => {
+  assert.match(admin, /🎁 هدية/);
+  assert.match(admin, /خصم التوصيل التلقائي/);
+  assert.match(admin, /خصم التوصيل اليدوي/);
+  assert.match(admin, /store_logo/);
+  assert.match(admin, /invoiceLogo/);
+});
