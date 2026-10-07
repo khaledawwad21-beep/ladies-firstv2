@@ -2512,6 +2512,28 @@ app.post(
     try {
       const result =
         await transaction(async (client) => {
+          const phoneKey=String(customerPhone||"").replace(/\D/g,"");
+          const blockedUser=await client.query(
+            `SELECT id,ordering_block_reason,ordering_block_until
+             FROM users
+             WHERE ordering_blocked=TRUE
+               AND (ordering_block_until IS NULL OR ordering_block_until > NOW())
+               AND (
+                 ($1::bigint IS NOT NULL AND id=$1)
+                 OR ($2<>'' AND regexp_replace(COALESCE(phone,''),'[^0-9]','','g')=$2)
+               )
+             ORDER BY CASE WHEN id=$1 THEN 0 ELSE 1 END,id
+             LIMIT 1`,
+            [userId,phoneKey]
+          );
+          if(blockedUser.rowCount){
+            throw createHttpError(
+              403,
+              "ORDERING_BLOCKED",
+              "عذرًا، لا يمكن إتمام طلب جديد لهذا الحساب حاليًا. يرجى التواصل مع المتجر للمساعدة."
+            );
+          }
+
           let subtotal = 0;
           let couponDiscount = 0;
           let visaDiscount = 0;
