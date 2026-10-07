@@ -119,6 +119,9 @@ function registerProductWrites(app, getProducts) {
         return savedId;
       });
       const products = await getProducts('AND p.id = $1', [productId], "p.created_at DESC", true);
+      require('./whatsapp-automation').runWaitlistRestockNotifications(require('./db').db).catch(error =>
+        console.error('[WAITLIST RESTOCK AFTER PRODUCT SAVE]', error)
+      );
       res.status(id ? 200 : 201).json({ ok: true, product: products[0] });
     } catch (error) { next(error); }
   }
