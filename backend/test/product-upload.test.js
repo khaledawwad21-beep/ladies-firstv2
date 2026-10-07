@@ -51,6 +51,20 @@ test('editing updates the same product and retains variant IDs; invalid save is 
   const invalid=await request('/api/admin/products/'+product.id,'PUT',{name:'Bad',price:20,mainImages:[],variants:[]});assert.equal(invalid.status,400);
   assert.equal((await query('SELECT name FROM products WHERE id=$1',[product.id])).rows[0].name,'Updated');
 });
+test('admin product media supports reorder, primary selection, moving and pre-save removal', () => {
+  const js=fs.readFileSync(require('node:path').join(__dirname,'../../frontend/admin-product-upload.js'),'utf8');
+  assert.match(js,/function adminRenderPendingImages\(/);
+  assert.match(js,/adminMoveExistingImage/);
+  assert.match(js,/adminSetPrimaryExistingImage/);
+  assert.match(js,/adminSwitchExistingImage/);
+  assert.match(js,/adminRemovePendingImage/);
+  assert.match(js,/adminMovePendingImage/);
+  assert.match(js,/adminSetPrimaryPendingImage/);
+  assert.match(js,/adminSwitchPendingImage/);
+  assert.match(js,/adminProductPrimaryFile/);
+  assert.match(js,/adminProductPendingImages/);
+});
+
 test('actual admin product bundle uploads media before saving JSON product payload', () => {
   const html=fs.readFileSync(require('node:path').join(__dirname,'../../frontend/admin.html'),'utf8');
   const js=fs.readFileSync(require('node:path').join(__dirname,'../../frontend/admin-product-upload.js'),'utf8');
