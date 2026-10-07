@@ -15,7 +15,9 @@ test("finance dashboard uses the real sales and profit report", () => {
   assert.match(admin, /الطلبات الملغاة لا تدخل في المبيعات أو الربح/);
 });
 
-test("order search toolbar has no stray markup after the search button", () => {
+test("order search is live and has no obsolete search button markup", () => {
+  assert.match(admin, /بحث مباشر برقم الطلب أو العميل أو الهاتف/);
+  assert.match(admin, /oninput="renderOrderRows\(\)"/);
   assert.doesNotMatch(admin, /بحث<\/button>>/);
-  assert.match(admin, /بحث<\/button><\/div>/);
+  assert.doesNotMatch(admin, />بحث<\/button>/);
 });
