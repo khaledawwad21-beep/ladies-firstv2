@@ -8338,6 +8338,7 @@ app.get(
             name,
             email,
             phone,
+            gender,
             role,
             permissions,
             is_active,
@@ -8404,6 +8405,17 @@ app.post(
         req.body.phone
       );
 
+    const genderRaw =
+      cleanText(
+        req.body.gender || "",
+        20
+      ).toLowerCase();
+
+    const gender =
+      ["male","female"].includes(genderRaw)
+        ? genderRaw
+        : null;
+
     const password =
       String(
         req.body.password ||
@@ -8453,6 +8465,7 @@ app.post(
             name,
             email,
             phone,
+            gender,
             password_hash,
             role,
             permissions,
@@ -8466,7 +8479,8 @@ app.post(
             $3,
             $4,
             $5,
-            $6::jsonb,
+            $6,
+            $7::jsonb,
             TRUE,
             NOW(),
             NOW()
@@ -8476,6 +8490,7 @@ app.post(
             name,
             email,
             phone,
+            gender,
             role,
             permissions,
             is_active,
@@ -8486,6 +8501,7 @@ app.post(
             name,
             email,
             phone,
+            gender,
             passwordHash,
             role,
             JSON.stringify(
@@ -8548,7 +8564,7 @@ app.patch(
     try {
       const currentResult = await db(
         `
-        SELECT id, role, permissions, is_active
+        SELECT id, role, permissions, is_active, gender
         FROM users
         WHERE id = $1
           AND role <> 'owner'
@@ -8588,6 +8604,19 @@ app.patch(
         ? Boolean(req.body.is_active)
         : Boolean(current.is_active);
 
+      const requestedGender = req.body.gender !== undefined
+        ? cleanText(req.body.gender || "",20).toLowerCase()
+        : String(current.gender || "").toLowerCase();
+
+      if (requestedGender && !["male","female"].includes(requestedGender)) {
+        return res.status(400).json({
+          ok:false,
+          message:"الجنس غير صالح"
+        });
+      }
+
+      const gender = requestedGender || null;
+
       const result = await db(
         `
         UPDATE users
@@ -8595,14 +8624,16 @@ app.patch(
           role = $1,
           permissions = $2::jsonb,
           is_active = $3,
+          gender = $4,
           updated_at = NOW()
-        WHERE id = $4
+        WHERE id = $5
           AND role <> 'owner'
         RETURNING
           id,
           name,
           email,
           phone,
+          gender,
           role,
           permissions,
           is_active,
@@ -8612,6 +8643,7 @@ app.patch(
           role,
           JSON.stringify(permissions),
           active,
+          gender,
           id
         ]
       );
