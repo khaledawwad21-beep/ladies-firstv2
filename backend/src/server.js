@@ -4534,11 +4534,32 @@ app.patch(
               }
             }
 
+            let matchedCustomerUserId = null;
+            if (newStatus === "delivered" && !order.user_id) {
+              const phoneKey = String(order.customer_phone || "").replace(/\D/g, "");
+              if (phoneKey) {
+                const matchingCustomers = await client.query(
+                  `SELECT id
+                   FROM users
+                   WHERE role = 'customer'
+                     AND is_active = TRUE
+                     AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') = $1
+                   ORDER BY id
+                   LIMIT 2`,
+                  [phoneKey]
+                );
+                if (matchingCustomers.rowCount === 1) {
+                  matchedCustomerUserId = matchingCustomers.rows[0].id;
+                }
+              }
+            }
+
             const updated =
               await client.query(
                 `
                 UPDATE orders
                 SET status = $1,
+                    user_id = COALESCE(user_id, $6),
                     delivered_at = CASE WHEN $1 = 'delivered' AND delivered_at IS NULL THEN NOW() ELSE delivered_at END,
                     cancelled_source = CASE WHEN $3::boolean THEN $4 ELSE cancelled_source END,
                     cancellation_reason = CASE WHEN $3::boolean THEN $5 ELSE cancellation_reason END,
@@ -4552,11 +4573,19 @@ app.patch(
                   orderId,
                   isNewCancellation,
                   cancellationSource || null,
-                  cancellationReason || null
+                  cancellationReason || null,
+                  matchedCustomerUserId
                 ]
               );
 
-            return {order:updated.rows[0],autoBlockedCustomer};
+            const customerAccountLinked = Boolean(updated.rows[0]?.user_id);
+            const customerAccountLinkedNow = !order.user_id && Boolean(matchedCustomerUserId) && customerAccountLinked;
+            return {
+              order: updated.rows[0],
+              autoBlockedCustomer,
+              customerAccountLinked,
+              customerAccountLinkedNow
+            };
           }
         );
 

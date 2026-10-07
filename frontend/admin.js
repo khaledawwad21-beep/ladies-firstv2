@@ -562,8 +562,12 @@ async function saveOrderStatus(id){
     const d=await api('/api/admin/orders/'+id+'/status',{method:'PATCH',body:JSON.stringify({status,cancelSource,cancellationReason})});
     if(d.autoBlockedCustomer){
       alert('تم إلغاء الطلب، ووصل الزبون إلى حد الإلغاءات المحدد لذلك تم منعه تلقائيًا من الطلب.');
+    }else if(status==='delivered'){
+      if(d.customerAccountLinkedNow)toast('تم تسليم الطلب #'+id+' وربطه بحساب الزبون');
+      else if(d.customerAccountLinked)toast('تم تسجيل الطلب #'+id+' كتم التسليم');
+      else toast('تم تسجيل الطلب #'+id+' كتم التسليم، لكن لم نجد حسابًا واحدًا مطابقًا لرقم هاتف الطلب');
     }else{
-      toast(status==='delivered'?'تم تسجيل الطلب كتم التسليم':'تم تحديث حالة الطلب');
+      toast('تم تحديث حالة الطلب');
     }
     closeModal();
     await orders();
