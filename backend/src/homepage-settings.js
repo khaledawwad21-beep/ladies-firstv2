@@ -50,6 +50,11 @@ function validateHomepageSettings(incoming) {
     }
     if (!HERO_FONTS.includes(style.font)) invalid('خط السلايدر غير مدعوم');
     clean.font = style.font;
+    for (const key of ['x', 'y']) {
+      const value = style[key] === undefined ? 70 : style[key];
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) invalid('مكان النص يجب أن يكون بين 0 و100');
+      clean[key] = Math.round(value);
+    }
     result.hero_text_style = clean;
   }
   if (Object.hasOwn(incoming, 'shipping_fees')) {

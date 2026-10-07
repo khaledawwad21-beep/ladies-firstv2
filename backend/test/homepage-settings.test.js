@@ -14,7 +14,7 @@ require.cache[require.resolve('../src/db')]={exports:{
 }};
 const {app,initDatabase}=require('../src/server');
 const {createToken}=require('../src/auth');
-const style={font:'Tahoma,Arial,sans-serif',color:'#ffffff',bgColor:'#63345e',opacity:1,bgOpacity:.58};
+const style={font:'Tahoma,Arial,sans-serif',color:'#ffffff',bgColor:'#63345e',opacity:1,bgOpacity:.58,x:43,y:78};
 let server,base,saved;
 before(async()=>{await initDatabase(); await database.query("INSERT INTO users(id,name,password_hash,role) VALUES(1,'Owner','fixture','owner'),(2,'Customer','fixture','customer')");server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));base='http://127.0.0.1:'+server.address().port;});
 after(async()=>{if(server)await new Promise(r=>server.close(r));await database.close();});
@@ -48,9 +48,20 @@ test('invalid image URLs, excessive slides, text, CSS and opacity are rejected a
     {hero_text_style:{...style,color:'red;position:fixed'}},
     {hero_text_style:{...style,opacity:2}},
     {hero_text_style:{...style,bgOpacity:'0.5'}},
+    {hero_text_style:{...style,x:101}},
+    {hero_text_style:{...style,y:-1}},
     {hero_text_style:{...style,font:'url(evil)'}}
   ]) assert.equal((await request('/api/admin/settings',{...body,store_name:'Should not persist'})).status,400,JSON.stringify(body));
   assert.deepEqual((await (await request('/api/settings')).json()).settings,before);
+});
+test('campaign hero keeps slide images visible and honors the alpha and position controls',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'../../frontend/app.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'../../frontend/storefront-luxury.css'),'utf8');
+  assert.match(app,/setProperty\('--hero-text-bg',hexToRgba\(s\.bgColor,s\.bgOpacity\)\)/);
+  assert.match(app,/setProperty\('--hero-text-x',`\$\{s\.x\}%`\)/);
+  assert.match(css,/\.heroSlider \.heroLogoLayer\{display:block!important\}/);
+  assert.doesNotMatch(css,/\.heroLogo\{display:none!important\}/);
+  assert.doesNotMatch(css,/\.heroText\{--hero-text-bg:/);
 });
 test('actual storefront respects configured order and text, repeats images with different captions, and retains fallback',()=>{
   const source=fs.readFileSync(path.join(__dirname,'../../frontend/app.js'),'utf8');
