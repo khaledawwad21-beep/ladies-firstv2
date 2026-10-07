@@ -121,14 +121,68 @@ function renderProductRows(){
 async function products(){let d=await api('/api/admin/products');adminProductsCache=d.products||[];$('#sections').innerHTML=`<div class="card"><h2>المنتجات</h2><div class="toolbar"><input id="pq" class="field" placeholder="بحث مباشر بالاسم أو SKU أو البراند أو الفئة" oninput="renderProductRows()"><button class="btn" onclick="productForm()">+ منتج جديد</button></div><div id="productRows"></div></div>`;renderProductRows()}
 function productForm(p={}){modal(p.id?'تعديل المنتج':'منتج جديد',`<div class="formgrid"><input id="pn" class="field" value="${E(p.name||'')}" placeholder="اسم المنتج"><input id="pp" class="field" type="number" step=".01" value="${p.price??''}" placeholder="السعر"><input id="po" class="field" type="number" step=".01" value="${p.old_price??''}" placeholder="السعر القديم"><input id="ps" class="field" type="number" value="${p.stock??0}" placeholder="المخزون"><input id="pi" class="field full" value="${E(p.image_url||'')}" placeholder="رابط الصورة"><textarea id="pd" class="field full" rows="5" placeholder="الوصف">${E(p.description||'')}</textarea><div class="full">الفيديوهات ستُفعّل بعد إضافة حقول/Endpoint الفيديو إلى الـBackend؛ لن يتم تخزين بيانات غير مدعومة.</div></div><div class="actions"><button class="btn primary" onclick="saveProduct(${p.id||0})">حفظ</button></div>`)}
 async function saveProduct(id){let b={name:$('#pn').value,price:Number($('#pp').value),oldPrice:$('#po').value?Number($('#po').value):null,stock:Number($('#ps').value),imageUrl:$('#pi').value,description:$('#pd').value};await api(id?'/api/admin/products/'+id:'/api/admin/products',{method:id?'PUT':'POST',body:JSON.stringify(b)});closeModal();toast('تم حفظ المنتج');products()}
-let adminInventoryCache=[];
+let adminInventoryCache=[],adminInventoryVariants=[],adminInventoryEditVariants=[];
 function renderInventoryRows(){
   const box=$('#inventoryRows');if(!box)return;
   const q=String($('#inventorySearch')?.value||'').trim().toLowerCase();
-  const list=adminInventoryCache.filter(x=>!q||[`${x.name||''}`,`${x.sku||''}`,`${x.category_name||''}`,`${x.brand_name||''}`].join(' ').toLowerCase().includes(q));
-  box.innerHTML=table(['المنتج','SKU','الكمية','السعر','التصنيف','البراند',''],list.map(x=>`<tr><td>${E(x.name)}</td><td>${E(x.sku||'-')}</td><td>${x.stock??0}</td><td>${M(x.price)}</td><td>${E(x.category_name||'-')}</td><td>${E(x.brand_name||'-')}</td><td><button class="btn" onclick="stock(${x.id},${x.stock||0})">تعديل</button></td></tr>`));
+  const list=adminInventoryCache.filter(x=>!q||[`${x.name||''}`,`${x.sku||''}`,`${x.category_name||''}`,`${x.brand_name||''}`,`${x.supplier_name||''}`].join(' ').toLowerCase().includes(q));
+  box.innerHTML=table(['المنتج','SKU','الكمية','الفئة','البراند','المورد / التاجر',''],list.map(x=>`<tr><td>${E(x.name)}</td><td>${E(x.sku||'-')}</td><td>${x.stock??0}</td><td>${E(x.category_name||'-')}</td><td>${E(x.brand_name||'-')}</td><td>${E(x.supplier_name||'-')}</td><td><button class="btn" onclick="editInventoryProduct(${Number(x.id)})">تعديل المخزون</button></td></tr>`));
 }
-async function inventory(){let d=await api('/api/admin/inventory');adminInventoryCache=d.products||[];$('#sections').innerHTML=`<div class="card"><h2>المخزون</h2><div class="toolbar"><input id="inventorySearch" class="field" placeholder="بحث مباشر بالمنتج أو SKU أو الفئة أو البراند" oninput="renderInventoryRows()"><button class="btn" onclick="inventoryMovements()">تقرير حركات المخزون</button></div><div id="inventoryRows"></div></div>`;renderInventoryRows()}
+async function inventory(){
+  const d=await api('/api/admin/inventory');
+  adminInventoryCache=d.products||[];
+  adminInventoryVariants=d.variants||[];
+  $('#sections').innerHTML=`<div class="card"><h2>المخزون</h2><div class="toolbar"><input id="inventorySearch" class="field" placeholder="بحث مباشر بالمنتج أو SKU أو الفئة أو البراند أو المورد" oninput="renderInventoryRows()"><button class="btn" onclick="inventoryMovements()">تقرير حركات المخزون</button></div><div id="inventoryRows"></div></div>`;
+  renderInventoryRows();
+}
+function captureInventoryVariants(){
+  adminInventoryEditVariants=[...document.querySelectorAll('.inventoryVariantRow')].map(row=>({
+    id:row.dataset.id||undefined,
+    name:row.querySelector('.inventoryVariantName')?.value.trim()||'',
+    stock:Math.max(0,Math.floor(Number(row.querySelector('.inventoryVariantStock')?.value||0)))
+  })).filter(v=>v.name);
+}
+function renderInventoryVariantEditor(){
+  const box=$('#inventoryVariantRows');if(!box)return;
+  box.innerHTML=adminInventoryEditVariants.map((v,i)=>`<div class="toolbar inventoryVariantRow" data-id="${E(v.id||'')}"><input class="field compact-field inventoryVariantName" value="${E(v.name||'')}" placeholder="اللون / الخيار"><input class="field compact-field inventoryVariantStock" type="number" min="0" step="1" value="${Number(v.stock)||0}" placeholder="الكمية"><button class="btn danger" type="button" onclick="removeInventoryVariant(${i})">حذف</button></div>`).join('')||'<p class="small-note">لا توجد ألوان/خيارات. سيتم استخدام المخزون العام.</p>';
+  const stock=$('#inventoryGeneralStock');
+  if(stock)stock.disabled=adminInventoryEditVariants.length>0;
+}
+function addInventoryVariant(){captureInventoryVariants();adminInventoryEditVariants.push({name:'',stock:0});renderInventoryVariantEditor()}
+function removeInventoryVariant(index){
+  captureInventoryVariants();
+  const row=adminInventoryEditVariants[index];
+  if(row&&Number(row.stock)>0&&!confirm('هذا اللون/الخيار يحتوي على مخزون. حذفه سيصفر كميته ويسجل حركة مخزون. متابعة؟'))return;
+  adminInventoryEditVariants.splice(index,1);
+  renderInventoryVariantEditor();
+}
+function editInventoryProduct(id){
+  const p=adminInventoryCache.find(x=>Number(x.id)===Number(id));if(!p)return;
+  adminInventoryEditVariants=adminInventoryVariants.filter(v=>Number(v.product_id)===Number(id)&&v.is_active!==false).map(v=>({id:v.id,name:[v.color,v.size].filter(Boolean).join(' / ')||v.color||'',stock:Number(v.stock)||0}));
+  modal('تعديل المخزون — '+E(p.name||''),`<div class="formgrid">
+    <label>المورد / التاجر<input id="inventorySupplier" class="field compact-field" value="${E(p.supplier_name||'')}" placeholder="اسم المورد أو التاجر"></label>
+    <label>المخزون العام<input id="inventoryGeneralStock" class="field compact-field" type="number" min="0" step="1" value="${Number(p.stock)||0}" ${adminInventoryEditVariants.length?'disabled':''}></label>
+    <div class="full"><div class="toolbar"><b>الألوان / الخيارات والكميات</b><button class="btn" type="button" onclick="addInventoryVariant()">+ لون / خيار</button></div><div id="inventoryVariantRows"></div></div>
+    <label class="full">ملاحظة حركة المخزون<input id="inventoryNote" class="field" placeholder="اختياري — مثال: جرد، توريد جديد، تصحيح كمية"></label>
+  </div><div class="actions"><button class="btn primary" type="button" onclick="saveInventoryProduct(${Number(id)})">حفظ المخزون</button></div>`);
+  renderInventoryVariantEditor();
+}
+async function saveInventoryProduct(id){
+  captureInventoryVariants();
+  const hasVariants=adminInventoryEditVariants.length>0;
+  const body={
+    supplierName:$('#inventorySupplier')?.value.trim()||'',
+    note:$('#inventoryNote')?.value.trim()||'تعديل المخزون من لوحة التحكم'
+  };
+  if(hasVariants)body.variants=adminInventoryEditVariants.map(v=>({id:v.id,name:v.name,stock:Number(v.stock)||0}));
+  else body.stock=Math.max(0,Math.floor(Number($('#inventoryGeneralStock')?.value||0)));
+  try{
+    await api('/api/admin/inventory/'+id,{method:'PATCH',body:JSON.stringify(body)});
+    closeModal();
+    toast('تم تحديث الكميات والألوان والمورد');
+    await inventory();
+  }catch(e){alert(e.message||'تعذر تحديث المخزون')}
+}
 let movementRequest = 0;
 function inventoryMovements(){
   movementRequest++;
@@ -150,7 +204,6 @@ async function movementRun(){
     target.innerHTML=table(['التاريخ','المنتج','اللون / المقاس','SKU','تغير الكمية','السبب','رقم الطلب'],(d.movements||[]).map(x=>`<tr><td>${E(new Date(x.created_at).toLocaleString('ar'))}</td><td>${E(x.product_name||'منتج محذوف')}</td><td>${E([x.color,x.size].filter(Boolean).join(' / ')||'-')}</td><td>${E(x.variant_sku||'-')}</td><td>${Number(x.quantity_change)>0?'+':''}${E(x.quantity_change)}</td><td>${E(movementReason(x.reason))}</td><td>${x.order_id?'#'+E(x.order_id):'-'}</td></tr>`));
   }catch(e){if(request===movementRequest&&$('#movementRows')===target)target.textContent=e.message}
 }
-function stock(id,n){modal('تعديل المخزون',`<input id="sn" class="field" type="number" min="0" value="${n}"><div class="actions"><button class="btn primary" onclick="saveStock(${id})">حفظ</button></div>`)}async function saveStock(id){await api('/api/admin/inventory/'+id,{method:'PATCH',body:JSON.stringify({stock:Number($('#sn').value)})});closeModal();toast('تم تحديث المخزون');inventory()}
 let adminOrdersCache=[];
 function orderStatusLabel(status){return ({pending:'جديد',confirmed:'مؤكد',processing:'قيد التجهيز',shipped:'تم الشحن',delivered:'تم التسليم',completed:'مكتمل',cancelled:'ملغي'})[String(status||'').toLowerCase()]||String(status||'-')}
 function orderStatusOptions(selected){return [['pending','جديد'],['confirmed','مؤكد'],['processing','قيد التجهيز'],['shipped','تم الشحن'],['delivered','تم التسليم'],['completed','مكتمل'],['cancelled','ملغي']].map(([v,l])=>`<option value="${v}" ${String(selected||'')===v?'selected':''}>${l}</option>`).join('')}
