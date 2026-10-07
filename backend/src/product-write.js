@@ -95,7 +95,7 @@ function registerProductWrites(app, getProducts) {
           ''
         ).trim().slice(0,200) || null;
         const values = [name, String(body.description || ''), price, oldPrice === '' ? null : oldPrice, stock, mains ? mains[0] : existing.image_url,
-          category, brand, body.active ?? body.isActive ?? true, body.isFeatured ?? mergedMetadata.top5 ?? existing?.is_featured ?? false, body.isBestSeller ?? existing?.is_best_seller ?? false, cost, supplier, JSON.stringify(mergedMetadata)];
+          category, brand, body.active ?? body.isActive ?? existing?.is_active ?? true, body.isFeatured ?? mergedMetadata.top5 ?? existing?.is_featured ?? false, body.isBestSeller ?? existing?.is_best_seller ?? false, cost, supplier, JSON.stringify(mergedMetadata)];
         const result = id ? await client.query(`UPDATE products SET name=$1, description=$2, price=$3, old_price=$4, stock=$5, image_url=$6,
           category_id=$7, brand_id=$8, is_active=$9, is_featured=$10, is_best_seller=$11, cost_price=$12, supplier_name=$13, metadata=$14::jsonb, updated_at=NOW() WHERE id=$15 RETURNING id`, [...values, id])
           : await client.query(`INSERT INTO products (name, description, price, old_price, stock, image_url, category_id, brand_id, is_active, is_featured, is_best_seller, cost_price, supplier_name, metadata)
