@@ -374,3 +374,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .maintenanceCard h1{margin:0 0 10px;color:var(--lf-plum);font-family:Georgia,"Times New Roman",serif}
 .maintenanceCard p{margin:0 0 12px;color:var(--lf-ink);font-size:17px;line-height:1.75}
 .maintenanceCard small{display:block;color:var(--lf-muted);line-height:1.6}
+
+
+/* Customer availability history */
+.waitlistHistoryList{display:grid;gap:9px}
+.waitlistHistoryCard{
+  width:100%;display:grid;grid-template-columns:64px minmax(0,1fr) auto;
+  gap:10px;align-items:center;text-align:right;padding:9px;border:1px solid var(--lf-line);
+  border-radius:14px;background:#fff;color:var(--lf-ink);cursor:pointer
+}
+.waitlistHistoryCard img{width:64px;height:64px;object-fit:cover;border-radius:11px;background:var(--lf-cream)}
+.waitlistHistoryCopy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.waitlistHistoryCopy b{color:var(--lf-plum);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.waitlistHistoryCopy small{color:#776773}
+.waitlistHistoryOpen{font-size:12px;font-weight:700;color:var(--lf-plum);white-space:nowrap}
+@media(max-width:520px){
+  .waitlistHistoryCard{grid-template-columns:56px minmax(0,1fr)}
+  .waitlistHistoryCard img{width:56px;height:56px}
+  .waitlistHistoryOpen{grid-column:2}
+}
