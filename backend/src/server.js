@@ -4683,148 +4683,159 @@ app.patch(
   "/api/admin/inventory/:productId",
   requireAdmin,
   async (req, res) => {
-    const productId =
-      integer(
-        req.params.productId,
-        NaN
-      );
+    const productId=integer(req.params.productId,NaN);
+    const variantsSupplied=Array.isArray(req.body?.variants);
+    const requestedStock=variantsSupplied
+      ? null
+      : integer(req.body?.stock,NaN);
+    const supplierSupplied=
+      req.body?.supplierName !== undefined ||
+      req.body?.supplier_name !== undefined;
+    const supplierName=supplierSupplied
+      ? cleanText(req.body?.supplierName ?? req.body?.supplier_name ?? "").slice(0,200)
+      : undefined;
 
-    const requestedStock =
-      integer(
-        req.body.stock,
-        NaN
-      );
-
-    if (
-      !Number.isFinite(
-        productId
-      ) ||
-      !Number.isFinite(
-        requestedStock
-      ) ||
-      requestedStock < 0
-    ) {
-      return res.status(400).json({
-        ok: false,
-        message:
-          "بيانات المخزون غير صالحة"
-      });
+    if(!Number.isFinite(productId)){
+      return res.status(400).json({ok:false,message:"رقم المنتج غير صالح"});
     }
 
-    try {
-      const result =
-        await transaction(
-          async (client) => {
-            const current =
-              await client.query(
-                `
-                SELECT id, stock
-                FROM products
-                WHERE id = $1
-                FOR UPDATE
-                `,
-                [productId]
-              );
+    if(!variantsSupplied&&(!Number.isFinite(requestedStock)||requestedStock<0)){
+      return res.status(400).json({ok:false,message:"كمية المخزون غير صالحة"});
+    }
 
-            if (
-              !current.rowCount
-            ) {
-              throw createHttpError(
-                404,
-                "PRODUCT_NOT_FOUND",
-                "المنتج غير موجود"
+    const desiredVariants=variantsSupplied?req.body.variants:[];
+    if(variantsSupplied){
+      const names=new Set();
+      for(const v of desiredVariants){
+        const name=cleanText(v?.name ?? v?.color ?? "").slice(0,120);
+        const stock=integer(v?.stock,NaN);
+        if(!name||names.has(name)||!Number.isFinite(stock)||stock<0){
+          return res.status(400).json({ok:false,message:"بيانات الألوان/الخيارات غير صالحة أو مكررة"});
+        }
+        names.add(name);
+      }
+    }
+
+    try{
+      const result=await transaction(async client=>{
+        const current=await client.query(
+          "SELECT id,stock,supplier_name FROM products WHERE id=$1 FOR UPDATE",
+          [productId]
+        );
+        if(!current.rowCount)throw createHttpError(404,"PRODUCT_NOT_FOUND","المنتج غير موجود");
+
+        const previous=await client.query(
+          "SELECT id,color,size,stock,is_active FROM product_variants WHERE product_id=$1 FOR UPDATE",
+          [productId]
+        );
+        const previousRows=previous.rows;
+        const movementNote=cleanText(req.body?.note||"تعديل المخزون من لوحة التحكم").slice(0,500);
+        let finalStock=0;
+        let finalVariants=[];
+
+        if(variantsSupplied){
+          const kept=new Set();
+
+          for(const input of desiredVariants){
+            const name=cleanText(input?.name ?? input?.color ?? "").slice(0,120);
+            const stock=integer(input?.stock,0);
+            const suppliedId=input?.id!==undefined&&input?.id!==null&&input?.id!==""
+              ? integer(input.id,NaN)
+              : null;
+
+            let old=null;
+            if(suppliedId!==null){
+              if(!Number.isFinite(suppliedId))throw createHttpError(400,"INVALID_VARIANT","رقم اللون/الخيار غير صالح");
+              old=previousRows.find(v=>Number(v.id)===Number(suppliedId))||null;
+              if(!old)throw createHttpError(400,"INVALID_VARIANT","اللون/الخيار لا يتبع هذا المنتج");
+            }else{
+              old=previousRows.find(v=>String(v.color||"")===name&&!kept.has(Number(v.id)))||null;
+            }
+
+            let saved;
+            let oldStock=0;
+            if(old){
+              kept.add(Number(old.id));
+              oldStock=Math.max(0,Number(old.stock)||0);
+              saved=await client.query(
+                `UPDATE product_variants
+                 SET color=$1,stock=$2,is_active=TRUE,updated_at=NOW()
+                 WHERE id=$3 AND product_id=$4
+                 RETURNING *`,
+                [name,stock,old.id,productId]
+              );
+            }else{
+              saved=await client.query(
+                `INSERT INTO product_variants(product_id,color,stock,is_active,created_at,updated_at)
+                 VALUES($1,$2,$3,TRUE,NOW(),NOW())
+                 RETURNING *`,
+                [productId,name,stock]
+              );
+              kept.add(Number(saved.rows[0].id));
+            }
+
+            const diff=stock-oldStock;
+            if(diff!==0){
+              await client.query(
+                `INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at)
+                 VALUES($1,$2,$3,$4,NULL,NOW())`,
+                [productId,saved.rows[0].id,diff,movementNote+" — "+name]
               );
             }
 
-            const oldStock =
-              Number(
-                current.rows[0]
-                  .stock || 0
-              );
-
-            const difference =
-              requestedStock -
-              oldStock;
-
-            const updated =
-              await client.query(
-                `
-                UPDATE products
-                SET stock = $1,
-                    updated_at = NOW()
-                WHERE id = $2
-                RETURNING *
-                `,
-                [
-                  requestedStock,
-                  productId
-                ]
-              );
-
-            if (
-              difference !== 0
-            ) {
-              await client.query(
-                `
-                INSERT INTO inventory_movements (
-                  product_id,
-                  variant_id,
-                  quantity_change,
-                  reason,
-                  order_id,
-                  created_at
-                )
-                VALUES (
-                  $1,
-                  NULL,
-                  $2,
-                  $3,
-                  NULL,
-                  NOW()
-                )
-                `,
-                [
-                  productId,
-                  difference,
-                  cleanText(
-                    req.body.note ||
-                    "تعديل يدوي للمخزون",
-                    500
-                  )
-                ]
-              );
-            }
-
-            return updated.rows[0];
+            finalVariants.push(saved.rows[0]);
+            finalStock+=stock;
           }
+
+          for(const old of previousRows){
+            if(kept.has(Number(old.id)))continue;
+            const oldStock=Math.max(0,Number(old.stock)||0);
+            if(oldStock!==0){
+              await client.query(
+                `INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at)
+                 VALUES($1,$2,$3,$4,NULL,NOW())`,
+                [productId,old.id,-oldStock,movementNote+" — إزالة "+(old.color||"خيار")]
+              );
+            }
+            await client.query(
+              "UPDATE product_variants SET stock=0,is_active=FALSE,updated_at=NOW() WHERE id=$1 AND product_id=$2",
+              [old.id,productId]
+            );
+          }
+        }else{
+          const oldStock=Math.max(0,Number(current.rows[0].stock)||0);
+          finalStock=requestedStock;
+          const diff=finalStock-oldStock;
+          if(diff!==0){
+            await client.query(
+              `INSERT INTO inventory_movements(product_id,variant_id,quantity_change,reason,order_id,created_at)
+               VALUES($1,NULL,$2,$3,NULL,NOW())`,
+              [productId,diff,movementNote]
+            );
+          }
+          finalVariants=previousRows.filter(v=>v.is_active!==false);
+        }
+
+        const updated=await client.query(
+          `UPDATE products
+           SET stock=$1,
+               supplier_name=CASE WHEN $2::boolean THEN $3 ELSE supplier_name END,
+               updated_at=NOW()
+           WHERE id=$4
+           RETURNING *`,
+          [finalStock,supplierSupplied,supplierName||null,productId]
         );
 
-      return res.json({
-        ok: true,
-        product: result
+        return {product:updated.rows[0],variants:finalVariants};
       });
-    } catch (error) {
-      console.error(
-        "[INVENTORY UPDATE]",
-        error
-      );
 
-      if (
-        error.status
-      ) {
-        return res.status(
-          error.status
-        ).json({
-          ok: false,
-          message:
-            error.message
-        });
-      }
-
-      return res.status(500).json({
-        ok: false,
-        message:
-          "تعذر تحديث المخزون"
+      return res.json({ok:true,...result,message:"تم تحديث المخزون والألوان والمورد"});
+    }catch(error){
+      console.error("[INVENTORY UPDATE]",error);
+      return res.status(error.status||500).json({
+        ok:false,
+        code:error.code||"INVENTORY_UPDATE_ERROR",
+        message:error.message||"تعذر تحديث المخزون"
       });
     }
   }
