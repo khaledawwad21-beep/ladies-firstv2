@@ -8,6 +8,7 @@ const path = require("node:path");
 const { validateHomepageSettings } = require("../src/homepage-settings");
 const server = fs.readFileSync(path.join(__dirname, "../src/server.js"), "utf8");
 const admin = fs.readFileSync(path.join(__dirname, "../../frontend/admin.js"), "utf8");
+const app = fs.readFileSync(path.join(__dirname, "../../frontend/app.js"), "utf8");
 
 test("social links use the production settings key and safe URLs", () => {
   const clean = validateHomepageSettings({
@@ -26,6 +27,11 @@ test("social links use the production settings key and safe URLs", () => {
   );
   assert.match(admin, /settings\?\.social_links\|\|d\.settings\?\.social/);
   assert.match(admin, /JSON\.stringify\(\{social_links\}\)/);
+});
+
+test("storefront hides inactive and empty social links", () => {
+  assert.match(app, /filter\(x=>x\.enabled!==false&&String\(x\.url\|\|''\)\.trim\(\)\)/);
+  assert.doesNotMatch(app, /aria-disabled="true" style="opacity:\.62/);
 });
 
 test("WhatsApp number is configurable and no longer reset on startup or public reads", () => {
