@@ -66,3 +66,14 @@ test("social admin normalizes object-shaped settings and shows official platform
   assert.match(admin,/fa-brands fa-instagram/);
   assert.doesNotMatch(adminHtml,/admin\.js\?v=20261006/);
 });
+
+
+test("inventory editor manages supplier colors and quantities together",()=>{
+  assert.match(admin,/function editInventoryProduct\(/);
+  assert.match(admin,/inventorySupplier/);
+  assert.match(admin,/inventoryVariantName/);
+  assert.match(admin,/inventoryVariantStock/);
+  assert.match(admin,/supplierName/);
+  assert.match(server,/supplier_name/);
+  assert.match(server,/بيانات الألوان\/الخيارات غير صالحة أو مكررة/);
+});
