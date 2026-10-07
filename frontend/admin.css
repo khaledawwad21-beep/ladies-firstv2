@@ -80,3 +80,11 @@ input[type="date"]{cursor:pointer}
   .print .qrrow canvas,.print .qrrow img{width:72px!important;height:72px!important}
   .print .qrrow b{font-size:9px}
 }
+
+.admin-greeting{font-size:12px;opacity:.9;margin-top:4px}
+.staff-login-message{padding:6px 0}
+.staff-message-copy{font-size:16px;line-height:1.8;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fffafc;white-space:normal}
+.staff-message-preview{margin:8px 0;line-height:1.65}
+.maintenance-admin-card{border-color:#e1c6cf;background:#fffafb}
+.maintenance-admin-card h2{display:flex;align-items:center;gap:7px}
+.user-order-block,.cancellation-fields{padding:10px;border:1px solid var(--line);border-radius:12px;background:#faf6f8}
