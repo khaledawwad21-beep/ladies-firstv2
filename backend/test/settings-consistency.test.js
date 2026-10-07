@@ -29,9 +29,12 @@ test("social links use the production settings key and safe URLs", () => {
   assert.match(admin, /JSON\.stringify\(\{social_links\}\)/);
 });
 
-test("storefront hides inactive and empty social links", () => {
-  assert.match(app, /filter\(x=>x\.enabled!==false&&String\(x\.url\|\|''\)\.trim\(\)\)/);
-  assert.doesNotMatch(app, /aria-disabled="true" style="opacity:\.62/);
+test("storefront shows all active social platforms and marks missing URLs", () => {
+  assert.match(app, /Object\.values\(links\)\.filter\(x=>x\.enabled!==false\)/);
+  assert.match(app, /String\(x\.url\|\|''\)\.trim\(\)/);
+  assert.match(app, /is-unconfigured/);
+  assert.match(app, /الرابط غير مضاف بعد/);
+  assert.doesNotMatch(app, /href="javascript:/);
 });
 
 test("WhatsApp number is configurable and no longer reset on startup or public reads", () => {
