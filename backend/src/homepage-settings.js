@@ -27,7 +27,7 @@ function validateHomepageSettings(incoming) {
     if (!Array.isArray(incoming.hero_slides) || incoming.hero_slides.length > 12) invalid('الحد الأقصى 12 صورة للسلايدر');
     result.hero_slides = incoming.hero_slides.map((slide, index) => {
       if (!slide || typeof slide !== 'object' || Array.isArray(slide)) invalid('بيانات صورة السلايدر غير صالحة');
-      const clean = {id: 'slide-' + (index + 1), image: imageUrl(slide.image)};
+      const clean = {id: 'slide-' + (index + 1), image: imageUrl(slide.image), mobileImage: slide.mobileImage ? imageUrl(slide.mobileImage) : ''};
       for (const key of ['titleAr', 'titleEn', 'descAr', 'descEn']) {
         const value = slide[key] ?? '';
         if (typeof value !== 'string' || value.length > (key.startsWith('title') ? 200 : 1000)) invalid('نص السلايدر طويل أو غير صالح');

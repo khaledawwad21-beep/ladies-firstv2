@@ -22,13 +22,13 @@ async function request(route,body,role='owner') {
   return fetch(base+route,{method:body?'PUT':'GET',headers:{'Content-Type':'application/json',...(role?{Authorization:'Bearer '+createToken({id:role==='customer'?2:1,role})}:{})},...(body?{body:JSON.stringify(body)}:{})});
 }
 test('homepage updates require admin and persist through public settings reads',async()=>{
-  const body={hero_slides:[{image:'/api/images/test',titleAr:' عنوان ',descEn:'Description'},{image:'https://example.test/banner.jpg',titleEn:'Second'}],hero_text_style:style};
+  const body={hero_slides:[{image:'/api/images/test',mobileImage:'/api/images/mobile-test',titleAr:' عنوان ',descEn:'Description'},{image:'https://example.test/banner.jpg',titleEn:'Second'}],hero_text_style:style};
   assert.equal((await request('/api/admin/settings',body,null)).status,401);
   assert.equal((await request('/api/admin/settings',body,'customer')).status,403);
   assert.equal((await request('/api/admin/settings',{store_name:'Keep this setting'})).status,200);
   assert.equal((await request('/api/admin/settings',body)).status,200);
   saved=(await (await request('/api/settings',null,null)).json()).settings;
-  assert.equal(saved.hero_slides[0].titleAr,'عنوان');assert.equal(saved.hero_slides[1].titleEn,'Second');
+  assert.equal(saved.hero_slides[0].titleAr,'عنوان');assert.equal(saved.hero_slides[0].mobileImage,'/api/images/mobile-test');assert.equal(saved.hero_slides[1].titleEn,'Second');
   assert.deepEqual(saved.hero_text_style,style);assert.equal(saved.store_name,'Keep this setting');
   const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3XcAAAAASUVORK5CYII=';
   const uploaded=await fetch(base+'/api/admin/uploads/image',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+createToken({id:1,role:'owner'})},body:JSON.stringify({data:image})});
@@ -70,6 +70,7 @@ test('actual storefront respects configured order and text, repeats images with 
   const context=vm.createContext({load:(key,fallback)=>state[key]??fallback,LOGO:'/logo.png',DEFAULT_HERO:{image:'/logo.png'},currentLang:'ar'});
   vm.runInContext(functions,context);
   assert.deepEqual(Array.from(context.heroSlides(),x=>x.image),['/api/images/test','https://example.test/banner.jpg','/api/images/test']);
+  assert.equal(context.heroSlides()[0].mobileImage,'/api/images/mobile-test');
   assert.equal(context.heroSlides()[0].title,'عنوان');assert.equal(context.heroSlides()[2].title,'عنوان آخر');
   context.currentLang='en';assert.equal(context.heroSlides()[1].title,'Second');
   state.lf_hero_slides=[];assert.equal(context.heroSlides()[0].image,'/default.png');
