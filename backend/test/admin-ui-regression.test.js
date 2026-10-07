@@ -15,8 +15,9 @@ const server=fs.readFileSync(path.join(__dirname,"../src/server.js"),"utf8");
 test("admin dashboard cards navigate to their sections",()=>{
   assert.match(admin,/function openAdminSection\(/);
   assert.match(admin,/admin-stat-link/);
-  assert.match(admin,/openAdminSection\('users'\)/);
-  assert.match(admin,/openAdminSection\('inventory'\)/);
+  assert.match(admin,/\['العملاء',x\.customers,'users'\]/);
+  assert.match(admin,/\['مخزون منخفض',x\.lowStock,'inventory'\]/);
+  assert.match(admin,/onclick="openAdminSection\('\$\{a\[2\]\}'\)"/);
 });
 
 test("admin search fields are live without search buttons",()=>{
