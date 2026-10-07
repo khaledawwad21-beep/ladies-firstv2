@@ -196,6 +196,32 @@ function closeOrderDetail(){const m=document.getElementById('orderDetailModal');
 function reorder(id){const o=load('lf_orders',[]).find(x=>String(x.id)===String(id));if(!o)return;let added=0,skipped=0,giftsSkipped=0;(o.items||[]).forEach(it=>{if(it.isGift){giftsSkipped++;return}const p=products.find(x=>Number(x.id)===Number(it.productId));if(!p){skipped++;return}const available=variantStock(p,it.variant||'');const want=Math.max(1,Number(it.qty)||1);if(available<=0){skipped++;return}const qty=Math.min(want,available);addToCart(p.id,qty,it.variant||'',it.packagingId||'');added+=qty;if(qty<want)skipped++});closeOrderDetail();closeAccount();openCart();const notes=[];if(skipped)notes.push(skipped+' من القطع لم تعد متوفرة بالكمية المطلوبة.');if(giftsSkipped)notes.push('الهدايا السابقة لا تُعاد تلقائيًا للسلة.');if(notes.length)alert(`تمت إعادة إضافة ${added} قطعة 🌸\n`+notes.join('\n'))}
 function renderSideAccountGreeting(){const el=document.getElementById('sideAccountGreeting');if(!el)return;const a=getAccount();el.innerHTML=a?`<div class="sideGreeting">${greetingForAccount(a)}، <b>${esc(a.name||'سيدتي')}</b> 🩷</div><button class="sideAccountBtn" onclick="openAccount();toggleSideMenu()">👤 حسابي وطلباتي</button>`:`<button class="sideAccountBtn" onclick="openAccount();toggleSideMenu()">👤 تسجيل الدخول الاختياري</button>`}
 function localPhoneForAccount(a){const raw=String(a?.contact||'').trim();if(!raw)return '';const n=normalizePhone(raw,a?.countryIso||'PS');if(!n.startsWith('+'))return raw;const dial=String(COUNTRY_DIAL_CODES[a?.countryIso||'PS']||'');if(dial&&n.slice(1,1+dial.length)===dial)return '0'+n.slice(1+dial.length);return n.slice(1)}
+function accountWaitlistStatusLabel(status){
+  return ({waiting:'بانتظار التوفر',notified:'تم الإشعار',closed:'مغلق'})[String(status||'').toLowerCase()]||String(status||'-');
+}
+function openAccountWaitlistProduct(id){
+  closeAccount();
+  openProduct(Number(id));
+}
+async function lfLoadMyWaitlist(){
+  const box=document.getElementById('accountWaitlistHistory');
+  if(!box||!lfToken())return;
+  box.innerHTML='<div class="empty">جاري تحميل سجل التوفر…</div>';
+  try{
+    const d=await lfFetch('/api/waitlist/mine');
+    const rows=Array.isArray(d.requests)?d.requests:[];
+    box.innerHTML=rows.length?rows.map(x=>{
+      const image=safeImg(x.productImage,LOGO);
+      const status=accountWaitlistStatusLabel(x.status);
+      const when=x.createdAt?new Date(x.createdAt).toLocaleString('ar-PS'):'';
+      const notified=x.notifiedAt?'<small>تم الإشعار: '+esc(new Date(x.notifiedAt).toLocaleString('ar-PS'))+'</small>':'';
+      return `<button type="button" class="waitlistHistoryCard" onclick="openAccountWaitlistProduct(${Number(x.productId)})"><img src="${image}" alt=""><span class="waitlistHistoryCopy"><b>${esc(x.productName||'منتج')}</b><small>${x.variant?'الخيار: '+esc(x.variant)+' • ':''}${esc(status)}</small><small>${esc(when)}</small>${notified}</span><span class="waitlistHistoryOpen">فتح المنتج</span></button>`;
+    }).join(''):'<div class="empty">لا توجد طلبات في سجل التوفر لهذا الحساب.</div>';
+  }catch(e){
+    box.innerHTML='<div class="empty">'+esc(e.message||'تعذر تحميل سجل التوفر')+'</div>';
+  }
+}
+
 function renderAccountContent(){
   const el=document.getElementById('accountContent');
   if(!el)return;
@@ -254,6 +280,7 @@ function renderAccountContent(){
     <button class="add secondaryAdd" type="button" onclick="changeAccountPassword()">تغيير كلمة المرور</button>
     <h3>❤️ المفضلة (${fav.length})</h3><div class="favoritesRow">${fav.length?favoriteCards():'<div class="empty">لم تضيفي منتجات للمفضلة بعد.</div>'}</div>
     <h3>🛍️ السلة الحالية: ${cart.length} أصناف</h3><button class="add" onclick="closeAccount();openCart()">فتح السلة</button>
+    <h3 style="margin-top:16px">🔔 سجل التوفر</h3><div id="accountWaitlistHistory" class="waitlistHistoryList"><div class="empty">جاري تحميل سجل التوفر…</div></div>
     <h3 style="margin-top:16px">📋 مشترياتي السابقة</h3><div class="ordersList">${orders.length?orders.map(o=>`<div class="orderSummaryCard"><div><b>#${o.id}</b><br><small>${esc(o.date||'')}</small></div><div><b>${Number(o.total||0).toFixed(2)} ₪</b><br><small>${esc(o.status||'جديد')}</small></div><button type="button" onclick="viewOrder(${o.id})">التفاصيل</button></div>`).join(''):'<div class="empty">لا توجد طلبات محفوظة لهذا الحساب بعد.</div>'}</div>`;
   if(a.type==='whatsapp'){
     initCountrySelectors();
@@ -261,6 +288,7 @@ function renderAccountContent(){
     if(sel){sel.value=a.countryIso||'PS';syncCountryDialPreview('accountCountryEdit','accountContactEdit')}
   }
   loadCustomerPasskeyStatus();
+  lfLoadMyWaitlist();
 }
 
 let accountMode='whatsapp',accountActionMode='login';
