@@ -3723,6 +3723,7 @@ app.post("/api/returns", requireAuth, async (req,res)=>{
         throw createHttpError(400,"RETURN_WINDOW_EXPIRED","انتهت مهلة الإرجاع/الاستبدال (12 ساعة من الاستلام)");
       const item=await client.query(`SELECT * FROM order_items WHERE id=$1 AND order_id=$2`,[orderItemId,orderId]);
       if(!item.rowCount)throw createHttpError(404,"ITEM_NOT_FOUND","المنتج غير موجود في هذا الطلب");
+      if(item.rows[0].is_gift===true)throw createHttpError(400,"GIFT_NOT_RETURNABLE","الهدية المجانية لا تدخل ضمن الإرجاع أو الاستبدال");
       const purchasedQty=Number(item.rows[0].quantity||0);
       const reserved=await client.query(
         `SELECT COALESCE(SUM(quantity),0)::int AS qty
