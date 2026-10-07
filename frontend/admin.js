@@ -15,6 +15,28 @@ async function bootstrapOwner(){const password=$('#osPass').value;if(password.le
 async function changeOwnPassword(){const current=$('#cpCurrent')?.value||'',next=$('#cpNew')?.value||'';if(next.length<12)return alert('كلمة المرور الجديدة يجب أن تكون 12 خانة على الأقل');try{await api('/api/auth/password',{method:'PATCH',body:JSON.stringify({currentPassword:current,newPassword:next})});alert('تم تغيير كلمة المرور بنجاح');$('#cpCurrent').value='';$('#cpNew').value=''}catch(e){alert(e.message)}}
 
 function toast(x){let t=$('#toast');t.textContent=x;t.style.cssText='display:block;position:fixed;bottom:18px;left:18px;background:#63345e;color:white;padding:12px 16px;border-radius:10px;z-index:20';setTimeout(()=>t.style.display='none',2500)}
+
+const adminLiveTimers=new Map();
+function liveDebounce(key,fn,delay=260){
+  clearTimeout(adminLiveTimers.get(key));
+  adminLiveTimers.set(key,setTimeout(()=>{adminLiveTimers.delete(key);fn()},delay));
+}
+function initDateInputs(root=document){
+  root.querySelectorAll?.('input[type="date"]').forEach(el=>{
+    if(el.dataset.lfDateReady==='1')return;
+    el.dataset.lfDateReady='1';
+    el.addEventListener('click',()=>{try{if(typeof el.showPicker==='function')el.showPicker()}catch{}});
+  });
+}
+const adminDateObserver=new MutationObserver(records=>{
+  for(const record of records){
+    for(const node of record.addedNodes){
+      if(node&&node.nodeType===1)initDateInputs(node);
+    }
+  }
+});
+adminDateObserver.observe(document.documentElement,{childList:true,subtree:true});
+initDateInputs();
 const titles={dashboard:'الرئيسية',users:'المستخدمون',products:'المنتجات',inventory:'المخزون',orders:'الطلبات والفواتير',returns:'الإرجاع والاستبدال',waitlist:'قائمة التوفر',finance:'الحسابات',offers:'العروض والحملات',catalog:'التصنيفات والعلامات',coupons:'الكوبونات',reports:'التقارير',homepage:'الصفحة الرئيسية',social:'مواقع التواصل',settings:'الإعدادات',staff:'الموظفون والصلاحيات'};
 const permissionLabels={dashboard:'الرئيسية',products:'المنتجات',inventory:'المخزون',orders:'الطلبات وقائمة التوفر',users:'المستخدمون',catalog:'الفئات والبراندات',coupons:'أكواد الخصم',reports:'التقارير والحسابات',offers:'العروض وواتساب',settings:'الإعدادات والصفحة الرئيسية',staff:'عرض الموظفين'};
 const sectionPermissions={dashboard:'dashboard',products:'products',inventory:'inventory',orders:'orders',returns:'orders',waitlist:'orders',users:'users',finance:'reports',offers:'offers',catalog:'catalog',coupons:'coupons',reports:'reports',homepage:'settings',social:'settings',settings:'settings',staff:'staff'};
@@ -395,5 +417,5 @@ function homepage(){$('#sections').innerHTML='<div class="card"><h2>الصفحة
 function waitStatusLabel(s){return s==='notified'?'تم الإشعار':s==='closed'?'مغلق':'بانتظار التوفر'}
 async function waitlist(){const status=$('#wls')?.value||'',search=$('#wlq')?.value||'',d=await api('/api/admin/waitlist?status='+encodeURIComponent(status)+'&search='+encodeURIComponent(search));$('#sections').innerHTML=`<div class="card"><h2>قائمة التوفر</h2><p>طلبات الزبائن محفوظة في قاعدة البيانات وليست على الجهاز فقط.</p><div class="toolbar"><input id="wlq" class="field" placeholder="بحث بالمنتج أو الاسم أو الهاتف" value="${E(search)}"><select id="wls" class="field"><option value="" ${status===''?'selected':''}>كل الحالات</option><option value="waiting" ${status==='waiting'?'selected':''}>بانتظار التوفر</option><option value="notified" ${status==='notified'?'selected':''}>تم الإشعار</option><option value="closed" ${status==='closed'?'selected':''}>مغلق</option></select><button class="btn primary" onclick="waitlist()">تحديث</button></div>${table(['المنتج','الزبون','الهاتف','الخيار','الحالة','التاريخ',''],(d.requests||[]).map(x=>`<tr><td><button class="btn" onclick="window.open('/#product-${Number(x.productId)}','_blank')">${x.productImage?`<img src="${E(x.productImage)}" alt="" style="width:42px;height:42px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-left:6px">`:''}${E(x.productName||'منتج')}</button></td><td>${E(x.name||'-')}</td><td>${E(x.phone||'-')}</td><td>${E(x.variant||'-')}</td><td>${waitStatusLabel(x.status)}</td><td>${x.createdAt?new Date(x.createdAt).toLocaleString('ar'):'-'}</td><td><div class="actions">${x.status==='waiting'?`<button class="btn primary" onclick="setWaitlistStatus(${x.id},'notified')">تم الإشعار</button>`:''}<button class="btn" onclick="setWaitlistStatus(${x.id},'${x.status==='closed'?'waiting':'closed'}')">${x.status==='closed'?'إعادة فتح':'إغلاق'}</button></div></td></tr>`))}</div>`}
 async function setWaitlistStatus(id,status){await api('/api/admin/waitlist/'+id,{method:'PATCH',body:JSON.stringify({status})});toast(status==='notified'?'تم تسجيل الإشعار':'تم تحديث طلب التوفر');waitlist()}
-function modal(t,b){$('#mt').textContent=t;$('#mb').innerHTML=b;$('#modal').classList.add('open')}function closeModal(){$('#modal').classList.remove('open')}
+function modal(t,b){$('#mt').textContent=t;$('#mb').innerHTML=b;$('#modal').classList.add('open');initDateInputs($('#modal'))}function closeModal(){$('#modal').classList.remove('open')}
 (async()=>{const token=localStorage.getItem('lf_admin_token');if(token){await showApp()}else{showLogin()}})()
