@@ -647,7 +647,23 @@ async function saveReturnRequest(id){
 async function finance(){const today=new Date().toISOString().slice(0,10),month=today.slice(0,8)+'01';$('#sections').innerHTML=`<div class="card"><h2>الحسابات</h2><div class="toolbar"><button class="btn" onclick="financeRange('today')">اليوم</button><button class="btn" onclick="financeRange('month')">هذا الشهر</button><label>من <input id="ff" type="date" class="field" value="${month}" onchange="financeRun()"></label><label>إلى <input id="ft" type="date" class="field" value="${today}" onchange="financeRun()"></label></div><div id="financeSummary"></div></div>`;await financeRun()}
 function financeRange(mode){const today=new Date().toISOString().slice(0,10),from=mode==='today'?today:today.slice(0,8)+'01';if($('#ff'))$('#ff').value=from;if($('#ft'))$('#ft').value=today;financeRun()}
 async function financeRun(){const from=$('#ff')?.value,to=$('#ft')?.value,target=$('#financeSummary');if(!target||!from||!to)return;if(from>to){target.textContent='تاريخ البداية يجب أن يكون قبل النهاية أو مساوياً لها.';return}target.textContent='جاري تحميل الحسابات…';try{const d=await api('/api/admin/reports/sales?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to)),s=d.summary||{};target.innerHTML=`<div class="cards"><div class="stat">الطلبات<b>${s.orders||0}</b></div><div class="stat">صافي المبيعات<b>${M(s.sales)} ₪</b></div><div class="stat">صافي تكلفة البضاعة<b>${M(s.cost)} ₪</b></div><div class="stat">تكلفة الهدايا<b>${M(s.giftCost||0)} ₪</b></div><div class="stat">صافي الربح<b>${M(s.profit)} ₪</b></div><div class="stat">المرتجعات النقدية الفعلية<b>${M(s.returnsValue)} ₪</b></div><div class="stat">قيمة المرتجعات قبل الخصومات<b>${M(s.returnsGrossValue)} ₪</b></div><div class="stat">فرق الاستبدال<b>${M(s.exchangeDifference)} ₪</b></div><div class="stat">رسوم الإرجاع/الاستبدال<b>${M(s.returnServiceFees)} ₪</b></div><div class="stat">توصيل أخطاء المتجر<b>${M(s.storeDeliveryCost)} ₪</b></div><div class="stat">الملغاة<b>${s.cancelled||0}</b></div></div><div class="notice">الحساب يعتمد على تكلفة الشراء المحفوظة مع كل منتج وقت الطلب، والطلبات الملغاة لا تدخل في المبيعات أو الربح.</div>`}catch(e){target.textContent=e.message||'تعذر تحميل الحسابات'}}
-async function catalog(){let[c,b]=await Promise.all([api('/api/categories'),api('/api/brands')]);$('#sections').innerHTML=`<div class="grid"><div class="card"><h2>التصنيفات</h2><div class="toolbar catalog-add-row"><input id="cn" class="field compact-field" placeholder="اسم الفئة الجديدة"><button class="btn primary" onclick="addCat()">إضافة</button></div>${table(['الاسم'],(c.categories||[]).map(x=>`<tr><td>${E(x.name)}</td></tr>`))}</div><div class="card"><h2>البراندات</h2><div class="toolbar catalog-add-row"><input id="bn" class="field compact-field" placeholder="اسم البراند الجديد"><button class="btn primary" onclick="addBrand()">إضافة</button></div>${table(['الاسم'],(b.brands||[]).map(x=>`<tr><td>${E(x.name)}</td></tr>`))}</div></div>`}async function addCat(){await api('/api/admin/categories',{method:'POST',body:JSON.stringify({name:$('#cn').value})});catalog()}async function addBrand(){await api('/api/admin/brands',{method:'POST',body:JSON.stringify({name:$('#bn').value})});catalog()}
+let adminCategoryCache=[],adminBrandCache=[];
+function renderCatalogRows(){
+  const cq=String($('#categorySearch')?.value||'').trim().toLowerCase();
+  const bq=String($('#brandSearch')?.value||'').trim().toLowerCase();
+  const cbox=$('#categoryRows'),bbox=$('#brandRows');
+  if(cbox)cbox.innerHTML=table(['الاسم'],adminCategoryCache.filter(x=>!cq||String(x.name||'').toLowerCase().includes(cq)).map(x=>`<tr><td>${E(x.name)}</td></tr>`));
+  if(bbox)bbox.innerHTML=table(['الاسم'],adminBrandCache.filter(x=>!bq||String(x.name||'').toLowerCase().includes(bq)).map(x=>`<tr><td>${E(x.name)}</td></tr>`));
+}
+async function catalog(){
+  const[c,b]=await Promise.all([api('/api/categories'),api('/api/brands')]);
+  adminCategoryCache=c.categories||[];
+  adminBrandCache=b.brands||[];
+  $('#sections').innerHTML=`<div class="grid"><div class="card"><h2>التصنيفات</h2><div class="toolbar catalog-add-row"><input id="categorySearch" class="field compact-field" placeholder="بحث مباشر بالفئة" oninput="renderCatalogRows()"><input id="cn" class="field compact-field" placeholder="اسم الفئة الجديدة"><button class="btn primary" onclick="addCat()">إضافة</button></div><div id="categoryRows"></div></div><div class="card"><h2>البراندات</h2><div class="toolbar catalog-add-row"><input id="brandSearch" class="field compact-field" placeholder="بحث مباشر بالبراند" oninput="renderCatalogRows()"><input id="bn" class="field compact-field" placeholder="اسم البراند الجديد"><button class="btn primary" onclick="addBrand()">إضافة</button></div><div id="brandRows"></div></div></div>`;
+  renderCatalogRows();
+}
+async function addCat(){await api('/api/admin/categories',{method:'POST',body:JSON.stringify({name:$('#cn').value})});catalog()}
+async function addBrand(){await api('/api/admin/brands',{method:'POST',body:JSON.stringify({name:$('#bn').value})});catalog()}
 let adminCouponsCache=[];
 
 function couponDateValue(value){
@@ -896,7 +912,22 @@ async function saveSocial(){
   toast('تم حفظ مواقع التواصل');
   await social();
 }
-async function staff(){let d=await api('/api/admin/staff'),isOwner=String(currentAdminUser?.role||'').toLowerCase()==='owner';$('#sections').innerHTML=`<div class="card"><h2>الموظفون والصلاحيات</h2>${isOwner?'<button class="btn primary" onclick="staffForm()">+ موظف</button>':''}${table(['الاسم','البريد','الهاتف','الدور','الصلاحيات','الحالة',''],(d.staff||[]).map(x=>`<tr><td>${E(x.name)}</td><td>${E(x.email)}</td><td>${E(x.phone||'-')}</td><td>${E(x.role)}</td><td>${E(staffPermissionText(x))}</td><td>${x.is_active?'فعال':'متوقف'}</td><td>${isOwner&&x.role!=='owner'?`<button class="btn" onclick='editStaff(${E(JSON.stringify(x))})'>تعديل الصلاحيات</button>`:''}</td></tr>`))}</div>`}
+let adminStaffCache=[];
+function renderStaffRows(){
+  const box=$('#staffRows');if(!box)return;
+  const q=String($('#staffSearch')?.value||'').trim().toLowerCase();
+  const isOwner=String(currentAdminUser?.role||'').toLowerCase()==='owner';
+  const list=adminStaffCache.filter(x=>!q||[
+    x.name||'',x.email||'',x.phone||'',x.role||'',staffPermissionText(x)
+  ].join(' ').toLowerCase().includes(q));
+  box.innerHTML=table(['الاسم','البريد','الهاتف','الدور','الصلاحيات','الحالة',''],list.map(x=>`<tr><td>${E(x.name)}</td><td>${E(x.email)}</td><td>${E(x.phone||'-')}</td><td>${E(x.role)}</td><td>${E(staffPermissionText(x))}</td><td>${x.is_active?'فعال':'متوقف'}</td><td>${isOwner&&x.role!=='owner'?`<button class="btn" onclick='editStaff(${E(JSON.stringify(x))})'>تعديل الصلاحيات</button>`:''}</td></tr>`));
+}
+async function staff(){
+  const d=await api('/api/admin/staff'),isOwner=String(currentAdminUser?.role||'').toLowerCase()==='owner';
+  adminStaffCache=d.staff||[];
+  $('#sections').innerHTML=`<div class="card"><h2>الموظفون والصلاحيات</h2><div class="toolbar"><input id="staffSearch" class="field" placeholder="بحث مباشر بالاسم أو البريد أو الهاتف أو الدور" oninput="renderStaffRows()">${isOwner?'<button class="btn primary" onclick="staffForm()">+ موظف</button>':''}</div><div id="staffRows"></div></div>`;
+  renderStaffRows();
+}
 function staffForm(){modal('موظف جديد',`<div class="formgrid"><input id="sn" class="field" placeholder="الاسم"><input id="se" class="field" placeholder="البريد"><input id="sp" class="field" placeholder="الهاتف"><input id="sw" class="field" type="password" minlength="12" placeholder="كلمة المرور — 12 خانة على الأقل"><select id="sr" class="field"><option value="staff">موظف بصلاحيات محددة</option><option value="admin">Admin — كل الصلاحيات</option></select></div><h3>صلاحيات الموظف</h3><div class="formgrid">${permissionChecks([])}</div><div class="actions"><button class="btn primary" onclick="saveStaff()">حفظ</button></div>`)}
 async function saveStaff(){const password=$('#sw').value||'';if(password.length<12)return alert('كلمة المرور يجب أن تكون 12 خانة على الأقل');await api('/api/admin/staff',{method:'POST',body:JSON.stringify({name:$('#sn').value,email:$('#se').value,phone:$('#sp').value,password,role:$('#sr').value,permissions:selectedStaffPermissions()})});closeModal();toast('تم إنشاء الموظف');staff()}
 function editStaff(x){modal('تعديل صلاحيات '+E(x.name||''),`<div class="formgrid"><select id="esr" class="field"><option value="staff" ${x.role==='staff'?'selected':''}>موظف بصلاحيات محددة</option><option value="admin" ${x.role==='admin'?'selected':''}>Admin — كل الصلاحيات</option></select><label style="display:flex;gap:8px;align-items:center"><input id="esa" type="checkbox" ${x.is_active?'checked':''}> الحساب فعال</label></div><h3>الصلاحيات</h3><div class="formgrid">${permissionChecks(x.permissions||[])}</div><div class="actions"><button class="btn primary" onclick="saveStaffEdit(${Number(x.id)})">حفظ التعديلات</button></div>`)}
