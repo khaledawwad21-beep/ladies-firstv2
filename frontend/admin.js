@@ -446,7 +446,39 @@ async function enableAdminPasskey(){if(!window.LFPasskeys?.supported())return al
 async function removeAdminPasskey(id){if(!confirm('حذف هذه البصمة من حساب الإدارة؟'))return;try{await api('/api/passkeys/'+encodeURIComponent(id),{method:'DELETE'});toast('تم حذف البصمة');await loadAdminPasskeyStatus()}catch(e){alert(e.message||'تعذر حذف البصمة')}}
 async function saveSettings(){capturePackagingOptions();const body={store_name:$('#stn').value,phone:$('#stp').value,whatsapp:$('#stw').value,whatsapp_number:$('#stw').value,currency:$('#cur').value,return_policy:$('#rp').value,abandoned_cart_whatsapp_enabled:!!$('#abandonedWa')?.checked,low_stock_whatsapp_enabled:!!$('#lowStockWa')?.checked,loyalty_enabled:!!$('#loyaltyEnabled')?.checked,loyalty_redeem_enabled:!!$('#loyaltyRedeem')?.checked,loyalty_earning_mode:$('#loyaltyMode').value==='order'?'order':'amount',loyalty_points_per_currency:Math.max(0,Number($('#loyaltyRate').value)||0),loyalty_points_per_order:Math.max(0,Math.floor(Number($('#loyaltyPerOrder').value)||0)),loyalty_point_value:Math.max(0,Number($('#loyaltyPointValue').value)||0),visa_discount_percent:Math.min(100,Math.max(0,Number($('#visaDiscount').value)||0)),shipping_fees:{westbank:Math.max(0,Number($('#shipWestbank').value)||0),jerusalem:Math.max(0,Number($('#shipJerusalem').value)||0),inside:Math.max(0,Number($('#shipInside').value)||0)},shipping_discount_percentages:{westbank:Math.min(100,Math.max(0,Number($('#shipDiscountWestbank').value)||0)),jerusalem:Math.min(100,Math.max(0,Number($('#shipDiscountJerusalem').value)||0)),inside:Math.min(100,Math.max(0,Number($('#shipDiscountInside').value)||0))},packaging_options:adminPackagingOptions};await api('/api/admin/settings',{method:'PUT',body:JSON.stringify(body)});toast('تم حفظ الإعدادات');}
 async function cartReminders(){const d=await api('/api/admin/cart-reminders');const abandoned=d.abandoned||[],low=d.lowStock||[];modal('تنبيهات السلة',`<div class="cards"><div class="stat">سلات متروكة<b>${abandoned.length}</b></div><div class="stat">قرب نفاد<b>${low.length}</b></div></div><h3>بعد 7 أيام</h3>${table(['العميل','الهاتف','القطع','آخر نشاط'],abandoned.map(x=>`<tr><td>${E(x.name||'-')}</td><td>${E(x.phone||'-')}</td><td>${x.itemCount||0}</td><td>${x.lastActivityAt?new Date(x.lastActivityAt).toLocaleString('ar'):'-'}</td></tr>`))}<h3>منتجات قربت تخلص</h3>${table(['العميل','الهاتف','المنتجات'],low.map(x=>`<tr><td>${E(x.name||'-')}</td><td>${E(x.phone||'-')}</td><td>${(x.lowStockItems||[]).map(i=>E((i.productName||'منتج')+' — متوفر '+i.stock)).join('<br>')}</td></tr>`))}`)}
-async function social(){let d=await api('/api/admin/settings'),s=d.settings?.social_links||d.settings?.social||{};$('#sections').innerHTML=`<div class="card"><h2>مواقع التواصل</h2><p>الروابط المحفوظة هنا تظهر في الشريط الجانبي للمتجر.</p>${['whatsapp','instagram','snapchat','facebook','tiktok'].map(k=>`<div class="toolbar"><input id="s_${k}" class="field" value="${E(s[k]?.url||s[k]||'')}" placeholder="${k} URL"><label><input id="e_${k}" type="checkbox" ${s[k]?.enabled===false?'':'checked'}> فعال</label></div>`).join('')}<button class="btn primary" onclick="saveSocial()">حفظ</button></div>`}async function saveSocial(){let social_links={};['whatsapp','instagram','snapchat','facebook','tiktok'].forEach(k=>social_links[k]={url:$('#s_'+k).value.trim(),enabled:$('#e_'+k).checked});await api('/api/admin/settings',{method:'PUT',body:JSON.stringify({social_links})});toast('تم حفظ مواقع التواصل')}
+const SOCIAL_ADMIN_META={
+  whatsapp:{label:'WhatsApp',icon:'fa-brands fa-whatsapp'},
+  instagram:{label:'Instagram',icon:'fa-brands fa-instagram'},
+  snapchat:{label:'Snapchat',icon:'fa-brands fa-snapchat'},
+  facebook:{label:'Facebook',icon:'fa-brands fa-facebook'},
+  tiktok:{label:'TikTok',icon:'fa-brands fa-tiktok'}
+};
+function normalizeSocialEntry(value){
+  let current=value;
+  for(let i=0;i<4;i++){
+    if(typeof current==='string')return {url:current,enabled:true};
+    if(!current||typeof current!=='object')return {url:'',enabled:true};
+    const enabled=current.enabled!==false;
+    if(typeof current.url==='string')return {url:current.url,enabled};
+    if(typeof current.href==='string')return {url:current.href,enabled};
+    if(current.url&&typeof current.url==='object'){current={...current.url,enabled};continue}
+    return {url:'',enabled};
+  }
+  return {url:'',enabled:true};
+}
+async function social(){
+  const d=await api('/api/admin/settings'),raw=d.settings?.social_links||d.settings?.social||{};
+  const entries={};
+  Object.keys(SOCIAL_ADMIN_META).forEach(k=>entries[k]=normalizeSocialEntry(raw[k]));
+  $('#sections').innerHTML=`<div class="card"><h2>مواقع التواصل</h2><p>كل منصة تظهر باسمها وشعارها الرسمي، والرابط المحفوظ هنا هو نفسه الذي يظهر في واجهة المتجر.</p><div class="social-admin-list">${Object.entries(SOCIAL_ADMIN_META).map(([k,m])=>`<div class="social-admin-row"><div class="social-admin-name"><i class="${m.icon}" aria-hidden="true"></i><b>${m.label}</b></div><input id="s_${k}" class="field compact-field" value="${E(entries[k].url)}" placeholder="رابط ${m.label}"><label class="social-active"><input id="e_${k}" type="checkbox" ${entries[k].enabled?'checked':''}> فعال</label></div>`).join('')}</div><button class="btn primary" onclick="saveSocial()">حفظ</button></div>`;
+}
+async function saveSocial(){
+  const social_links={};
+  Object.keys(SOCIAL_ADMIN_META).forEach(k=>social_links[k]={url:String($('#s_'+k)?.value||'').trim(),enabled:!!$('#e_'+k)?.checked});
+  await api('/api/admin/settings',{method:'PUT',body:JSON.stringify({social_links})});
+  toast('تم حفظ مواقع التواصل');
+  await social();
+}
 async function staff(){let d=await api('/api/admin/staff'),isOwner=String(currentAdminUser?.role||'').toLowerCase()==='owner';$('#sections').innerHTML=`<div class="card"><h2>الموظفون والصلاحيات</h2>${isOwner?'<button class="btn primary" onclick="staffForm()">+ موظف</button>':''}${table(['الاسم','البريد','الهاتف','الدور','الصلاحيات','الحالة',''],(d.staff||[]).map(x=>`<tr><td>${E(x.name)}</td><td>${E(x.email)}</td><td>${E(x.phone||'-')}</td><td>${E(x.role)}</td><td>${E(staffPermissionText(x))}</td><td>${x.is_active?'فعال':'متوقف'}</td><td>${isOwner&&x.role!=='owner'?`<button class="btn" onclick='editStaff(${E(JSON.stringify(x))})'>تعديل الصلاحيات</button>`:''}</td></tr>`))}</div>`}
 function staffForm(){modal('موظف جديد',`<div class="formgrid"><input id="sn" class="field" placeholder="الاسم"><input id="se" class="field" placeholder="البريد"><input id="sp" class="field" placeholder="الهاتف"><input id="sw" class="field" type="password" minlength="12" placeholder="كلمة المرور — 12 خانة على الأقل"><select id="sr" class="field"><option value="staff">موظف بصلاحيات محددة</option><option value="admin">Admin — كل الصلاحيات</option></select></div><h3>صلاحيات الموظف</h3><div class="formgrid">${permissionChecks([])}</div><div class="actions"><button class="btn primary" onclick="saveStaff()">حفظ</button></div>`)}
 async function saveStaff(){const password=$('#sw').value||'';if(password.length<12)return alert('كلمة المرور يجب أن تكون 12 خانة على الأقل');await api('/api/admin/staff',{method:'POST',body:JSON.stringify({name:$('#sn').value,email:$('#se').value,phone:$('#sp').value,password,role:$('#sr').value,permissions:selectedStaffPermissions()})});closeModal();toast('تم إنشاء الموظف');staff()}
