@@ -4536,7 +4536,7 @@ app.patch(
 
             let matchedCustomerUserId = null;
             if (newStatus === "delivered" && !order.user_id) {
-              const phoneKey = String(order.customer_phone || "").replace(/\\D/g, "");
+              const phoneKey = String(order.customer_phone || "").replace(/\D/g, "");
               if (phoneKey) {
                 const matchingCustomers = await client.query(
                   `SELECT id
