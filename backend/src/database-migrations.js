@@ -38,6 +38,13 @@ async function migrateDatabase() {
     await client.query(`UPDATE order_items SET total = COALESCE(NULLIF(total,0), total_price, unit_price * quantity, 0)`);
     await client.query(`UPDATE order_items SET total_price = COALESCE(NULLIF(total_price,0), total, unit_price * quantity, 0)`);
 
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ordering_blocked BOOLEAN NOT NULL DEFAULT FALSE`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ordering_block_reason TEXT`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ordering_block_until TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_source TEXT`);
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_reason TEXT`);
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`);
+
     await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_manual_discount_percent NUMERIC(5,2) NOT NULL DEFAULT 0`);
     await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_manual_discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0`);
     await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS is_gift BOOLEAN NOT NULL DEFAULT FALSE`);
