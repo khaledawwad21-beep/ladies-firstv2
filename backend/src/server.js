@@ -6854,6 +6854,182 @@ app.patch(
    COUPONS
    ========================================================= */
 
+app.post(
+  "/api/coupons/validate",
+  async (req, res) => {
+    const code =
+      cleanText(
+        req.body?.code || ""
+      ).toUpperCase();
+
+    const subtotal =
+      Number(
+        req.body?.subtotal ?? 0
+      );
+
+    if (
+      !code ||
+      !Number.isFinite(subtotal) ||
+      subtotal < 0
+    ) {
+      return res.status(400).json({
+        ok: false,
+        code: "INVALID_COUPON",
+        message: "كود الخصم غير صحيح أو غير فعال"
+      });
+    }
+
+    try {
+      const result =
+        await db(
+          `
+          SELECT
+            code,
+            discount_type,
+            discount_value,
+            minimum_amount,
+            max_uses,
+            used_count
+          FROM coupons
+          WHERE UPPER(code) = $1
+            AND is_active = TRUE
+            AND (
+              starts_at IS NULL
+              OR starts_at <= NOW()
+            )
+            AND (
+              expires_at IS NULL
+              OR expires_at >= NOW()
+            )
+          LIMIT 1
+          `,
+          [code]
+        );
+
+      if (!result.rowCount) {
+        return res.status(400).json({
+          ok: false,
+          code: "INVALID_COUPON",
+          message: "كود الخصم غير صحيح أو منتهي"
+        });
+      }
+
+      const coupon =
+        result.rows[0];
+
+      const maxUses =
+        Math.max(
+          0,
+          Number(
+            coupon.max_uses || 0
+          )
+        );
+
+      const usedCount =
+        Math.max(
+          0,
+          Number(
+            coupon.used_count || 0
+          )
+        );
+
+      if (
+        maxUses > 0 &&
+        usedCount >= maxUses
+      ) {
+        return res.status(400).json({
+          ok: false,
+          code: "COUPON_EXHAUSTED",
+          message: "انتهت استخدامات الكوبون"
+        });
+      }
+
+      const minimumAmount =
+        Math.max(
+          0,
+          Number(
+            coupon.minimum_amount || 0
+          )
+        );
+
+      if (subtotal < minimumAmount) {
+        return res.status(400).json({
+          ok: false,
+          code: "COUPON_MINIMUM",
+          message:
+            "الحد الأدنى لاستخدام الكوبون هو " +
+            minimumAmount
+        });
+      }
+
+      const type =
+        String(
+          coupon.discount_type || ""
+        ).toLowerCase();
+
+      const value =
+        Number(
+          coupon.discount_value
+        );
+
+      if (
+        !["fixed", "percent"].includes(type) ||
+        !Number.isFinite(value) ||
+        value < 0 ||
+        (
+          type === "percent" &&
+          value > 100
+        )
+      ) {
+        return res.status(400).json({
+          ok: false,
+          code: "INVALID_COUPON_VALUE",
+          message: "قيمة الكوبون غير صالحة"
+        });
+      }
+
+      const discount =
+        type === "fixed"
+          ? Math.min(
+              subtotal,
+              value
+            )
+          : Math.min(
+              subtotal,
+              subtotal *
+                (value / 100)
+            );
+
+      return res.json({
+        ok: true,
+        coupon: {
+          code:
+            String(
+              coupon.code || code
+            ).toUpperCase(),
+          type,
+          value,
+          minimumAmount
+        },
+        discount:
+          money(discount)
+      });
+    } catch (error) {
+      console.error(
+        "[COUPON VALIDATE]",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        code: "COUPON_VALIDATE_FAILED",
+        message: "تعذر التحقق من كود الخصم"
+      });
+    }
+  }
+);
+
+
 app.get(
   "/api/admin/coupons",
   requireAdmin,
