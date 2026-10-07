@@ -789,6 +789,7 @@ async function initDatabase() {
 
   await db(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS minimum_amount NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS starts_at TIMESTAMPTZ`);
+  await db(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS max_uses_per_customer INTEGER NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
 
   await db(`
@@ -2900,6 +2901,73 @@ app.post(
                 "COUPON_EXHAUSTED",
                 "انتهت استخدامات الكوبون"
               );
+            }
+
+            const maxUsesPerCustomer =
+              Math.max(
+                0,
+                Number(
+                  coupon.max_uses_per_customer ||
+                  0
+                ) || 0
+              );
+
+            if (maxUsesPerCustomer > 0) {
+              let usageResult;
+
+              if (userId) {
+                usageResult =
+                  await client.query(
+                    `
+                    SELECT COUNT(*)::int AS count
+                    FROM orders
+                    WHERE UPPER(COALESCE(coupon_code,'')) = $1
+                      AND user_id = $2
+                      AND COALESCE(LOWER(status),'') NOT IN ('cancelled','canceled','ملغي')
+                    `,
+                    [
+                      couponCode,
+                      userId
+                    ]
+                  );
+              } else {
+                const phoneKey =
+                  String(
+                    customerPhone || ""
+                  ).replace(/\D/g, "");
+
+                usageResult =
+                  await client.query(
+                    `
+                    SELECT COUNT(*)::int AS count
+                    FROM orders
+                    WHERE UPPER(COALESCE(coupon_code,'')) = $1
+                      AND regexp_replace(COALESCE(customer_phone,''),'[^0-9]','','g') = $2
+                      AND COALESCE(LOWER(status),'') NOT IN ('cancelled','canceled','ملغي')
+                    `,
+                    [
+                      couponCode,
+                      phoneKey
+                    ]
+                  );
+              }
+
+              const customerUses =
+                Number(
+                  usageResult.rows[0]?.count ||
+                  0
+                );
+
+              if (
+                customerUses >=
+                maxUsesPerCustomer
+              ) {
+                throw createHttpError(
+                  400,
+                  "COUPON_CUSTOMER_LIMIT",
+                  "تم استخدام هذا الكوبون الحد الأقصى المسموح لهذا الزبون"
+                );
+              }
             }
 
             const minimumAmount =
@@ -6873,6 +6941,7 @@ app.patch(
 
 app.post(
   "/api/coupons/validate",
+  optionalAuth,
   async (req, res) => {
     const code =
       cleanText(
@@ -6955,6 +7024,83 @@ app.post(
         });
       }
 
+      const maxUsesPerCustomer =
+        Math.max(
+          0,
+          Number(
+            coupon.max_uses_per_customer ||
+            0
+          ) || 0
+        );
+
+      const suppliedPhone =
+        cleanText(
+          req.body?.customerPhone ||
+          req.body?.customer_phone ||
+          "",
+          100
+        );
+
+      if (
+        maxUsesPerCustomer > 0 &&
+        (
+          req.user?.id ||
+          suppliedPhone
+        )
+      ) {
+        let usageResult;
+
+        if (req.user?.id) {
+          usageResult =
+            await db(
+              `
+              SELECT COUNT(*)::int AS count
+              FROM orders
+              WHERE UPPER(COALESCE(coupon_code,'')) = $1
+                AND user_id = $2
+                AND COALESCE(LOWER(status),'') NOT IN ('cancelled','canceled','ملغي')
+              `,
+              [
+                code,
+                req.user.id
+              ]
+            );
+        } else {
+          const phoneKey =
+            String(
+              suppliedPhone
+            ).replace(/\D/g, "");
+
+          usageResult =
+            await db(
+              `
+              SELECT COUNT(*)::int AS count
+              FROM orders
+              WHERE UPPER(COALESCE(coupon_code,'')) = $1
+                AND regexp_replace(COALESCE(customer_phone,''),'[^0-9]','','g') = $2
+                AND COALESCE(LOWER(status),'') NOT IN ('cancelled','canceled','ملغي')
+              `,
+              [
+                code,
+                phoneKey
+              ]
+            );
+        }
+
+        if (
+          Number(
+            usageResult.rows[0]?.count ||
+            0
+          ) >= maxUsesPerCustomer
+        ) {
+          return res.status(400).json({
+            ok: false,
+            code: "COUPON_CUSTOMER_LIMIT",
+            message: "تم استخدام هذا الكوبون الحد الأقصى المسموح لهذا الزبون"
+          });
+        }
+      }
+
       const minimumAmount =
         Math.max(
           0,
@@ -7030,6 +7176,7 @@ app.post(
           minimumAmount,
           maxUses,
           usedCount,
+          maxUsesPerCustomer,
           startsAt:
             coupon.starts_at ||
             null,
@@ -7150,6 +7297,7 @@ app.post(
             discount_value,
             minimum_amount,
             max_uses,
+            max_uses_per_customer,
             used_count,
             starts_at,
             expires_at,
@@ -7163,9 +7311,10 @@ app.post(
             $3,
             $4,
             $5,
-            0,
             $6,
+            0,
             $7,
+            $8,
             TRUE,
             NOW(),
             NOW()
@@ -7189,6 +7338,15 @@ app.post(
               integer(
                 req.body.max_uses ??
                 req.body.maxUses ??
+                0,
+                0
+              )
+            ),
+            Math.max(
+              0,
+              integer(
+                req.body.max_uses_per_customer ??
+                req.body.maxUsesPerCustomer ??
                 0,
                 0
               )
@@ -7307,12 +7465,99 @@ app.patch(
     }
 
     if (
-      req.body.expires_at !==
-      undefined
+      req.body.discount_type !== undefined ||
+      req.body.discountType !== undefined
+    ) {
+      const value =
+        cleanText(
+          req.body.discount_type ??
+          req.body.discountType,
+          30
+        ).toLowerCase();
+
+      if (!["percent","fixed"].includes(value)) {
+        return res.status(400).json({
+          ok: false,
+          message: "نوع الخصم غير صالح"
+        });
+      }
+
+      add("discount_type", value);
+    }
+
+    if (
+      req.body.minimum_amount !== undefined ||
+      req.body.minimumAmount !== undefined
+    ) {
+      add(
+        "minimum_amount",
+        Math.max(
+          0,
+          Number(
+            req.body.minimum_amount ??
+            req.body.minimumAmount ??
+            0
+          ) || 0
+        )
+      );
+    }
+
+    if (
+      req.body.max_uses !== undefined ||
+      req.body.maxUses !== undefined
+    ) {
+      add(
+        "max_uses",
+        Math.max(
+          0,
+          integer(
+            req.body.max_uses ??
+            req.body.maxUses ??
+            0,
+            0
+          )
+        )
+      );
+    }
+
+    if (
+      req.body.max_uses_per_customer !== undefined ||
+      req.body.maxUsesPerCustomer !== undefined
+    ) {
+      add(
+        "max_uses_per_customer",
+        Math.max(
+          0,
+          integer(
+            req.body.max_uses_per_customer ??
+            req.body.maxUsesPerCustomer ??
+            0,
+            0
+          )
+        )
+      );
+    }
+
+    if (
+      req.body.starts_at !== undefined ||
+      req.body.startsAt !== undefined
+    ) {
+      add(
+        "starts_at",
+        req.body.starts_at ||
+        req.body.startsAt ||
+        null
+      );
+    }
+
+    if (
+      req.body.expires_at !== undefined ||
+      req.body.expiresAt !== undefined
     ) {
       add(
         "expires_at",
         req.body.expires_at ||
+        req.body.expiresAt ||
         null
       );
     }
@@ -7366,6 +7611,61 @@ app.patch(
         ok: false,
         message:
           "تعذر تعديل الكوبون"
+      });
+    }
+  }
+);
+
+
+app.delete(
+  "/api/admin/coupons/:id",
+  requireAdmin,
+  async (req, res) => {
+    const id =
+      integer(
+        req.params.id,
+        NaN
+      );
+
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({
+        ok: false,
+        message: "رقم الكوبون غير صالح"
+      });
+    }
+
+    try {
+      const result =
+        await db(
+          `
+          DELETE FROM coupons
+          WHERE id = $1
+          RETURNING id, code
+          `,
+          [id]
+        );
+
+      if (!result.rowCount) {
+        return res.status(404).json({
+          ok: false,
+          message: "الكوبون غير موجود"
+        });
+      }
+
+      return res.json({
+        ok: true,
+        message: "تم حذف الكوبون",
+        coupon: result.rows[0]
+      });
+    } catch (error) {
+      console.error(
+        "[COUPON DELETE]",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        message: "تعذر حذف الكوبون"
       });
     }
   }
