@@ -8143,6 +8143,22 @@ app.put(
 
     try {
       incoming = validateHomepageSettings(incoming);
+
+      const changesMaintenance =
+        Object.prototype.hasOwnProperty.call(incoming,"maintenance_mode") ||
+        Object.prototype.hasOwnProperty.call(incoming,"maintenance_message");
+
+      if (
+        changesMaintenance &&
+        String(req.user?.role || "").toLowerCase() !== "owner"
+      ) {
+        return res.status(403).json({
+          ok:false,
+          code:"OWNER_ONLY_MAINTENANCE",
+          message:"وضع الطوارئ / الصيانة متاح للمالك فقط"
+        });
+      }
+
       await transaction(
         async (client) => {
           for (
