@@ -678,7 +678,9 @@ async function initDatabase() {
       ADD COLUMN IF NOT EXISTS shipping_waived BOOLEAN NOT NULL DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS shipping_base_cost NUMERIC(12,2) NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS shipping_discount_percent NUMERIC(5,2) NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS shipping_discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0
+      ADD COLUMN IF NOT EXISTS shipping_discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS shipping_manual_discount_percent NUMERIC(5,2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS shipping_manual_discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0
   `);
 
   await db(`
@@ -782,8 +784,11 @@ async function initDatabase() {
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS points_redeemed INTEGER NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_region TEXT`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_waived BOOLEAN NOT NULL DEFAULT FALSE`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_manual_discount_percent NUMERIC(5,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_manual_discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0`);
 
   await db(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS image TEXT`);
+  await db(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS is_gift BOOLEAN NOT NULL DEFAULT FALSE`);
   await db(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS total NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
 
