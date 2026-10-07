@@ -48,6 +48,12 @@ test("customer order blocking exposes an audit history in the user editor",()=>{
   assert.match(admin,/سجل منع الطلب/);
 });
 
+test("staff announcements can target owner admin or staff roles",()=>{
+  assert.match(admin,/staffMessageTarget/);
+  assert.match(admin,/targetRoles/);
+  assert.match(admin,/إرسال إلى:/);
+});
+
 test("staff, categories and brands use live search",()=>{
   assert.match(admin,/بحث مباشر بالاسم أو البريد أو الهاتف أو الدور/);
   assert.match(admin,/function renderStaffRows\(/);
