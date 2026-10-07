@@ -5,7 +5,8 @@ const PUBLIC_SETTINGS = new Set([
   'cats','brands','hero','hero_slides','hero_text_style','social_links','social',
   'packaging_options','visa_discount_percent','shipping_fee','shipping_fees','shipping_discount_percentages',
   'loyalty_enabled','loyalty_redeem_enabled','loyalty_point_value','loyalty_points_per_currency',
-  'loyalty_earning_mode','loyalty_points_per_order','return_policy','privacy_policy'
+  'loyalty_earning_mode','loyalty_points_per_order','return_policy','privacy_policy',
+  'storefront_general_message','maintenance_mode','maintenance_message'
 ]);
 const PRIVATE_COST_FIELDS = new Set(['cost_price','costPrice','purchase_price','purchasePrice','returned_cost_value']);
 function publicResponse(value) {
