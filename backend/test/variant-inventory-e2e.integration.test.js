@@ -112,7 +112,7 @@ if (process.env.RUN_DB_E2E !== "1") {
     });
     const customerHeaders = { Authorization: "Bearer " + customer.token };
 
-    const checkout = await api("/api/orders", {
+    const firstCheckout = await api("/api/orders", {
       method: "POST",
       headers: customerHeaders,
       body: JSON.stringify({
@@ -125,20 +125,75 @@ if (process.env.RUN_DB_E2E !== "1") {
           productId,
           variantId: Number(rose.id),
           variantName: "Rose",
-          quantity: 2
+          quantity: 1
         }]
       })
     });
-    const orderId = Number(checkout.orderId || checkout.order?.id);
-    assert.ok(orderId > 0);
+    const firstOrderId = Number(firstCheckout.orderId || firstCheckout.order?.id);
+    assert.ok(firstOrderId > 0);
 
-    const afterCheckout = await api("/api/products/" + productId);
-    const roseAfter = afterCheckout.product.variants.find(v => Number(v.id) === Number(rose.id));
-    const blackAfter = afterCheckout.product.variants.find(v => Number(v.id) === Number(black.id));
-    assert.equal(Number(roseAfter.stock), 0);
-    assert.equal(Number(blackAfter.stock), 3);
+    const afterFirstCheckout = await api("/api/products/" + productId);
+    const roseAfterFirst = afterFirstCheckout.product.variants.find(v => Number(v.id) === Number(rose.id));
+    const blackAfterFirst = afterFirstCheckout.product.variants.find(v => Number(v.id) === Number(black.id));
+    assert.equal(Number(roseAfterFirst.stock), 1);
+    assert.equal(Number(blackAfterFirst.stock), 3);
 
-    let oversellError = null;
+    let limitedError = null;
+    try {
+      await api("/api/orders", {
+        method: "POST",
+        headers: customerHeaders,
+        body: JSON.stringify({
+          customerName: "CI Variant Customer",
+          customerPhone: "+970599000020",
+          shippingAddress: "Nablus - variant CI",
+          shippingRegion: "westbank",
+          paymentMethod: "cash",
+          items: [{
+            productId,
+            variantId: Number(rose.id),
+            variantName: "Rose",
+            quantity: 2
+          }]
+        })
+      });
+    } catch (error) {
+      limitedError = error;
+    }
+    assert.equal(limitedError?.status, 409);
+    assert.equal(limitedError?.body?.code, "OUT_OF_STOCK");
+    assert.equal(
+      limitedError?.body?.message,
+      "💕 عذرًا سيدتي، المتوفر حاليًا 1 قطع … يمكنك إضافة عدد القطع المتاحة 1 قطع كحد أقصى."
+    );
+
+    const secondCheckout = await api("/api/orders", {
+      method: "POST",
+      headers: customerHeaders,
+      body: JSON.stringify({
+        customerName: "CI Variant Customer",
+        customerPhone: "+970599000020",
+        shippingAddress: "Nablus - variant CI",
+        shippingRegion: "westbank",
+        paymentMethod: "cash",
+        items: [{
+          productId,
+          variantId: Number(rose.id),
+          variantName: "Rose",
+          quantity: 1
+        }]
+      })
+    });
+    const secondOrderId = Number(secondCheckout.orderId || secondCheckout.order?.id);
+    assert.ok(secondOrderId > 0);
+
+    const afterSecondCheckout = await api("/api/products/" + productId);
+    const roseAfterSecond = afterSecondCheckout.product.variants.find(v => Number(v.id) === Number(rose.id));
+    const blackAfterSecond = afterSecondCheckout.product.variants.find(v => Number(v.id) === Number(black.id));
+    assert.equal(Number(roseAfterSecond.stock), 0);
+    assert.equal(Number(blackAfterSecond.stock), 3);
+
+    let soldOutError = null;
     try {
       await api("/api/orders", {
         method: "POST",
@@ -158,16 +213,19 @@ if (process.env.RUN_DB_E2E !== "1") {
         })
       });
     } catch (error) {
-      oversellError = error;
+      soldOutError = error;
     }
-    assert.equal(oversellError?.status, 409);
-    assert.equal(oversellError?.body?.code, "OUT_OF_STOCK");
+    assert.equal(soldOutError?.status, 409);
+    assert.equal(soldOutError?.body?.code, "OUT_OF_STOCK");
+    assert.equal(soldOutError?.body?.message, "💕 عذرًا سيدتي، خلصت الكمية🌸");
 
-    await api("/api/admin/orders/" + orderId + "/status", {
-      method: "PATCH",
-      headers: ownerHeaders,
-      body: JSON.stringify({ status: "cancelled" })
-    });
+    for (const orderId of [firstOrderId, secondOrderId]) {
+      await api("/api/admin/orders/" + orderId + "/status", {
+        method: "PATCH",
+        headers: ownerHeaders,
+        body: JSON.stringify({ status: "cancelled" })
+      });
+    }
 
     const afterCancel = await api("/api/products/" + productId);
     const roseRestored = afterCancel.product.variants.find(v => Number(v.id) === Number(rose.id));

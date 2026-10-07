@@ -117,6 +117,13 @@ function createHttpError(status, code, message) {
   return error;
 }
 
+function stockAvailabilityMessage(stock) {
+  const available = Math.max(0, Number(stock) || 0);
+  return available <= 0
+    ? "💕 عذرًا سيدتي، خلصت الكمية🌸"
+    : "💕 عذرًا سيدتي، المتوفر حاليًا " + available + " قطع … يمكنك إضافة عدد القطع المتاحة " + available + " قطع كحد أقصى.";
+}
+
 function cleanText(value) {
   if (
     value === undefined ||
@@ -392,7 +399,7 @@ function ensurePositiveQuantity(
 function stockError() {
   const error =
     new Error(
-      "الكمية خلصت، حقك علينا"
+      stockAvailabilityMessage(0)
     );
 
   error.code =
@@ -2710,6 +2717,26 @@ app.post(
               );
             }
 
+            const availableStock =
+              Math.max(
+                0,
+                Number(
+                  variant
+                    ? variant.stock
+                    : product.stock
+                ) || 0
+              );
+
+            if (quantity > availableStock) {
+              throw createHttpError(
+                409,
+                "OUT_OF_STOCK",
+                stockAvailabilityMessage(
+                  availableStock
+                )
+              );
+            }
+
             let stockUpdate;
 
             if (
@@ -2755,7 +2782,7 @@ app.post(
               throw createHttpError(
                 409,
                 "OUT_OF_STOCK",
-                "الكمية خلصت، حقك علينا"
+                stockAvailabilityMessage(0)
               );
             }
 
