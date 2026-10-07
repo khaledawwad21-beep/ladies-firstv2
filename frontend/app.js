@@ -678,10 +678,10 @@ function getCustomHeroSlides(){
   return arr.filter(x=>x&&x.image);
 }
 
-const DEFAULT_HERO_TEXT_STYLE={font:'Tahoma,Arial,sans-serif',color:'#ffffff',opacity:1,bgColor:'#63345e',bgOpacity:.58};
+const DEFAULT_HERO_TEXT_STYLE={font:'Tahoma,Arial,sans-serif',color:'#ffffff',opacity:1,bgColor:'#63345e',bgOpacity:.58,x:70,y:70};
 function getHeroTextStyle(){
   const s=load('lf_hero_text_style',DEFAULT_HERO_TEXT_STYLE)||DEFAULT_HERO_TEXT_STYLE;
-  return {font:s.font||DEFAULT_HERO_TEXT_STYLE.font,color:s.color||DEFAULT_HERO_TEXT_STYLE.color,opacity:Math.max(0,Math.min(1,Number(s.opacity??1))),bgColor:s.bgColor||DEFAULT_HERO_TEXT_STYLE.bgColor,bgOpacity:Math.max(0,Math.min(1,Number(s.bgOpacity??DEFAULT_HERO_TEXT_STYLE.bgOpacity)))};
+  return {font:s.font||DEFAULT_HERO_TEXT_STYLE.font,color:s.color||DEFAULT_HERO_TEXT_STYLE.color,opacity:Math.max(0,Math.min(1,Number(s.opacity??1))),bgColor:s.bgColor||DEFAULT_HERO_TEXT_STYLE.bgColor,bgOpacity:Math.max(0,Math.min(1,Number(s.bgOpacity??DEFAULT_HERO_TEXT_STYLE.bgOpacity))),x:Math.max(0,Math.min(100,Number(s.x??DEFAULT_HERO_TEXT_STYLE.x))),y:Math.max(0,Math.min(100,Number(s.y??DEFAULT_HERO_TEXT_STYLE.y)))};
 }
 function hexToRgba(hex,a){const h=String(hex||'#63345e').replace('#','');const v=h.length===3?h.split('').map(x=>x+x).join(''):h;const n=parseInt(v,16);if(Number.isNaN(n))return `rgba(99,52,94,${a})`;return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`}
 function applyHeroTextStyle(){
@@ -690,6 +690,8 @@ function applyHeroTextStyle(){
   document.documentElement.style.setProperty('--hero-text-color',s.color);
   document.documentElement.style.setProperty('--hero-text-opacity',String(s.opacity));
   document.documentElement.style.setProperty('--hero-text-bg',hexToRgba(s.bgColor,s.bgOpacity));
+  document.documentElement.style.setProperty('--hero-text-x',`${s.x}%`);
+  document.documentElement.style.setProperty('--hero-text-y',`${s.y}%`);
 }
 function heroSlides(){
   const base=load('lf_hero',DEFAULT_HERO)||DEFAULT_HERO;

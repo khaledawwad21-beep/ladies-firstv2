@@ -79,7 +79,7 @@ header{
 }
 .heroCard:after{background:linear-gradient(90deg,rgba(45,29,40,.34),rgba(45,29,40,.10) 52%,transparent)!important}
 .heroText{
-  right:8%!important;left:auto!important;top:50%!important;bottom:auto!important;transform:translateY(-50%)!important;
+  right:auto!important;left:clamp(29%,var(--hero-text-x,70%),71%)!important;top:clamp(12%,var(--hero-text-y,70%),88%)!important;bottom:auto!important;transform:translate(-50%,-50%)!important;
   width:min(470px,42%);padding:24px 28px!important;border-radius:2px!important;
   background:var(--hero-text-bg,rgba(67,38,63,.72))!important;border:1px solid rgba(255,255,255,.2);
   box-shadow:0 18px 45px rgba(36,22,31,.15)!important;backdrop-filter:blur(5px);
@@ -320,15 +320,12 @@ footer b{font-family:Georgia,"Times New Roman",serif;font-size:24px;letter-spaci
   transform:translate(-50%,-50%);border:1px solid rgba(99,52,94,.18);border-radius:50%;
   box-shadow:0 0 0 22px rgba(255,253,250,.2),0 0 0 23px rgba(99,52,94,.09);
 }
-.heroLogo{display:none!important}
-.heroText{--hero-text-bg:rgba(67,38,63,.88)!important}
 @media(max-width:700px){
   .heroVisual{background:
     radial-gradient(ellipse at 50% 38%,rgba(199,208,176,.74) 0 19%,transparent 19.4%),
     radial-gradient(ellipse at 50% 38%,transparent 0 29%,rgba(215,161,180,.65) 29.3% 30%,transparent 30.4%),
     linear-gradient(155deg,#f7eee8 0%,#fbf4ec 48%,#eadbdc 100%)!important}
   .heroVisual:before{left:50%;top:38%;width:min(62vw,300px)}
-  .heroText{--hero-text-bg:rgba(67,38,63,.9)!important}
 }
 
 
@@ -407,3 +404,8 @@ html.lf-image-zoom-open,body.lf-image-zoom-open{overflow:hidden!important;oversc
   }
   #modalBody{padding-bottom:12px!important}
 }
+
+/* Campaign hero controls: keep uploaded images visible, honor background alpha and position sliders. */
+.heroSlider .heroLogoLayer{display:block!important}
+.heroSlider .heroText{background:var(--hero-text-bg,rgba(67,38,63,.58))!important;left:clamp(24%,var(--hero-text-x,70%),76%)!important;right:auto!important;top:clamp(12%,var(--hero-text-y,70%),88%)!important;bottom:auto!important;transform:translate(-50%,-50%)!important}
+@media(max-width:700px){.heroSlider .heroText{left:clamp(38%,var(--hero-text-x,50%),62%)!important;top:clamp(24%,var(--hero-text-y,70%),76%)!important;right:auto!important;bottom:auto!important;transform:translate(-50%,-50%)!important;max-width:76%!important;width:auto!important}}
