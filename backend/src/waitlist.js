@@ -162,6 +162,29 @@ function registerWaitlistRoutes(app, deps) {
           w.phone,
           w.variant_name AS "variant",
           w.status,
+          (
+            CASE
+              WHEN w.variant_name IS NULL THEN (
+                p.stock > 0 OR EXISTS (
+                  SELECT 1 FROM product_variants v
+                  WHERE v.product_id=p.id
+                    AND v.is_active=TRUE
+                    AND v.stock>0
+                )
+              )
+              ELSE EXISTS (
+                SELECT 1 FROM product_variants v
+                WHERE v.product_id=p.id
+                  AND v.is_active=TRUE
+                  AND v.stock>0
+                  AND (
+                    v.color=w.variant_name
+                    OR v.size=w.variant_name
+                    OR CONCAT_WS(' / ',v.color,v.size)=w.variant_name
+                  )
+              )
+            END
+          ) AS "isAvailable",
           w.notified_at AS "notifiedAt",
           w.created_at AS "createdAt"
         FROM waitlist_requests w
