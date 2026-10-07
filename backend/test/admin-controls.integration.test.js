@@ -27,7 +27,7 @@ test.before(async()=>{
     INSERT INTO users(id,name,email,password_hash,role,is_active,permissions)
     VALUES
       (1,'Owner','owner-controls@example.test','fixture','owner',TRUE,'[]'::jsonb),
-      (2,'Staff','staff-controls@example.test','fixture','staff',TRUE,'["dashboard"]'::jsonb)
+      (2,'Staff','staff-controls@example.test','fixture','staff',TRUE,'["dashboard","settings"]'::jsonb)
   `);
   server=app.listen(0,"127.0.0.1");
   await new Promise((resolve,reject)=>{
@@ -83,6 +83,33 @@ test("public storefront message and maintenance settings round-trip safely",asyn
     body:{maintenance_mode:false}
   });
   assert.equal(r.response.status,200);
+});
+
+test("maintenance remains owner-only even for staff with settings permission",async()=>{
+  let r=await json("/api/admin/settings",{
+    method:"PUT",
+    token:staffToken,
+    body:{store_name:"Allowed staff setting"}
+  });
+  assert.equal(r.response.status,200,JSON.stringify(r.data));
+
+  r=await json("/api/admin/settings",{
+    method:"PUT",
+    token:staffToken,
+    body:{maintenance_mode:true}
+  });
+  assert.equal(r.response.status,403);
+  assert.equal(r.data.code,"OWNER_ONLY_MAINTENANCE");
+});
+
+test("staff with settings permission cannot publish employee announcements",async()=>{
+  const r=await json("/api/admin/settings/staff-message",{
+    method:"POST",
+    token:staffToken,
+    body:{message:"should be denied"}
+  });
+  assert.equal(r.response.status,403);
+  assert.equal(r.data.code,"MANAGEMENT_ONLY");
 });
 
 test("staff announcement appears once per published version and tracks read state",async()=>{
