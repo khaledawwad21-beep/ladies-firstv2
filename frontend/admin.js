@@ -46,15 +46,36 @@ function permissionChecks(selected=[]){const set=new Set(Array.isArray(selected)
 function selectedStaffPermissions(){return [...document.querySelectorAll('.staffPerm:checked')].map(x=>x.value)}
 function staffPermissionText(x){if(x.role==='owner')return 'كامل — Owner';if(x.role==='admin')return 'كامل — Admin';const p=Array.isArray(x.permissions)?x.permissions:[];return p.length?p.map(k=>permissionLabels[k]||k).join('، '):'بدون صلاحيات'}
 const navs=[...document.querySelectorAll('.nav')];navs.forEach(n=>n.onclick=()=>{if(!canAdminSection(n.dataset.s))return toast('ليس لديك صلاحية لهذا القسم');sec=n.dataset.s;navs.forEach(x=>x.classList.toggle('active',x===n));$('#title').textContent=titles[sec];load()});
+function openAdminSection(section){
+  if(!canAdminSection(section))return toast('ليس لديك صلاحية لهذا القسم');
+  sec=section;
+  navs.forEach(x=>x.classList.toggle('active',x.dataset.s===sec));
+  $('#title').textContent=titles[sec];
+  load();
+}
 function table(h,rows){return rows.length?`<div class="tablewrap"><table class="table"><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`:'<p>لا توجد بيانات.</p>'}
 async function load(){try{if(sec==='dashboard')return dash();if(sec==='users')return users();if(sec==='products')return products();if(sec==='inventory')return inventory();if(sec==='orders')return orders();if(sec==='returns')return returnsAdmin();if(sec==='waitlist')return waitlist();if(sec==='finance')return finance();if(sec==='catalog')return catalog();if(sec==='coupons')return coupons();if(sec==='reports')return reports();if(sec==='social')return social();if(sec==='settings')return settings();if(sec==='staff')return staff();if(sec==='offers')return offers();if(sec==='homepage')return homepage()}catch(e){toast(e.message)}}
-async function dash(){let d=await api('/api/admin/dashboard'),x=d.dashboard;$('#sections').innerHTML=`<div class="cards">${[['العملاء',x.customers],['المنتجات',x.products],['الطلبات',x.orders],['المبيعات',M(x.sales)],['قيد التنفيذ',x.pendingOrders],['مخزون منخفض',x.lowStock]].map(a=>`<div class="stat"><small>${a[0]}</small><b>${a[1]}</b></div>`).join('')}</div><div class="grid"><div class="card"><h2>تنبيهات</h2>${x.lowStock?`يوجد ${x.lowStock} منتج منخفض المخزون.`:'لا يوجد تنبيه مخزون ضمن الحد الحالي.'}</div><div class="card"><h2>ملاحظة</h2>هذه الواجهة مرتبطة بالـAPI الموجود حاليًا ولن تغيّر بيانات الموقع بدون طلب صريح.</div></div>`}
-let adminUsersCache=[];
+async function dash(){let d=await api('/api/admin/dashboard'),x=d.dashboard;const stats=[
+  ['العملاء',x.customers,'users'],
+  ['المنتجات',x.products,'products'],
+  ['الطلبات',x.orders,'orders'],
+  ['المبيعات',M(x.sales),'finance'],
+  ['قيد التنفيذ',x.pendingOrders,'orders'],
+  ['مخزون منخفض',x.lowStock,'inventory']
+];$('#sections').innerHTML=`<div class="cards">${stats.map(a=>`<button type="button" class="stat admin-stat-link" onclick="openAdminSection('${a[2]}')"><small>${a[0]}</small><b>${a[1]}</b></button>`).join('')}</div><div class="grid"><div class="card"><h2>تنبيهات</h2>${x.lowStock?`يوجد ${x.lowStock} منتج منخفض المخزون.`:'لا يوجد تنبيه مخزون ضمن الحد الحالي.'}</div><div class="card"><h2>اختصارات</h2>اضغطي على أي بطاقة في الأعلى للانتقال مباشرة إلى القسم المرتبط.</div></div>`}let adminUsersCache=[];
+function renderUsersRows(){
+  const box=$('#usersRows');if(!box)return;
+  box.innerHTML=table(['الاسم','البريد','الهاتف','الجنس','العمر','الدور','النقاط','الحالة',''],adminUsersCache.map(u=>{const active=u.isActive!==false;const owner=String(u.role||'').toLowerCase()==='owner';return `<tr><td>${E(u.name||'-')}</td><td>${E(u.email||'-')}</td><td>${E(u.phone||'-')}</td><td>${E(u.gender||'-')}</td><td>${u.age??'-'}</td><td>${E(u.role||'-')}</td><td>${Number(u.loyaltyPoints||0)}</td><td>${active?'فعال':'متوقف'}</td><td>${owner?'<span class="small-note">المالك يُدار من إعدادات الحساب</span>':`<button class="btn" onclick="editUser(${Number(u.id)})">تعديل</button>`}</td></tr>`}));
+}
+async function userLiveSearch(){
+  const search=String($('#uq')?.value||'').trim();
+  try{const d=await api('/api/admin/users?search='+encodeURIComponent(search));adminUsersCache=d.users||[];renderUsersRows()}catch(e){toast(e.message)}
+}
 async function users(){
-  const search=$('#uq')?.value||'';
-  const d=await api('/api/admin/users?search='+encodeURIComponent(search));
+  const d=await api('/api/admin/users');
   adminUsersCache=d.users||[];
-  $('#sections').innerHTML=`<div class="card"><h2>المستخدمون</h2><div class="toolbar"><input id="uq" class="field" placeholder="بحث بالاسم أو البريد أو الهاتف" value="${E(search)}"><button class="btn primary" onclick="users()">بحث</button></div>${table(['الاسم','البريد','الهاتف','الجنس','العمر','الدور','النقاط','الحالة',''],adminUsersCache.map(u=>{const active=u.isActive!==false;const owner=String(u.role||'').toLowerCase()==='owner';return `<tr><td>${E(u.name||'-')}</td><td>${E(u.email||'-')}</td><td>${E(u.phone||'-')}</td><td>${E(u.gender||'-')}</td><td>${u.age??'-'}</td><td>${E(u.role||'-')}</td><td>${Number(u.loyaltyPoints||0)}</td><td>${active?'فعال':'متوقف'}</td><td>${owner?'<span class="small-note">المالك يُدار من إعدادات الحساب</span>':`<button class="btn" onclick="editUser(${Number(u.id)})">تعديل</button>`}</td></tr>`}).join(''))}</div>`;
+  $('#sections').innerHTML=`<div class="card"><h2>المستخدمون</h2><div class="toolbar"><input id="uq" class="field" placeholder="بحث مباشر بالاسم أو البريد أو الهاتف" oninput="liveDebounce('users',userLiveSearch,220)"></div><div id="usersRows"></div></div>`;
+  renderUsersRows();
 }
 function editUser(id){
   const u=adminUsersCache.find(x=>Number(x.id)===Number(id));
@@ -90,10 +111,24 @@ async function saveUser(id){
     await users();
   }catch(e){alert(e.message||'تعذر حفظ المستخدم')}
 }
-async function products(){let d=await api('/api/admin/products');$('#sections').innerHTML=`<div class="card"><h2>المنتجات</h2><div class="toolbar"><input id="pq" class="field" placeholder="بحث"><button class="btn" onclick="productForm()">+ منتج جديد</button></div>${table(['المنتج','السعر','المخزون','الحالة',''],(d.products||[]).filter(p=>(p.name||'').includes($('#pq')?.value||'')).map(p=>`<tr><td>${E(p.name)}</td><td>${M(p.price)}</td><td>${p.stock??0}</td><td>${p.is_active?'فعال':'متوقف'}</td><td><button class="btn" onclick='productForm(${E(JSON.stringify(p))})'>تعديل</button></td></tr>`))}</div>`}
+let adminProductsCache=[];
+function renderProductRows(){
+  const box=$('#productRows');if(!box)return;
+  const q=String($('#pq')?.value||'').trim().toLowerCase();
+  const list=adminProductsCache.filter(p=>!q||String(p.name||'').toLowerCase().includes(q)||String(p.sku||'').toLowerCase().includes(q)||String(p.brand||'').toLowerCase().includes(q)||String(p.category||'').toLowerCase().includes(q));
+  box.innerHTML=table(['المنتج','السعر','المخزون','الحالة',''],list.map(p=>`<tr><td>${E(p.name)}</td><td>${M(p.price)}</td><td>${p.stock??0}</td><td>${p.is_active?'فعال':'متوقف'}</td><td><button class="btn" onclick='productForm(${E(JSON.stringify(p))})'>تعديل</button></td></tr>`));
+}
+async function products(){let d=await api('/api/admin/products');adminProductsCache=d.products||[];$('#sections').innerHTML=`<div class="card"><h2>المنتجات</h2><div class="toolbar"><input id="pq" class="field" placeholder="بحث مباشر بالاسم أو SKU أو البراند أو الفئة" oninput="renderProductRows()"><button class="btn" onclick="productForm()">+ منتج جديد</button></div><div id="productRows"></div></div>`;renderProductRows()}
 function productForm(p={}){modal(p.id?'تعديل المنتج':'منتج جديد',`<div class="formgrid"><input id="pn" class="field" value="${E(p.name||'')}" placeholder="اسم المنتج"><input id="pp" class="field" type="number" step=".01" value="${p.price??''}" placeholder="السعر"><input id="po" class="field" type="number" step=".01" value="${p.old_price??''}" placeholder="السعر القديم"><input id="ps" class="field" type="number" value="${p.stock??0}" placeholder="المخزون"><input id="pi" class="field full" value="${E(p.image_url||'')}" placeholder="رابط الصورة"><textarea id="pd" class="field full" rows="5" placeholder="الوصف">${E(p.description||'')}</textarea><div class="full">الفيديوهات ستُفعّل بعد إضافة حقول/Endpoint الفيديو إلى الـBackend؛ لن يتم تخزين بيانات غير مدعومة.</div></div><div class="actions"><button class="btn primary" onclick="saveProduct(${p.id||0})">حفظ</button></div>`)}
 async function saveProduct(id){let b={name:$('#pn').value,price:Number($('#pp').value),oldPrice:$('#po').value?Number($('#po').value):null,stock:Number($('#ps').value),imageUrl:$('#pi').value,description:$('#pd').value};await api(id?'/api/admin/products/'+id:'/api/admin/products',{method:id?'PUT':'POST',body:JSON.stringify(b)});closeModal();toast('تم حفظ المنتج');products()}
-async function inventory(){let d=await api('/api/admin/inventory'),p=d.products||[];$('#sections').innerHTML=`<div class="card"><h2>المخزون</h2><button class="btn" onclick="inventoryMovements()">تقرير حركات المخزون</button>${table(['المنتج','SKU','الكمية','السعر','التصنيف',''],p.map(x=>`<tr><td>${E(x.name)}</td><td>${E(x.sku||'-')}</td><td>${x.stock??0}</td><td>${M(x.price)}</td><td>${E(x.category_name||'-')}</td><td><button class="btn" onclick="stock(${x.id},${x.stock||0})">تعديل</button></td></tr>`))}</div>`}
+let adminInventoryCache=[];
+function renderInventoryRows(){
+  const box=$('#inventoryRows');if(!box)return;
+  const q=String($('#inventorySearch')?.value||'').trim().toLowerCase();
+  const list=adminInventoryCache.filter(x=>!q||[`${x.name||''}`,`${x.sku||''}`,`${x.category_name||''}`,`${x.brand_name||''}`].join(' ').toLowerCase().includes(q));
+  box.innerHTML=table(['المنتج','SKU','الكمية','السعر','التصنيف','البراند',''],list.map(x=>`<tr><td>${E(x.name)}</td><td>${E(x.sku||'-')}</td><td>${x.stock??0}</td><td>${M(x.price)}</td><td>${E(x.category_name||'-')}</td><td>${E(x.brand_name||'-')}</td><td><button class="btn" onclick="stock(${x.id},${x.stock||0})">تعديل</button></td></tr>`));
+}
+async function inventory(){let d=await api('/api/admin/inventory');adminInventoryCache=d.products||[];$('#sections').innerHTML=`<div class="card"><h2>المخزون</h2><div class="toolbar"><input id="inventorySearch" class="field" placeholder="بحث مباشر بالمنتج أو SKU أو الفئة أو البراند" oninput="renderInventoryRows()"><button class="btn" onclick="inventoryMovements()">تقرير حركات المخزون</button></div><div id="inventoryRows"></div></div>`;renderInventoryRows()}
 let movementRequest = 0;
 function inventoryMovements(){
   movementRequest++;
@@ -120,12 +155,19 @@ let adminOrdersCache=[];
 function orderStatusLabel(status){return ({pending:'جديد',confirmed:'مؤكد',processing:'قيد التجهيز',shipped:'تم الشحن',delivered:'تم التسليم',completed:'مكتمل',cancelled:'ملغي'})[String(status||'').toLowerCase()]||String(status||'-')}
 function orderStatusOptions(selected){return [['pending','جديد'],['confirmed','مؤكد'],['processing','قيد التجهيز'],['shipped','تم الشحن'],['delivered','تم التسليم'],['completed','مكتمل'],['cancelled','ملغي']].map(([v,l])=>`<option value="${v}" ${String(selected||'')===v?'selected':''}>${l}</option>`).join('')}
 function orderRegionLabel(region){return ({westbank:'الضفة',jerusalem:'القدس',inside:'الداخل'})[String(region||'').toLowerCase()]||region||'-'}
+function renderOrderRows(){
+  const box=$('#orderRows');if(!box)return;
+  const q=String($('#orderSearch')?.value||'').trim().toLowerCase();
+  const filtered=adminOrdersCache.filter(o=>!q||String(o.id).includes(q)||String(o.customer_name||'').toLowerCase().includes(q)||String(o.user_email||'').toLowerCase().includes(q)||String(o.user_phone||o.customer_phone||'').toLowerCase().includes(q));
+  box.innerHTML=table(['رقم','العميل','الهاتف','الإجمالي','التوصيل','الحالة','التاريخ',''],filtered.map(o=>`<tr><td>#${o.id}</td><td>${E(o.customer_name||o.user_email||'-')}</td><td>${E(o.user_phone||o.customer_phone||'-')}</td><td>${M(o.total)} ₪</td><td>${o.shipping_waived?'معفى':M(o.shipping_cost||0)+' ₪'}</td><td>${orderStatusLabel(o.status)}</td><td>${new Date(o.created_at).toLocaleString('ar')}</td><td><button class="btn primary" onclick="openOrderDetails(${Number(o.id)})">إدارة</button><button class="btn" onclick="invoice(${Number(o.id)})">طباعة</button></td></tr>`));
+}
 async function orders(){
-  const status=$('#orderStatusFilter')?.value||'',q=String($('#orderSearch')?.value||'').trim().toLowerCase();
+  const previousSearch=String($('#orderSearch')?.value||'');
+  const status=$('#orderStatusFilter')?.value||'';
   const d=await api('/api/admin/orders'+(status?'?status='+encodeURIComponent(status):''));
   adminOrdersCache=d.orders||[];
-  const filtered=adminOrdersCache.filter(o=>!q||String(o.id).includes(q)||String(o.customer_name||'').toLowerCase().includes(q)||String(o.user_email||'').toLowerCase().includes(q)||String(o.user_phone||o.customer_phone||'').toLowerCase().includes(q));
-  $('#sections').innerHTML=`<div class="card"><h2>الطلبات والفواتير</h2><div class="toolbar"><select id="orderStatusFilter" class="field" onchange="orders()"><option value="">كل الحالات</option>${orderStatusOptions(status)}</select><input id="orderSearch" class="field" value="${E(q)}" placeholder="بحث برقم الطلب أو العميل أو الهاتف"><button class="btn" onclick="orders()">بحث</button></div>${table(['رقم','العميل','الهاتف','الإجمالي','التوصيل','الحالة','التاريخ',''],filtered.map(o=>`<tr><td>#${o.id}</td><td>${E(o.customer_name||o.user_email||'-')}</td><td>${E(o.user_phone||o.customer_phone||'-')}</td><td>${M(o.total)} ₪</td><td>${o.shipping_waived?'معفى':M(o.shipping_cost||0)+' ₪'}</td><td>${orderStatusLabel(o.status)}</td><td>${new Date(o.created_at).toLocaleString('ar')}</td><td><button class="btn primary" onclick="openOrderDetails(${Number(o.id)})">إدارة</button><button class="btn" onclick="invoice(${Number(o.id)})">طباعة</button></td></tr>`))}</div>`;
+  $('#sections').innerHTML=`<div class="card"><h2>الطلبات والفواتير</h2><div class="toolbar"><select id="orderStatusFilter" class="field" onchange="orders()"><option value="">كل الحالات</option>${orderStatusOptions(status)}</select><input id="orderSearch" class="field" value="${E(previousSearch)}" placeholder="بحث مباشر برقم الطلب أو العميل أو الهاتف" oninput="renderOrderRows()"></div><div id="orderRows"></div></div>`;
+  renderOrderRows();
 }
 async function openOrderDetails(id){
   const d=await api('/api/admin/orders/'+id),o=d.order||{},items=d.items||[],cancelled=String(o.status||'').toLowerCase()==='cancelled';
@@ -415,7 +457,21 @@ async function previewCampaign(){const d=await api('/api/admin/whatsapp-campaign
 async function sendCampaign(){const title=$('#ot')?.value.trim()||'',message=$('#om')?.value.trim()||'',link=$('#ol')?.value.trim()||'';if(!title||!message)return alert('أدخل عنوان العرض ورسالة الحملة');const p=await api('/api/admin/whatsapp-campaigns/preview');if(!p.configured)return alert('ربط WhatsApp Business أو قالب الحملة غير مكتمل');if(!p.recipients)return alert('لا يوجد عملاء موافقون على رسائل واتساب حاليًا');if(!confirm('سيتم إرسال الحملة إلى '+p.recipients+' عميل موافق. متابعة؟'))return;$('#campaignResult').innerHTML='<div class="notice">جاري الإرسال...</div>';try{const d=await api('/api/admin/whatsapp-campaigns',{method:'POST',body:JSON.stringify({title,message,link,confirm:true})}),r=d.result||{};$('#campaignResult').innerHTML=`<div class="success">تم الإرسال: ${r.sent||0} — فشل: ${r.failed||0} — المستلمون: ${r.recipients||0}</div>`}catch(e){$('#campaignResult').innerHTML=`<div class="notice">${E(e.message||'تعذر إرسال الحملة')}</div>`}}
 function homepage(){$('#sections').innerHTML='<div class="card"><h2>الصفحة الرئيسية</h2><p>إدارة البنرات والمحتوى وTop 5 والأكثر مبيعًا تحتاج ربط مخطط المحتوى الفعلي الموجود في قاعدة البيانات، ولن أضيف تخزينًا وهميًا.</p></div>'}
 function waitStatusLabel(s){return s==='notified'?'تم الإشعار':s==='closed'?'مغلق':'بانتظار التوفر'}
-async function waitlist(){const status=$('#wls')?.value||'',search=$('#wlq')?.value||'',d=await api('/api/admin/waitlist?status='+encodeURIComponent(status)+'&search='+encodeURIComponent(search));$('#sections').innerHTML=`<div class="card"><h2>قائمة التوفر</h2><p>طلبات الزبائن محفوظة في قاعدة البيانات وليست على الجهاز فقط.</p><div class="toolbar"><input id="wlq" class="field" placeholder="بحث بالمنتج أو الاسم أو الهاتف" value="${E(search)}"><select id="wls" class="field"><option value="" ${status===''?'selected':''}>كل الحالات</option><option value="waiting" ${status==='waiting'?'selected':''}>بانتظار التوفر</option><option value="notified" ${status==='notified'?'selected':''}>تم الإشعار</option><option value="closed" ${status==='closed'?'selected':''}>مغلق</option></select><button class="btn primary" onclick="waitlist()">تحديث</button></div>${table(['المنتج','الزبون','الهاتف','الخيار','الحالة','التاريخ',''],(d.requests||[]).map(x=>`<tr><td><button class="btn" onclick="window.open('/#product-${Number(x.productId)}','_blank')">${x.productImage?`<img src="${E(x.productImage)}" alt="" style="width:42px;height:42px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-left:6px">`:''}${E(x.productName||'منتج')}</button></td><td>${E(x.name||'-')}</td><td>${E(x.phone||'-')}</td><td>${E(x.variant||'-')}</td><td>${waitStatusLabel(x.status)}</td><td>${x.createdAt?new Date(x.createdAt).toLocaleString('ar'):'-'}</td><td><div class="actions">${x.status==='waiting'?`<button class="btn primary" onclick="setWaitlistStatus(${x.id},'notified')">تم الإشعار</button>`:''}<button class="btn" onclick="setWaitlistStatus(${x.id},'${x.status==='closed'?'waiting':'closed'}')">${x.status==='closed'?'إعادة فتح':'إغلاق'}</button></div></td></tr>`))}</div>`}
+let adminWaitlistCache=[];
+function renderWaitlistRows(){
+  const box=$('#waitlistRows');if(!box)return;
+  box.innerHTML=table(['المنتج','الزبون','الهاتف','الخيار','الحالة','التاريخ',''],adminWaitlistCache.map(x=>`<tr><td><button class="btn" onclick="window.open('/#product-${Number(x.productId)}','_blank')">${x.productImage?`<img src="${E(x.productImage)}" alt="" style="width:42px;height:42px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-left:6px">`:''}${E(x.productName||'منتج')}</button></td><td>${E(x.name||'-')}</td><td>${E(x.phone||'-')}</td><td>${E(x.variant||'-')}</td><td>${waitStatusLabel(x.status)}</td><td>${x.createdAt?new Date(x.createdAt).toLocaleString('ar'):'-'}</td><td><div class="actions">${x.status==='waiting'?`<button class="btn primary" onclick="setWaitlistStatus(${x.id},'notified')">تم الإشعار</button>`:''}<button class="btn" onclick="setWaitlistStatus(${x.id},'${x.status==='closed'?'waiting':'closed'}')">${x.status==='closed'?'إعادة فتح':'إغلاق'}</button></div></td></tr>`));
+}
+async function fetchWaitlistRows(){
+  const status=$('#wls')?.value||'',search=$('#wlq')?.value||'';
+  const d=await api('/api/admin/waitlist?status='+encodeURIComponent(status)+'&search='+encodeURIComponent(search));
+  adminWaitlistCache=d.requests||[];
+  renderWaitlistRows();
+}
+async function waitlist(){
+  $('#sections').innerHTML=`<div class="card"><h2>قائمة التوفر</h2><p>طلبات الزبائن محفوظة في قاعدة البيانات وليست على الجهاز فقط.</p><div class="toolbar"><input id="wlq" class="field" placeholder="بحث مباشر بالمنتج أو الاسم أو الهاتف" oninput="liveDebounce('waitlist',fetchWaitlistRows,220)"><select id="wls" class="field" onchange="fetchWaitlistRows()"><option value="">كل الحالات</option><option value="waiting">بانتظار التوفر</option><option value="notified">تم الإشعار</option><option value="closed">مغلق</option></select></div><div id="waitlistRows">جاري التحميل…</div></div>`;
+  await fetchWaitlistRows();
+}
 async function setWaitlistStatus(id,status){await api('/api/admin/waitlist/'+id,{method:'PATCH',body:JSON.stringify({status})});toast(status==='notified'?'تم تسجيل الإشعار':'تم تحديث طلب التوفر');waitlist()}
 function modal(t,b){$('#mt').textContent=t;$('#mb').innerHTML=b;$('#modal').classList.add('open');initDateInputs($('#modal'))}function closeModal(){$('#modal').classList.remove('open')}
 (async()=>{const token=localStorage.getItem('lf_admin_token');if(token){await showApp()}else{showLogin()}})()
