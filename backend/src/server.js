@@ -3496,7 +3496,9 @@ app.get(
                   'unitPrice', oi.unit_price,
                   'total', oi.total,
                   'purchasePrice',
-                    oi.purchase_price
+                    oi.purchase_price,
+                  'isGift',
+                    COALESCE(oi.is_gift,FALSE)
                 )
                 ORDER BY oi.id
               )
@@ -3900,7 +3902,9 @@ app.get(
                   'unitPrice', oi.unit_price,
                   'total', oi.total,
                   'purchasePrice',
-                    oi.purchase_price
+                    oi.purchase_price,
+                  'isGift',
+                    COALESCE(oi.is_gift,FALSE)
                 )
                 ORDER BY oi.id
               )
@@ -5959,8 +5963,19 @@ app.get(
            AND completed_at < ($2::date + INTERVAL '1 day')`,
         [from,to]
       );
+      const giftCosts=await db(
+        `SELECT COALESCE(SUM(oi.purchase_price * oi.quantity),0) AS gift_cost
+         FROM order_items oi
+         JOIN orders o ON o.id=oi.order_id
+         WHERE COALESCE(oi.is_gift,FALSE)=TRUE
+           AND o.status <> 'cancelled'
+           AND o.created_at >= $1::date
+           AND o.created_at < ($2::date + INTERVAL '1 day')`,
+        [from,to]
+      );
       const baseSummary=summary.rows[0]||{};
       const rs=settlements.rows[0]||{};
+      const giftCost=Number(giftCosts.rows[0]?.gift_cost||0);
       const grossSales=Number(baseSummary.sales||0);
       const grossCost=Number(baseSummary.cost||0);
       const returnsValue=Number(rs.returns_value||0);
@@ -5977,7 +5992,7 @@ app.get(
       const netProfit=money(netSales-netCost-storeDeliveryCost);
       return res.json({
         ok:true,from,to,
-        summary:{...baseSummary,grossSales,grossCost,returnsValue,returnsGrossValue,returnedCouponDiscount,returnedVisaDiscount,returnedLoyaltyDiscount,returnedCost,exchangeDifference,returnServiceFees,storeDeliveryCost,netSettlement:Number(rs.net_settlement||0),sales:netSales,cost:netCost,profit:netProfit},
+        summary:{...baseSummary,grossSales,grossCost,giftCost,returnsValue,returnsGrossValue,returnedCouponDiscount,returnedVisaDiscount,returnedLoyaltyDiscount,returnedCost,exchangeDifference,returnServiceFees,storeDeliveryCost,netSettlement:Number(rs.net_settlement||0),sales:netSales,cost:netCost,profit:netProfit},
         rows:rows.rows
       });
     } catch (error) {
@@ -6026,6 +6041,7 @@ app.get(
             NOW() - INTERVAL '7 days'
 
             AND o.status <> 'cancelled'
+            AND COALESCE(oi.is_gift,FALSE)=FALSE
 
           GROUP BY
             oi.product_id,
@@ -6086,6 +6102,7 @@ app.get(
             ON o.id = oi.order_id
 
           WHERE o.status <> 'cancelled'
+            AND COALESCE(oi.is_gift,FALSE)=FALSE
 
           GROUP BY
             oi.product_id,
