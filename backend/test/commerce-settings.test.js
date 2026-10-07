@@ -43,7 +43,9 @@ test("admin can configure loyalty, packaging and Visa discount", () => {
 test("storefront uses authoritative global Visa discount", () => {
   assert.match(app, /storeCommerceSettings=\{visaDiscountPercent:0/);
   assert.match(app, /st\.visa_discount_percent/);
-  assert.match(app, /visaDiscount=subtotal\*/);
+  assert.match(app, /function calculateDiscountBreakdown\(/);
+  assert.match(app, /const afterCoupon=Math\.max\(0,merchandise-couponDiscount\)/);
+  assert.match(app, /const visaDiscount=afterCoupon\*\(visaRate\/100\)/);
   assert.doesNotMatch(app, /p\.visaDiscount/);
 });
 

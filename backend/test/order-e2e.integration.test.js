@@ -428,4 +428,95 @@ if (process.env.RUN_DB_E2E !== "1") {
     assert.equal(cleared.snapshot, null);
   });
 
+
+  test("fixed coupon and Visa totals match the storefront ordering", async () => {
+    const ownerLogin = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        contact: "owner-e2e@example.test",
+        password: "owner-password-123"
+      })
+    });
+    const ownerHeaders = { Authorization: "Bearer " + ownerLogin.token };
+
+    await api("/api/admin/settings", {
+      method: "PUT",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        visa_discount_percent: 10,
+        shipping_fees: { westbank: 20, jerusalem: 35, inside: 70 },
+        shipping_discount_percentages: { westbank: 25, jerusalem: 0, inside: 0 }
+      })
+    });
+
+    await api("/api/admin/coupons", {
+      method: "POST",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        code: "FIX20",
+        discountType: "fixed",
+        discountValue: 20,
+        minimumAmount: 0,
+        maxUses: 5
+      })
+    });
+
+    const product = await api("/api/admin/products", {
+      method: "POST",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        name: "CI Fixed Coupon Product",
+        description: "Fixed coupon and Visa consistency",
+        price: 200,
+        cost_price: 80,
+        stock: 2,
+        images: ["https://example.com/ci-fixed-coupon.jpg"],
+        category: "CI Finance Category",
+        brand: "CI Finance Brand",
+        active: true
+      })
+    });
+    const productId = Number(product.product.id);
+
+    const customer = await api("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "CI Fixed Coupon Customer",
+        email: "fixed-coupon-e2e@example.test",
+        password: "fixed-coupon-pass-123",
+        gender: "female",
+        age: 24
+      })
+    });
+    const customerHeaders = { Authorization: "Bearer " + customer.token };
+
+    const checkout = await api("/api/orders", {
+      method: "POST",
+      headers: customerHeaders,
+      body: JSON.stringify({
+        customerName: "CI Fixed Coupon Customer",
+        customerPhone: "+970599000030",
+        shippingAddress: "Nablus - fixed coupon CI",
+        shippingRegion: "westbank",
+        paymentMethod: "visa",
+        couponCode: "FIX20",
+        items: [{ productId, quantity: 1 }]
+      })
+    });
+
+    const orderId = Number(checkout.orderId || checkout.order?.id);
+    const adminOrder = await api("/api/admin/orders/" + orderId, { headers: ownerHeaders });
+    assert.equal(Number(adminOrder.order.subtotal), 200);
+    assert.equal(Number(adminOrder.order.coupon_discount), 20);
+    assert.equal(Number(adminOrder.order.visa_discount), 18);
+    assert.equal(Number(adminOrder.order.shipping_cost), 15);
+    assert.equal(Number(adminOrder.order.total), 177);
+
+    await api("/api/admin/orders/" + orderId + "/status", {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ status: "cancelled" })
+    });
+  });
+
 }
