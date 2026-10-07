@@ -54,6 +54,14 @@ test("admin gifts are inventory-backed zero-price order lines", () => {
   assert.match(admin, /تكلفة الهدايا/);
 });
 
+test("invoice print CSS removes screen table width and avoids internal page breaks", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../../frontend/admin.css"), "utf8");
+  assert.match(css, /@page\{size:A4/);
+  assert.match(css, /min-width:0!important/);
+  assert.match(css, /table-layout:fixed!important/);
+  assert.match(css, /break-inside:avoid!important/);
+});
+
 test("invoice shows gift lines and separate automatic/manual shipping discounts", () => {
   assert.match(admin, /🎁 هدية/);
   assert.match(admin, /خصم التوصيل التلقائي/);
