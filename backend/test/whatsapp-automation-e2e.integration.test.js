@@ -91,7 +91,8 @@ if (process.env.RUN_DB_E2E !== "1") {
     await db(
       `INSERT INTO settings(key,value,updated_at) VALUES
         ('abandoned_cart_whatsapp_enabled','true'::jsonb,NOW()),
-        ('low_stock_whatsapp_enabled','true'::jsonb,NOW())
+        ('low_stock_whatsapp_enabled','true'::jsonb,NOW()),
+        ('waitlist_whatsapp_auto_enabled','true'::jsonb,NOW())
        ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_at=NOW()`
     );
 
