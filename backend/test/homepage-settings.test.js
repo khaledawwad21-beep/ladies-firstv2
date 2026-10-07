@@ -73,7 +73,7 @@ test('admin draft preserves edits across add/reorder/remove, saves only slider s
     const font=/<option value="([^"]+)" selected/.exec(html);nodes['#hpFont']={value:font?font[1]:style.font};
   }});
   let payload,fail=false;
-  const context=vm.createContext({window:{},$:(key)=>nodes[key],E:value=>String(value??'').replace(/</g,'&lt;').replace(/"/g,'&quot;'),toast:()=>{},api:async(url,options)=>{payload=JSON.parse(options.body);if(fail)throw Error('تعذر الحفظ');},adminUploadProductImage:async()=>'/api/images/uploaded'});
+  const context=vm.createContext({window:{},$:(key)=>nodes[key],E:value=>String(value??'').replace(/</g,'&lt;').replace(/"/g,'&quot;'),toast:()=>{},api:async(url,options)=>{payload=JSON.parse(options.body);if(fail)throw Error('تعذر الحفظ');},adminUploadProductImage:async()=>'/api/images/uploaded',adminUploadMany:async files=>[...files].map(()=>'/api/images/uploaded')});
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../../frontend/admin-homepage.js'),'utf8'),context);
   context.hpRender();context.hpAdd();nodes['#hp_0_image'].value='/one.png';nodes['#hp_0_titleAr'].value='Edited';
   context.hpAdd();nodes['#hp_1_image'].value='/two.png';context.hpMove(1,-1);await context.hpSave();
