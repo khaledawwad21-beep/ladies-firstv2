@@ -195,7 +195,181 @@ async function finance(){const today=new Date().toISOString().slice(0,10),month=
 function financeRange(mode){const today=new Date().toISOString().slice(0,10),from=mode==='today'?today:today.slice(0,8)+'01';if($('#ff'))$('#ff').value=from;if($('#ft'))$('#ft').value=today;financeRun()}
 async function financeRun(){const from=$('#ff')?.value,to=$('#ft')?.value,target=$('#financeSummary');if(!target||!from||!to)return;if(from>to){target.textContent='تاريخ البداية يجب أن يكون قبل النهاية أو مساوياً لها.';return}target.textContent='جاري تحميل الحسابات…';try{const d=await api('/api/admin/reports/sales?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to)),s=d.summary||{};target.innerHTML=`<div class="cards"><div class="stat">الطلبات<b>${s.orders||0}</b></div><div class="stat">صافي المبيعات<b>${M(s.sales)} ₪</b></div><div class="stat">صافي تكلفة البضاعة<b>${M(s.cost)} ₪</b></div><div class="stat">صافي الربح<b>${M(s.profit)} ₪</b></div><div class="stat">المرتجعات النقدية الفعلية<b>${M(s.returnsValue)} ₪</b></div><div class="stat">قيمة المرتجعات قبل الخصومات<b>${M(s.returnsGrossValue)} ₪</b></div><div class="stat">فرق الاستبدال<b>${M(s.exchangeDifference)} ₪</b></div><div class="stat">رسوم الإرجاع/الاستبدال<b>${M(s.returnServiceFees)} ₪</b></div><div class="stat">توصيل أخطاء المتجر<b>${M(s.storeDeliveryCost)} ₪</b></div><div class="stat">الملغاة<b>${s.cancelled||0}</b></div></div><div class="notice">الحساب يعتمد على تكلفة الشراء المحفوظة مع كل منتج وقت الطلب، والطلبات الملغاة لا تدخل في المبيعات أو الربح.</div>`}catch(e){target.textContent=e.message||'تعذر تحميل الحسابات'}}
 async function catalog(){let[c,b]=await Promise.all([api('/api/categories'),api('/api/brands')]);$('#sections').innerHTML=`<div class="grid"><div class="card"><h2>التصنيفات</h2><div class="toolbar"><input id="cn" class="field"><button class="btn primary" onclick="addCat()">إضافة</button></div>${table(['الاسم'],(c.categories||[]).map(x=>`<tr><td>${E(x.name)}</td></tr>`))}</div><div class="card"><h2>العلامات</h2><div class="toolbar"><input id="bn" class="field"><button class="btn primary" onclick="addBrand()">إضافة</button></div>${table(['الاسم'],(b.brands||[]).map(x=>`<tr><td>${E(x.name)}</td></tr>`))}</div></div>`}async function addCat(){await api('/api/admin/categories',{method:'POST',body:JSON.stringify({name:$('#cn').value})});catalog()}async function addBrand(){await api('/api/admin/brands',{method:'POST',body:JSON.stringify({name:$('#bn').value})});catalog()}
-async function coupons(){let d=await api('/api/admin/coupons');$('#sections').innerHTML=`<div class="card"><h2>الكوبونات</h2><button class="btn primary" onclick="couponForm()">+ كوبون</button>${table(['الكود','النوع','القيمة','الحالة'],(d.coupons||[]).map(x=>`<tr><td>${E(x.code)}</td><td>${E(x.discount_type)}</td><td>${x.discount_value}</td><td>${x.is_active?'فعال':'متوقف'}</td></tr>`))}</div>`}function couponForm(){modal('كوبون جديد',`<div class="formgrid"><input id="cc" class="field" placeholder="الكود"><select id="ct" class="field"><option value="percent">نسبة</option><option value="fixed">مبلغ</option></select><input id="cv" class="field" type="number" step=".01" placeholder="القيمة"><input id="cm" class="field" type="number" step=".01" placeholder="الحد الأدنى"><input id="cx" class="field" type="number" placeholder="أقصى استخدامات"></div><div class="actions"><button class="btn primary" onclick="saveCoupon()">حفظ</button></div>`)}async function saveCoupon(){await api('/api/admin/coupons',{method:'POST',body:JSON.stringify({code:$('#cc').value,discountType:$('#ct').value,discountValue:Number($('#cv').value),minimumAmount:Number($('#cm').value||0),maxUses:Number($('#cx').value||0)})});closeModal();coupons()}
+let adminCouponsCache=[];
+
+function couponDateValue(value){
+  if(!value)return '';
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime()))return '';
+  const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);
+  return local.toISOString().slice(0,10);
+}
+
+function couponDateIso(value,endOfDay=false){
+  const raw=String(value||'').trim();
+  if(!raw)return null;
+  const d=new Date(raw+(endOfDay?'T23:59:59.999':'T00:00:00.000'));
+  return Number.isNaN(d.getTime())?null:d.toISOString();
+}
+
+function couponStatus(x){
+  const now=Date.now();
+  if(x.is_active===false)return {key:'disabled',label:'معطل'};
+  if(x.starts_at&&new Date(x.starts_at).getTime()>now)return {key:'scheduled',label:'مجدول'};
+  if(x.expires_at&&new Date(x.expires_at).getTime()<now)return {key:'expired',label:'منتهي'};
+  const max=Math.max(0,Number(x.max_uses||0)||0),used=Math.max(0,Number(x.used_count||0)||0);
+  if(max>0&&used>=max)return {key:'exhausted',label:'مستنفد'};
+  return {key:'active',label:'فعال'};
+}
+
+function renderCouponRows(){
+  const box=$('#couponRows');
+  if(!box)return;
+  const q=String($('#couponSearch')?.value||'').trim().toLowerCase();
+  const list=adminCouponsCache.filter(x=>!q||String(x.code||'').toLowerCase().includes(q));
+  if(!list.length){
+    box.innerHTML='<p class="small-note">لا توجد كوبونات مطابقة.</p>';
+    return;
+  }
+  box.innerHTML=table(
+    ['الكود','الخصم','الحد الأدنى','الاستخدامات','لكل زبون','الصلاحية','الحالة',''],
+    list.map(x=>{
+      const s=couponStatus(x);
+      const max=Math.max(0,Number(x.max_uses||0)||0);
+      const used=Math.max(0,Number(x.used_count||0)||0);
+      const per=Math.max(0,Number(x.max_uses_per_customer||0)||0);
+      const start=x.starts_at?couponDateValue(x.starts_at):'—';
+      const end=x.expires_at?couponDateValue(x.expires_at):'—';
+      const type=String(x.discount_type||'percent')==='fixed'?'₪':'%';
+      return `<tr>
+        <td><b>${E(x.code)}</b></td>
+        <td>${M(x.discount_value)} ${type}</td>
+        <td>${M(x.minimum_amount||x.min_order||0)} ₪</td>
+        <td>${used} / ${max||'∞'}</td>
+        <td>${per||'∞'}</td>
+        <td><small>من: ${E(start)}<br>إلى: ${E(end)}</small></td>
+        <td><span class="coupon-status coupon-${s.key}">${E(s.label)}</span></td>
+        <td><div class="toolbar coupon-actions">
+          <button class="btn" type="button" onclick="couponForm(${Number(x.id)})">تعديل</button>
+          <button class="btn" type="button" onclick="toggleCoupon(${Number(x.id)},${x.is_active!==false?'false':'true'})">${x.is_active!==false?'تعطيل':'تفعيل'}</button>
+          <button class="btn danger" type="button" onclick="deleteCoupon(${Number(x.id)})">حذف</button>
+        </div></td>
+      </tr>`;
+    })
+  );
+}
+
+async function coupons(){
+  const d=await api('/api/admin/coupons');
+  adminCouponsCache=d.coupons||[];
+  $('#sections').innerHTML=`<div class="card"><h2>أكواد الخصم</h2>
+    <p class="small-note">الحد الأدنى = أقل قيمة للطلب تسمح باستخدام الكوبون. القيمة 0 تعني بدون حد أدنى. والرقم 0 في حدود الاستخدام يعني بدون حد.</p>
+    <div class="toolbar coupon-toolbar">
+      <input id="couponSearch" class="field compact-field" placeholder="بحث مباشر بكود الخصم" oninput="renderCouponRows()">
+      <button class="btn primary" type="button" onclick="couponForm()">+ كوبون جديد</button>
+    </div>
+    <div id="couponRows"></div>
+  </div>`;
+  renderCouponRows();
+}
+
+function couponForm(id){
+  const x=id?adminCouponsCache.find(c=>Number(c.id)===Number(id)):null;
+  const editing=!!x;
+  modal(editing?'تعديل كود الخصم':'كوبون جديد',`<div class="formgrid coupon-form">
+    <label>كود الخصم
+      <input id="cc" class="field compact-field" value="${E(x?.code||'')}" placeholder="مثال: LADIES10" ${editing?'disabled':''}>
+    </label>
+    <label>نوع الخصم
+      <select id="ct" class="field compact-field">
+        <option value="percent" ${String(x?.discount_type||'percent')==='percent'?'selected':''}>نسبة مئوية %</option>
+        <option value="fixed" ${String(x?.discount_type||'')==='fixed'?'selected':''}>مبلغ ثابت ₪</option>
+      </select>
+    </label>
+    <label>قيمة الخصم
+      <input id="cv" class="field compact-field" type="number" min="0" step=".01" value="${E(x?.discount_value??'')}" placeholder="القيمة">
+    </label>
+    <label>الحد الأدنى للطلب
+      <input id="cm" class="field compact-field" type="number" min="0" step=".01" value="${E(x?.minimum_amount??x?.min_order??0)}" placeholder="0 = بدون حد">
+    </label>
+    <label>أقصى عدد استخدامات إجمالي
+      <input id="cx" class="field compact-field" type="number" min="0" step="1" value="${E(x?.max_uses??0)}" placeholder="0 = غير محدود">
+    </label>
+    <label>أقصى مرات لنفس الزبون
+      <input id="cpu" class="field compact-field" type="number" min="0" step="1" value="${E(x?.max_uses_per_customer??0)}" placeholder="0 = غير محدود">
+    </label>
+    <label>يبدأ من
+      <input id="cs" class="field compact-field lf-date" type="date" value="${E(couponDateValue(x?.starts_at))}">
+    </label>
+    <label>ينتهي بتاريخ
+      <input id="ce" class="field compact-field lf-date" type="date" value="${E(couponDateValue(x?.expires_at))}">
+    </label>
+    ${editing?`<label class="full"><input id="ca" type="checkbox" ${x?.is_active!==false?'checked':''}> الكوبون فعال</label>`:''}
+  </div>
+  <div class="actions">
+    <button class="btn primary" type="button" onclick="${editing?`saveCouponEdit(${Number(x.id)})`:'saveCoupon()'}">حفظ</button>
+  </div>`);
+  initDateInputs?.();
+}
+
+function couponPayload(){
+  const type=$('#ct')?.value||'percent';
+  const value=Math.max(0,Number($('#cv')?.value||0));
+  if(type==='percent'&&value>100)throw new Error('النسبة المئوية لا يمكن أن تتجاوز 100%');
+  const startsAt=couponDateIso($('#cs')?.value,false);
+  const expiresAt=couponDateIso($('#ce')?.value,true);
+  if(startsAt&&expiresAt&&new Date(expiresAt)<new Date(startsAt))throw new Error('تاريخ انتهاء الكوبون يجب أن يكون بعد تاريخ البداية');
+  return {
+    discount_type:type,
+    discount_value:value,
+    minimum_amount:Math.max(0,Number($('#cm')?.value||0)),
+    max_uses:Math.max(0,Math.floor(Number($('#cx')?.value||0))),
+    max_uses_per_customer:Math.max(0,Math.floor(Number($('#cpu')?.value||0))),
+    starts_at:startsAt,
+    expires_at:expiresAt
+  };
+}
+
+async function saveCoupon(){
+  try{
+    const code=String($('#cc')?.value||'').trim().toUpperCase();
+    if(!code)return alert('أدخل كود الخصم');
+    const payload={code,...couponPayload()};
+    await api('/api/admin/coupons',{method:'POST',body:JSON.stringify(payload)});
+    closeModal();
+    await coupons();
+    toast('تم إنشاء الكوبون');
+  }catch(e){alert(e.message||'تعذر إنشاء الكوبون')}
+}
+
+async function saveCouponEdit(id){
+  try{
+    const payload={...couponPayload(),is_active:!!$('#ca')?.checked};
+    await api('/api/admin/coupons/'+id,{method:'PATCH',body:JSON.stringify(payload)});
+    closeModal();
+    await coupons();
+    toast('تم تحديث الكوبون');
+  }catch(e){alert(e.message||'تعذر تعديل الكوبون')}
+}
+
+async function toggleCoupon(id,active){
+  try{
+    await api('/api/admin/coupons/'+id,{method:'PATCH',body:JSON.stringify({is_active:!!active})});
+    await coupons();
+    toast(active?'تم تفعيل الكوبون':'تم تعطيل الكوبون');
+  }catch(e){alert(e.message||'تعذر تغيير حالة الكوبون')}
+}
+
+async function deleteCoupon(id){
+  const x=adminCouponsCache.find(c=>Number(c.id)===Number(id));
+  if(!confirm(`حذف كود الخصم "${x?.code||id}" نهائيًا؟`))return;
+  try{
+    await api('/api/admin/coupons/'+id,{method:'DELETE'});
+    await coupons();
+    toast('تم حذف الكوبون');
+  }catch(e){alert(e.message||'تعذر حذف الكوبون')}
+}
+
 async function reports(){let t=new Date().toISOString().slice(0,10);$('#sections').innerHTML=`<div class="card"><h2>تقارير المبيعات والأرباح</h2><div class="toolbar"><input id="rf" type="date" class="field" value="${t}" onchange="reportRun()"><input id="rt" type="date" class="field" value="${t}" onchange="reportRun()"></div><div id="rr"></div></div>`;reportRun()}async function reportRun(){let d=await api('/api/admin/reports/sales?from='+$('#rf').value+'&to='+$('#rt').value),s=d.summary||{};$('#rr').innerHTML=`<div class="cards"><div class="stat">الطلبات<b>${s.orders||0}</b></div><div class="stat">صافي المبيعات<b>${M(s.sales)}</b></div><div class="stat">صافي التكلفة<b>${M(s.cost)}</b></div><div class="stat">صافي الربح<b>${M(s.profit)}</b></div><div class="stat">المرتجعات<b>${M(s.returnsValue)}</b></div><div class="stat">فرق الاستبدال<b>${M(s.exchangeDifference)}</b></div><div class="stat">الملغاة<b>${s.cancelled||0}</b></div></div>`+table(['التاريخ','الطلبات','المبيعات','التكلفة','الربح'],(d.rows||[]).map(x=>`<tr><td>${x.date}</td><td>${x.orders}</td><td>${M(x.sales)}</td><td>${M(x.cost)}</td><td>${M(x.profit)}</td></tr>`))}
 let adminPackagingOptions=[];
 function capturePackagingOptions(){adminPackagingOptions=[...document.querySelectorAll('.packagingAdminRow')].map((row,i)=>({id:row.dataset.id||('package-'+(i+1)),nameAr:row.querySelector('.pkgAr').value.trim(),nameEn:row.querySelector('.pkgEn').value.trim(),price:Math.max(0,Number(row.querySelector('.pkgPrice').value)||0),active:row.querySelector('.pkgActive').checked})).filter(x=>x.nameAr||x.nameEn)}
