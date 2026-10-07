@@ -39,6 +39,13 @@ test("staff gender is persisted for gender-aware admin copy",()=>{
   assert.match(admin,/gender:\$\('#esg'\)\.value/);
 });
 
+test("customer order blocking exposes an audit history in the user editor",()=>{
+  assert.match(server,/customer_order_block_events/);
+  assert.match(admin,/order-block-history/);
+  assert.match(admin,/function loadUserOrderBlockHistory\(/);
+  assert.match(admin,/سجل منع الطلب/);
+});
+
 test("staff, categories and brands use live search",()=>{
   assert.match(admin,/بحث مباشر بالاسم أو البريد أو الهاتف أو الدور/);
   assert.match(admin,/function renderStaffRows\(/);
