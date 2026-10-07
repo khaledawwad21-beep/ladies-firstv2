@@ -42,7 +42,7 @@ async function taxonomy(client, table, id, name) {
 }
 function registerProductWrites(app, getProducts) {
   app.get('/api/admin/products', requireAdmin, async (req, res, next) => {
-    try { res.json({ ok: true, products: await getProducts() }); }
+    try { res.json({ ok: true, products: await getProducts("", [], "p.created_at DESC", true) }); }
     catch (error) { next(error); }
   });
   async function save(req, res, next) {
@@ -111,7 +111,7 @@ function registerProductWrites(app, getProducts) {
         }
         return savedId;
       });
-      const products = await getProducts('AND p.id = $1', [productId]);
+      const products = await getProducts('AND p.id = $1', [productId], "p.created_at DESC", true);
       res.status(id ? 200 : 201).json({ ok: true, product: products[0] });
     } catch (error) { next(error); }
   }
