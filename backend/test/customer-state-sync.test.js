@@ -70,3 +70,9 @@ test("WhatsApp opt-in belongs to the customer profile route and is returned by a
   assert.match(meRoute, /whatsapp_opt_in/);
   assert.match(meRoute, /whatsapp_opt_in_updated_at/);
 });
+
+
+test("storefront prefers the server WhatsApp preference over stale local state", () => {
+  assert.match(app, /serverOptIn=d\.user\.whatsapp_opt_in\?\?d\.user\.whatsappOptIn/);
+  assert.match(app, /whatsapp_opt_in:whatsappOptIn/);
+});
