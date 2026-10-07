@@ -2,6 +2,15 @@
 
 const crypto=require("node:crypto");
 
+const STAFF_MESSAGE_ROLES=Object.freeze(["owner","admin","staff"]);
+
+function normalizeTargetRoles(value){
+  const roles=Array.isArray(value)
+    ? value.map(x=>String(x||"").trim().toLowerCase()).filter(x=>STAFF_MESSAGE_ROLES.includes(x))
+    : [];
+  return [...new Set(roles.length?roles:STAFF_MESSAGE_ROLES)];
+}
+
 async function initStaffMessages(db){
   await db(`
     ALTER TABLE users
@@ -30,7 +39,8 @@ function normalizeMessage(value){
     message:String(raw.message||"").trim().slice(0,3000),
     active:raw.active===true,
     createdAt:raw.createdAt||null,
-    createdBy:raw.createdBy||null
+    createdBy:raw.createdBy||null,
+    targetRoles:normalizeTargetRoles(raw.targetRoles)
   };
 }
 
@@ -47,6 +57,7 @@ function registerStaffMessageRoutes(app,{db,requireAdmin}){
         message.active&&
         message.version&&
         message.message&&
+        message.targetRoles.includes(String(req.user?.role||"").toLowerCase())&&
         seenVersion!==message.version
       );
       return res.json({ok:true,message,seenVersion,shouldShow});
@@ -60,6 +71,9 @@ function registerStaffMessageRoutes(app,{db,requireAdmin}){
     try{
       const current=normalizeMessage(await getSetting(db,"staff_general_message",{}));
       const version=String(req.body?.version||"").trim();
+      if(!current.targetRoles.includes(String(req.user?.role||"").toLowerCase())){
+        return res.status(403).json({ok:false,code:"MESSAGE_NOT_TARGETED",message:"هذه الرسالة ليست موجهة لهذا الدور"});
+      }
       if(!current.version||version!==current.version){
         return res.status(409).json({ok:false,message:"الرسالة تغيرت، يرجى إعادة فتحها"});
       }
@@ -77,6 +91,7 @@ function registerStaffMessageRoutes(app,{db,requireAdmin}){
   app.get("/api/admin/settings/staff-message",requireAdmin,async(req,res)=>{
     try{
       const message=normalizeMessage(await getSetting(db,"staff_general_message",{}));
+      const placeholders=message.targetRoles.map((_,index)=>`${index+2}`).join(",");
       const counts=await db(
         `SELECT
            COUNT(*) FILTER (WHERE is_active=TRUE)::int AS eligible,
@@ -86,8 +101,8 @@ function registerStaffMessageRoutes(app,{db,requireAdmin}){
                AND COALESCE(staff_message_seen_version,'')=$1
            )::int AS seen
          FROM users
-         WHERE role IN ('owner','admin','staff')`,
-        [message.version]
+         WHERE role IN (${placeholders})`,
+        [message.version,...message.targetRoles]
       );
       return res.json({
         ok:true,
@@ -106,6 +121,11 @@ function registerStaffMessageRoutes(app,{db,requireAdmin}){
       return res.status(403).json({ok:false,code:"MANAGEMENT_ONLY",message:"نشر رسالة الموظفين متاح للمالك أو Admin فقط"});
     }
     const message=String(req.body?.message||"").trim().slice(0,3000);
+    const requestedRoles=Array.isArray(req.body?.targetRoles)?req.body.targetRoles:null;
+    const targetRoles=normalizeTargetRoles(requestedRoles);
+    if(requestedRoles&&requestedRoles.length&&requestedRoles.every(role=>!STAFF_MESSAGE_ROLES.includes(String(role||"").trim().toLowerCase()))){
+      return res.status(400).json({ok:false,message:"الأدوار المستهدفة غير صالحة"});
+    }
     if(!message){
       return res.status(400).json({ok:false,message:"اكتب نص الرسالة أولًا"});
     }
@@ -115,7 +135,8 @@ function registerStaffMessageRoutes(app,{db,requireAdmin}){
         message,
         active:true,
         createdAt:new Date().toISOString(),
-        createdBy:Number(req.user.id)||null
+        createdBy:Number(req.user.id)||null,
+        targetRoles
       };
       await setSetting(db,"staff_general_message",value);
       return res.status(201).json({ok:true,message:value});
@@ -142,4 +163,4 @@ function registerStaffMessageRoutes(app,{db,requireAdmin}){
   });
 }
 
-module.exports={initStaffMessages,registerStaffMessageRoutes,normalizeMessage};
+module.exports={initStaffMessages,registerStaffMessageRoutes,normalizeMessage,normalizeTargetRoles};
