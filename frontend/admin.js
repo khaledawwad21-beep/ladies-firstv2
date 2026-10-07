@@ -383,7 +383,7 @@ async function openOrderDetails(id){
   const manualAmount=Math.max(0,Number(o.shipping_manual_discount_amount||0)||0);
   modal('إدارة الطلب #'+id,`<div class="formgrid">
     <div class="full notice"><b>${E(o.user_name||o.customer_name||'-')}</b> — ${E(o.user_phone||o.customer_phone||'-')}<br>${E(o.shipping_address||'-')}<br>الدفع: ${E(payment)} — التوصيل: ${E(orderRegionLabel(o.shipping_region))}</div>
-    <label>حالة الطلب<select id="orderStatusEdit" class="field" onchange="toggleCancellationFields()" ${cancelled?'disabled':''}>${orderStatusOptions(o.status)}</select></label>
+    <label>حالة الطلب<select id="orderStatusEdit" class="field" data-saved-status="${E(o.status||'')}" onchange="handleOrderStatusSelect(${Number(id)})" ${cancelled?'disabled':''}>${orderStatusOptions(o.status)}</select></label>
     <div id="orderCancellationFields" class="full cancellation-fields" ${String(o.status||'').toLowerCase()==='cancelled'?'':'hidden'}>
       <div class="formgrid">
         <label>مصدر الإلغاء<select id="orderCancelSource" class="field" ${cancelled?'disabled':''}><option value="">حدد المصدر</option><option value="customer" ${o.cancelled_source==='customer'?'selected':''}>الزبون طلب الإلغاء</option><option value="store" ${o.cancelled_source==='store'?'selected':''}>خطأ / سبب من المتجر</option><option value="admin" ${o.cancelled_source==='admin'?'selected':''}>قرار إداري / سبب آخر</option></select></label>
@@ -536,6 +536,15 @@ async function removeOrderGift(orderId,itemId){
   }catch(e){alert(e.message||'تعذر حذف الهدية')}
 }
 
+async function handleOrderStatusSelect(id){
+  const select=$('#orderStatusEdit');
+  if(!select)return;
+  toggleCancellationFields();
+  if(select.value!=='delivered')return;
+  select.disabled=true;
+  try{await saveOrderStatus(id)}
+  finally{if(select.isConnected)select.disabled=false}
+}
 function toggleCancellationFields(){
   const box=$('#orderCancellationFields');
   if(box)box.hidden=$('#orderStatusEdit')?.value!=='cancelled';
@@ -554,11 +563,11 @@ async function saveOrderStatus(id){
     if(d.autoBlockedCustomer){
       alert('تم إلغاء الطلب، ووصل الزبون إلى حد الإلغاءات المحدد لذلك تم منعه تلقائيًا من الطلب.');
     }else{
-      toast('تم تحديث حالة الطلب');
+      toast(status==='delivered'?'تم تسجيل الطلب كتم التسليم':'تم تحديث حالة الطلب');
     }
     closeModal();
     await orders();
-  }catch(e){alert(e.message||'تعذر تحديث حالة الطلب')}
+  }catch(e){alert(e.message||'تعذر تحديث حالة الطلب');const select=$('#orderStatusEdit');if(select){select.value=select.dataset.savedStatus||'';toggleCancellationFields()}}
 }
 async function toggleOrderShipping(id,waived){
   const msg=waived?'تأكيد إعفاء هذا الطلب من رسوم التوصيل؟':'تأكيد إعادة رسوم التوصيل لهذا الطلب؟';
