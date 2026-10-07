@@ -4,10 +4,12 @@ WORKDIR /app
 
 COPY backend/package*.json ./backend/
 
-RUN cd backend && npm install --omit=dev
+RUN cd backend && npm ci --omit=dev
 
-COPY backend ./backend
-COPY frontend ./frontend
+COPY --chown=node:node backend ./backend
+COPY --chown=node:node frontend ./frontend
+
+USER node
 
 ENV NODE_ENV=production
 

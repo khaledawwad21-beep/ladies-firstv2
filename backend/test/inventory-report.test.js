@@ -17,6 +17,8 @@ const {createToken} = require('../src/auth');
 let server, base;
 before(async () => {
   await database.exec(`SET TIME ZONE 'UTC';
+    CREATE TABLE users (id BIGINT PRIMARY KEY, role TEXT, is_active BOOLEAN, permissions JSONB, session_version INTEGER);
+    INSERT INTO users VALUES(1,'owner',TRUE,'[]',0),(2,'customer',TRUE,'[]',0);
     CREATE TABLE products (id BIGINT PRIMARY KEY, name TEXT);
     CREATE TABLE product_variants (id BIGINT PRIMARY KEY, color TEXT, size TEXT, sku TEXT);
     CREATE TABLE inventory_movements (id BIGINT PRIMARY KEY, product_id BIGINT, variant_id BIGINT, quantity_change INT, reason TEXT, order_id BIGINT, created_at TIMESTAMPTZ);
@@ -33,7 +35,7 @@ before(async () => {
 });
 after(async () => {if(server) await new Promise(resolve => server.close(resolve)); await database.close();});
 async function request(query = '', role = 'owner') {
-  return fetch(base + '/api/admin/inventory/movements' + query, {headers: role ? {Authorization:'Bearer '+createToken({id:1,role})} : {}});
+  return fetch(base + '/api/admin/inventory/movements' + query, {headers: role ? {Authorization:'Bearer '+createToken({id:role==='customer'?2:1,role})} : {}});
 }
 test('movement report requires authentication and admin role', async () => {
   assert.equal((await request('', null)).status, 401);

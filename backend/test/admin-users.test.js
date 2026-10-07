@@ -36,7 +36,7 @@ require.cache[require.resolve('../src/db')] = {
       }
 
       if (/FROM users/.test(sql)) {
-        const rows = /WHERE\s+id =/.test(sql)
+        const rows = /WHERE\s+id\s*=/.test(sql)
           ? [users.get(String(values[0]))].filter(Boolean)
           : [...users.values()];
         return { rows: rows.map((x) => ({ ...x })), rowCount: rows.length };
@@ -74,7 +74,9 @@ after(async () => {
 });
 
 function token(role = 'owner') {
-  return auth.createToken({ id: '1', role });
+  const id = role==='owner'?'1':role==='customer'?'2':role==='admin'?'3':'4';
+  if(!users.has(id))users.set(id,{id,role,is_active:true,permissions:['users']});
+  return auth.createToken(users.get(id));
 }
 
 async function call(route, bearer, body, method = 'PATCH') {
@@ -99,7 +101,7 @@ test('admin user writes require a valid admin bearer', async () => {
     const count = queries.length;
     const result = await call('/api/admin/users/2', bearer, { name: 'Blocked' });
     assert.equal(result.status, expected);
-    assert.equal(queries.length, count);
+    assert.equal(queries.length, count + (expected===403?1:0));
   }
 
   for (const role of ['owner', 'admin', 'staff']) {
@@ -156,7 +158,7 @@ test('user list exposes compatibility fields without password hashes', async () 
   assert.equal(auth.sanitizeUser({ ...users.get('1'), password_hash: 'secret' }).is_owner, 1);
 });
 
-test('owner guard authenticates before authorizing role', () => {
+test('owner guard authenticates before authorizing role', async () => {
   for (const [role, expected] of [
     ['owner', 200],
     ['admin', 403],
@@ -168,7 +170,7 @@ test('owner guard authenticates before authorizing role', () => {
       status(code) { status = code; return this; },
       json() {}
     };
-    auth.requireOwner(
+    await auth.requireOwner(
       { headers: { authorization: 'Bearer ' + token(role) } },
       res,
       () => { reached = true; }

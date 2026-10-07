@@ -8,7 +8,7 @@ function numeric(value, label, whole = false) {
   return n;
 }
 function imageUrl(value) {
-  if (typeof value !== 'string' || !(/^(https?:\/\/|\/api\/images\/|\/uploads\/)/.test(value))) invalid('رابط الصورة غير صالح');
+  if (typeof value !== 'string' || value.length > 2048 || /[<>\"'\\\x00-\x20]/.test(value) || !(/^(https?:\/\/|\/api\/images\/|\/uploads\/)/.test(value))) invalid('رابط الصورة غير صالح');
   return value;
 }
 function videoUrl(value) {
