@@ -9304,6 +9304,7 @@ app.get(
 require("./waitlist").registerWaitlistRoutes(app, {
   db,
   requireAdmin,
+  requireAuth,
   optionalAuth,
   normalizePhone
 });
