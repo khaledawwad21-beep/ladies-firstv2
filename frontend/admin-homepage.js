@@ -34,7 +34,7 @@ function hpPreviewUrl(value) {
 }
 function hpRender() {
   $('#sections').innerHTML=`<div id="hpEditor" class="card"><h2>صور السلايدر والنصوص</h2><p>تظهر الصور بهذا الترتيب، وتتبدل تلقائيًا كل 3 ثوانٍ. عند حذف جميع الصور تظهر صورة المتجر الافتراضية.</p><fieldset id="hpFields" style="border:0;padding:0;min-width:0" ${hpBusy?'disabled':''}>
-    <div class="toolbar"><button class="btn" type="button" onclick="hpAdd()">+ صورة جديدة</button><label class="field">رفع صورة من الجهاز<input id="hpFile" type="file" accept="image/png,image/jpeg,image/webp" onchange="hpUpload(this)"></label></div>
+    <div class="toolbar"><button class="btn" type="button" onclick="hpAdd()">+ شريحة يدوية</button><label class="field">رفع عدة صور من الجهاز<input id="hpFile" type="file" multiple accept="image/png,image/jpeg,image/webp" onchange="hpUpload(this)"></label></div>
     ${hpSlides.map((slide,i)=>`<div class="card"><h3>الصورة ${i+1}</h3>${hpPreviewUrl(slide.image)?`<img src="${E(hpPreviewUrl(slide.image))}" alt="معاينة الصورة ${i+1}" style="display:block;width:100%;max-height:240px;object-fit:contain;border-radius:12px">`:""}<div class="formgrid"><label class="full">رابط الصورة<input id="hp_${i}_image" class="field" value="${E(slide.image||'')}" placeholder="https://… أو رابط الصورة المرفوعة"></label><label>العنوان بالعربية<input id="hp_${i}_titleAr" class="field" maxlength="200" value="${E(slide.titleAr||'')}"></label><label>العنوان بالإنجليزية<input id="hp_${i}_titleEn" class="field" maxlength="200" value="${E(slide.titleEn||'')}"></label><label>الوصف بالعربية<textarea id="hp_${i}_descAr" class="field" maxlength="1000">${E(slide.descAr||'')}</textarea></label><label>الوصف بالإنجليزية<textarea id="hp_${i}_descEn" class="field" maxlength="1000">${E(slide.descEn||'')}</textarea></label></div><div class="toolbar"><button type="button" class="btn" onclick="hpMove(${i},-1)" ${i===0?'disabled':''}>للأعلى</button><button type="button" class="btn" onclick="hpMove(${i},1)" ${i===hpSlides.length-1?'disabled':''}>للأسفل</button><button type="button" class="btn" onclick="hpRemove(${i})">حذف الصورة</button></div></div>`).join('')}
     <h3>تنسيق النص</h3><div class="formgrid"><label>الخط<select id="hpFont" class="field">${hpFonts.map(([value,name])=>`<option value="${value}" ${hpStyle.font===value?'selected':''}>${name}</option>`).join('')}</select></label><label>لون النص<input id="hpColor" class="field" type="color" value="${hpStyle.color}"></label><label>لون خلفية النص<input id="hpBg" class="field" type="color" value="${hpStyle.bgColor}"></label><label>ظهور النص (0 شفاف، 1 كامل)<input id="hpOpacity" class="field" type="number" min="0" max="1" step=".05" value="${hpStyle.opacity}"></label><label>ظهور الخلفية (0 شفاف، 1 كامل)<input id="hpBgOpacity" class="field" type="number" min="0" max="1" step=".05" value="${hpStyle.bgOpacity}"></label></div>
     <div class="actions"><button class="btn primary" type="button" onclick="hpSave()">حفظ السلايدر</button><a class="btn" href="/" target="_blank" rel="noopener">فتح المتجر</a></div>
@@ -44,16 +44,32 @@ function hpAdd() {if(hpBusy)return;hpCapture();if(hpSlides.length>=12)return toa
 function hpRemove(index) {if(hpBusy)return;hpCapture();hpSlides.splice(index,1);hpRender();}
 function hpMove(index,delta) {if(hpBusy)return;hpCapture();const next=index+delta;if(next<0||next>=hpSlides.length)return;[hpSlides[index],hpSlides[next]]=[hpSlides[next],hpSlides[index]];hpRender();}
 async function hpUpload(input) {
-  if(hpBusy||!input.files?.[0])return;
-  hpCapture();if(hpSlides.length>=12){input.value='';return toast('الحد الأقصى 12 صورة');}
-  const editor=$('#hpEditor');hpBusy=true;$('#hpFields').disabled=true;$('#hpMessage').textContent='جاري رفع الصورة…';
+  if(hpBusy||!input.files?.length)return;
+  hpCapture();
+  const files=[...input.files];
+  const remaining=Math.max(0,12-hpSlides.length);
+  if(!remaining){input.value='';return toast('الحد الأقصى 12 صورة');}
+  const selected=files.slice(0,remaining);
+  const editor=$('#hpEditor');
+  hpBusy=true;
+  $('#hpFields').disabled=true;
+  $('#hpMessage').textContent=`جاري رفع ${selected.length} صورة…`;
   try {
-    const url=await adminUploadProductImage(input.files[0]);
+    const urls=await adminUploadMany(selected);
     if($('#hpEditor')!==editor)return;
-    hpSlides.push({image:url,titleAr:'',titleEn:'',descAr:'',descEn:''});
-    hpBusy=false;hpRender();$('#hpMessage').textContent='تم رفع الصورة. اضغطي حفظ السلايدر لاعتمادها.';
-  }catch(e){if($('#hpEditor')===editor)$('#hpMessage').textContent=e.message;}
-  finally{hpBusy=false;if($('#hpFields'))$('#hpFields').disabled=false;input.value='';}
+    urls.forEach(url=>hpSlides.push({image:url,titleAr:'',titleEn:'',descAr:'',descEn:''}));
+    hpBusy=false;
+    hpRender();
+    $('#hpMessage').textContent=files.length>selected.length
+      ?`تم رفع ${selected.length} صورة. تم تجاهل الباقي لأن الحد الأقصى 12 شريحة.`
+      :`تم رفع ${selected.length} صورة. رتبيها أو احذفي ما لا تريدينه ثم اضغطي حفظ السلايدر.`;
+  }catch(e){
+    if($('#hpEditor')===editor)$('#hpMessage').textContent=e.message;
+  }finally{
+    hpBusy=false;
+    if($('#hpFields'))$('#hpFields').disabled=false;
+    input.value='';
+  }
 }
 async function hpSave() {
   if(hpBusy)return;hpCapture();
