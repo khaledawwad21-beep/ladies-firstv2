@@ -428,4 +428,127 @@ if (process.env.RUN_DB_E2E !== "1") {
     assert.equal(cleared.snapshot, null);
   });
 
+
+  test("customer account profile favorites cart and WhatsApp opt-in persist across login", async () => {
+    const ownerLogin = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        contact: "owner-e2e@example.test",
+        password: "owner-password-123"
+      })
+    });
+    const ownerHeaders = { Authorization: "Bearer " + ownerLogin.token };
+
+    const createdProduct = await api("/api/admin/products", {
+      method: "POST",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        name: "CI Account State Product",
+        description: "Customer account persistence integration product",
+        price: 75,
+        cost_price: 30,
+        stock: 9,
+        images: ["https://example.com/ci-account-state-product.jpg"],
+        category: "CI Account Category",
+        brand: "CI Account Brand",
+        active: true
+      })
+    });
+    const productId = Number(createdProduct.product.id);
+    assert.ok(productId > 0);
+
+    const password = "account-state-123";
+    const phone = "+970599000003";
+    const customer = await api("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "CI Account Customer",
+        phone,
+        password,
+        gender: "female",
+        age: 24
+      })
+    });
+    assert.ok(customer.token);
+
+    const firstHeaders = { Authorization: "Bearer " + customer.token };
+
+    const updated = await api("/api/users/me", {
+      method: "PATCH",
+      headers: firstHeaders,
+      body: JSON.stringify({
+        name: "CI Account Customer Updated",
+        gender: "female",
+        age: 25,
+        whatsapp_opt_in: true
+      })
+    });
+    assert.equal(updated.user.name, "CI Account Customer Updated");
+    assert.equal(updated.user.gender, "female");
+    assert.equal(Number(updated.user.age), 25);
+    assert.equal(updated.user.whatsapp_opt_in, true);
+
+    const favoritesSaved = await api("/api/account/favorites", {
+      method: "PUT",
+      headers: firstHeaders,
+      body: JSON.stringify({
+        favorites: [productId, productId, 999999999]
+      })
+    });
+    assert.deepEqual(favoritesSaved.favorites, [productId]);
+
+    const snapshotSaved = await api("/api/cart/snapshot", {
+      method: "PUT",
+      headers: firstHeaders,
+      body: JSON.stringify({
+        items: [{
+          productId,
+          qty: 2,
+          variant: "",
+          packagingId: "clear-ribbon"
+        }]
+      })
+    });
+    assert.equal(snapshotSaved.itemCount, 2);
+    assert.equal(snapshotSaved.items.length, 1);
+    assert.equal(Number(snapshotSaved.items[0].productId), productId);
+    assert.equal(snapshotSaved.items[0].packagingId, "clear-ribbon");
+
+    const meBeforeRelogin = await api("/api/auth/me", { headers: firstHeaders });
+    assert.equal(meBeforeRelogin.user.name, "CI Account Customer Updated");
+    assert.equal(meBeforeRelogin.user.whatsapp_opt_in, true);
+
+    const relogin = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ contact: phone, password })
+    });
+    assert.ok(relogin.token);
+    assert.equal(relogin.user.name, "CI Account Customer Updated");
+    assert.equal(relogin.user.whatsapp_opt_in, true);
+    assert.equal(Number(relogin.user.age), 25);
+
+    const secondHeaders = { Authorization: "Bearer " + relogin.token };
+
+    const meAfterRelogin = await api("/api/auth/me", { headers: secondHeaders });
+    assert.equal(meAfterRelogin.user.name, "CI Account Customer Updated");
+    assert.equal(meAfterRelogin.user.whatsapp_opt_in, true);
+    assert.equal(Number(meAfterRelogin.user.age), 25);
+
+    const favoritesAfterRelogin = await api("/api/account/favorites", { headers: secondHeaders });
+    assert.deepEqual(favoritesAfterRelogin.favorites, [productId]);
+
+    const snapshotAfterRelogin = await api("/api/cart/snapshot", { headers: secondHeaders });
+    assert.ok(snapshotAfterRelogin.snapshot);
+    assert.equal(Number(snapshotAfterRelogin.snapshot.itemCount), 2);
+    assert.equal(Number(snapshotAfterRelogin.snapshot.items[0].productId), productId);
+    assert.equal(snapshotAfterRelogin.snapshot.items[0].packagingId, "clear-ribbon");
+
+    await api("/api/cart/snapshot", {
+      method: "DELETE",
+      headers: secondHeaders
+    });
+    const clearedSnapshot = await api("/api/cart/snapshot", { headers: secondHeaders });
+    assert.equal(clearedSnapshot.snapshot, null);
+  });
+
 }
