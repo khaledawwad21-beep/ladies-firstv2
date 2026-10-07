@@ -32,3 +32,7 @@ input[type="date"]{cursor:pointer}
 .offer-selected{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#faf5f8;margin-bottom:12px}
 .offer-selected img{width:58px;height:58px;border-radius:10px;object-fit:cover}
 .offer-selected div{display:flex;flex-direction:column;gap:4px}
+
+.admin-media-preview{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.product-admin-form label{font-size:13px;line-height:1.5;color:#5f4c59}
+.product-active-toggle{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#faf5f8}
