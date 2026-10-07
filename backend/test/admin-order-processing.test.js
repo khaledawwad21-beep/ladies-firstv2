@@ -25,6 +25,11 @@ test("admin orders support details status processing and shipping waiver", () =>
   assert.match(admin, /إرجاع الكميات للمخزون وعكس نقاط الولاء/);
 });
 
+test("selecting delivered status saves immediately",()=>{
+  assert.ok(admin.includes("async function handleOrderStatusSelect(id)"));
+  assert.ok(admin.includes("await saveOrderStatus(id)"));
+});
+
 test("admin order details show product image variant and totals", () => {
   assert.match(admin, /i\.image/);
   assert.match(admin, /i\.variant_name/);
