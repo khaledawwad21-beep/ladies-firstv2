@@ -9,9 +9,9 @@ const db=fs.readFileSync(path.join(__dirname,"../src/db.js"),"utf8");
 const workflow=fs.readFileSync(path.join(__dirname,"../../.github/workflows/production-regression.yml"),"utf8");
 
 test("database layer supports explicitly disabling SSL for isolated CI",()=>{
-  assert.match(db,/DB_SSL/);
-  assert.match(db,/dbSslDisabled/);
-  assert.match(db,/ssl:\s*DATABASE_URL && !dbSslDisabled/);
+  assert.match(db,/databaseConnectionOptions\(process.env\)/);
+  const { databaseConnectionOptions } = require('../src/database-security');
+  assert.equal(databaseConnectionOptions({ NODE_ENV: 'test', DATABASE_URL: 'postgres://test:test@localhost/test', DB_SSL: 'false' }).ssl, false);
 });
 
 test("production regression runs isolated PostgreSQL order lifecycle E2E",()=>{
