@@ -43,8 +43,11 @@ function applyAdminGenderCopy(root=document){
     }
   }finally{adminGenderCopyBusy=false}
 }
-const adminGenderObserver=new MutationObserver(()=>{if(currentAdminUser)setTimeout(()=>applyAdminGenderCopy($('#app')||document),0)});
-adminGenderObserver.observe(document.documentElement,{childList:true,subtree:true});
+let adminGenderObserver=null;
+if(typeof MutationObserver!=='undefined'&&document?.documentElement){
+  adminGenderObserver=new MutationObserver(()=>{if(currentAdminUser)setTimeout(()=>applyAdminGenderCopy($('#app')||document),0)});
+  adminGenderObserver.observe(document.documentElement,{childList:true,subtree:true});
+}
 
 async function api(u,o={}){const token=localStorage.getItem('lf_admin_token')||'';const headers={'Content-Type':'application/json',...(o.headers||{})};if(token)headers.Authorization='Bearer '+token;let r=await fetch(u,{...o,headers}),d={};try{d=await r.json()}catch{}if(r.status===401){localStorage.removeItem('lf_admin_token');showLogin();const e=Error(d.message||'انتهت جلسة الدخول');e.status=401;e.code=d.code||'UNAUTHORIZED';throw e}if(!r.ok||d.ok===false){const e=Error(d.message||('HTTP '+r.status));e.status=r.status;e.code=d.code||'HTTP_ERROR';e.data=d;throw e}return d}
 
@@ -110,14 +113,17 @@ function initDateInputs(root=document){
     el.addEventListener('click',()=>{try{if(typeof el.showPicker==='function')el.showPicker()}catch{}});
   });
 }
-const adminDateObserver=new MutationObserver(records=>{
-  for(const record of records){
-    for(const node of record.addedNodes){
-      if(node&&node.nodeType===1)initDateInputs(node);
+let adminDateObserver=null;
+if(typeof MutationObserver!=='undefined'&&document?.documentElement){
+  adminDateObserver=new MutationObserver(records=>{
+    for(const record of records){
+      for(const node of record.addedNodes){
+        if(node&&node.nodeType===1)initDateInputs(node);
+      }
     }
-  }
-});
-adminDateObserver.observe(document.documentElement,{childList:true,subtree:true});
+  });
+  adminDateObserver.observe(document.documentElement,{childList:true,subtree:true});
+}
 initDateInputs();
 const titles={dashboard:'الرئيسية',users:'المستخدمون',products:'المنتجات',inventory:'المخزون',orders:'الطلبات والفواتير',returns:'الإرجاع والاستبدال',waitlist:'قائمة التوفر',finance:'الحسابات',offers:'العروض والحملات',catalog:'التصنيفات والعلامات',coupons:'الكوبونات',reports:'التقارير',homepage:'الصفحة الرئيسية',social:'مواقع التواصل',settings:'الإعدادات',staff:'الموظفون والصلاحيات'};
 const permissionLabels={dashboard:'الرئيسية',products:'المنتجات',inventory:'المخزون',orders:'الطلبات وقائمة التوفر',users:'المستخدمون',catalog:'الفئات والبراندات',coupons:'أكواد الخصم',reports:'التقارير والحسابات',offers:'العروض وواتساب',settings:'الإعدادات والصفحة الرئيسية',staff:'عرض الموظفين'};
@@ -548,7 +554,7 @@ async function invoice(id){
       <div class="invoiceBrand">${logo&&logo!=='#'?`<img class="invoiceLogo" src="${E(logo)}" alt="${E(storeName)}">`:''}<h1>${E(storeName)}</h1></div>
       <div>فاتورة #${id}<br>${new Date(o.created_at).toLocaleString('ar')}</div>
     </div>
-    <div class="invoiceCustomer">العميل: ${E(o.user_name||o.customer_name||'-')} — الهاتف: ${E(o.user_phone||o.customer_phone||'-')}<br>البريد: ${E(o.user_email||'-')} — المنطقة: ${E(region)} — الدفع: ${E(payment)}<br>العنوان: ${E(o.shipping_address||'-')}</div>
+    <div class="invoiceCustomer">العميل: ${E(o.user_name||o.customer_name||'-')} — الهاتف: ${E(o.user_phone||o.customer_phone||'-')}<br>البريد: ${E(o.user_email||'-')} — منطقة التوصيل: ${E(region)} — طريقة الدفع: ${E(payment)}<br>العنوان: ${E(o.shipping_address||'-')}</div>
     ${table(['المنتج','الخيار','الكمية','السعر','الإجمالي'],items.map(i=>`<tr class="${i.is_gift?'gift-order-row':''}"><td>${i.is_gift?'🎁 هدية — ':''}${E(i.product_name||'-')}</td><td>${E(i.variant_name||'-')}</td><td>${i.quantity}</td><td>${i.is_gift?'0.00':M(i.unit_price)}</td><td>${i.is_gift?'0.00':M(i.total)}</td></tr>`))}
     <div class="invoiceTotals compact">
       <span>المجموع الفرعي: <b>${M(o.subtotal||0)} ₪</b></span>
@@ -556,10 +562,10 @@ async function invoice(id){
       <span>خصم Visa: <b>-${M(o.visa_discount||0)} ₪</b></span>
       <span>خصم الولاء: <b>-${M(o.loyalty_discount||0)} ₪</b></span>
       <span>التغليف: <b>${M(o.packaging_cost||0)} ₪</b></span>
-      <span>التوصيل الأساسي: <b>${M(o.shipping_base_cost??o.shipping_cost??0)} ₪</b></span>
+      <span>رسوم التوصيل الأصلية: <b>${M(o.shipping_base_cost??o.shipping_cost??0)} ₪</b></span>
       <span>خصم التوصيل التلقائي${autoPct>0?' ('+M(autoPct)+'%)':''}: <b>-${M(autoAmount)} ₪</b></span>
       <span>خصم التوصيل اليدوي${manualPct>0?' ('+M(manualPct)+'%)':''}: <b>-${M(manualAmount)} ₪</b></span>
-      <span>المستحق للتوصيل: <b>${E(shipping)}</b></span>
+      <span>المستحق لشركة التوصيل: <b>${E(shipping)}</b></span>
       <span class="invoiceGrandTotal">الإجمالي النهائي: <b>${M(o.total)} ₪</b></span>
     </div>
     <div class="qrrow"><div><div id="qrsite"></div><b>الموقع</b></div><div><div id="qrorder"></div><b>تفاصيل الطلب</b></div></div>
