@@ -294,26 +294,39 @@ async function saveInventoryProduct(id){
     await inventory();
   }catch(e){alert(e.message||'تعذر تحديث المخزون')}
 }
-let movementRequest = 0;
+let movementRequest = 0,adminMovementCache=[];
 function inventoryMovements(){
   movementRequest++;
-  $('#sections').innerHTML=`<div class="card"><h2>تقرير حركات المخزون</h2><button class="btn" onclick="inventory()">العودة للمخزون</button><div class="toolbar"><label>من <input id="mf" type="date" class="field" onchange="movementRun()"></label><label>إلى <input id="mtDate" type="date" class="field" onchange="movementRun()"></label></div><div id="movementRows" aria-live="polite">اختاري تاريخ البداية والنهاية لعرض الحركات.</div></div>`;
+  adminMovementCache=[];
+  $('#sections').innerHTML=`<div class="card"><h2>تقرير حركات المخزون</h2><button class="btn" onclick="inventory()">العودة للمخزون</button><div class="toolbar"><label>من <input id="mf" type="date" class="field" onchange="movementRun()"></label><label>إلى <input id="mtDate" type="date" class="field" onchange="movementRun()"></label><input id="movementSearch" class="field" placeholder="بحث مباشر بالمنتج أو SKU أو السبب أو رقم الطلب" oninput="renderMovementRows()"></div><div id="movementRows" aria-live="polite">اختاري تاريخ البداية والنهاية لعرض الحركات.</div></div>`;
+  initDateInputs($('#sections'));
 }
 function movementReason(reason){
   const names={order_cancel_return:'إرجاع مخزون طلب ملغى',customer_return:'إرجاع من العميل',customer_exchange_return:'استبدال: إعادة القطعة',customer_exchange_out:'استبدال: صرف القطعة البديلة'};
   return names[reason]||(String(reason||'').startsWith('sale:')?'بيع: '+String(reason).slice(5).trim():reason||'-');
 }
+function renderMovementRows(){
+  const target=$('#movementRows');if(!target)return;
+  const q=String($('#movementSearch')?.value||'').trim().toLowerCase();
+  const list=adminMovementCache.filter(x=>!q||[
+    x.product_name||'',x.variant_sku||'',x.color||'',x.size||'',movementReason(x.reason),x.order_id||''
+  ].join(' ').toLowerCase().includes(q));
+  if(!adminMovementCache.length){target.textContent='لا توجد حركات ضمن الفترة المحددة.';return}
+  if(!list.length){target.innerHTML='<p class="small-note">لا توجد حركات مطابقة للبحث.</p>';return}
+  target.innerHTML=table(['التاريخ','المنتج','اللون / المقاس','SKU','تغير الكمية','السبب','رقم الطلب'],list.map(x=>`<tr><td>${E(new Date(x.created_at).toLocaleString('ar'))}</td><td>${E(x.product_name||'منتج محذوف')}</td><td>${E([x.color,x.size].filter(Boolean).join(' / ')||'-')}</td><td>${E(x.variant_sku||'-')}</td><td>${Number(x.quantity_change)>0?'+':''}${E(x.quantity_change)}</td><td>${E(movementReason(x.reason))}</td><td>${x.order_id?'#'+E(x.order_id):'-'}</td></tr>`));
+}
 async function movementRun(){
   const request=++movementRequest, target=$('#movementRows'), from=$('#mf')?.value, to=$('#mtDate')?.value;
   if(!target)return;
-  if(!from||!to){target.textContent='اختاري تاريخ البداية والنهاية لعرض الحركات.';return}
-  if(from>to){target.textContent='تاريخ البداية يجب أن يكون قبل النهاية أو مساوياً لها.';return}
+  if(!from||!to){adminMovementCache=[];target.textContent='اختاري تاريخ البداية والنهاية لعرض الحركات.';return}
+  if(from>to){adminMovementCache=[];target.textContent='تاريخ البداية يجب أن يكون قبل النهاية أو مساوياً لها.';return}
   target.textContent='جاري تحميل الحركات…';
   try{
     const d=await api('/api/admin/inventory/movements?'+new URLSearchParams({from,to}));
     if(request!==movementRequest||$('#movementRows')!==target)return;
-    target.innerHTML=table(['التاريخ','المنتج','اللون / المقاس','SKU','تغير الكمية','السبب','رقم الطلب'],(d.movements||[]).map(x=>`<tr><td>${E(new Date(x.created_at).toLocaleString('ar'))}</td><td>${E(x.product_name||'منتج محذوف')}</td><td>${E([x.color,x.size].filter(Boolean).join(' / ')||'-')}</td><td>${E(x.variant_sku||'-')}</td><td>${Number(x.quantity_change)>0?'+':''}${E(x.quantity_change)}</td><td>${E(movementReason(x.reason))}</td><td>${x.order_id?'#'+E(x.order_id):'-'}</td></tr>`));
-  }catch(e){if(request===movementRequest&&$('#movementRows')===target)target.textContent=e.message}
+    adminMovementCache=d.movements||[];
+    renderMovementRows();
+  }catch(e){if(request===movementRequest&&$('#movementRows')===target){adminMovementCache=[];target.textContent=e.message}}
 }
 let adminOrdersCache=[];
 function orderStatusLabel(status){return ({pending:'جديد',confirmed:'مؤكد',processing:'قيد التجهيز',shipped:'تم الشحن',delivered:'تم التسليم',completed:'مكتمل',cancelled:'ملغي'})[String(status||'').toLowerCase()]||String(status||'-')}
@@ -579,10 +592,21 @@ let adminReturnRequests=[],adminReturnProducts=[];
 function returnStatusLabel(status){return ({pending:'قيد المراجعة',approved:'مقبول',rejected:'مرفوض',completed:'مكتمل'})[String(status||'').toLowerCase()]||String(status||'-')}
 function returnTypeLabel(type){return String(type||'').toLowerCase()==='exchange'?'استبدال':'إرجاع'}
 function returnFeeLabel(payer){return ({customer:'العميل',store:'المتجر',waived:'معفى'})[String(payer||'customer').toLowerCase()]||'-'}
+function renderReturnRows(){
+  const box=$('#returnRows');if(!box)return;
+  const q=String($('#returnSearch')?.value||'').trim().toLowerCase();
+  const list=adminReturnRequests.filter(x=>!q||[
+    x.id||'',x.order_id||'',x.customer_name||'',x.customer_phone||'',x.product_name||'',x.variant_name||'',x.reason||'',
+    returnTypeLabel(x.request_type),returnStatusLabel(x.status),returnFeeLabel(x.fee_payer)
+  ].join(' ').toLowerCase().includes(q));
+  if(!list.length){box.innerHTML='<p class="small-note">لا توجد طلبات إرجاع/استبدال مطابقة.</p>';return}
+  box.innerHTML=table(['الطلب','النوع','العميل','المنتج','الكمية','السبب','الرسوم','فرق السعر','الحالة',''],list.map(x=>`<tr><td>#${E(x.order_id||'-')}</td><td>${returnTypeLabel(x.request_type)}</td><td>${E(x.customer_name||'-')}<br><small>${E(x.customer_phone||'-')}</small></td><td>${x.image?`<img src="${E(x.image)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-left:6px">`:''}${E(x.product_name||'-')}<br><small>${E(x.variant_name||'-')}</small></td><td>${Number(x.quantity)||0}</td><td>${E(x.reason||'-')}</td><td>${returnFeeLabel(x.fee_payer)}${Number(x.service_fee)>0?'<br>'+M(x.service_fee)+' ₪':''}</td><td>${M(x.price_difference||0)} ₪</td><td>${returnStatusLabel(x.status)}</td><td><button class="btn primary" onclick="editReturnRequestById(${Number(x.id)})">إدارة</button>${x.status==='completed'?'<button class="btn" onclick="printReturnSettlement('+Number(x.id)+')">وصل التسوية</button>':''}</td></tr>`));
+}
 async function returnsAdmin(){
   const [d,p]=await Promise.all([api('/api/admin/returns'),api('/api/products')]);
   adminReturnRequests=d.requests||[];adminReturnProducts=p.products||[];
-  $('#sections').innerHTML=`<div class="card"><h2>الإرجاع والاستبدال</h2><p>تُطبق مهلة 12 ساعة من الاستلام من الخادم. عند إكمال الطلب يقوم الـBackend بإرجاع/خصم المخزون تلقائيًا وتسجيل حركة المخزون.</p>${table(['الطلب','النوع','العميل','المنتج','الكمية','السبب','الرسوم','فرق السعر','الحالة',''],adminReturnRequests.map(x=>`<tr><td>#${E(x.order_id||'-')}</td><td>${returnTypeLabel(x.request_type)}</td><td>${E(x.customer_name||'-')}<br><small>${E(x.customer_phone||'-')}</small></td><td>${x.image?`<img src="${E(x.image)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-left:6px">`:''}${E(x.product_name||'-')}<br><small>${E(x.variant_name||'-')}</small></td><td>${Number(x.quantity)||0}</td><td>${E(x.reason||'-')}</td><td>${returnFeeLabel(x.fee_payer)}${Number(x.service_fee)>0?'<br>'+M(x.service_fee)+' ₪':''}</td><td>${M(x.price_difference||0)} ₪</td><td>${returnStatusLabel(x.status)}</td><td><button class="btn primary" onclick="editReturnRequestById(${Number(x.id)})">إدارة</button>${x.status==='completed'?'<button class="btn" onclick="printReturnSettlement('+Number(x.id)+')">وصل التسوية</button>':''}</td></tr>`))}</div>`;
+  $('#sections').innerHTML=`<div class="card"><h2>الإرجاع والاستبدال</h2><p>تُطبق مهلة 12 ساعة من الاستلام من الخادم. عند إكمال الطلب يقوم الـBackend بإرجاع/خصم المخزون تلقائيًا وتسجيل حركة المخزون.</p><div class="toolbar"><input id="returnSearch" class="field" placeholder="بحث مباشر برقم الطلب أو العميل أو الهاتف أو المنتج أو الحالة" oninput="renderReturnRows()"></div><div id="returnRows"></div></div>`;
+  renderReturnRows();
 }
 function editReturnRequestById(id){const x=adminReturnRequests.find(r=>Number(r.id)===Number(id));if(x)editReturnRequest(x)}
 function returnSettlementDirection(x){
