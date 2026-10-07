@@ -463,7 +463,7 @@ function productVideoHtml(p){
         const src='https://www.youtube.com/embed/'+youtubeId;
         return `<div class="productVideo"><iframe src="${esc(src)}" title="فيديو المنتج" loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>`;
       }
-      if(/\.(mp4|webm|ogg)(?:$|\?)/i.test(u.href)){
+      if((u.origin===location.origin&&u.pathname.startsWith('/api/videos/'))||/\.(mp4|webm|ogg|mov)(?:$|\?)/i.test(u.href)){
         return `<div class="productVideo"><video controls preload="metadata" playsinline src="${esc(u.href)}"></video></div>`;
       }
       return `<a class="productVideoLink" href="${esc(u.href)}" target="_blank" rel="noopener noreferrer">▶ مشاهدة فيديو المنتج</a>`;
