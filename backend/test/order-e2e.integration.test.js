@@ -303,4 +303,116 @@ if (process.env.RUN_DB_E2E !== "1") {
     assert.equal(Number(reportAfterCancel.summary.profit), 0);
   });
 
+
+  test("customer account state persists across login sessions", async () => {
+    const ownerLogin = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        contact: "owner-e2e@example.test",
+        password: "owner-password-123"
+      })
+    });
+    const ownerHeaders = { Authorization: "Bearer " + ownerLogin.token };
+
+    const product = await api("/api/admin/products", {
+      method: "POST",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        name: "CI Account State Product",
+        description: "Persistent account state product",
+        price: 55,
+        cost_price: 20,
+        stock: 8,
+        images: ["https://example.com/ci-account-state.jpg"],
+        category: "CI Account Category",
+        brand: "CI Account Brand",
+        active: true
+      })
+    });
+    const productId = Number(product.product.id);
+
+    const registered = await api("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "CI Account Customer",
+        email: "account-state-e2e@example.test",
+        password: "account-state-pass-123",
+        gender: "female",
+        age: 28
+      })
+    });
+    const firstHeaders = { Authorization: "Bearer " + registered.token };
+
+    const savedFavorites = await api("/api/account/favorites", {
+      method: "PUT",
+      headers: firstHeaders,
+      body: JSON.stringify({ favorites: [productId, productId] })
+    });
+    assert.deepEqual(savedFavorites.favorites, [productId]);
+
+    const savedCart = await api("/api/cart/snapshot", {
+      method: "PUT",
+      headers: firstHeaders,
+      body: JSON.stringify({
+        items: [{
+          productId,
+          qty: 2,
+          variant: "",
+          packagingId: "clear-ribbon"
+        }]
+      })
+    });
+    assert.equal(savedCart.itemCount, 2);
+    assert.equal(savedCart.items[0].packagingId, "clear-ribbon");
+
+    const updated = await api("/api/users/me", {
+      method: "PATCH",
+      headers: firstHeaders,
+      body: JSON.stringify({
+        name: "CI Account Customer Updated",
+        phone: "+970599000003",
+        gender: "male",
+        age: 31,
+        whatsapp_opt_in: true
+      })
+    });
+    assert.equal(updated.user.name, "CI Account Customer Updated");
+    assert.equal(updated.user.gender, "male");
+    assert.equal(Number(updated.user.age), 31);
+    assert.equal(updated.user.whatsapp_opt_in, true);
+
+    const meBeforeRelogin = await api("/api/auth/me", { headers: firstHeaders });
+    assert.equal(meBeforeRelogin.user.whatsapp_opt_in, true);
+    assert.equal(meBeforeRelogin.greeting, "نورتنا");
+
+    const relogin = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        contact: "account-state-e2e@example.test",
+        password: "account-state-pass-123"
+      })
+    });
+    assert.equal(relogin.user.name, "CI Account Customer Updated");
+    assert.equal(relogin.user.gender, "male");
+    assert.equal(Number(relogin.user.age), 31);
+    assert.equal(relogin.user.whatsapp_opt_in, true);
+    assert.equal(relogin.greeting, "نورتنا");
+
+    const secondHeaders = { Authorization: "Bearer " + relogin.token };
+
+    const favoritesAfterRelogin = await api("/api/account/favorites", { headers: secondHeaders });
+    assert.deepEqual(favoritesAfterRelogin.favorites, [productId]);
+
+    const cartAfterRelogin = await api("/api/cart/snapshot", { headers: secondHeaders });
+    assert.equal(cartAfterRelogin.snapshot.itemCount, 2);
+    assert.equal(cartAfterRelogin.snapshot.items[0].packagingId, "clear-ribbon");
+
+    await api("/api/cart/snapshot", {
+      method: "DELETE",
+      headers: secondHeaders
+    });
+    const cleared = await api("/api/cart/snapshot", { headers: secondHeaders });
+    assert.equal(cleared.snapshot, null);
+  });
+
 }
