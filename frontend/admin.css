@@ -88,3 +88,7 @@ input[type="date"]{cursor:pointer}
 .maintenance-admin-card{border-color:#e1c6cf;background:#fffafb}
 .maintenance-admin-card h2{display:flex;align-items:center;gap:7px}
 .user-order-block,.cancellation-fields{padding:10px;border:1px solid var(--line);border-radius:12px;background:#faf6f8}
+
+.catalog-add-row{align-items:center}
+.catalog-add-row .field{flex:0 1 280px;max-width:100%;min-width:180px}
+@media(max-width:600px){.catalog-add-row .field{flex:1 1 100%;width:100%;min-width:0}}
