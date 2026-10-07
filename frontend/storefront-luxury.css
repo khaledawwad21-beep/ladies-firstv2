@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;600;700;800;900&display=swap');
 /* Ladies First customer storefront: luxury editorial system.
    Visual-only layer. Existing data bindings and interaction hooks stay intact. */
 :root{
@@ -328,4 +329,31 @@ footer b{font-family:Georgia,"Times New Roman",serif;font-size:24px;letter-spaci
     linear-gradient(155deg,#f7eee8 0%,#fbf4ec 48%,#eadbdc 100%)!important}
   .heroVisual:before{left:50%;top:38%;width:min(62vw,300px)}
   .heroText{--hero-text-bg:rgba(67,38,63,.9)!important}
+}
+
+
+/* v39: refined Arabic type and category labels below their images, including new categories. */
+body,body :not(i[class*="fa"]):not([class^="fa-"]):not([class*=" fa-"]):not(.waIcon){
+  font-family:"Tajawal","Noto Sans Arabic",Tahoma,Arial,sans-serif!important;
+}
+.cat{
+  position:relative!important;display:flex!important;flex-direction:column!important;
+  align-items:stretch!important;justify-content:flex-start!important;padding:0!important;
+  text-align:center!important;overflow:hidden!important;
+}
+.cat img{
+  display:block!important;width:100%!important;flex:0 0 auto!important;
+  height:clamp(115px,17vw,210px)!important;object-fit:cover!important;
+}
+.cat label{
+  position:static!important;inset:auto!important;display:block!important;flex:0 0 auto!important;
+  box-sizing:border-box!important;width:100%!important;min-height:44px!important;
+  padding:10px 8px!important;background:var(--lf-paper)!important;color:var(--lf-plum)!important;
+  text-align:center!important;white-space:normal!important;overflow:visible!important;
+  text-overflow:clip!important;font-size:15px!important;line-height:1.5!important;
+}
+.cat label:before{margin-left:7px!important}
+@media(max-width:520px){
+  .cat img{height:100px!important}
+  .cat label{min-height:40px!important;padding:8px 4px!important;font-size:12px!important}
 }
