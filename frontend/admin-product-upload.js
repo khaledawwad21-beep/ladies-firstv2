@@ -141,6 +141,8 @@ window.adminPreviewVideoFiles=function(inputId,targetId){
 };
 
 let adminProductDraft = null;
+let adminProductPendingImages = {main:[],sub:[]};
+let adminProductPrimaryFile = null;
 
 function adminProductImages(p) {
   const images = Array.isArray(p.images) ? p.images.filter(Boolean) : [];
@@ -154,10 +156,21 @@ function adminProductImages(p) {
   return {mains, subs};
 }
 
+function adminImageControls(kind,index,isPrimary=false){
+  const items=kind==="main"?adminProductDraft.mainImages:adminProductDraft.subImages;
+  return `<div class="admin-media-actions">
+    <button type="button" class="btn" onclick="adminMoveExistingImage('${kind}',${index},-1)" ${index<=0?'disabled':''}>↑</button>
+    <button type="button" class="btn" onclick="adminMoveExistingImage('${kind}',${index},1)" ${index>=items.length-1?'disabled':''}>↓</button>
+    ${isPrimary?'<span class="admin-media-primary">الصورة الرئيسية</span>':`<button type="button" class="btn" onclick="adminSetPrimaryExistingImage('${kind}',${index})">اجعليها الرئيسية</button>`}
+    <button type="button" class="btn" onclick="adminSwitchExistingImage('${kind}',${index})">${kind==='main'?'نقل للإضافية':'نقل للرئيسية'}</button>
+    <button type="button" class="btn danger" onclick="adminRemoveExistingImage('${kind}',${index})">حذف</button>
+  </div>`;
+}
+
 function adminRenderExistingImages() {
   const box = $("#productExistingImages");
   if (!box || !adminProductDraft) return;
-  const group = (items, kind, label) => `<div class="full"><b>${label}</b><div class="toolbar" style="align-items:flex-start;flex-wrap:wrap">${items.map((url,index)=>`<div style="position:relative"><img src="${E(url)}" alt="" style="width:86px;height:86px;object-fit:cover;border-radius:10px"><button type="button" class="btn" style="display:block;margin-top:4px" onclick="adminRemoveExistingImage('${kind}',${index})">حذف</button></div>`).join("")||"<small>لا توجد صور.</small>"}</div></div>`;
+  const group = (items, kind, label) => `<div class="full admin-media-group"><b>${label}</b><div class="admin-media-grid">${items.map((url,index)=>`<div class="admin-media-card"><img src="${E(url)}" alt=""><div class="admin-media-index">#${index+1}</div>${adminImageControls(kind,index,kind==='main'&&index===0&&adminProductPrimaryFile===null)}</div>`).join("")||"<small>لا توجد صور.</small>"}</div></div>`;
   box.innerHTML = group(adminProductDraft.mainImages, "main", "الصور الرئيسية")
     + group(adminProductDraft.subImages, "sub", "الصور الإضافية");
 }
@@ -166,6 +179,101 @@ window.adminRemoveExistingImage = function(kind, index) {
   if (!adminProductDraft) return;
   const list = kind === "main" ? adminProductDraft.mainImages : adminProductDraft.subImages;
   list.splice(index, 1);
+  adminRenderExistingImages();
+};
+
+window.adminMoveExistingImage=function(kind,index,direction){
+  if(!adminProductDraft)return;
+  const list=kind==="main"?adminProductDraft.mainImages:adminProductDraft.subImages;
+  const next=index+direction;
+  if(index<0||index>=list.length||next<0||next>=list.length)return;
+  [list[index],list[next]]=[list[next],list[index]];
+  adminRenderExistingImages();
+};
+
+window.adminSwitchExistingImage=function(kind,index){
+  if(!adminProductDraft)return;
+  const from=kind==="main"?adminProductDraft.mainImages:adminProductDraft.subImages;
+  const to=kind==="main"?adminProductDraft.subImages:adminProductDraft.mainImages;
+  if(index<0||index>=from.length)return;
+  const [url]=from.splice(index,1);
+  to.push(url);
+  adminRenderExistingImages();
+};
+
+window.adminSetPrimaryExistingImage=function(kind,index){
+  if(!adminProductDraft)return;
+  const from=kind==="main"?adminProductDraft.mainImages:adminProductDraft.subImages;
+  if(index<0||index>=from.length)return;
+  const [url]=from.splice(index,1);
+  if(kind==="main")adminProductDraft.mainImages.unshift(url);
+  else adminProductDraft.mainImages.unshift(url);
+  adminProductPrimaryFile=null;
+  adminRenderExistingImages();
+  adminRenderPendingImages();
+};
+
+function adminPendingFileCard(file,kind,index){
+  const url=URL.createObjectURL(file);
+  const primary=adminProductPrimaryFile===file;
+  const list=adminProductPendingImages[kind];
+  return `<div class="admin-media-card pending"><img src="${E(url)}" alt="" onload="URL.revokeObjectURL(this.src)"><div class="admin-media-index">جديدة #${index+1}</div><div class="admin-media-actions">
+    <button type="button" class="btn" onclick="adminMovePendingImage('${kind}',${index},-1)" ${index<=0?'disabled':''}>↑</button>
+    <button type="button" class="btn" onclick="adminMovePendingImage('${kind}',${index},1)" ${index>=list.length-1?'disabled':''}>↓</button>
+    ${primary?'<span class="admin-media-primary">ستكون الرئيسية</span>':`<button type="button" class="btn" onclick="adminSetPrimaryPendingImage('${kind}',${index})">اجعليها الرئيسية</button>`}
+    <button type="button" class="btn" onclick="adminSwitchPendingImage('${kind}',${index})">${kind==='main'?'نقل للإضافية':'نقل للرئيسية'}</button>
+    <button type="button" class="btn danger" onclick="adminRemovePendingImage('${kind}',${index})">حذف</button>
+  </div></div>`;
+}
+
+function adminRenderPendingImages(){
+  const main=$("#productNewMainPreview"),sub=$("#productNewSubPreview");
+  if(main)main.innerHTML=adminProductPendingImages.main.map((file,index)=>adminPendingFileCard(file,"main",index)).join("")||'<small>لا توجد صور جديدة.</small>';
+  if(sub)sub.innerHTML=adminProductPendingImages.sub.map((file,index)=>adminPendingFileCard(file,"sub",index)).join("")||'<small>لا توجد صور جديدة.</small>';
+}
+
+window.adminQueueProductFiles=function(kind,inputId){
+  const input=document.getElementById(inputId);
+  if(!input||!["main","sub"].includes(kind))return;
+  const files=[...(input.files||[])].filter(file=>ADMIN_IMAGE_TYPES.has(String(file.type||"").toLowerCase()));
+  adminProductPendingImages[kind].push(...files);
+  input.value="";
+  adminRenderPendingImages();
+};
+
+window.adminRemovePendingImage=function(kind,index){
+  const list=adminProductPendingImages[kind]||[];
+  const file=list[index];
+  if(!file)return;
+  list.splice(index,1);
+  if(adminProductPrimaryFile===file)adminProductPrimaryFile=null;
+  adminRenderPendingImages();
+  adminRenderExistingImages();
+};
+
+window.adminMovePendingImage=function(kind,index,direction){
+  const list=adminProductPendingImages[kind]||[],next=index+direction;
+  if(index<0||index>=list.length||next<0||next>=list.length)return;
+  [list[index],list[next]]=[list[next],list[index]];
+  adminRenderPendingImages();
+};
+
+window.adminSwitchPendingImage=function(kind,index){
+  const from=adminProductPendingImages[kind]||[];
+  const toKind=kind==="main"?"sub":"main";
+  if(index<0||index>=from.length)return;
+  const [file]=from.splice(index,1);
+  adminProductPendingImages[toKind].push(file);
+  adminRenderPendingImages();
+};
+
+window.adminSetPrimaryPendingImage=function(kind,index){
+  const from=adminProductPendingImages[kind]||[];
+  if(index<0||index>=from.length)return;
+  const [file]=from.splice(index,1);
+  adminProductPendingImages.main.unshift(file);
+  adminProductPrimaryFile=file;
+  adminRenderPendingImages();
   adminRenderExistingImages();
 };
 
@@ -202,13 +310,8 @@ window.adminToggleTaxonomyNew=function(selectId,wrapId){
 };
 
 window.adminPreviewProductFiles=function(inputId,targetId){
-  const input=document.getElementById(inputId),box=document.getElementById(targetId);
-  if(!input||!box)return;
-  const files=[...(input.files||[])];
-  box.innerHTML=files.map(file=>{
-    const url=URL.createObjectURL(file);
-    return `<img src="${E(url)}" alt="" onload="URL.revokeObjectURL(this.src)" style="width:72px;height:72px;object-fit:cover;border-radius:9px;border:1px solid #eadce3">`;
-  }).join('');
+  const kind=String(targetId||"").toLowerCase().includes("sub")?"sub":"main";
+  adminQueueProductFiles(kind,inputId);
 };
 
 window.productForm = async function productForm(p={}) {
@@ -223,6 +326,8 @@ window.productForm = async function productForm(p={}) {
   const currentCategory=String(p.category||p.cat||'').trim();
   const currentBrand=String(p.brand||'').trim();
   const active=p.id?((p.isActive!==false)&&(p.is_active!==false)):true;
+  adminProductPendingImages={main:[],sub:[]};
+  adminProductPrimaryFile=null;
   adminProductDraft={
     id:p.id||0,
     mainImages:[...mains],
@@ -255,11 +360,11 @@ window.productForm = async function productForm(p={}) {
     <label class="product-active-toggle"><input id="pactive" type="checkbox" ${active?'checked':''}> المنتج فعال ويظهر في المتجر</label>
 
     <label class="full">صور رئيسية جديدة — يمكنك اختيار عدة صور دفعة واحدة
-      <input id="pMainFiles" type="file" multiple accept="image/png,image/jpeg,image/webp" style="display:block;margin-top:8px" onchange="adminPreviewProductFiles('pMainFiles','productNewMainPreview')">
+      <input id="pMainFiles" type="file" multiple accept="image/png,image/jpeg,image/webp" style="display:block;margin-top:8px" onchange="adminQueueProductFiles('main','pMainFiles')">
       <span id="productNewMainPreview" class="admin-media-preview"></span>
     </label>
     <label class="full">صور إضافية / فرعية — يمكنك اختيار عدة صور دفعة واحدة
-      <input id="pSubFiles" type="file" multiple accept="image/png,image/jpeg,image/webp" style="display:block;margin-top:8px" onchange="adminPreviewProductFiles('pSubFiles','productNewSubPreview')">
+      <input id="pSubFiles" type="file" multiple accept="image/png,image/jpeg,image/webp" style="display:block;margin-top:8px" onchange="adminQueueProductFiles('sub','pSubFiles')">
       <span id="productNewSubPreview" class="admin-media-preview"></span>
     </label>
 
@@ -273,6 +378,7 @@ window.productForm = async function productForm(p={}) {
     <div class="full"><div class="toolbar"><b>الألوان / الخيارات والمخزون لكل واحد</b><button type="button" class="btn" onclick="adminAddVariant()">+ إضافة لون/خيار</button></div><div id="productVariants"></div></div>
   </div><div class="actions"><button class="btn primary" type="button" onclick="saveProduct(${p.id||0})">حفظ المنتج</button></div>`);
   adminRenderExistingImages();
+  adminRenderPendingImages();
   adminRenderVariants();
   adminToggleTaxonomyNew('pcat','pcatNewWrap');
   adminToggleTaxonomyNew('pbrand','pbrandNewWrap');
@@ -293,10 +399,19 @@ window.saveProduct = async function saveProduct(id) {
     if (!name) throw new Error("اسم المنتج مطلوب");
     adminCaptureVariants();
 
-    const newMains=await adminUploadMany($("#pMainFiles")?.files);
-    const newSubs=await adminUploadMany($("#pSubFiles")?.files);
-    const mainImages=[...adminProductDraft.mainImages,...newMains];
+    const pendingMain=[...adminProductPendingImages.main];
+    const pendingSub=[...adminProductPendingImages.sub];
+    const newMains=await adminUploadMany(pendingMain);
+    const newSubs=await adminUploadMany(pendingSub);
+    let mainImages=[...adminProductDraft.mainImages,...newMains];
     const subImages=[...adminProductDraft.subImages,...newSubs];
+    if(adminProductPrimaryFile){
+      const primaryIndex=pendingMain.indexOf(adminProductPrimaryFile);
+      if(primaryIndex>=0&&newMains[primaryIndex]){
+        const primaryUrl=newMains[primaryIndex];
+        mainImages=[primaryUrl,...mainImages.filter(url=>url!==primaryUrl)];
+      }
+    }
     if (!mainImages.length) throw new Error("اختاري صورة رئيسية واحدة على الأقل");
     if(mainImages.length+subImages.length>40)throw new Error("الحد الأقصى 40 صورة للمنتج");
 
