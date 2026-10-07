@@ -326,6 +326,161 @@ if (process.env.RUN_DB_E2E !== "1") {
   });
 
 
+  test("manual shipping discount warns before stacking and gifts stay inventory-accounted", async () => {
+    const ownerLogin = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        contact: "owner-e2e@example.test",
+        password: "owner-password-123"
+      })
+    });
+    const ownerHeaders = { Authorization: "Bearer " + ownerLogin.token };
+
+    await api("/api/admin/settings", {
+      method: "PUT",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        shipping_fees: { westbank: 20, jerusalem: 35, inside: 70 },
+        shipping_discount_percentages: { westbank: 25, jerusalem: 0, inside: 0 }
+      })
+    });
+
+    const saleProduct = await api("/api/admin/products", {
+      method: "POST",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        name: "CI Shipping Discount Product",
+        description: "Manual shipping discount integration product",
+        price: 100,
+        cost_price: 35,
+        stock: 3,
+        images: ["https://example.com/ci-shipping-product.jpg"],
+        category: "CI Shipping Category",
+        brand: "CI Shipping Brand",
+        active: true
+      })
+    });
+    const saleProductId = Number(saleProduct.product.id);
+
+    const giftProduct = await api("/api/admin/products", {
+      method: "POST",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        name: "CI Gift Product",
+        description: "Inventory backed gift",
+        price: 50,
+        cost_price: 12,
+        stock: 2,
+        images: ["https://example.com/ci-gift-product.jpg"],
+        category: "CI Gift Category",
+        brand: "CI Gift Brand",
+        active: true
+      })
+    });
+    const giftProductId = Number(giftProduct.product.id);
+
+    const customer = await api("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "CI Shipping Gift Customer",
+        email: "shipping-gift-e2e@example.test",
+        password: "shipping-gift-pass-123",
+        gender: "female",
+        age: 27
+      })
+    });
+    const customerHeaders = { Authorization: "Bearer " + customer.token };
+
+    const checkout = await api("/api/orders", {
+      method: "POST",
+      headers: customerHeaders,
+      body: JSON.stringify({
+        customerName: "CI Shipping Gift Customer",
+        customerPhone: "+970599000044",
+        shippingAddress: "Nablus - shipping gift CI",
+        shippingRegion: "westbank",
+        paymentMethod: "cash",
+        items: [{ productId: saleProductId, quantity: 1 }]
+      })
+    });
+    const orderId = Number(checkout.orderId || checkout.order?.id);
+
+    const before = await api("/api/admin/orders/" + orderId, { headers: ownerHeaders });
+    assert.equal(Number(before.order.shipping_base_cost), 20);
+    assert.equal(Number(before.order.shipping_discount_percent), 25);
+    assert.equal(Number(before.order.shipping_discount_amount), 5);
+    assert.equal(Number(before.order.shipping_cost), 15);
+    assert.equal(Number(before.order.total), 115);
+
+    const conflictResponse = await fetch(baseUrl + "/api/admin/orders/" + orderId + "/shipping-discount", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...ownerHeaders },
+      body: JSON.stringify({ percent: 20 })
+    });
+    const conflict = await conflictResponse.json();
+    assert.equal(conflictResponse.status, 409);
+    assert.equal(conflict.code, "SHIPPING_AUTO_DISCOUNT_PRESENT");
+
+    const discounted = await api("/api/admin/orders/" + orderId + "/shipping-discount", {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ percent: 20, confirmStack: true })
+    });
+    assert.equal(Number(discounted.order.shipping_manual_discount_percent), 20);
+    assert.equal(Number(discounted.order.shipping_manual_discount_amount), 3);
+    assert.equal(Number(discounted.order.shipping_cost), 12);
+    assert.equal(Number(discounted.order.total), 112);
+
+    const gift = await api("/api/admin/orders/" + orderId + "/gifts", {
+      method: "POST",
+      headers: ownerHeaders,
+      body: JSON.stringify({ productId: giftProductId, quantity: 1 })
+    });
+    assert.equal(Number(gift.item.unit_price), 0);
+    assert.equal(Number(gift.item.total), 0);
+    assert.equal(gift.item.is_gift, true);
+
+    const giftStockAfterAdd = await api("/api/products/" + giftProductId);
+    assert.equal(Number(giftStockAfterAdd.product.stock), 1);
+
+    const orderWithGift = await api("/api/admin/orders/" + orderId, { headers: ownerHeaders });
+    const giftLine = orderWithGift.items.find(x => Number(x.id) === Number(gift.item.id));
+    assert.ok(giftLine);
+    assert.equal(giftLine.is_gift, true);
+    assert.equal(Number(giftLine.unit_price), 0);
+    assert.equal(Number(orderWithGift.order.total), 112);
+
+    const reportDate = String(orderWithGift.order.created_at).slice(0, 10);
+    const report = await api("/api/admin/reports/sales?from=" + reportDate + "&to=" + reportDate, { headers: ownerHeaders });
+    assert.ok(Number(report.summary.giftCost) >= 12);
+
+    await api("/api/admin/orders/" + orderId + "/gifts/" + Number(gift.item.id), {
+      method: "DELETE",
+      headers: ownerHeaders
+    });
+    const giftStockAfterRemove = await api("/api/products/" + giftProductId);
+    assert.equal(Number(giftStockAfterRemove.product.stock), 2);
+
+    const clearedDiscount = await api("/api/admin/orders/" + orderId + "/shipping-discount", {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ percent: 0 })
+    });
+    assert.equal(Number(clearedDiscount.order.shipping_manual_discount_amount), 0);
+    assert.equal(Number(clearedDiscount.order.shipping_cost), 15);
+    assert.equal(Number(clearedDiscount.order.total), 115);
+
+    await api("/api/admin/orders/" + orderId + "/status", {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ status: "cancelled", cancelSource: "admin", cancellationReason: "CI cleanup" })
+    });
+
+    const saleStockAfterCancel = await api("/api/products/" + saleProductId);
+    assert.equal(Number(saleStockAfterCancel.product.stock), 3);
+  });
+
+
   test("customer account state persists across login sessions", async () => {
     const ownerLogin = await api("/api/auth/login", {
       method: "POST",
