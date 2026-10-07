@@ -16,14 +16,14 @@ const { createToken } = require('../src/auth');
 let server, base, image, product;
 const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3XcAAAAASUVORK5CYII=';
 before(async () => {
-  await initDatabase();
+  await initDatabase(); await database.query("INSERT INTO users(id,name,password_hash,role) VALUES(1,'Owner','fixture','owner'),(2,'Customer','fixture','customer')");
   server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
 after(async () => { if(server) await new Promise(resolve => server.close(resolve)); await database.close(); });
 async function request(path, method = 'GET', body, role = 'owner') {
-  return fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(role ? { Authorization: 'Bearer ' + createToken({ id: 1, role }) } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  return fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(role ? { Authorization: 'Bearer ' + createToken({ id: role === 'customer' ? 2 : 1, role }) } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
 }
 test('upload requires admin, validates content, deduplicates and survives app recreation', async () => {
   for (const role of [null, 'customer']) assert.equal((await request('/api/admin/uploads/image','POST',{data:png},role)).status, role ? 403 : 401);

@@ -16,10 +16,10 @@ const {app,initDatabase}=require('../src/server');
 const {createToken}=require('../src/auth');
 const style={font:'Tahoma,Arial,sans-serif',color:'#ffffff',bgColor:'#63345e',opacity:1,bgOpacity:.58};
 let server,base,saved;
-before(async()=>{await initDatabase();server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));base='http://127.0.0.1:'+server.address().port;});
+before(async()=>{await initDatabase(); await database.query("INSERT INTO users(id,name,password_hash,role) VALUES(1,'Owner','fixture','owner'),(2,'Customer','fixture','customer')");server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));base='http://127.0.0.1:'+server.address().port;});
 after(async()=>{if(server)await new Promise(r=>server.close(r));await database.close();});
 async function request(route,body,role='owner') {
-  return fetch(base+route,{method:body?'PUT':'GET',headers:{'Content-Type':'application/json',...(role?{Authorization:'Bearer '+createToken({id:1,role})}:{})},...(body?{body:JSON.stringify(body)}:{})});
+  return fetch(base+route,{method:body?'PUT':'GET',headers:{'Content-Type':'application/json',...(role?{Authorization:'Bearer '+createToken({id:role==='customer'?2:1,role})}:{})},...(body?{body:JSON.stringify(body)}:{})});
 }
 test('homepage updates require admin and persist through public settings reads',async()=>{
   const body={hero_slides:[{image:'/api/images/test',titleAr:' عنوان ',descEn:'Description'},{image:'https://example.test/banner.jpg',titleEn:'Second'}],hero_text_style:style};

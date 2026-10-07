@@ -1,7 +1,7 @@
 "use strict";
 
 const express = require("express");
-const { requireAdmin } = require("./auth");
+const { requireAdmin, requireRole } = require("./auth");
 const router = express.Router();
 
 const TRIPO_BASE_URL = "https://api.tripo3d.ai/v2/openapi";
@@ -192,7 +192,7 @@ router.get("/status", (req, res) => {
   });
 });
 
-router.use(requireAdmin);
+router.use(requireAdmin, requireRole("owner", "admin"));
 
 router.get("/balance", async (req, res, next) => {
   try {

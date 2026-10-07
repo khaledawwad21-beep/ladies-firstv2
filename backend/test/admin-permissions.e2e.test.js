@@ -148,7 +148,7 @@ if (process.env.RUN_ADMIN_PERMISSIONS_E2E !== "1") {
     });
 
     const disabledToken = await request("/api/admin/reports/sales", { headers: staffHeaders });
-    assert.equal(disabledToken.response.status, 403);
+    assert.equal(disabledToken.response.status, 401);
     assert.match(String(disabledToken.body.message || ""), /غير مفعل/);
 
     const disabledLogin = await request("/api/auth/login", {

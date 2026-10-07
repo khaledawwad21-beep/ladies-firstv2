@@ -54,12 +54,7 @@ if (!fs.existsSync(UPLOADS_DIR)) {
    MIDDLEWARE
 ========================================================= */
 
-app.use(
-  cors({
-    origin: true,
-    credentials: true
-  })
-);
+app.use(require("./security-policy").createSecurityPolicy());
 
 app.use(
   express.json({
@@ -473,6 +468,7 @@ async function initDatabase() {
   `);
 
   await initAdminPermissions(db);
+  await require("./auth").initSessionSecurity(db);
 
   await db(`
     CREATE TABLE IF NOT EXISTS categories (
@@ -1402,6 +1398,13 @@ app.post(
   }
 );
 
+app.post("/api/auth/logout", requireAuth, async (req, res, next) => {
+  try {
+    await db("UPDATE users SET session_version=session_version+1 WHERE id=$1", [req.user.id]);
+    res.json({ ok: true });
+  } catch (error) { next(error); }
+});
+
 /* =========================================================
    AUTH - CURRENT USER
 ========================================================= */
@@ -2218,6 +2221,7 @@ app.get(
         const row
           of result.rows
       ) {
+        if (!require("./security-policy").PUBLIC_SETTINGS.has(row.key)) continue;
         settings[row.key] =
           parseJson(
             row.value,
@@ -3569,7 +3573,8 @@ app.post("/api/returns", requireAuth, async (req,res)=>{
   const reasonCode=cleanText(req.body.reasonCode||"").toLowerCase();
   const reason=cleanText(req.body.reason||"");
   const notes=cleanText(req.body.notes||"");
-  const images=Array.isArray(req.body.images)?req.body.images.filter(x=>typeof x==="string").slice(0,5):[];
+  const images=Array.isArray(req.body.images)?req.body.images.slice(0,5):[];
+  if(images.some(value=>!require("./security-policy").safeImageUrl(value)))return res.status(400).json({ok:false,message:"رابط صورة الإرجاع غير صالح"});
   if(!Number.isFinite(orderId)||!Number.isFinite(orderItemId)||!Number.isFinite(quantity)||quantity<1)
     return res.status(400).json({ok:false,message:"بيانات طلب الإرجاع/الاستبدال غير مكتملة"});
   if(!["return","exchange"].includes(requestType))
@@ -4952,6 +4957,10 @@ app.patch(
         });
       }
 
+      if (String(targetUser.rows[0].role || "").toLowerCase() !== "customer" && req.user.role !== "owner") {
+        return res.status(403).json({ ok: false, message: "إدارة حسابات الموظفين والإدارة متاحة للمالك فقط" });
+      }
+
       if (
         String(targetUser.rows[0].role || "").toLowerCase() === "owner"
       ) {
@@ -5251,6 +5260,10 @@ app.patch(
         });
       }
 
+      if (String(targetUser.rows[0].role || "").toLowerCase() !== "customer" && req.user.role !== "owner") {
+        return res.status(403).json({ ok: false, message: "إدارة حسابات الموظفين والإدارة متاحة للمالك فقط" });
+      }
+
       if (
         String(targetUser.rows[0].role || "").toLowerCase() === "owner"
       ) {
@@ -5363,6 +5376,10 @@ app.patch(
           ok: false,
           message: "المستخدم غير موجود"
         });
+      }
+
+      if (String(targetUser.rows[0].role || "").toLowerCase() !== "customer" && req.user.role !== "owner") {
+        return res.status(403).json({ ok: false, message: "إدارة حسابات الموظفين والإدارة متاحة للمالك فقط" });
       }
 
       if (
@@ -8485,8 +8502,7 @@ app.use(
         error.code ||
         "INTERNAL_ERROR",
       message:
-        error.message ||
-        "حدث خطأ غير متوقع"
+        (error.status && error.status < 500) ? error.message : "حدث خطأ غير متوقع"
     });
   }
 );

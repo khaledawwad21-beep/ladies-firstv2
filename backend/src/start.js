@@ -22,6 +22,8 @@ const { startWhatsAppAutomation } = require("./whatsapp-automation");
 
 const PORT = Number(process.env.PORT || 10000);
 const gateway = express();
+gateway.set("trust proxy", 1);
+gateway.use(require("./security-policy").createSecurityPolicy());
 const FRONTEND_DIR = path.resolve(__dirname, "../../frontend");
 
 /*
@@ -70,7 +72,7 @@ gateway.use((error, req, res, next) => {
   res.status(error.status || 500).json({
     ok: false,
     code: error.code || "INTERNAL_ERROR",
-    message: error.message || "حدث خطأ غير متوقع",
+    message: (error.status && error.status < 500) ? error.message : "حدث خطأ غير متوقع",
     traceId: error.traceId || null
   });
 });

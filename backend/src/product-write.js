@@ -8,7 +8,7 @@ function numeric(value, label, whole = false) {
   return n;
 }
 function imageUrl(value) {
-  if (typeof value !== 'string' || !(/^(https?:\/\/|\/api\/images\/|\/uploads\/)/.test(value))) invalid('رابط الصورة غير صالح');
+  if (typeof value !== 'string' || value.length > 2048 || /[<>\"'\\\x00-\x20]/.test(value) || !(/^(https?:\/\/|\/api\/images\/|\/uploads\/)/.test(value))) invalid('رابط الصورة غير صالح');
   return value;
 }
 function videoUrl(value) {
@@ -41,6 +41,10 @@ async function taxonomy(client, table, id, name) {
   return result.rows[0].id;
 }
 function registerProductWrites(app, getProducts) {
+  app.get('/api/admin/products', requireAdmin, async (req, res, next) => {
+    try { res.json({ ok: true, products: await getProducts() }); }
+    catch (error) { next(error); }
+  });
   async function save(req, res, next) {
     try {
       const body = req.body || {};

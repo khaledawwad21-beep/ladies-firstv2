@@ -38,7 +38,7 @@ jobs:
         with:
           node-version: 20
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Run regression suite
         env:
           JWT_SECRET: ci-regression-secret-12345678901234567890
