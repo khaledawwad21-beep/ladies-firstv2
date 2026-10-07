@@ -529,6 +529,7 @@ async function initDatabase() {
   await require('./passkeys').initPasskeys(db);
   await require('./password-recovery').initPasswordRecovery(db);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_name TEXT`);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb`);
 
   await db(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
@@ -1758,6 +1759,8 @@ async function getProducts(
         p.old_price AS "oldPrice",
         p.old_price,
         p.cost_price,
+        p.supplier_name AS "supplierName",
+        p.supplier_name,
         p.metadata,
         (SELECT name FROM categories WHERE id = p.category_id) AS category,
         (SELECT name FROM brands WHERE id = p.brand_id) AS brand,
@@ -4620,6 +4623,8 @@ app.get(
             p.stock,
             p.price,
             p.is_active,
+            p.supplier_name,
+            p.image_url,
             c.name AS category_name,
             b.name AS brand_name
           FROM products p
