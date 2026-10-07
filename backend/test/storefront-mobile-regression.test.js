@@ -29,17 +29,16 @@ test("language switch persists Arabic or English and updates document direction"
   assert.match(app, /الأكثر مبيعًا/);
 });
 
-test("Top 5 and best sellers keep arrows touch dragging and autoplay", () => {
+test("Top 5 and best sellers keep arrows, native touch scrolling and autoplay", () => {
   assert.match(index, /moveFeatureCarousel\('top5Grid',-1\)/);
   assert.match(index, /moveFeatureCarousel\('top5Grid',1\)/);
   assert.match(index, /moveFeatureCarousel\('bestSellersGrid',-1\)/);
   assert.match(index, /moveFeatureCarousel\('bestSellersGrid',1\)/);
 
   assert.match(app, /function bindFeatureCarousel\(/);
-  assert.match(app, /addEventListener\('pointerdown'/);
-  assert.match(app, /addEventListener\('pointermove'/);
-  assert.match(app, /addEventListener\('touchstart'/);
-  assert.match(app, /addEventListener\('touchmove'/);
+  assert.match(app, /el\.style\.touchAction='auto'/);
+  assert.match(index, /#top5Grid,#bestSellersGrid\{display:flex!important;flex-flow:row nowrap!important/);
+  assert.match(index, /overflow-x:auto!important/);
   assert.match(app, /function moveFeatureCarousel\(/);
   assert.match(app, /function autoFeatureCarousels\(/);
   assert.match(app, /setInterval\(autoFeatureCarousels,3500\)/);

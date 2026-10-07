@@ -101,14 +101,17 @@ test("admin product status reflects backend active state",()=>{
   assert.match(productAdmin,/active:\s*!!\$\("#pactive"\)\.checked/);
 });
 
-test("social settings stay normalized and inactive or empty links stay hidden on storefront",()=>{
+test("social settings stay normalized and active platforms remain visible when a link is missing",()=>{
   assert.match(admin,/function normalizeSocialEntry\(/);
   assert.match(admin,/fa-brands fa-whatsapp/);
   assert.match(admin,/fa-brands fa-instagram/);
   assert.match(admin,/social_links\[k\]=\{url:String/);
   assert.match(store,/if\(st\.social_links&&typeof st\.social_links==='object'\)save\('lf_social_links',st\.social_links\)/);
   assert.match(store,/function renderSocialLinks\(\)/);
-  assert.match(store,/\.filter\(x=>x\.enabled!==false&&String\(x\.url\|\|''\)\.trim\(\)\)/);
+  assert.match(store,/filter\(x=>x\.enabled!==false\)/);
+  assert.match(store,/is-unconfigured/);
+  assert.match(store,/الرابط غير مضاف بعد/);
+  assert.doesNotMatch(store,/href="javascript:/);
   assert.doesNotMatch(adminHtml,/admin\.js\?v=20261006/);
 });
 
