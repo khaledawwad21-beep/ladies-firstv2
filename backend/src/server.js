@@ -5531,7 +5531,9 @@ app.patch(
       }
 
       if (req.body.ordering_block_until !== undefined || req.body.orderingBlockUntil !== undefined) {
-        const rawUntil=req.body.ordering_block_until ?? req.body.orderingBlockUntil;
+        const rawUntil=req.body.ordering_block_until !== undefined
+          ? req.body.ordering_block_until
+          : req.body.orderingBlockUntil;
         if(rawUntil===null||rawUntil===""){
           addField("ordering_block_until",null);
         }else{
