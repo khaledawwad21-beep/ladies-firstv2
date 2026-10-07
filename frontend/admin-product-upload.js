@@ -152,14 +152,42 @@ function adminRenderVariants() {
 window.adminAddVariant=function(){adminCaptureVariants();adminProductDraft.variants.push({name:"",stock:0});adminRenderVariants();};
 window.adminRemoveVariant=function(index){adminCaptureVariants();adminProductDraft.variants.splice(index,1);adminRenderVariants();};
 
+function adminTaxonomyOptions(items,current,noneLabel,newLabel){
+  const names=[...new Set((items||[]).map(x=>String(x?.name||'').trim()).filter(Boolean))];
+  const cur=String(current||'').trim();
+  if(cur&&!names.includes(cur))names.unshift(cur);
+  return `<option value="">${E(noneLabel)}</option>${names.map(name=>`<option value="${E(name)}" ${name===cur?'selected':''}>${E(name)}</option>`).join('')}<option value="__new__">${E(newLabel)}</option>`;
+}
+
+window.adminToggleTaxonomyNew=function(selectId,wrapId){
+  const select=document.getElementById(selectId),wrap=document.getElementById(wrapId);
+  if(!select||!wrap)return;
+  wrap.hidden=select.value!=='__new__';
+  if(!wrap.hidden)setTimeout(()=>wrap.querySelector('input')?.focus(),0);
+};
+
+window.adminPreviewProductFiles=function(inputId,targetId){
+  const input=document.getElementById(inputId),box=document.getElementById(targetId);
+  if(!input||!box)return;
+  const files=[...(input.files||[])];
+  box.innerHTML=files.map(file=>{
+    const url=URL.createObjectURL(file);
+    return `<img src="${E(url)}" alt="" onload="URL.revokeObjectURL(this.src)" style="width:72px;height:72px;object-fit:cover;border-radius:9px;border:1px solid #eadce3">`;
+  }).join('');
+};
+
 window.productForm = async function productForm(p={}) {
   const {mains,subs}=adminProductImages(p);
   const metadata=p.metadata||{};
   let categories=[],brands=[];
   try{
     const [c,b]=await Promise.all([api("/api/categories"),api("/api/brands")]);
-    categories=c.categories||[];brands=b.brands||[];
+    categories=c.categories||[];
+    brands=b.brands||[];
   }catch{}
+  const currentCategory=String(p.category||p.cat||'').trim();
+  const currentBrand=String(p.brand||'').trim();
+  const active=p.id?((p.isActive!==false)&&(p.is_active!==false)):true;
   adminProductDraft={
     id:p.id||0,
     mainImages:[...mains],
@@ -167,23 +195,47 @@ window.productForm = async function productForm(p={}) {
     variants:(p.variants||[]).map(v=>({id:v.id,name:v.name||v.color||"",stock:Number(v.stock)||0})),
     videos:Array.isArray(metadata.videos)?[...metadata.videos]:[]
   };
-  modal(p.id?"تعديل المنتج":"منتج جديد",`<div class="formgrid">
-    <input id="pn" class="field" value="${E(p.name||"")}" placeholder="اسم المنتج">
-    <input id="pp" class="field" type="number" min="0" step=".01" value="${p.price??""}" placeholder="سعر البيع">
-    <input id="po" class="field" type="number" min="0" step=".01" value="${p.old_price??p.oldPrice??""}" placeholder="السعر القديم">
-    <input id="pcost" class="field" type="number" min="0" step=".01" value="${p.cost_price??p.cost??0}" placeholder="تكلفة الشراء">
-    <label>الفئة<input id="pcat" class="field" list="pcatList" value="${E(p.category||p.cat||"")}" placeholder="اختاري أو اكتبي فئة جديدة"><datalist id="pcatList">${categories.map(x=>`<option value="${E(x.name)}"></option>`).join("")}</datalist></label>
-    <label>البراند<input id="pbrand" class="field" list="pbrandList" value="${E(p.brand||"")}" placeholder="اختاري أو اكتبي براند جديد"><datalist id="pbrandList">${brands.map(x=>`<option value="${E(x.name)}"></option>`).join("")}</datalist></label>
-    <input id="ps" class="field" type="number" min="0" value="${p.stock??0}" placeholder="المخزون العام">
-    <label class="full">صور رئيسية جديدة<input id="pMainFiles" type="file" multiple accept="image/png,image/jpeg,image/webp" style="display:block;margin-top:8px"></label>
-    <label class="full">صور إضافية جديدة<input id="pSubFiles" type="file" multiple accept="image/png,image/jpeg,image/webp" style="display:block;margin-top:8px"></label>
+  modal(p.id?"تعديل المنتج":"منتج جديد",`<div class="formgrid product-admin-form">
+    <label>اسم المنتج<input id="pn" class="field compact-field" value="${E(p.name||"")}" placeholder="اسم المنتج"></label>
+    <label>سعر العرض / السعر الحالي<input id="pp" class="field compact-field" type="number" min="0" step=".01" value="${p.price??""}" placeholder="سعر العرض"></label>
+    <label>السعر الأصلي<input id="po" class="field compact-field" type="number" min="0" step=".01" value="${p.old_price??p.oldPrice??""}" placeholder="السعر الأصلي"></label>
+    <label>تكلفة الشراء<input id="pcost" class="field compact-field" type="number" min="0" step=".01" value="${p.cost_price??p.cost??0}" placeholder="تكلفة الشراء"></label>
+
+    <label>الفئة
+      <select id="pcat" class="field compact-field" onchange="adminToggleTaxonomyNew('pcat','pcatNewWrap')">
+        ${adminTaxonomyOptions(categories,currentCategory,'بدون فئة','+ إضافة فئة جديدة')}
+      </select>
+    </label>
+    <label id="pcatNewWrap" hidden>اسم الفئة الجديدة<input id="pcatNew" class="field compact-field" placeholder="اسم الفئة الجديدة"></label>
+
+    <label>البراند
+      <select id="pbrand" class="field compact-field" onchange="adminToggleTaxonomyNew('pbrand','pbrandNewWrap')">
+        ${adminTaxonomyOptions(brands,currentBrand,'بدون براند','+ إضافة براند جديد')}
+      </select>
+    </label>
+    <label id="pbrandNewWrap" hidden>اسم البراند الجديد<input id="pbrandNew" class="field compact-field" placeholder="اسم البراند الجديد"></label>
+
+    <label>المخزون العام<input id="ps" class="field compact-field" type="number" min="0" value="${p.stock??0}" placeholder="المخزون العام"></label>
+    <label class="product-active-toggle"><input id="pactive" type="checkbox" ${active?'checked':''}> المنتج فعال ويظهر في المتجر</label>
+
+    <label class="full">صور رئيسية جديدة — يمكنك اختيار عدة صور دفعة واحدة
+      <input id="pMainFiles" type="file" multiple accept="image/png,image/jpeg,image/webp" style="display:block;margin-top:8px" onchange="adminPreviewProductFiles('pMainFiles','productNewMainPreview')">
+      <span id="productNewMainPreview" class="admin-media-preview"></span>
+    </label>
+    <label class="full">صور إضافية / فرعية — يمكنك اختيار عدة صور دفعة واحدة
+      <input id="pSubFiles" type="file" multiple accept="image/png,image/jpeg,image/webp" style="display:block;margin-top:8px" onchange="adminPreviewProductFiles('pSubFiles','productNewSubPreview')">
+      <span id="productNewSubPreview" class="admin-media-preview"></span>
+    </label>
+
     <div id="productExistingImages" class="full"></div>
-    <textarea id="pd" class="field full" rows="5" placeholder="وصف المنتج">${E(p.description||p.desc||"")}</textarea>
+    <label class="full">وصف المنتج<textarea id="pd" class="field" rows="5" placeholder="وصف المنتج">${E(p.description||p.desc||"")}</textarea></label>
     <label class="full">روابط فيديوهات المنتج — رابط بكل سطر<textarea id="pvideos" class="field" rows="4" placeholder="https://youtube.com/...">${E(adminProductDraft.videos.join("\n"))}</textarea></label>
     <div class="full"><div class="toolbar"><b>الألوان / الخيارات والمخزون لكل واحد</b><button type="button" class="btn" onclick="adminAddVariant()">+ إضافة لون/خيار</button></div><div id="productVariants"></div></div>
   </div><div class="actions"><button class="btn primary" type="button" onclick="saveProduct(${p.id||0})">حفظ المنتج</button></div>`);
   adminRenderExistingImages();
   adminRenderVariants();
+  adminToggleTaxonomyNew('pcat','pcatNewWrap');
+  adminToggleTaxonomyNew('pbrand','pbrandNewWrap');
 };
 
 async function adminUploadMany(files) {
@@ -217,8 +269,9 @@ window.saveProduct = async function saveProduct(id) {
       oldPrice: $("#po").value ? Number($("#po").value) : null,
       cost_price: Number($("#pcost").value || 0),
       stock: Number($("#ps").value || 0),
-      category: $("#pcat").value.trim(),
-      brand: $("#pbrand").value.trim(),
+      category: $("#pcat").value==="__new__"?$("#pcatNew").value.trim():$("#pcat").value.trim(),
+      brand: $("#pbrand").value==="__new__"?$("#pbrandNew").value.trim():$("#pbrand").value.trim(),
+      active: !!$("#pactive").checked,
       description: $("#pd").value || "",
       mainImages,
       subImages,
