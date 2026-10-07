@@ -30,6 +30,15 @@ test("admin search fields are live without search buttons",()=>{
   assert.match(admin,/بحث مباشر بالمنتج أو SKU أو الفئة أو البراند/);
 });
 
+test("staff gender is persisted for gender-aware admin copy",()=>{
+  assert.match(server,/INSERT INTO users[\s\S]*gender/);
+  assert.match(server,/UPDATE users[\s\S]*gender = \$4/);
+  assert.match(admin,/id="sg"/);
+  assert.match(admin,/id="esg"/);
+  assert.match(admin,/gender:\$\('#sg'\)\.value/);
+  assert.match(admin,/gender:\$\('#esg'\)\.value/);
+});
+
 test("staff, categories and brands use live search",()=>{
   assert.match(admin,/بحث مباشر بالاسم أو البريد أو الهاتف أو الدور/);
   assert.match(admin,/function renderStaffRows\(/);
