@@ -39,7 +39,7 @@ async function initWaitlist(db) {
 }
 
 function registerWaitlistRoutes(app, deps) {
-  const { db, requireAdmin, optionalAuth, normalizePhone } = deps;
+  const { db, requireAdmin, requireAuth, optionalAuth, normalizePhone } = deps;
 
   app.post("/api/waitlist", optionalAuth, async (req, res) => {
     try {
@@ -127,6 +127,51 @@ function registerWaitlistRoutes(app, deps) {
     } catch (error) {
       console.error("[WAITLIST ADD]", error);
       return res.status(500).json({ ok: false, message: "تعذر التسجيل في قائمة التوفر" });
+    }
+  });
+
+  app.get("/api/waitlist/mine", requireAuth, async (req, res) => {
+    try {
+      const result = await db(
+        `
+        SELECT
+          w.id,
+          w.product_id AS "productId",
+          p.name AS "productName",
+          COALESCE(
+            (
+              SELECT pi.image_url
+              FROM product_images pi
+              WHERE pi.product_id=p.id
+              ORDER BY pi.is_primary DESC,pi.sort_order,pi.id
+              LIMIT 1
+            ),
+            p.image_url
+          ) AS "productImage",
+          w.variant_name AS "variant",
+          w.status,
+          w.notified_at AS "notifiedAt",
+          w.created_at AS "createdAt",
+          w.updated_at AS "updatedAt"
+        FROM waitlist_requests w
+        JOIN products p ON p.id=w.product_id
+        WHERE w.user_id=$1
+        ORDER BY w.created_at DESC,w.id DESC
+        LIMIT 100
+        `,
+        [req.user.id]
+      );
+
+      return res.json({
+        ok: true,
+        requests: result.rows
+      });
+    } catch (error) {
+      console.error("[WAITLIST MINE]", error);
+      return res.status(500).json({
+        ok: false,
+        message: "تعذر تحميل سجل التوفر"
+      });
     }
   });
 
