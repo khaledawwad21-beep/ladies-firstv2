@@ -177,6 +177,23 @@ function toggleUserOrderBlockFields(){
   const box=$('#userOrderBlockFields');
   if(box)box.hidden=!blocked;
 }
+function orderBlockHistoryActionLabel(action){
+  return ({blocked:'منع يدوي',unblocked:'فك المنع',updated:'تعديل المنع',auto_blocked:'منع تلقائي'})[String(action||'')]||String(action||'-');
+}
+async function loadUserOrderBlockHistory(id){
+  const box=$('#userOrderBlockHistory');
+  if(!box)return;
+  try{
+    const d=await api('/api/admin/users/'+id+'/order-block-history');
+    const events=d.events||[];
+    box.innerHTML='<b>سجل منع الطلب</b>'+(events.length?table(
+      ['التاريخ','الإجراء','المصدر','السبب','ينتهي','بواسطة'],
+      events.map(x=>`<tr><td>${x.createdAt?E(new Date(x.createdAt).toLocaleString('ar')):'-'}</td><td>${E(orderBlockHistoryActionLabel(x.action))}</td><td>${E(x.source||'-')}</td><td>${E(x.reason||'-')}</td><td>${x.blockedUntil?E(new Date(x.blockedUntil).toLocaleString('ar')):'دائم / غير محدد'}</td><td>${E(x.actorName||'-')}</td></tr>`)
+    ):'<p class="small-note">لا يوجد سجل منع سابق لهذا المستخدم.</p>');
+  }catch(e){
+    box.innerHTML='<b>سجل منع الطلب</b><p class="small-note">'+E(e.message||'تعذر تحميل السجل')+'</p>';
+  }
+}
 function editUser(id){
   const u=adminUsersCache.find(x=>Number(x.id)===Number(id));
   if(!u)return alert('المستخدم غير موجود في القائمة الحالية');
@@ -195,10 +212,12 @@ function editUser(id){
         <label>ينتهي بتاريخ ووقت — اتركه فارغًا للمنع الدائم<input id="uorderblockuntil" class="field" type="datetime-local" value="${E(adminDateTimeLocal(u.orderingBlockUntil))}"></label>
       </div>
     </div>
+    <div id="userOrderBlockHistory" class="full notice">جاري تحميل سجل منع الطلب…</div>
     <div class="full notice">الدور الحالي: <b>${E(u.role||'customer')}</b>. تغيير أدوار الإدارة والموظفين يتم من قسم الموظفين والصلاحيات.</div>
     <label class="full">تعيين كلمة مرور جديدة — اختياري<input id="unewpass" class="field" type="password" minlength="12" autocomplete="new-password" placeholder="اتركها فارغة إن لم ترد تغيير كلمة المرور"></label>
   </div><div class="actions"><button class="btn primary" onclick="saveUser(${Number(u.id)})">حفظ</button></div>`);
   toggleUserOrderBlockFields();
+  loadUserOrderBlockHistory(id);
 }
 async function saveUser(id){
   const nextPassword=$('#unewpass')?.value||'';
