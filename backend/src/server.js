@@ -4455,8 +4455,14 @@ app.patch(
                      FROM orders
                      WHERE status='cancelled'
                        AND cancelled_source='customer'
-                       AND user_id=$1`,
-                    [customerUserId]
+                       AND (
+                         user_id=$1
+                         OR (
+                           $2<>''
+                           AND regexp_replace(COALESCE(customer_phone,''),'[^0-9]','','g')=$2
+                         )
+                       )`,
+                    [customerUserId,phoneKey]
                   );
                   const cancellationCount=Number(prior.rows[0]?.count||0)+1;
                   if(cancellationCount>=autoBlockThreshold){
