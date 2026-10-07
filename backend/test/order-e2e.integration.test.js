@@ -158,7 +158,7 @@ if (process.env.RUN_DB_E2E !== "1") {
     const cancelled = await api(`/api/admin/orders/${orderId}/status`, {
       method: "PATCH",
       headers: ownerHeaders,
-      body: JSON.stringify({ status: "cancelled" })
+      body: JSON.stringify({ status: "cancelled", cancelSource: "admin", cancellationReason: "CI cleanup" })
     });
     assert.equal(String(cancelled.order.status).toLowerCase(), "cancelled");
 
@@ -303,7 +303,7 @@ if (process.env.RUN_DB_E2E !== "1") {
     await api(`/api/admin/orders/${orderId}/status`, {
       method: "PATCH",
       headers: ownerHeaders,
-      body: JSON.stringify({ status: "cancelled" })
+      body: JSON.stringify({ status: "cancelled", cancelSource: "admin", cancellationReason: "CI cleanup" })
     });
 
     const loyaltyAfterCancel = await api("/api/loyalty", { headers: customerHeaders });
@@ -536,7 +536,7 @@ if (process.env.RUN_DB_E2E !== "1") {
     await api("/api/admin/orders/" + orderId + "/status", {
       method: "PATCH",
       headers: ownerHeaders,
-      body: JSON.stringify({ status: "cancelled" })
+      body: JSON.stringify({ status: "cancelled", cancelSource: "admin", cancellationReason: "CI cleanup" })
     });
   });
 
