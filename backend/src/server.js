@@ -399,7 +399,7 @@ function ensurePositiveQuantity(
 function stockError() {
   const error =
     new Error(
-      "الكمية خلصت، حقك علينا"
+      stockAvailabilityMessage(0)
     );
 
   error.code =
