@@ -102,6 +102,9 @@ function registerStaffMessageRoutes(app,{db,requireAdmin}){
   });
 
   app.post("/api/admin/settings/staff-message",requireAdmin,async(req,res)=>{
+    if(!["owner","admin"].includes(String(req.user?.role||"").toLowerCase())){
+      return res.status(403).json({ok:false,code:"MANAGEMENT_ONLY",message:"نشر رسالة الموظفين متاح للمالك أو Admin فقط"});
+    }
     const message=String(req.body?.message||"").trim().slice(0,3000);
     if(!message){
       return res.status(400).json({ok:false,message:"اكتب نص الرسالة أولًا"});
@@ -123,6 +126,9 @@ function registerStaffMessageRoutes(app,{db,requireAdmin}){
   });
 
   app.patch("/api/admin/settings/staff-message",requireAdmin,async(req,res)=>{
+    if(!["owner","admin"].includes(String(req.user?.role||"").toLowerCase())){
+      return res.status(403).json({ok:false,code:"MANAGEMENT_ONLY",message:"تغيير حالة رسالة الموظفين متاح للمالك أو Admin فقط"});
+    }
     try{
       const current=normalizeMessage(await getSetting(db,"staff_general_message",{}));
       const active=req.body?.active===true;
