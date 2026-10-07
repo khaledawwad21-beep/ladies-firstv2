@@ -30,6 +30,14 @@ test("admin search fields are live without search buttons",()=>{
   assert.match(admin,/بحث مباشر بالمنتج أو SKU أو الفئة أو البراند/);
 });
 
+test("staff, categories and brands use live search",()=>{
+  assert.match(admin,/بحث مباشر بالاسم أو البريد أو الهاتف أو الدور/);
+  assert.match(admin,/function renderStaffRows\(/);
+  assert.match(admin,/بحث مباشر بالفئة/);
+  assert.match(admin,/بحث مباشر بالبراند/);
+  assert.match(admin,/function renderCatalogRows\(/);
+});
+
 test("all date inputs receive the shared picker behavior",()=>{
   assert.match(admin,/function initDateInputs\(/);
   assert.match(admin,/input\[type="date"\]/);
