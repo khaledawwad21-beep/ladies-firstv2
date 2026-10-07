@@ -56,3 +56,22 @@ test("storefront opens signed order links without exposing PII", () => {
   assert.match(app, /هذا الرابط يعرض تفاصيل الطلب بدون إظهار رقم الهاتف أو العنوان/);
   assert.match(app, /await openPublicOrderFromUrl\(\)/);
 });
+
+
+test("invoice includes delivery, discounts, totals and both QR codes", () => {
+  assert.match(admin, /العنوان:/);
+  assert.match(admin, /منطقة التوصيل:/);
+  assert.match(admin, /طريقة الدفع:/);
+  assert.match(admin, /المجموع الفرعي:/);
+  assert.match(admin, /خصم الكوبون/);
+  assert.match(admin, /خصم Visa/);
+  assert.match(admin, /خصم نقاط الولاء/);
+  assert.match(admin, /التغليف:/);
+  assert.match(admin, /رسوم التوصيل الأصلية/);
+  assert.match(admin, /خصم التوصيل/);
+  assert.match(admin, /الإجمالي النهائي:/);
+  assert.match(admin, /id="qrsite"/);
+  assert.match(admin, /id="qrorder"/);
+  assert.match(admin, /new QRCode\(\$\('#qrsite'\)/);
+  assert.match(admin, /new QRCode\(\$\('#qrorder'\)/);
+});
