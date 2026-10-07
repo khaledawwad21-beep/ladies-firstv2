@@ -2410,9 +2410,9 @@ app.delete(
 
 app.post(
   "/api/orders",
-  requireAuth,
+  optionalAuth,
   async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.user?.id || null;
 
     const items = Array.isArray(req.body.items)
       ? req.body.items
@@ -3065,7 +3065,7 @@ app.post(
           const pointValue = Math.max(0, Number(await getSetting("loyalty_point_value", 0.1, client)) || 0);
           let pointsRedeemed = 0;
           let loyaltyDiscount = 0;
-          if (requestedPoints > 0 && loyaltyEnabled && redeemEnabled) {
+          if (userId && requestedPoints > 0 && loyaltyEnabled && redeemEnabled) {
             const ur = await client.query("SELECT loyalty_points FROM users WHERE id=$1 FOR UPDATE",[userId]);
             const balance = Number(ur.rows[0]?.loyalty_points || 0);
             pointsRedeemed = Math.min(requestedPoints, balance);
@@ -3079,7 +3079,7 @@ app.post(
           const earningMode = earningModeRaw === "order" ? "order" : "amount";
           const pointsPerOrder = Math.max(0, integer(await getSetting("loyalty_points_per_order", 10, client), 10));
           const pointsBase = Math.max(0, subtotal - couponDiscount - visaDiscount - loyaltyDiscount);
-          const loyaltyPoints = loyaltyEnabled
+          const loyaltyPoints = userId && loyaltyEnabled
             ? (earningMode === "order" ? pointsPerOrder : calculateLoyaltyPoints(pointsBase, pointsRate))
             : 0;
 
