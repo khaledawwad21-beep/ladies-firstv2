@@ -14,7 +14,8 @@ function imageUrl(value) {
 function videoUrl(value) {
   if (typeof value !== 'string') invalid('رابط الفيديو غير صالح');
   const url = value.trim();
-  if (!url || url.length > 2048) invalid('رابط الفيديو غير صالح');
+  if (!url || url.length > 2048 || /[<>"'\\\x00-\x20]/.test(url)) invalid('رابط الفيديو غير صالح');
+  if (/^\/api\/videos\/[a-f0-9]{64}$/.test(url)) return url;
   try {
     const parsed = new URL(url);
     if (!['https:','http:'].includes(parsed.protocol) || parsed.username || parsed.password) invalid('رابط الفيديو غير صالح');
