@@ -133,7 +133,7 @@ if (process.env.RUN_DB_E2E !== "1") {
     await api("/api/admin/orders/" + orderId + "/status", {
       method: "PATCH",
       headers: ownerHeaders,
-      body: JSON.stringify({ status: "cancelled" })
+      body: JSON.stringify({ status: "cancelled", cancellationSource: "admin" })
     });
 
     const afterCancel = await api("/api/products/" + productId);
