@@ -278,94 +278,162 @@ async function processLowStock(db, config, context, result, sender = sendTemplat
   }
 }
 
-async function processWaitlist(db, config, result, sender = sendTemplate) {
-  if (!config.waitlistTemplate) return;
-  const waiting = await db(`
-    SELECT
-      w.id,
-      w.customer_name AS "name",
-      w.phone,
-      w.variant_name AS "variant",
-      p.id AS "productId",
-      p.name AS "productName",
-      p.stock
-    FROM waitlist_requests w
-    JOIN products p ON p.id = w.product_id
-    WHERE w.status = 'waiting'
-      AND p.is_active = TRUE
-      AND (
-        (
-          w.variant_name IS NULL
-          AND (
-            p.stock > 0
-            OR EXISTS (
-              SELECT 1 FROM product_variants v
-              WHERE v.product_id = p.id
-                AND v.is_active = TRUE
-                AND v.stock > 0
-            )
-          )
-        )
-        OR
-        (
-          w.variant_name IS NOT NULL
-          AND EXISTS (
-            SELECT 1 FROM product_variants v
-            WHERE v.product_id = p.id
-              AND v.is_active = TRUE
-              AND v.stock > 0
-              AND (v.color = w.variant_name OR v.size = w.variant_name)
-          )
-        )
-      )
-    ORDER BY w.created_at ASC
-    LIMIT 200
-  `);
+async function availableWaitlistRows(db, waitlistId = null) {
+  const params=[];
+  let idWhere="";
+  if(waitlistId!==null){
+    params.push(Number(waitlistId));
+    idWhere=`AND w.id = $${params.length}`;
+  }
+  return db(
+    `SELECT
+       w.id,
+       w.user_id AS "userId",
+       w.customer_name AS "name",
+       w.phone,
+       w.variant_name AS "variant",
+       p.id AS "productId",
+       p.name AS "productName",
+       p.stock
+     FROM waitlist_requests w
+     JOIN products p ON p.id = w.product_id
+     WHERE w.status = 'waiting'
+       ${idWhere}
+       AND p.is_active = TRUE
+       AND (
+         (
+           w.variant_name IS NULL
+           AND (
+             p.stock > 0
+             OR EXISTS (
+               SELECT 1 FROM product_variants v
+               WHERE v.product_id = p.id
+                 AND v.is_active = TRUE
+                 AND v.stock > 0
+             )
+           )
+         )
+         OR
+         (
+           w.variant_name IS NOT NULL
+           AND EXISTS (
+             SELECT 1 FROM product_variants v
+             WHERE v.product_id = p.id
+               AND v.is_active = TRUE
+               AND v.stock > 0
+               AND (
+                 v.color = w.variant_name
+                 OR v.size = w.variant_name
+                 OR CONCAT_WS(' / ',v.color,v.size) = w.variant_name
+               )
+           )
+         )
+       )
+     ORDER BY w.created_at ASC
+     LIMIT 200`,
+    params
+  );
+}
 
-  for (const row of waiting.rows) {
-    const duplicate = await db(
-      `SELECT id FROM whatsapp_automation_log
-       WHERE waitlist_id = $1
-         AND reminder_type = 'waitlist_restock'
-         AND status = 'sent'
-       LIMIT 1`,
+async function sendWaitlistNotification(db, waitlistId, options = {}) {
+  const config=options.config||getWhatsAppConfig();
+  const sender=typeof options.sendTemplate==="function"?options.sendTemplate:sendTemplate;
+  if(!config.accessToken||!config.phoneNumberId||!config.waitlistTemplate){
+    const error=new Error("إعداد WhatsApp Business أو قالب قائمة التوفر غير مكتمل");
+    error.status=409;
+    error.code="WHATSAPP_NOT_CONFIGURED";
+    throw error;
+  }
+  const available=await availableWaitlistRows(db,waitlistId);
+  const row=available.rows[0];
+  if(!row){
+    const existing=await db(
+      "SELECT id,status FROM waitlist_requests WHERE id=$1 LIMIT 1",
+      [waitlistId]
+    );
+    const error=new Error(
+      !existing.rowCount
+        ?"طلب التوفر غير موجود"
+        : existing.rows[0].status!=="waiting"
+          ?"تم التعامل مع طلب التوفر مسبقًا"
+          :"الصنف أو اللون المطلوب غير متوفر حاليًا"
+    );
+    error.status=!existing.rowCount?404:409;
+    error.code=!existing.rowCount?"WAITLIST_NOT_FOUND":"WAITLIST_NOT_AVAILABLE";
+    throw error;
+  }
+
+  try{
+    const sent=await sender(
+      config,
+      row.phone,
+      config.waitlistTemplate,
+      [row.name||"سيدتي",row.productName||"المنتج"]
+    );
+    const updated=await db(
+      `UPDATE waitlist_requests
+       SET status='notified',notified_at=NOW(),updated_at=NOW()
+       WHERE id=$1 AND status='waiting'
+       RETURNING id,status,notified_at AS "notifiedAt"`,
       [row.id]
     );
-    if (duplicate.rowCount) continue;
-    try {
-      const sent = await sender(
-        config,
-        row.phone,
-        config.waitlistTemplate,
-        [row.name || "سيدتي", row.productName || "المنتج"]
-      );
-      await db(
-        `UPDATE waitlist_requests
-         SET status = 'notified', notified_at = NOW(), updated_at = NOW()
-         WHERE id = $1 AND status = 'waiting'`,
-        [row.id]
-      );
-      await logResult(db, {
-        waitlistId: row.id,
-        type: "waitlist_restock",
-        recipient: normalizeRecipient(row.phone),
-        templateName: config.waitlistTemplate,
-        status: "sent",
-        providerMessageId: sent.id
-      });
+    if(!updated.rowCount){
+      const error=new Error("تم التعامل مع طلب التوفر مسبقًا");
+      error.status=409;
+      error.code="WAITLIST_ALREADY_HANDLED";
+      throw error;
+    }
+    await logResult(db,{
+      userId:row.userId||null,
+      waitlistId:row.id,
+      type:"waitlist_restock",
+      recipient:normalizeRecipient(row.phone),
+      templateName:config.waitlistTemplate,
+      status:"sent",
+      providerMessageId:sent.id
+    });
+    return {row,request:updated.rows[0],providerMessageId:sent.id};
+  }catch(error){
+    await logResult(db,{
+      userId:row.userId||null,
+      waitlistId:row.id,
+      type:"waitlist_restock",
+      recipient:normalizeRecipient(row.phone),
+      templateName:config.waitlistTemplate,
+      status:"failed",
+      errorMessage:String(error.message||error).slice(0,800)
+    }).catch(()=>{});
+    throw error;
+  }
+}
+
+async function processWaitlist(db, config, result, sender = sendTemplate) {
+  if (!config.waitlistTemplate) return;
+  if (!(await settingEnabled(db, "waitlist_whatsapp_auto_enabled"))) return;
+  const waiting=await availableWaitlistRows(db);
+
+  for(const row of waiting.rows){
+    try{
+      await sendWaitlistNotification(db,row.id,{config,sendTemplate:sender});
       result.sent++;
-    } catch (error) {
-      await logResult(db, {
-        waitlistId: row.id,
-        type: "waitlist_restock",
-        recipient: normalizeRecipient(row.phone),
-        templateName: config.waitlistTemplate,
-        status: "failed",
-        errorMessage: String(error.message || error).slice(0, 800)
-      });
+    }catch(error){
+      if(error?.code==="WAITLIST_ALREADY_HANDLED")continue;
       result.failed++;
     }
   }
+}
+
+async function runWaitlistRestockNotifications(db, options = {}) {
+  const config=getWhatsAppConfig();
+  const sender=typeof options.sendTemplate==="function"?options.sendTemplate:sendTemplate;
+  const result={configured:false,sent:0,failed:0,skipped:false};
+  if(!config.accessToken||!config.phoneNumberId||!config.waitlistTemplate){
+    result.skipped=true;
+    return result;
+  }
+  result.configured=true;
+  await processWaitlist(db,config,result,sender);
+  return result;
 }
 
 let activeRun = null;
@@ -549,6 +617,24 @@ function registerWhatsAppAutomationRoutes(app, deps) {
     }
   });
 
+  app.post("/api/admin/waitlist/:id/notify-whatsapp", requireAdmin, async (req,res)=>{
+    const id=Number(req.params.id);
+    if(!Number.isInteger(id)||id<=0){
+      return res.status(400).json({ok:false,message:"رقم طلب التوفر غير صالح"});
+    }
+    try{
+      const result=await sendWaitlistNotification(db,id);
+      return res.json({ok:true,result,message:"تم إرسال رسالة التوفر عبر واتساب"});
+    }catch(error){
+      console.error("[WAITLIST MANUAL WHATSAPP]",error);
+      return res.status(error.status||500).json({
+        ok:false,
+        code:error.code||"WAITLIST_WHATSAPP_ERROR",
+        message:error.message||"تعذر إرسال رسالة التوفر"
+      });
+    }
+  });
+
   app.post("/api/admin/whatsapp-automation/run", requireAdmin, async (req, res) => {
     try {
       const result = await runWhatsAppAutomation(db);
@@ -569,5 +655,7 @@ module.exports = {
   startWhatsAppAutomation,
   registerWhatsAppAutomationRoutes,
   runWhatsAppCampaign,
-  campaignRecipients
+  campaignRecipients,
+  sendWaitlistNotification,
+  runWaitlistRestockNotifications
 };
