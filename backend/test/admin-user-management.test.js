@@ -32,3 +32,23 @@ test("role changes through generic user route require owner role",()=>{
   assert.match(server,/req\.body\.role !== undefined/);
   assert.match(server,/تغيير دور المستخدم متاح للمالك فقط/);
 });
+
+
+test("admin can block ordering temporarily or permanently with a reason",()=>{
+  assert.match(admin,/id="uorderblocked"/);
+  assert.match(admin,/uorderblockreason/);
+  assert.match(admin,/uorderblockuntil/);
+  assert.match(server,/ordering_blocked/);
+  assert.match(server,/ordering_block_reason/);
+  assert.match(server,/ordering_block_until/);
+});
+
+test("checkout enforces active order blocks and repeated customer cancellations can auto-block",()=>{
+  assert.match(server,/ORDERING_BLOCKED/);
+  assert.match(server,/CANCELLATION_SOURCE_REQUIRED/);
+  assert.match(server,/cancelled_source='customer'/);
+  assert.match(server,/customer_cancel_auto_block_threshold/);
+  assert.match(server,/لا تدخل|منع تلقائي/);
+  assert.match(admin,/orderCancelSource/);
+  assert.match(admin,/cancelAutoBlockThreshold/);
+});
