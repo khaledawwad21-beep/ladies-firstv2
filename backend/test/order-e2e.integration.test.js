@@ -128,6 +128,27 @@ if (process.env.RUN_DB_E2E !== "1") {
     const publicLink = await api(`/api/admin/orders/${orderId}/public-link`, { headers: ownerHeaders });
     assert.match(String(publicLink.path || ""), /\/order\//);
 
+    const publicPageUrl = new URL(publicLink.path, baseUrl);
+    const publicOrder = await api(
+      `/api/public/orders/${orderId}?${publicPageUrl.searchParams.toString()}`
+    );
+    assert.equal(publicOrder.ok, true);
+    assert.equal(Number(publicOrder.order.id), orderId);
+    assert.equal(Number(publicOrder.order.total), Number(adminOrder.order.total));
+    assert.equal(publicOrder.items.length, 1);
+    assert.equal(Number(publicOrder.items[0].productId), productId);
+    for (const privateField of ["customer_name", "customer_phone", "shipping_address", "user_email", "user_phone"]) {
+      assert.equal(Object.hasOwn(publicOrder.order, privateField), false);
+    }
+
+    const validToken = publicPageUrl.searchParams.get("token");
+    assert.ok(validToken);
+    const tamperedToken = validToken.slice(0, -1) + (validToken.endsWith("a") ? "b" : "a");
+    const tampered = await fetch(
+      baseUrl + `/api/public/orders/${orderId}?token=${encodeURIComponent(tamperedToken)}`
+    );
+    assert.equal(tampered.status, 404);
+
     const salesReport = await api("/api/admin/reports/sales", { headers: ownerHeaders });
     assert.equal(salesReport.ok, true);
 
