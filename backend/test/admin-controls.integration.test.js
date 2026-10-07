@@ -151,11 +151,16 @@ test("staff announcement appears once per published version and tracks read stat
   let r=await json("/api/admin/settings/staff-message",{
     method:"POST",
     token:ownerToken,
-    body:{message:"CI message for staff"}
+    body:{message:"CI message for staff",targetRoles:["staff"]}
   });
   assert.equal(r.response.status,201,JSON.stringify(r.data));
   const version=String(r.data.message.version||"");
   assert.ok(version);
+  assert.deepEqual(r.data.message.targetRoles,["staff"]);
+
+  const ownerMessage=await json("/api/staff-message",{token:ownerToken});
+  assert.equal(ownerMessage.response.status,200);
+  assert.equal(ownerMessage.data.shouldShow,false);
 
   r=await json("/api/staff-message",{token:staffToken});
   assert.equal(r.response.status,200,JSON.stringify(r.data));
@@ -176,7 +181,7 @@ test("staff announcement appears once per published version and tracks read stat
 
   r=await json("/api/admin/settings/staff-message",{token:ownerToken});
   assert.equal(r.response.status,200);
-  assert.equal(Number(r.data.eligible),2);
+  assert.equal(Number(r.data.eligible),1);
   assert.equal(Number(r.data.seen),1);
 
   r=await json("/api/admin/settings/staff-message",{
