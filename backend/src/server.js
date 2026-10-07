@@ -467,6 +467,13 @@ async function initDatabase() {
     BOOLEAN NOT NULL DEFAULT TRUE
   `);
 
+  await db(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS ordering_blocked BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS ordering_block_reason TEXT,
+      ADD COLUMN IF NOT EXISTS ordering_block_until TIMESTAMPTZ
+  `);
+
   await initAdminPermissions(db);
   await require("./auth").initSessionSecurity(db);
 
@@ -776,6 +783,9 @@ async function initDatabase() {
 
   /* Keep existing production databases compatible with the current API. */
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_source TEXT`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_reason TEXT`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`);
 
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_discount NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(12,2) NOT NULL DEFAULT 0`);
