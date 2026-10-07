@@ -600,6 +600,147 @@ if (process.env.RUN_DB_E2E !== "1") {
   });
 
 
+  test("automatic customer block counts only customer-caused cancellations", async () => {
+    const ownerLogin = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        contact: "owner-e2e@example.test",
+        password: "owner-password-123"
+      })
+    });
+    const ownerHeaders = { Authorization: "Bearer " + ownerLogin.token };
+
+    await api("/api/admin/settings", {
+      method: "PUT",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        customer_cancel_auto_block_enabled: true,
+        customer_cancel_auto_block_threshold: 2,
+        customer_cancel_auto_block_days: 0,
+        maintenance_mode: false
+      })
+    });
+
+    const product = await api("/api/admin/products", {
+      method: "POST",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        name: "CI Auto Block Product",
+        description: "Customer cancellation block test",
+        price: 60,
+        cost_price: 20,
+        stock: 5,
+        images: ["https://example.com/ci-auto-block.jpg"],
+        category: "CI Block Category",
+        brand: "CI Block Brand",
+        active: true
+      })
+    });
+    const productId = Number(product.product.id);
+
+    const customer = await api("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "CI Auto Block Customer",
+        email: "auto-block-e2e@example.test",
+        password: "auto-block-pass-123",
+        gender: "male",
+        age: 33
+      })
+    });
+    const customerId = Number(customer.user.id);
+    const customerHeaders = { Authorization: "Bearer " + customer.token };
+    const checkoutBody = {
+      customerName: "CI Auto Block Customer",
+      customerPhone: "+970599000066",
+      shippingAddress: "Nablus - auto block CI",
+      shippingRegion: "westbank",
+      paymentMethod: "cash",
+      items: [{ productId, quantity: 1 }]
+    };
+
+    async function createOrder(){
+      const result=await api("/api/orders",{
+        method:"POST",
+        headers:customerHeaders,
+        body:JSON.stringify(checkoutBody)
+      });
+      return Number(result.orderId||result.order?.id);
+    }
+
+    const adminCancelledOrder=await createOrder();
+    const adminCancelled=await api("/api/admin/orders/"+adminCancelledOrder+"/status",{
+      method:"PATCH",
+      headers:ownerHeaders,
+      body:JSON.stringify({
+        status:"cancelled",
+        cancelSource:"admin",
+        cancellationReason:"Store-side CI cancellation"
+      })
+    });
+    assert.equal(adminCancelled.autoBlockedCustomer,null);
+
+    let userState=await api("/api/admin/users?search="+encodeURIComponent("auto-block-e2e@example.test"),{headers:ownerHeaders});
+    let row=userState.users.find(x=>Number(x.id)===customerId);
+    assert.equal(row.orderingBlocked,false);
+
+    const firstCustomerCancelledOrder=await createOrder();
+    const firstCustomerCancelled=await api("/api/admin/orders/"+firstCustomerCancelledOrder+"/status",{
+      method:"PATCH",
+      headers:ownerHeaders,
+      body:JSON.stringify({
+        status:"cancelled",
+        cancelSource:"customer",
+        cancellationReason:"Customer changed mind"
+      })
+    });
+    assert.equal(firstCustomerCancelled.autoBlockedCustomer,null);
+
+    userState=await api("/api/admin/users?search="+encodeURIComponent("auto-block-e2e@example.test"),{headers:ownerHeaders});
+    row=userState.users.find(x=>Number(x.id)===customerId);
+    assert.equal(row.orderingBlocked,false);
+
+    const secondCustomerCancelledOrder=await createOrder();
+    const secondCustomerCancelled=await api("/api/admin/orders/"+secondCustomerCancelledOrder+"/status",{
+      method:"PATCH",
+      headers:ownerHeaders,
+      body:JSON.stringify({
+        status:"cancelled",
+        cancelSource:"customer",
+        cancellationReason:"Second customer cancellation"
+      })
+    });
+    assert.equal(Number(secondCustomerCancelled.autoBlockedCustomer?.userId),customerId);
+    assert.equal(Number(secondCustomerCancelled.autoBlockedCustomer?.cancellationCount),2);
+
+    userState=await api("/api/admin/users?search="+encodeURIComponent("auto-block-e2e@example.test"),{headers:ownerHeaders});
+    row=userState.users.find(x=>Number(x.id)===customerId);
+    assert.equal(row.orderingBlocked,true);
+    assert.match(String(row.orderingBlockReason||""),/2 إلغاءات/);
+
+    const blockedResponse=await fetch(baseUrl+"/api/orders",{
+      method:"POST",
+      headers:{"Content-Type":"application/json",...customerHeaders},
+      body:JSON.stringify(checkoutBody)
+    });
+    const blockedBody=await blockedResponse.json();
+    assert.equal(blockedResponse.status,403);
+    assert.equal(blockedBody.code,"ORDERING_BLOCKED");
+
+    await api("/api/admin/users/"+customerId,{
+      method:"PATCH",
+      headers:ownerHeaders,
+      body:JSON.stringify({ordering_blocked:false})
+    });
+
+    await api("/api/admin/settings",{
+      method:"PUT",
+      headers:ownerHeaders,
+      body:JSON.stringify({customer_cancel_auto_block_enabled:false})
+    });
+  });
+
+
   test("customer account state persists across login sessions", async () => {
     const ownerLogin = await api("/api/auth/login", {
       method: "POST",
