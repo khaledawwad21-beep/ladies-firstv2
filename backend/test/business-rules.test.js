@@ -39,3 +39,10 @@ test("CI executes isolated variant inventory PostgreSQL E2E", () => {
   assert.match(workflow, /Run isolated variant inventory E2E/);
   assert.match(workflow, /variant-inventory-e2e\.integration\.test\.js/);
 });
+
+
+test("server defines the shared HTTP error helper used by checkout and inventory flows", () => {
+  assert.match(server, /function createHttpError\(status, code, message\)/);
+  assert.match(server, /error\.status = Number\(status\) \|\| 500/);
+  assert.match(server, /error\.code = code \|\| "HTTP_ERROR"/);
+});
