@@ -71,6 +71,13 @@ jobs:
           DB_SSL: "false"
           JWT_SECRET: ci-e2e-secret-123456789012345678901234
         run: node --test test/whatsapp-automation-e2e.integration.test.js
+      - name: Run isolated waitlist restock E2E
+        env:
+          RUN_DB_E2E: "1"
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          DB_SSL: "false"
+          JWT_SECRET: ci-e2e-secret-123456789012345678901234
+        run: node --test test/waitlist-e2e.integration.test.js
       - name: Run isolated variant inventory E2E
         env:
           RUN_DB_E2E: "1"
