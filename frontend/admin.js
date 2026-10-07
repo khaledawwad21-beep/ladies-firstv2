@@ -82,10 +82,12 @@ function normalizeStorefrontMessage(value){
 async function publishStaffGeneralMessage(){
   const message=String($('#staffGeneralMessageText')?.value||'').trim();
   if(!message)return alert('اكتب الرسالة العامة للموظفين أولًا');
-  if(!confirm('سيتم عرض هذه الرسالة لكل موظف وإداري عند أول دخول بعد النشر. متابعة؟'))return;
+  const targetRoles=[...document.querySelectorAll('.staffMessageTarget:checked')].map(x=>x.value);
+  if(!targetRoles.length)return alert('اختاري دورًا واحدًا على الأقل لاستلام الرسالة');
+  if(!confirm('سيتم عرض هذه الرسالة للحسابات المستهدفة عند أول دخول بعد النشر. متابعة؟'))return;
   try{
-    await api('/api/admin/settings/staff-message',{method:'POST',body:JSON.stringify({message})});
-    toast('تم نشر الرسالة العامة للموظفين');
+    await api('/api/admin/settings/staff-message',{method:'POST',body:JSON.stringify({message,targetRoles})});
+    toast('تم نشر الرسالة العامة للفئات المحددة');
     await settings();
   }catch(e){alert(e.message||'تعذر نشر الرسالة')}
 }
@@ -906,7 +908,13 @@ async function settings(){let [d,staffMessageData]=await Promise.all([api('/api/
   <textarea id="storefrontGeneralMessageText" class="field" rows="3" placeholder="مثال: عرض خاص، تنبيه توصيل، أو إعلان عام">${E(storefrontMessage.message)}</textarea>
   <hr>
   <h3>رسالة الموظفين عند تسجيل الدخول</h3>
-  <div class="small-note">الحالة: <b>${staffMessage.active?'فعالة':'متوقفة'}</b> — شاهدها <b>${Number(staffMessageData.seen||0)}</b> من <b>${Number(staffMessageData.eligible||0)}</b> حساب إدارة فعال.</div>
+  <div class="small-note">الحالة: <b>${staffMessage.active?'فعالة':'متوقفة'}</b> — شاهدها <b>${Number(staffMessageData.seen||0)}</b> من <b>${Number(staffMessageData.eligible||0)}</b> حساب مستهدف فعال.</div>
+  <div class="toolbar staff-message-targets" ${canPublishStaffMessage?'':'hidden'}>
+    <b>إرسال إلى:</b>
+    <label><input type="checkbox" class="staffMessageTarget" value="owner" ${(staffMessage.targetRoles||['owner','admin','staff']).includes('owner')?'checked':''}> Owner</label>
+    <label><input type="checkbox" class="staffMessageTarget" value="admin" ${(staffMessage.targetRoles||['owner','admin','staff']).includes('admin')?'checked':''}> Admin</label>
+    <label><input type="checkbox" class="staffMessageTarget" value="staff" ${(staffMessage.targetRoles||['owner','admin','staff']).includes('staff')?'checked':''}> الموظفون</label>
+  </div>
   ${staffMessage.message?`<div class="notice staff-message-preview">${E(staffMessage.message).replace(/\n/g,'<br>')}</div>`:''}
   <textarea id="staffGeneralMessageText" class="field" rows="3" placeholder="اكتب رسالة جديدة للموظفين" ${canPublishStaffMessage?'':'hidden'}></textarea>
   <div class="actions" ${canPublishStaffMessage?'':'hidden'}><button class="btn primary" type="button" onclick="publishStaffGeneralMessage()">نشر رسالة جديدة</button>${staffMessage.version?`<button class="btn" type="button" onclick="toggleStaffGeneralMessage(${staffMessage.active?'false':'true'})">${staffMessage.active?'إيقاف الرسالة':'إعادة تفعيل الرسالة'}</button>`:''}</div>
