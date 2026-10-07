@@ -91,7 +91,7 @@ function registerStaffMessageRoutes(app,{db,requireAdmin}){
   app.get("/api/admin/settings/staff-message",requireAdmin,async(req,res)=>{
     try{
       const message=normalizeMessage(await getSetting(db,"staff_general_message",{}));
-      const placeholders=message.targetRoles.map((_,index)=>`${index+2}`).join(",");
+      const placeholders=message.targetRoles.map((_,index)=>"$"+(index+2)).join(",");
       const counts=await db(
         `SELECT
            COUNT(*) FILTER (WHERE is_active=TRUE)::int AS eligible,
