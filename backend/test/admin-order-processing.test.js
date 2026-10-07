@@ -30,6 +30,13 @@ test("selecting delivered status saves immediately",()=>{
   assert.ok(admin.includes("await saveOrderStatus(id)"));
 });
 
+test("delivering a guest order links only to one unique customer phone match",()=>{
+  assert.match(server,/matchingCustomers\.rowCount === 1/);
+  assert.match(server,/LIMIT 2/);
+  assert.match(server,/customerAccountLinkedNow/);
+  assert.match(admin,/لم نجد حسابًا واحدًا مطابقًا لرقم هاتف الطلب/);
+});
+
 test("admin order details show product image variant and totals", () => {
   assert.match(admin, /i\.image/);
   assert.match(admin, /i\.variant_name/);
