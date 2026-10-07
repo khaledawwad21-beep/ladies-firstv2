@@ -6868,6 +6868,194 @@ app.patch(
 
 
 /* =========================================================
+   COUPON VALIDATION - PUBLIC CHECKOUT
+   ========================================================= */
+
+app.post(
+  "/api/coupons/validate",
+  async (req, res) => {
+    const code =
+      cleanText(
+        req.body?.code || "",
+        100
+      ).toUpperCase();
+
+    const subtotal =
+      Math.max(
+        0,
+        money(
+          req.body?.subtotal || 0
+        )
+      );
+
+    if (!code) {
+      return res.status(400).json({
+        ok: false,
+        code: "COUPON_REQUIRED",
+        message: "أدخلي كود الخصم"
+      });
+    }
+
+    try {
+      const result =
+        await db(
+          `
+          SELECT *
+          FROM coupons
+          WHERE UPPER(code) = $1
+            AND is_active = TRUE
+            AND (
+              starts_at IS NULL
+              OR starts_at <= NOW()
+            )
+            AND (
+              expires_at IS NULL
+              OR expires_at >= NOW()
+            )
+          LIMIT 1
+          `,
+          [code]
+        );
+
+      if (!result.rowCount) {
+        return res.status(400).json({
+          ok: false,
+          code: "INVALID_COUPON",
+          message: "كود الخصم غير صحيح أو غير فعال"
+        });
+      }
+
+      const coupon =
+        result.rows[0];
+
+      const maxUses =
+        Math.max(
+          0,
+          Number(
+            coupon.max_uses || 0
+          ) || 0
+        );
+
+      const usedCount =
+        Math.max(
+          0,
+          Number(
+            coupon.used_count || 0
+          ) || 0
+        );
+
+      if (
+        maxUses > 0 &&
+        usedCount >= maxUses
+      ) {
+        return res.status(400).json({
+          ok: false,
+          code: "COUPON_EXHAUSTED",
+          message: "انتهت استخدامات الكوبون"
+        });
+      }
+
+      const minimumAmount =
+        Math.max(
+          0,
+          Number(
+            coupon.minimum_amount ??
+            coupon.min_order ??
+            0
+          ) || 0
+        );
+
+      if (
+        subtotal <
+        minimumAmount
+      ) {
+        return res.status(400).json({
+          ok: false,
+          code: "COUPON_MINIMUM",
+          message:
+            `الحد الأدنى لاستخدام الكوبون هو ${minimumAmount.toFixed(2)} ₪`,
+          minimumAmount
+        });
+      }
+
+      const discountType =
+        String(
+          coupon.discount_type ||
+          "percent"
+        ).toLowerCase();
+
+      const discountValue =
+        Math.max(
+          0,
+          Number(
+            coupon.discount_value || 0
+          ) || 0
+        );
+
+      if (
+        !["fixed", "percent"].includes(
+          discountType
+        ) ||
+        (
+          discountType === "percent" &&
+          discountValue > 100
+        )
+      ) {
+        return res.status(400).json({
+          ok: false,
+          code: "INVALID_COUPON_VALUE",
+          message: "قيمة الكوبون غير صالحة"
+        });
+      }
+
+      const discount =
+        discountType === "fixed"
+          ? Math.min(
+              subtotal,
+              discountValue
+            )
+          : Math.min(
+              subtotal,
+              subtotal *
+                (discountValue / 100)
+            );
+
+      return res.json({
+        ok: true,
+        coupon: {
+          code:
+            coupon.code,
+          discountType,
+          discountValue,
+          minimumAmount,
+          maxUses,
+          usedCount,
+          startsAt:
+            coupon.starts_at ||
+            null,
+          expiresAt:
+            coupon.expires_at ||
+            null
+        },
+        discount:
+          money(discount)
+      });
+    } catch (error) {
+      console.error(
+        "[COUPON VALIDATE]",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        message: "تعذر التحقق من كود الخصم"
+      });
+    }
+  }
+);
+
+
+/* =========================================================
    COUPONS
    ========================================================= */
 
