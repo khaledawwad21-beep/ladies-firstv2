@@ -38,6 +38,13 @@ test("staff, categories and brands use live search",()=>{
   assert.match(admin,/function renderCatalogRows\(/);
 });
 
+test("returns and inventory movements use live search",()=>{
+  assert.match(admin,/بحث مباشر برقم الطلب أو العميل أو الهاتف أو المنتج أو الحالة/);
+  assert.match(admin,/function renderReturnRows\(/);
+  assert.match(admin,/بحث مباشر بالمنتج أو SKU أو السبب أو رقم الطلب/);
+  assert.match(admin,/function renderMovementRows\(/);
+});
+
 test("all date inputs receive the shared picker behavior",()=>{
   assert.match(admin,/function initDateInputs\(/);
   assert.match(admin,/input\[type="date"\]/);
