@@ -45,15 +45,23 @@ test("Top 5 and best sellers keep arrows, native touch scrolling and autoplay", 
 });
 
 
-test("storefront search controls stay grouped and suppress saved credential autofill", () => {
+test("storefront search controls are independent and reject saved email autofill", () => {
   assert.match(index, /class="tools storeSearchPanel"/);
   assert.match(index, /class="storeSearchOptions"/);
-  assert.match(index, /autocomplete="new-password"/);
-  assert.match(index, /data-form-type="other"/);
-  assert.match(index, /\.storeSearchPanel\{display:grid!important/);
+  assert.match(index, /onclick="openQuickSearch\('header'\)"/);
+  assert.match(index, /onclick="toggleSideMenu\(\);openQuickSearch\('side'\)"/);
+  assert.match(index, /id="quickSearchInput"/);
+  assert.match(index, /autocomplete="off"/);
+  assert.match(index, /readonly data-form-type="other"/);
+  assert.match(index, /\.quickSearchOverlay\.open\{display:flex!important/);
   assert.match(index, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
-  assert.match(app, /function clearSearchAutofill\(/);
-  assert.match(app, /function handleStoreSearchInput\(/);
+  assert.match(app, /function openQuickSearch\(/);
+  assert.match(app, /function renderQuickSearchResults\(/);
+  assert.match(app, /case 'search':closeLayers\(\);openQuickSearch\('bottom'\)/);
+  assert.match(app, /function isSearchEmail\(/);
+  assert.match(app, /function activateStoreSearch\(/);
+  assert.match(app, /function handleQuickSearchInput\(/);
+  assert.doesNotMatch(app, /focusSearch\(\)/);
 });
 
 test("mobile rails remain horizontally scrollable without blocking page scroll", () => {
