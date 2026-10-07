@@ -46,8 +46,41 @@ function updateVariantCard(id){const p=products.find(x=>x.id===id);if(!p)return;
 function renderVariantChooser(p){const vs=variantList(p);if(!vs.length)return '';const first=vs.find(v=>v.stock>0)?.name||'';const firstStock=first?variantStock(p,first):0;return `<div class="variantBox productVariantPicker"><div class="variantLabel">${currentLang==='en'?'Choose color / option':'اختاري اللون / الخيار'}</div><input type="hidden" id="variant_${p.id}" value="${esc(first)}"><div class="variantChoices">${vs.map(v=>`<button type="button" class="variantChoice ${v.stock<=0?'sold':(v.name===first?'active':'')}" ${v.stock<=0?'disabled aria-disabled="true"':''} onclick="chooseVariant(${p.id},${jsAttr(v.name)},this)">${esc(v.name)}</button>`).join('')}</div><div class="lowStockAlert variantLowStock" id="variantLowStock_${p.id}" ${firstStock>0&&firstStock<=3?'':'hidden'}>${firstStock>0&&firstStock<=3?lowStockMessage(firstStock):''}</div></div>`}
 const LANG_KEY='lf_lang';
 let currentLang=localStorage.getItem(LANG_KEY)||'ar';
+let storefrontGeneralMessage=load('lf_storefront_general_message',{active:false,message:''})||{active:false,message:''};
+let storeMaintenanceState=load('lf_maintenance_state',{active:false,message:''})||{active:false,message:''};
+function normalizeStorefrontPublicMessage(value){
+  if(typeof value==='string')return {active:!!value.trim(),message:value.trim()};
+  if(value&&typeof value==='object')return {active:value.active===true,message:String(value.message||'').trim()};
+  return {active:false,message:''};
+}
+function renderStoreTopBar(){
+  const el=document.getElementById('topBar');if(!el)return;
+  const custom=normalizeStorefrontPublicMessage(storefrontGeneralMessage);
+  el.textContent=custom.active&&custom.message
+    ? custom.message
+    : (currentLang==='en'?'Fast delivery across Palestine • Cash on delivery available':'توصيل سريع داخل فلسطين • الدفع عند الاستلام متاح');
+  el.classList.toggle('generalAnnouncement',!!(custom.active&&custom.message));
+}
+function renderMaintenanceMode(){
+  const active=storeMaintenanceState?.active===true;
+  let overlay=document.getElementById('maintenanceOverlay');
+  if(!active){
+    document.body.classList.remove('maintenance-active');
+    if(overlay)overlay.remove();
+    return;
+  }
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='maintenanceOverlay';
+    overlay.className='maintenanceOverlay';
+    document.body.appendChild(overlay);
+  }
+  const message=String(storeMaintenanceState.message||'المتجر متوقف مؤقتًا للصيانة. سنعود قريبًا.');
+  overlay.innerHTML=`<div class="maintenanceCard"><img src="${safeImg((load('lf_hero',DEFAULT_HERO)||DEFAULT_HERO).logo,LOGO)}" alt="Ladies First"><h1>${currentLang==='en'?'We’ll be back soon':'سنعود قريبًا 🌸'}</h1><p>${esc(message)}</p><small>${currentLang==='en'?'The store is temporarily unavailable.':'المتجر متوقف مؤقتًا، ولوحة الإدارة ما زالت تعمل بشكل طبيعي.'}</small></div>`;
+  document.body.classList.add('maintenance-active');
+}
 function toggleLanguage(){currentLang=currentLang==='ar'?'en':'ar';localStorage.setItem(LANG_KEY,currentLang);document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==='ar'?'rtl':'ltr';document.getElementById('lang').textContent=currentLang==='ar'?'EN':'عربي';renderStaticLang();renderNewUiLang();renderCats();renderProducts();renderFeatureSections();renderCart()}
-function renderStaticLang(){const en=currentLang==='en';document.documentElement.lang=currentLang;document.documentElement.dir=en?'ltr':'rtl';document.getElementById('topBar').textContent=en?'Fast delivery across Palestine • Cash on delivery available':'توصيل سريع داخل فلسطين • الدفع عند الاستلام متاح';document.getElementById('heroTitle').textContent=en?'Everything you need.. in one place':'كل ما تحتاجينه.. في مكان واحد';document.getElementById('heroDesc').textContent=en?'Makeup, perfumes, watches and bags carefully selected to complete your look.':'مكياج، عطور، ساعات وشنط مختارة بعناية لتكملي إطلالتك.';document.getElementById('heroCta').textContent=en?'Shop now':'تسوقي الآن';document.querySelector('.sectionTitle h2').textContent=en?'Shop by category':'تسوقي حسب الفئة';document.getElementById('products').querySelector('h2').textContent=en?'Featured products':'منتجات مختارة';document.querySelector('.brand small').textContent='ONLINE STORE';document.getElementById('search').placeholder=en?'Search for a product...':'ابحثي عن منتج...';document.getElementById('cartTitle').textContent='🛍️ '+(en?'Shopping cart':'سلة التسوق');document.getElementById('whatsappFloat').querySelector('span').textContent=en?'WhatsApp':'واتساب';document.getElementById('footerTagline').textContent=en?'Everything you need.. in one place':'كل ما تحتاجينه.. في مكان واحد';document.getElementById('returnsBtn').textContent=en?'Exchange & Return Policy':'سياسة التبديل والإرجاع';document.getElementById('privacyBtn').textContent=en?'Privacy':'الخصوصية';const sb=document.getElementById('sideBrandsLabel');if(sb)sb.textContent=en?'Brands':'البراندات';const t5=document.getElementById('top5Title');if(t5)t5.textContent=en?'🔥 Top 5 Offers':'🔥 أقوى 5 عروض';const bs=document.getElementById('bestTitle');if(bs)bs.textContent=en?'🏆 Best Sellers':'🏆 الأكثر مبيعًا'}
+function renderStaticLang(){const en=currentLang==='en';document.documentElement.lang=currentLang;document.documentElement.dir=en?'ltr':'rtl';renderStoreTopBar();renderMaintenanceMode();document.getElementById('heroTitle').textContent=en?'Everything you need.. in one place':'كل ما تحتاجينه.. في مكان واحد';document.getElementById('heroDesc').textContent=en?'Makeup, perfumes, watches and bags carefully selected to complete your look.':'مكياج، عطور، ساعات وشنط مختارة بعناية لتكملي إطلالتك.';document.getElementById('heroCta').textContent=en?'Shop now':'تسوقي الآن';document.querySelector('.sectionTitle h2').textContent=en?'Shop by category':'تسوقي حسب الفئة';document.getElementById('products').querySelector('h2').textContent=en?'Featured products':'منتجات مختارة';document.querySelector('.brand small').textContent='ONLINE STORE';document.getElementById('search').placeholder=en?'Search for a product...':'ابحثي عن منتج...';document.getElementById('cartTitle').textContent='🛍️ '+(en?'Shopping cart':'سلة التسوق');document.getElementById('whatsappFloat').querySelector('span').textContent=en?'WhatsApp':'واتساب';document.getElementById('footerTagline').textContent=en?'Everything you need.. in one place':'كل ما تحتاجينه.. في مكان واحد';document.getElementById('returnsBtn').textContent=en?'Exchange & Return Policy':'سياسة التبديل والإرجاع';document.getElementById('privacyBtn').textContent=en?'Privacy':'الخصوصية';const sb=document.getElementById('sideBrandsLabel');if(sb)sb.textContent=en?'Brands':'البراندات';const t5=document.getElementById('top5Title');if(t5)t5.textContent=en?'🔥 Top 5 Offers':'🔥 أقوى 5 عروض';const bs=document.getElementById('bestTitle');if(bs)bs.textContent=en?'🏆 Best Sellers':'🏆 الأكثر مبيعًا'}
 let searchTimer;function queueSearchHistory(v){clearTimeout(searchTimer);searchTimer=setTimeout(()=>rememberSearch(v),700)}
 function rememberSearch(v){const q=String(v||'').trim();if(q.length<2)return;let h=load('lf_search_history',[]);h=[q,...h.filter(x=>x.toLowerCase()!==q.toLowerCase())].slice(0,5);save('lf_search_history',h);renderHistory()}
 function renderHistory(){const h=load('lf_search_history',[]),el=document.getElementById('searchHistory');if(!el)return;el.innerHTML=h.length?h.map(x=>`<button class="historyChip" onclick="useHistory(${jsAttr(x)})">${esc(x)}</button>`).join(''):'';el.style.display=h.length?'flex':'none'}
@@ -687,7 +720,7 @@ function toggleSideMenu(){const o=document.getElementById('sideMenuOverlay');if(
 function renderNewUiLang(){const en=currentLang==='en';const m={sideMenuTitle:en?'Menu':'القائمة',sideHomeText:en?'Home':'الرئيسية',sideSearchText:en?'Search':'البحث',sideCatsLabel:en?'Categories':'الأصناف',sideCartText:en?'Shopping cart':'سلة التسوق',sideReturnsText:en?'Exchange & Return Policy':'سياسة التبديل والإرجاع',bnHome:en?'Home':'الرئيسية',bnCats:en?'Categories':'الأصناف',bnCart:en?'Cart':'السلة',bnSearch:en?'Search':'بحث',bnWhats:'WhatsApp'};Object.entries(m).forEach(([id,v])=>{const e=document.getElementById(id);if(e)e.textContent=v})}
 window.addEventListener('storage',e=>{if(['lf_products','lf_cats','lf_brands','lf_hero','lf_hero_slides','lf_hero_text_style','lf_favorites','lf_account','lf_social_links','lf_users'].includes(e.key)){products=load('lf_products',products);cats=load('lf_cats',cats);brands=load('lf_brands',brands);renderHero();heroIndex=0;renderHeroSlider();restartHeroTimer();renderCats();renderProducts();renderFeatureSections()}if(e.key==='lf_cart'){cart=load('lf_cart',[]);renderProducts();renderCart()}});
 function openProductFromHash(){const m=(location.hash||'').match(/^#product-(\d+)$/);if(m){const id=Number(m[1]);if(products.some(p=>p.id===id)){openProduct(id)}}else{const modal=document.getElementById('modal');if(modal)modal.style.display='none';}}
-window.addEventListener('hashchange',openProductFromHash);window.addEventListener('popstate',openProductFromHash);document.getElementById('cartBtn').onclick=openCart;document.getElementById('lang').onclick=toggleLanguage;document.getElementById('lang').textContent=currentLang==='ar'?'EN':'عربي';renderHistory();renderStaticLang();setTimeout(openProductFromHash,50);
+window.addEventListener('hashchange',openProductFromHash);window.addEventListener('popstate',openProductFromHash);document.getElementById('cartBtn').onclick=openCart;document.getElementById('lang').onclick=toggleLanguage;document.getElementById('lang').textContent=currentLang==='ar'?'EN':'عربي';renderHistory();renderStaticLang();renderMaintenanceMode();setTimeout(openProductFromHash,50);
 renderHero();applyHeroTextStyle();renderHeroSlider();restartHeroTimer();renderNewUiLang();renderCats();renderProducts();renderFeatureSections();renderQuickOffers();renderCart();updateNavCounts();updateAccountBadge();updateStoreWhatsAppLinks();renderSocialLinks();
 
 const heroCardEl=document.querySelector('.heroSlider .heroCard');if(heroCardEl){heroCardEl.addEventListener('mouseenter',pauseHeroTimer);heroCardEl.addEventListener('mouseleave',resumeHeroTimer);heroCardEl.addEventListener('touchstart',pauseHeroTimer,{passive:true});heroCardEl.addEventListener('touchend',()=>setTimeout(resumeHeroTimer,700),{passive:true});}document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseHeroTimer();else restartHeroTimer()});
@@ -859,6 +892,15 @@ async function lfSyncStoreSettings(){
     if(st.hero_text_style&&typeof st.hero_text_style==='object')save('lf_hero_text_style',st.hero_text_style);
     if(st.social_links&&typeof st.social_links==='object')save('lf_social_links',st.social_links);
     if(Array.isArray(st.packaging_options))save('lf_packaging_options',st.packaging_options);
+    storefrontGeneralMessage=normalizeStorefrontPublicMessage(st.storefront_general_message);
+    save('lf_storefront_general_message',storefrontGeneralMessage);
+    storeMaintenanceState={
+      active:st.maintenance_mode===true,
+      message:String(st.maintenance_message||'المتجر متوقف مؤقتًا للصيانة. سنعود قريبًا.')
+    };
+    save('lf_maintenance_state',storeMaintenanceState);
+    renderStoreTopBar();
+    renderMaintenanceMode();
     storeCommerceSettings.visaDiscountPercent=Math.min(100,Math.max(0,Number(st.visa_discount_percent)||0));
     const shippingFees=st.shipping_fees&&typeof st.shipping_fees==='object'?st.shipping_fees:{};
     storeCommerceSettings.shippingFees={
