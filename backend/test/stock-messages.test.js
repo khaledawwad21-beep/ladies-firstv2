@@ -24,5 +24,5 @@ test("checkout uses the same authoritative stock copy", () => {
   assert.match(server, /💕 عذرًا سيدتي، خلصت الكمية🌸/);
   assert.match(server, /المتوفر حاليًا.*قطع … يمكنك إضافة عدد القطع المتاحة/);
   assert.match(server, /if \(quantity > availableStock\)/);
-  assert.match(server, /stockAvailabilityMessage\(availableStock\)/);
+  assert.match(server, /stockAvailabilityMessage\(\s*availableStock\s*\)/);
 });
