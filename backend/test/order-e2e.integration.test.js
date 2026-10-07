@@ -718,6 +718,13 @@ if (process.env.RUN_DB_E2E !== "1") {
     assert.equal(row.orderingBlocked,true);
     assert.match(String(row.orderingBlockReason||""),/2 إلغاءات/);
 
+    const blockHistory=await api("/api/admin/users/"+customerId+"/order-block-history",{headers:ownerHeaders});
+    assert.ok(blockHistory.events.some(event=>
+      event.action==="auto_blocked" &&
+      event.source==="customer_cancellations" &&
+      Number(event.userId)===customerId
+    ));
+
     const blockedResponse=await fetch(baseUrl+"/api/orders",{
       method:"POST",
       headers:{"Content-Type":"application/json",...customerHeaders},
