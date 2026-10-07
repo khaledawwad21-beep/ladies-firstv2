@@ -10,6 +10,7 @@ const recovery = require("../src/password-recovery");
 const server = fs.readFileSync(path.join(__dirname, "../src/server.js"), "utf8");
 const app = fs.readFileSync(path.join(__dirname, "../../frontend/app.js"), "utf8");
 const admin = fs.readFileSync(path.join(__dirname, "../../frontend/admin.js"), "utf8");
+const workflow = fs.readFileSync(path.join(__dirname, "../../.github/workflows/production-regression.yml"), "utf8");
 
 test("password recovery normalizes contact and validates 6-digit codes", () => {
   assert.equal(recovery.channelForContact("x@example.com"), "email");
@@ -54,4 +55,10 @@ test("admin recovery UI uses the same production recovery endpoints", () => {
   assert.match(admin, /\/api\/auth\/password-recovery\/request/);
   assert.match(admin, /\/api\/auth\/password-recovery\/confirm/);
   assert.match(admin, /minlength="12"/);
+});
+
+
+test("CI executes the isolated password recovery PostgreSQL E2E", () => {
+  assert.match(workflow, /Run isolated password recovery E2E/);
+  assert.match(workflow, /password-recovery-e2e\.integration\.test\.js/);
 });
