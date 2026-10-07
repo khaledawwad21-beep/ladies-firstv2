@@ -61,3 +61,9 @@ test("invoice shows gift lines and separate automatic/manual shipping discounts"
   assert.match(admin, /store_logo/);
   assert.match(admin, /invoiceLogo/);
 });
+
+
+test("free gifts are not treated as customer return or exchange items",()=>{
+  assert.match(server,/GIFT_NOT_RETURNABLE/);
+  assert.match(admin,/gift-badge|🎁 هدية/);
+});
