@@ -169,11 +169,168 @@ async function orders(){
   $('#sections').innerHTML=`<div class="card"><h2>الطلبات والفواتير</h2><div class="toolbar"><select id="orderStatusFilter" class="field" onchange="orders()"><option value="">كل الحالات</option>${orderStatusOptions(status)}</select><input id="orderSearch" class="field" value="${E(previousSearch)}" placeholder="بحث مباشر برقم الطلب أو العميل أو الهاتف" oninput="renderOrderRows()"></div><div id="orderRows"></div></div>`;
   renderOrderRows();
 }
+let adminGiftProducts=[];
+
+function orderItemGiftLabel(i){
+  return i?.is_gift===true||i?.isGift===true?'🎁 هدية':'';
+}
+
 async function openOrderDetails(id){
   const d=await api('/api/admin/orders/'+id),o=d.order||{},items=d.items||[],cancelled=String(o.status||'').toLowerCase()==='cancelled';
+  const lockedGift=!['pending','confirmed','processing'].includes(String(o.status||'').toLowerCase());
   const payment=String(o.payment_method||'cash').toLowerCase()==='visa'?'Visa':'الدفع عند الاستلام';
-  modal('إدارة الطلب #'+id,`<div class="formgrid"><div class="full notice"><b>${E(o.user_name||o.customer_name||'-')}</b> — ${E(o.user_phone||o.customer_phone||'-')}<br>${E(o.shipping_address||'-')}<br>الدفع: ${E(payment)} — التوصيل: ${E(orderRegionLabel(o.shipping_region))}</div><label>حالة الطلب<select id="orderStatusEdit" class="field" ${cancelled?'disabled':''}>${orderStatusOptions(o.status)}</select></label><label>رسوم التوصيل<input class="field" value="${o.shipping_waived?'معفى':M(o.shipping_cost||0)+' ₪'}" disabled></label><div class="full actions"><button class="btn" type="button" onclick="toggleOrderShipping(${Number(id)},${o.shipping_waived?'false':'true'})" ${cancelled?'disabled':''}>${o.shipping_waived?'إلغاء إعفاء التوصيل':'إعفاء من التوصيل'}</button><button class="btn" type="button" onclick="invoice(${Number(id)})">🧾 طباعة الفاتورة</button></div>${cancelled?'<div class="full notice">الطلب ملغي نهائيًا: تم إرجاع المخزون وعكس نقاط الولاء، لذلك لا يمكن إعادته لحالة نشطة.</div>':''}<div class="full">${table(['الصورة','المنتج','الخيار','الكمية','السعر','الإجمالي'],items.map(i=>`<tr><td>${i.image?`<img src="${E(i.image)}" alt="" style="width:52px;height:52px;object-fit:cover;border-radius:9px">`:'-'}</td><td>${E(i.product_name||'-')}</td><td>${E(i.variant_name||'-')}</td><td>${Number(i.quantity)||0}</td><td>${M(i.unit_price)}</td><td>${M(i.total)}</td></tr>`))}</div><div class="full invoiceTotals"><p>المجموع الفرعي: <b>${M(o.subtotal||0)} ₪</b></p><p>خصم الكوبون: <b>-${M(o.coupon_discount||0)} ₪</b></p><p>خصم Visa: <b>-${M(o.visa_discount||0)} ₪</b></p><p>خصم الولاء: <b>-${M(o.loyalty_discount||0)} ₪</b></p><p>التغليف: <b>${M(o.packaging_cost||0)} ₪</b></p><p>التوصيل: <b>${o.shipping_waived?'معفى':M(o.shipping_cost||0)+' ₪'}</b>${Number(o.shipping_discount_percent||0)>0?' — خصم '+M(o.shipping_discount_percent)+'%':''}</p><p><b>الإجمالي: ${M(o.total)} ₪</b></p></div></div><div class="actions">${cancelled?'':`<button class="btn primary" onclick="saveOrderStatus(${Number(id)})">حفظ حالة الطلب</button>`}</div>`);
+  const autoPct=Math.max(0,Number(o.shipping_discount_percent||0)||0);
+  const autoAmount=Math.max(0,Number(o.shipping_discount_amount||0)||0);
+  const manualPct=Math.max(0,Number(o.shipping_manual_discount_percent||0)||0);
+  const manualAmount=Math.max(0,Number(o.shipping_manual_discount_amount||0)||0);
+  modal('إدارة الطلب #'+id,`<div class="formgrid">
+    <div class="full notice"><b>${E(o.user_name||o.customer_name||'-')}</b> — ${E(o.user_phone||o.customer_phone||'-')}<br>${E(o.shipping_address||'-')}<br>الدفع: ${E(payment)} — التوصيل: ${E(orderRegionLabel(o.shipping_region))}</div>
+    <label>حالة الطلب<select id="orderStatusEdit" class="field" ${cancelled?'disabled':''}>${orderStatusOptions(o.status)}</select></label>
+    <label>رسوم التوصيل الحالية<input class="field" value="${o.shipping_waived?'معفى':M(o.shipping_cost||0)+' ₪'}" disabled></label>
+
+    <div class="full shipping-discount-admin">
+      <b>خصم التوصيل</b>
+      <div class="shipping-discount-summary">
+        <span>الخصم التلقائي: <b>${M(autoPct)}%</b> (-${M(autoAmount)} ₪)</span>
+        <span>الخصم اليدوي على هذا الطلب: <b>${M(manualPct)}%</b> (-${M(manualAmount)} ₪)</span>
+      </div>
+      <div class="toolbar">
+        <input id="manualShippingPercent" class="field compact-field" type="number" min="0" max="100" step=".01" value="${manualPct}" placeholder="نسبة الخصم اليدوي %">
+        <button class="btn primary" type="button" onclick="saveOrderShippingDiscount(${Number(id)},${autoPct})" ${cancelled?'disabled':''}>حفظ خصم التوصيل</button>
+      </div>
+      ${autoPct>0?'<div class="small-note warn-note">يوجد خصم توصيل تلقائي على هذا الطلب. عند إضافة خصم يدوي سيظهر تأكيد قبل جمع الخصمين.</div>':''}
+    </div>
+
+    <div class="full actions">
+      <button class="btn" type="button" onclick="toggleOrderShipping(${Number(id)},${o.shipping_waived?'false':'true'})" ${cancelled?'disabled':''}>${o.shipping_waived?'إلغاء إعفاء التوصيل':'إعفاء من التوصيل'}</button>
+      <button class="btn" type="button" onclick="openGiftPicker(${Number(id)})" ${lockedGift?'disabled':''}>🎁 إضافة هدية</button>
+      <button class="btn" type="button" onclick="invoice(${Number(id)})">🧾 طباعة الفاتورة</button>
+    </div>
+    ${lockedGift&&!cancelled?'<div class="full small-note">إضافة أو حذف الهدايا متاحة قبل شحن الطلب فقط.</div>':''}
+    ${cancelled?'<div class="full notice">الطلب ملغي نهائيًا: تم إرجاع المخزون وعكس نقاط الولاء، لذلك لا يمكن إعادته لحالة نشطة.</div>':''}
+
+    <div class="full">${table(['الصورة','المنتج','الخيار','الكمية','السعر','الإجمالي',''],items.map(i=>`<tr class="${i.is_gift?'gift-order-row':''}">
+      <td>${i.image?`<img src="${E(i.image)}" alt="" style="width:52px;height:52px;object-fit:cover;border-radius:9px">`:'-'}</td>
+      <td>${i.is_gift?'<span class="gift-badge">🎁 هدية</span><br>':''}${E(i.product_name||'-')}</td>
+      <td>${E(i.variant_name||'-')}</td>
+      <td>${Number(i.quantity)||0}</td>
+      <td>${i.is_gift?'0.00':M(i.unit_price)} ₪</td>
+      <td>${i.is_gift?'0.00':M(i.total)} ₪</td>
+      <td>${i.is_gift&&!lockedGift?`<button class="btn danger" type="button" onclick="removeOrderGift(${Number(id)},${Number(i.id)})">حذف الهدية</button>`:''}</td>
+    </tr>`))}</div>
+
+    <div class="full invoiceTotals">
+      <p>المجموع الفرعي: <b>${M(o.subtotal||0)} ₪</b></p>
+      <p>خصم الكوبون: <b>-${M(o.coupon_discount||0)} ₪</b></p>
+      <p>خصم Visa: <b>-${M(o.visa_discount||0)} ₪</b></p>
+      <p>خصم الولاء: <b>-${M(o.loyalty_discount||0)} ₪</b></p>
+      <p>التغليف: <b>${M(o.packaging_cost||0)} ₪</b></p>
+      <p>رسوم التوصيل الأساسية: <b>${M(o.shipping_base_cost??o.shipping_cost??0)} ₪</b></p>
+      <p>خصم التوصيل التلقائي: <b>-${M(autoAmount)} ₪</b></p>
+      <p>خصم التوصيل اليدوي: <b>-${M(manualAmount)} ₪</b></p>
+      <p>التوصيل المستحق: <b>${o.shipping_waived?'معفى':M(o.shipping_cost||0)+' ₪'}</b></p>
+      <p><b>الإجمالي: ${M(o.total)} ₪</b></p>
+    </div>
+  </div><div class="actions">${cancelled?'':`<button class="btn primary" onclick="saveOrderStatus(${Number(id)})">حفظ حالة الطلب</button>`}</div>`);
 }
+
+async function saveOrderShippingDiscount(id,autoPct){
+  const percent=Number($('#manualShippingPercent')?.value||0);
+  if(!Number.isFinite(percent)||percent<0||percent>100)return alert('أدخل نسبة بين 0 و100');
+  let confirmStack=false;
+  if(percent>0&&Number(autoPct)>0){
+    confirmStack=confirm(`يوجد خصم توصيل تلقائي بنسبة ${M(autoPct)}%.\nهل تريد إضافة الخصم اليدوي فوقه على المبلغ المتبقي؟`);
+    if(!confirmStack)return;
+  }
+  try{
+    await api('/api/admin/orders/'+id+'/shipping-discount',{method:'PATCH',body:JSON.stringify({percent,confirmStack})});
+    toast(percent>0?'تم تطبيق خصم التوصيل اليدوي':'تم إلغاء خصم التوصيل اليدوي');
+    await openOrderDetails(id);
+    await orders();
+  }catch(e){
+    if(e.code==='SHIPPING_AUTO_DISCOUNT_PRESENT'){
+      if(confirm(e.message+'\n\nهل تريد المتابعة؟')){
+        await api('/api/admin/orders/'+id+'/shipping-discount',{method:'PATCH',body:JSON.stringify({percent,confirmStack:true})});
+        toast('تم تطبيق خصم التوصيل اليدوي');
+        await openOrderDetails(id);
+        await orders();
+        return;
+      }
+    }
+    alert(e.message||'تعذر تعديل خصم التوصيل');
+  }
+}
+
+function giftProductImage(p){
+  return p?.mainImages?.[0]||p?.images?.[0]||p?.imageUrl||p?.image_url||'';
+}
+
+async function openGiftPicker(orderId){
+  try{
+    const d=await api('/api/admin/products');
+    adminGiftProducts=d.products||[];
+    modal('إضافة هدية للطلب #'+orderId,`<div class="gift-picker">
+      <p class="small-note">الهدية تُضاف بسعر بيع صفر للزبون، لكن تكلفتها تُحسب على الربح وتُخصم من المخزون.</p>
+      <input id="giftSearch" class="field" placeholder="بحث مباشر باسم المنتج أو البراند أو SKU" oninput="renderGiftSearch(${Number(orderId)})">
+      <div id="giftSearchResults" class="gift-search-results"></div>
+      <div id="giftEditor"></div>
+      <div id="giftMsg"></div>
+    </div>`);
+    renderGiftSearch(orderId);
+  }catch(e){alert(e.message||'تعذر تحميل المنتجات')}
+}
+
+function renderGiftSearch(orderId){
+  const box=$('#giftSearchResults');if(!box)return;
+  const q=String($('#giftSearch')?.value||'').trim().toLowerCase();
+  const list=adminGiftProducts.filter(p=>{
+    const searchable=[p.name,p.brand,p.category,p.sku].filter(Boolean).join(' ').toLowerCase();
+    const variants=Array.isArray(p.variants)?p.variants:[];
+    const stock=variants.length?variants.reduce((s,v)=>s+Math.max(0,Number(v.stock)||0),0):Math.max(0,Number(p.stock)||0);
+    return stock>0&&(!q||searchable.includes(q));
+  }).slice(0,15);
+  box.innerHTML=list.length?list.map(p=>{
+    const img=giftProductImage(p),variants=Array.isArray(p.variants)?p.variants:[];
+    const stock=variants.length?variants.reduce((s,v)=>s+Math.max(0,Number(v.stock)||0),0):Math.max(0,Number(p.stock)||0);
+    return `<button type="button" class="gift-result" onclick="selectGiftProduct(${Number(orderId)},${Number(p.id)})">
+      ${img?`<img src="${E(img)}" alt="">`:'<span class="gift-result-placeholder">🎁</span>'}
+      <span><b>${E(p.name||'منتج')}</b><small>${E(p.brand||'')} — متوفر ${stock}</small></span>
+    </button>`;
+  }).join(''):'<p class="small-note">لا توجد منتجات متوفرة مطابقة.</p>';
+}
+
+function selectGiftProduct(orderId,productId){
+  const p=adminGiftProducts.find(x=>Number(x.id)===Number(productId));if(!p)return;
+  const variants=Array.isArray(p.variants)?p.variants:[];
+  const variantField=variants.length?`<label>اللون / الخيار<select id="giftVariant" class="field">${variants.map(v=>`<option value="${Number(v.id)}" ${Number(v.stock)<=0?'disabled':''}>${E(v.name||v.color||'خيار')} — متوفر ${Number(v.stock)||0}</option>`).join('')}</select></label>`:'';
+  $('#giftEditor').innerHTML=`<div class="card gift-selected">
+    <b>🎁 ${E(p.name||'منتج')}</b>
+    <div class="formgrid">${variantField}<label>الكمية<input id="giftQty" class="field" type="number" min="1" value="1"></label></div>
+    <button type="button" class="btn primary" onclick="saveOrderGift(${Number(orderId)},${Number(productId)})">إضافة كهدية</button>
+  </div>`;
+}
+
+async function saveOrderGift(orderId,productId){
+  const quantity=Math.max(1,Math.floor(Number($('#giftQty')?.value||1)));
+  const variantId=$('#giftVariant')?.value?Number($('#giftVariant').value):null;
+  try{
+    await api('/api/admin/orders/'+orderId+'/gifts',{method:'POST',body:JSON.stringify({productId,variantId,quantity})});
+    toast('تمت إضافة الهدية وخصمها من المخزون');
+    await openOrderDetails(orderId);
+    await orders();
+  }catch(e){alert(e.message||'تعذر إضافة الهدية')}
+}
+
+async function removeOrderGift(orderId,itemId){
+  if(!confirm('حذف هذه الهدية من الطلب؟ ستعود الكمية للمخزون.'))return;
+  try{
+    await api('/api/admin/orders/'+orderId+'/gifts/'+itemId,{method:'DELETE'});
+    toast('تم حذف الهدية وإعادة الكمية للمخزون');
+    await openOrderDetails(orderId);
+    await orders();
+  }catch(e){alert(e.message||'تعذر حذف الهدية')}
+}
+
 async function saveOrderStatus(id){
   const status=$('#orderStatusEdit')?.value||'';
   if(status==='cancelled'&&!confirm('تأكيد إلغاء الطلب؟ سيتم إرجاع الكميات للمخزون وعكس نقاط الولاء لهذا الطلب.'))return;
@@ -257,7 +414,7 @@ async function saveReturnRequest(id){
 }
 async function finance(){const today=new Date().toISOString().slice(0,10),month=today.slice(0,8)+'01';$('#sections').innerHTML=`<div class="card"><h2>الحسابات</h2><div class="toolbar"><button class="btn" onclick="financeRange('today')">اليوم</button><button class="btn" onclick="financeRange('month')">هذا الشهر</button><label>من <input id="ff" type="date" class="field" value="${month}" onchange="financeRun()"></label><label>إلى <input id="ft" type="date" class="field" value="${today}" onchange="financeRun()"></label></div><div id="financeSummary"></div></div>`;await financeRun()}
 function financeRange(mode){const today=new Date().toISOString().slice(0,10),from=mode==='today'?today:today.slice(0,8)+'01';if($('#ff'))$('#ff').value=from;if($('#ft'))$('#ft').value=today;financeRun()}
-async function financeRun(){const from=$('#ff')?.value,to=$('#ft')?.value,target=$('#financeSummary');if(!target||!from||!to)return;if(from>to){target.textContent='تاريخ البداية يجب أن يكون قبل النهاية أو مساوياً لها.';return}target.textContent='جاري تحميل الحسابات…';try{const d=await api('/api/admin/reports/sales?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to)),s=d.summary||{};target.innerHTML=`<div class="cards"><div class="stat">الطلبات<b>${s.orders||0}</b></div><div class="stat">صافي المبيعات<b>${M(s.sales)} ₪</b></div><div class="stat">صافي تكلفة البضاعة<b>${M(s.cost)} ₪</b></div><div class="stat">صافي الربح<b>${M(s.profit)} ₪</b></div><div class="stat">المرتجعات النقدية الفعلية<b>${M(s.returnsValue)} ₪</b></div><div class="stat">قيمة المرتجعات قبل الخصومات<b>${M(s.returnsGrossValue)} ₪</b></div><div class="stat">فرق الاستبدال<b>${M(s.exchangeDifference)} ₪</b></div><div class="stat">رسوم الإرجاع/الاستبدال<b>${M(s.returnServiceFees)} ₪</b></div><div class="stat">توصيل أخطاء المتجر<b>${M(s.storeDeliveryCost)} ₪</b></div><div class="stat">الملغاة<b>${s.cancelled||0}</b></div></div><div class="notice">الحساب يعتمد على تكلفة الشراء المحفوظة مع كل منتج وقت الطلب، والطلبات الملغاة لا تدخل في المبيعات أو الربح.</div>`}catch(e){target.textContent=e.message||'تعذر تحميل الحسابات'}}
+async function financeRun(){const from=$('#ff')?.value,to=$('#ft')?.value,target=$('#financeSummary');if(!target||!from||!to)return;if(from>to){target.textContent='تاريخ البداية يجب أن يكون قبل النهاية أو مساوياً لها.';return}target.textContent='جاري تحميل الحسابات…';try{const d=await api('/api/admin/reports/sales?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to)),s=d.summary||{};target.innerHTML=`<div class="cards"><div class="stat">الطلبات<b>${s.orders||0}</b></div><div class="stat">صافي المبيعات<b>${M(s.sales)} ₪</b></div><div class="stat">صافي تكلفة البضاعة<b>${M(s.cost)} ₪</b></div><div class="stat">تكلفة الهدايا<b>${M(s.giftCost||0)} ₪</b></div><div class="stat">صافي الربح<b>${M(s.profit)} ₪</b></div><div class="stat">المرتجعات النقدية الفعلية<b>${M(s.returnsValue)} ₪</b></div><div class="stat">قيمة المرتجعات قبل الخصومات<b>${M(s.returnsGrossValue)} ₪</b></div><div class="stat">فرق الاستبدال<b>${M(s.exchangeDifference)} ₪</b></div><div class="stat">رسوم الإرجاع/الاستبدال<b>${M(s.returnServiceFees)} ₪</b></div><div class="stat">توصيل أخطاء المتجر<b>${M(s.storeDeliveryCost)} ₪</b></div><div class="stat">الملغاة<b>${s.cancelled||0}</b></div></div><div class="notice">الحساب يعتمد على تكلفة الشراء المحفوظة مع كل منتج وقت الطلب، والطلبات الملغاة لا تدخل في المبيعات أو الربح.</div>`}catch(e){target.textContent=e.message||'تعذر تحميل الحسابات'}}
 async function catalog(){let[c,b]=await Promise.all([api('/api/categories'),api('/api/brands')]);$('#sections').innerHTML=`<div class="grid"><div class="card"><h2>التصنيفات</h2><div class="toolbar"><input id="cn" class="field"><button class="btn primary" onclick="addCat()">إضافة</button></div>${table(['الاسم'],(c.categories||[]).map(x=>`<tr><td>${E(x.name)}</td></tr>`))}</div><div class="card"><h2>العلامات</h2><div class="toolbar"><input id="bn" class="field"><button class="btn primary" onclick="addBrand()">إضافة</button></div>${table(['الاسم'],(b.brands||[]).map(x=>`<tr><td>${E(x.name)}</td></tr>`))}</div></div>`}async function addCat(){await api('/api/admin/categories',{method:'POST',body:JSON.stringify({name:$('#cn').value})});catalog()}async function addBrand(){await api('/api/admin/brands',{method:'POST',body:JSON.stringify({name:$('#bn').value})});catalog()}
 let adminCouponsCache=[];
 
