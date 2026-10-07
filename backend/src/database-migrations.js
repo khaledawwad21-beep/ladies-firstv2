@@ -25,6 +25,7 @@ async function migrateDatabase() {
     await client.query(`ALTER TABLE orders ALTER COLUMN loyalty_points_reversed SET NOT NULL`);
 
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT`);
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_name TEXT`);
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS slug TEXT`);
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS image TEXT`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS products_sku_unique ON products(sku) WHERE sku IS NOT NULL`);
