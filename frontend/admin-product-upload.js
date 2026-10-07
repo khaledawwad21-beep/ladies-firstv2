@@ -235,6 +235,7 @@ window.productForm = async function productForm(p={}) {
     <label>سعر العرض / السعر الحالي<input id="pp" class="field compact-field" type="number" min="0" step=".01" value="${p.price??""}" placeholder="سعر العرض"></label>
     <label>السعر الأصلي<input id="po" class="field compact-field" type="number" min="0" step=".01" value="${p.old_price??p.oldPrice??""}" placeholder="السعر الأصلي"></label>
     <label>تكلفة الشراء<input id="pcost" class="field compact-field" type="number" min="0" step=".01" value="${p.cost_price??p.cost??0}" placeholder="تكلفة الشراء"></label>
+    <label>المورد / التاجر<input id="psupplier" class="field compact-field" value="${E(p.supplierName??p.supplier_name??'')}" placeholder="اسم المورد أو التاجر"></label>
 
     <label>الفئة
       <select id="pcat" class="field compact-field" onchange="adminToggleTaxonomyNew('pcat','pcatNewWrap')">
@@ -309,6 +310,7 @@ window.saveProduct = async function saveProduct(id) {
       price: Number($("#pp").value || 0),
       oldPrice: $("#po").value ? Number($("#po").value) : null,
       cost_price: Number($("#pcost").value || 0),
+      supplierName: $("#psupplier")?.value.trim() || "",
       stock: Number($("#ps").value || 0),
       category: $("#pcat").value==="__new__"?$("#pcatNew").value.trim():$("#pcat").value.trim(),
       brand: $("#pbrand").value==="__new__"?$("#pbrandNew").value.trim():$("#pbrand").value.trim(),
