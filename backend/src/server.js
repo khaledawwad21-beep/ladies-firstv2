@@ -4094,6 +4094,22 @@ app.patch(
         50
       ).toLowerCase();
 
+    const cancellationSource =
+      cleanText(
+        req.body.cancelSource ||
+        req.body.cancel_source ||
+        "",
+        30
+      ).toLowerCase();
+
+    const cancellationReason =
+      cleanText(
+        req.body.cancellationReason ||
+        req.body.cancellation_reason ||
+        "",
+        500
+      );
+
     const allowedStatuses = [
       "pending",
       "confirmed",
@@ -4181,9 +4197,19 @@ app.patch(
               oldStatus !==
                 "cancelled";
 
+            let autoBlockedCustomer = null;
+
             if (
               isNewCancellation
             ) {
+              if(!["customer","store","admin"].includes(cancellationSource)){
+                throw createHttpError(
+                  400,
+                  "CANCELLATION_SOURCE_REQUIRED",
+                  "حددي مصدر الإلغاء: الزبون أو المتجر أو الإدارة"
+                );
+              }
+
               const itemsResult =
                 await client.query(
                   `
@@ -4381,6 +4407,67 @@ app.patch(
                   );
                 }
               }
+
+              if(cancellationSource==="customer"){
+                let customerUserId=order.user_id||null;
+                const phoneKey=String(order.customer_phone||"").replace(/\D/g,"");
+                if(!customerUserId&&phoneKey){
+                  const account=await client.query(
+                    `SELECT id FROM users
+                     WHERE role='customer'
+                       AND regexp_replace(COALESCE(phone,''),'[^0-9]','','g')=$1
+                     ORDER BY id
+                     LIMIT 1`,
+                    [phoneKey]
+                  );
+                  customerUserId=account.rows[0]?.id||null;
+                }
+
+                const autoBlockEnabled=(await getSetting("customer_cancel_auto_block_enabled",false,client))===true;
+                const autoBlockThreshold=Math.max(
+                  1,
+                  integer(await getSetting("customer_cancel_auto_block_threshold",3,client),3)
+                );
+                const autoBlockDays=Math.max(
+                  0,
+                  integer(await getSetting("customer_cancel_auto_block_days",0,client),0)
+                );
+
+                if(autoBlockEnabled&&customerUserId){
+                  const prior=await client.query(
+                    `SELECT COUNT(*)::int AS count
+                     FROM orders
+                     WHERE status='cancelled'
+                       AND cancelled_source='customer'
+                       AND user_id=$1`,
+                    [customerUserId]
+                  );
+                  const cancellationCount=Number(prior.rows[0]?.count||0)+1;
+                  if(cancellationCount>=autoBlockThreshold){
+                    const reason=`منع تلقائي بعد ${cancellationCount} إلغاءات طلب من طرف الزبون`;
+                    const blocked=await client.query(
+                      `UPDATE users
+                       SET ordering_blocked=TRUE,
+                           ordering_block_reason=$1,
+                           ordering_block_until=CASE
+                             WHEN $2::int > 0 THEN NOW()+($2::int * INTERVAL '1 day')
+                             ELSE NULL
+                           END,
+                           updated_at=NOW()
+                       WHERE id=$3
+                       RETURNING id,ordering_block_until`,
+                      [reason,autoBlockDays,customerUserId]
+                    );
+                    if(blocked.rowCount){
+                      autoBlockedCustomer={
+                        userId:customerUserId,
+                        cancellationCount,
+                        until:blocked.rows[0].ordering_block_until||null
+                      };
+                    }
+                  }
+                }
+              }
             }
 
             const updated =
@@ -4389,17 +4476,23 @@ app.patch(
                 UPDATE orders
                 SET status = $1,
                     delivered_at = CASE WHEN $1 = 'delivered' AND delivered_at IS NULL THEN NOW() ELSE delivered_at END,
+                    cancelled_source = CASE WHEN $3::boolean THEN $4 ELSE cancelled_source END,
+                    cancellation_reason = CASE WHEN $3::boolean THEN $5 ELSE cancellation_reason END,
+                    cancelled_at = CASE WHEN $3::boolean THEN NOW() ELSE cancelled_at END,
                     updated_at = NOW()
                 WHERE id = $2
                 RETURNING *
                 `,
                 [
                   newStatus,
-                  orderId
+                  orderId,
+                  isNewCancellation,
+                  cancellationSource || null,
+                  cancellationReason || null
                 ]
               );
 
-            return updated.rows[0];
+            return {order:updated.rows[0],autoBlockedCustomer};
           }
         );
 
@@ -4407,7 +4500,8 @@ app.patch(
         ok: true,
         message:
           "تم تحديث حالة الطلب",
-        order: result
+        order: result.order,
+        autoBlockedCustomer: result.autoBlockedCustomer
       });
     } catch (error) {
       console.error(
