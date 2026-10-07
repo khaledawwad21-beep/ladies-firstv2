@@ -4511,6 +4511,11 @@ app.patch(
           }
         );
 
+      if(newStatus==="cancelled"){
+        require("./whatsapp-automation").runWaitlistRestockNotifications(db).catch(error=>
+          console.error("[WAITLIST RESTOCK AFTER CANCELLATION]",error)
+        );
+      }
       return res.json({
         ok: true,
         message:
@@ -4971,6 +4976,9 @@ app.patch(
         return {product:updated.rows[0],variants:finalVariants};
       });
 
+      require("./whatsapp-automation").runWaitlistRestockNotifications(db).catch(error=>
+        console.error("[WAITLIST RESTOCK AFTER INVENTORY]",error)
+      );
       return res.json({ok:true,...result,message:"تم تحديث المخزون والألوان والمورد"});
     }catch(error){
       console.error("[INVENTORY UPDATE]",error);
