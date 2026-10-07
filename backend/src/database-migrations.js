@@ -37,6 +37,11 @@ async function migrateDatabase() {
     await client.query(`UPDATE order_items SET total = COALESCE(NULLIF(total,0), total_price, unit_price * quantity, 0)`);
     await client.query(`UPDATE order_items SET total_price = COALESCE(NULLIF(total_price,0), total, unit_price * quantity, 0)`);
 
+    await client.query(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS minimum_amount NUMERIC(12,2) NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS starts_at TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS max_uses_per_customer INTEGER NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+
     await client.query(`ALTER TABLE loyalty_points_transactions ADD COLUMN IF NOT EXISTS note TEXT`);
 
     const verified = await client.query(`
