@@ -528,6 +528,12 @@ async function initDatabase() {
     INTEGER NOT NULL DEFAULT 0
   `);
 
+  await db(`
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS sku
+    TEXT
+  `);
+
   await require('./product-media').initMedia();
   await require('./waitlist').initWaitlist(db);
   await require('./cart-tracking').initCartTracking(db);
