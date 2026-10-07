@@ -560,7 +560,7 @@ async function invoice(id){
       <span>المجموع الفرعي: <b>${M(o.subtotal||0)} ₪</b></span>
       <span>خصم الكوبون${o.coupon_code?' ('+E(o.coupon_code)+')':''}: <b>-${M(o.coupon_discount||0)} ₪</b></span>
       <span>خصم Visa: <b>-${M(o.visa_discount||0)} ₪</b></span>
-      <span>خصم الولاء: <b>-${M(o.loyalty_discount||0)} ₪</b></span>
+      <span>خصم نقاط الولاء${Number(o.points_redeemed||0)>0?' ('+Number(o.points_redeemed)+' نقطة)':''}: <b>-${M(o.loyalty_discount||0)} ₪</b></span>
       <span>التغليف: <b>${M(o.packaging_cost||0)} ₪</b></span>
       <span>رسوم التوصيل الأصلية: <b>${M(o.shipping_base_cost??o.shipping_cost??0)} ₪</b></span>
       <span>خصم التوصيل التلقائي${autoPct>0?' ('+M(autoPct)+'%)':''}: <b>-${M(autoAmount)} ₪</b></span>
