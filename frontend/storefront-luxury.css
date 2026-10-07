@@ -305,3 +305,27 @@ footer b{font-family:Georgia,"Times New Roman",serif;font-size:24px;letter-spaci
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
 }
+
+
+/* v38: keep the hero focused on its campaign copy; the fallback brand SVG is not a campaign image. */
+.heroVisual{
+  background:
+    radial-gradient(ellipse at 28% 50%,rgba(199,208,176,.78) 0 15%,transparent 15.4%),
+    radial-gradient(ellipse at 28% 50%,transparent 0 23%,rgba(215,161,180,.72) 23.3% 24.1%,transparent 24.4%),
+    linear-gradient(118deg,#f7eee8 0%,#fbf4ec 48%,#eadbdc 100%)!important;
+}
+.heroVisual:before{
+  content:"";position:absolute;left:28%;top:50%;width:min(31vw,390px);aspect-ratio:1;
+  transform:translate(-50%,-50%);border:1px solid rgba(99,52,94,.18);border-radius:50%;
+  box-shadow:0 0 0 22px rgba(255,253,250,.2),0 0 0 23px rgba(99,52,94,.09);
+}
+.heroLogo{display:none!important}
+.heroText{--hero-text-bg:rgba(67,38,63,.88)!important}
+@media(max-width:700px){
+  .heroVisual{background:
+    radial-gradient(ellipse at 50% 38%,rgba(199,208,176,.74) 0 19%,transparent 19.4%),
+    radial-gradient(ellipse at 50% 38%,transparent 0 29%,rgba(215,161,180,.65) 29.3% 30%,transparent 30.4%),
+    linear-gradient(155deg,#f7eee8 0%,#fbf4ec 48%,#eadbdc 100%)!important}
+  .heroVisual:before{left:50%;top:38%;width:min(62vw,300px)}
+  .heroText{--hero-text-bg:rgba(67,38,63,.9)!important}
+}
