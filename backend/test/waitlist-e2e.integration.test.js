@@ -265,5 +265,42 @@ if (process.env.RUN_DB_E2E !== "1") {
       body: JSON.stringify({ status: "closed" })
     });
     assert.equal(closed.body.request.status, "closed");
+
+    const unauthenticatedMine = await fetch(baseUrl + "/api/waitlist/mine");
+    assert.equal(unauthenticatedMine.status, 401);
+
+    const customer = await api("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "CI Waitlist Account Customer",
+        email: "waitlist-account-e2e@example.test",
+        phone: "+970599000042",
+        password: "waitlist-account-pass-123",
+        gender: "female",
+        age: 27
+      })
+    });
+    const customerHeaders = { Authorization: "Bearer " + customer.body.token };
+
+    const accountRequest = await api("/api/waitlist", {
+      method: "POST",
+      headers: customerHeaders,
+      body: JSON.stringify({
+        productId,
+        name: "CI Waitlist Account Customer",
+        phone: "+970599000042",
+        variant: "وردي"
+      })
+    });
+    assert.equal(accountRequest.status, 201);
+
+    const mine = await api("/api/waitlist/mine", { headers: customerHeaders });
+    const mineRow = mine.body.requests.find(x => Number(x.id) === Number(accountRequest.body.request.id));
+    assert.ok(mineRow);
+    assert.equal(Number(mineRow.productId), productId);
+    assert.equal(mineRow.productName, "CI Waitlist Variant Product");
+    assert.equal(mineRow.productImage, "https://example.com/ci-waitlist-product.jpg");
+    assert.equal(mineRow.variant, "وردي");
+    assert.equal(mineRow.status, "waiting");
   });
 }
