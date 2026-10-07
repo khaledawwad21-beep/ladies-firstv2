@@ -44,6 +44,18 @@ test("Top 5 and best sellers keep arrows, native touch scrolling and autoplay", 
   assert.match(app, /setInterval\(autoFeatureCarousels,3500\)/);
 });
 
+
+test("storefront search controls stay grouped and suppress saved credential autofill", () => {
+  assert.match(index, /class="tools storeSearchPanel"/);
+  assert.match(index, /class="storeSearchOptions"/);
+  assert.match(index, /autocomplete="new-password"/);
+  assert.match(index, /data-form-type="other"/);
+  assert.match(index, /\.storeSearchPanel\{display:grid!important/);
+  assert.match(index, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+  assert.match(app, /function clearSearchAutofill\(/);
+  assert.match(app, /function handleStoreSearchInput\(/);
+});
+
 test("mobile rails remain horizontally scrollable without blocking page scroll", () => {
   assert.match(stability, /\.product-slider,\.offers-slider,\.mini-slider-track,\.bestSellersGrid,\.featureGrid\s*\{/);
   assert.match(stability, /overflow-x:auto!important/);
