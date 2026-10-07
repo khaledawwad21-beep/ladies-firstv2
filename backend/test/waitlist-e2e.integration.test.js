@@ -161,7 +161,7 @@ if (process.env.RUN_DB_E2E !== "1") {
     });
     assert.equal(first.status, 201);
     assert.equal(first.body.alreadyWaiting, false);
-    assert.equal(first.body.product.id, productId);
+    assert.equal(Number(first.body.product.id), productId);
     assert.equal(first.body.product.image, "https://example.com/ci-waitlist-product.jpg");
     const waitlistId = Number(first.body.request.id);
     assert.ok(waitlistId > 0);
