@@ -8,6 +8,7 @@ const assert = require("node:assert/strict");
 const server = fs.readFileSync(path.join(__dirname, "..", "src", "server.js"), "utf8");
 const policy = fs.readFileSync(path.join(__dirname, "..", "src", "request-policy.js"), "utf8");
 const migrations = fs.readFileSync(path.join(__dirname, "..", "src", "database-migrations.js"), "utf8");
+const workflow = fs.readFileSync(path.join(__dirname, "..", "..", ".github", "workflows", "production-regression.yml"), "utf8");
 
 test("customer and owner passwords require the agreed 12 characters", () => {
   assert.doesNotMatch(server, /String\(password\)\.length\s*<\s*[68]\b/);
@@ -31,4 +32,10 @@ test("cancellation and returns use the canonical inventory movement schema", () 
 
 test("loyalty transaction schema supports audit notes", () => {
   assert.match(server + migrations, /ADD COLUMN IF NOT EXISTS note TEXT/);
+});
+
+
+test("CI executes isolated variant inventory PostgreSQL E2E", () => {
+  assert.match(workflow, /Run isolated variant inventory E2E/);
+  assert.match(workflow, /variant-inventory-e2e\.integration\.test\.js/);
 });
