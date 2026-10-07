@@ -1739,7 +1739,8 @@ async function getProducts(
   where = "",
   params = [],
   order =
-    "p.created_at DESC"
+    "p.created_at DESC",
+  includeInactive = false
 ) {
   const result =
     await db(
@@ -1761,6 +1762,8 @@ async function getProducts(
         p.image_url AS "imageUrl",
         p.category_id AS "categoryId",
         p.brand_id AS "brandId",
+        p.is_active AS "isActive",
+        p.is_active,
         p.is_featured AS "isFeatured",
         p.is_best_seller AS "isBestSeller",
         p.created_at AS "createdAt",
@@ -1805,7 +1808,7 @@ async function getProducts(
       FROM products p
 
       WHERE
-        p.is_active = TRUE
+        ${includeInactive ? "TRUE" : "p.is_active = TRUE"}
         ${where}
 
       ORDER BY
