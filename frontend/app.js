@@ -705,6 +705,12 @@ function heroSlides(){
   });
   return arr;
 }
+function heroMobileImageFor(slide){
+  if(slide.mobileImage)return slide.mobileImage;
+  const source=String(slide.image||'');
+  const mapped=source.replace(/(slide-(?:01-boutique|02-bag|03-beauty|04-jewelry))\.webp(?=[?#]|$)/,'$1-mobile.webp');
+  return mapped===source?'':mapped;
+}
 function renderHeroSlider(fade=true){
   applyHeroTextStyle();
   const slides=heroSlides();
@@ -715,7 +721,7 @@ function renderHeroSlider(fade=true){
   if(title)title.textContent=s.title;if(desc)desc.textContent=s.desc;if(cta)cta.textContent=currentLang==='en'?'Shop now':'تسوقي الآن';
   const active=document.getElementById(heroLayer==='A'?'heroLogoA':'heroLogoB');
   const inactive=document.getElementById(heroLayer==='A'?'heroLogoB':'heroLogoA');
-  if(active){const mobile=typeof window!=='undefined'&&window.matchMedia&&window.matchMedia('(max-width: 700px)').matches;const image=mobile&&s.mobileImage?s.mobileImage:s.image;active.src=safeImg(image,LOGO);active.onerror=()=>{active.onerror=null;active.src=LOGO};active.classList.add('active')}
+  if(active){const mobile=typeof window!=='undefined'&&window.matchMedia&&window.matchMedia('(max-width: 700px)').matches;const mobileImage=mobile?heroMobileImageFor(s):'';const image=mobileImage||s.image;active.src=safeImg(image,LOGO);active.onerror=()=>{active.onerror=null;active.src=safeImg(s.image,LOGO)};active.classList.add('active')}
   if(inactive)inactive.classList.remove('active');
   const dots=document.getElementById('heroDots');
   if(dots)dots.innerHTML=slides.map((_,i)=>`<button class="${i===heroIndex?'active':''}" onclick="heroGo(${i})"></button>`).join('');
