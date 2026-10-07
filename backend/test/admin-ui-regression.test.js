@@ -11,6 +11,7 @@ const adminOffers=fs.readFileSync(path.join(__dirname,"../../frontend/admin-offe
 const adminHome=fs.readFileSync(path.join(__dirname,"../../frontend/admin-homepage.js"),"utf8");
 const productAdmin=fs.readFileSync(path.join(__dirname,"../../frontend/admin-product-upload.js"),"utf8");
 const server=fs.readFileSync(path.join(__dirname,"../src/server.js"),"utf8");
+const orderBlockHistory=fs.readFileSync(path.join(__dirname,"../src/order-block-history.js"),"utf8");
 
 test("admin dashboard cards navigate to their sections",()=>{
   assert.match(admin,/function openAdminSection\(/);
@@ -40,7 +41,8 @@ test("staff gender is persisted for gender-aware admin copy",()=>{
 });
 
 test("customer order blocking exposes an audit history in the user editor",()=>{
-  assert.match(server,/customer_order_block_events/);
+  assert.match(orderBlockHistory,/customer_order_block_events/);
+  assert.match(server,/order-block-history/);
   assert.match(admin,/order-block-history/);
   assert.match(admin,/function loadUserOrderBlockHistory\(/);
   assert.match(admin,/سجل منع الطلب/);
