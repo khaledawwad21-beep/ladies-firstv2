@@ -1754,6 +1754,7 @@ async function getProducts(
       SELECT
         p.id,
         p.name,
+        p.sku,
         p.description,
         p.price,
         p.old_price AS "oldPrice",
