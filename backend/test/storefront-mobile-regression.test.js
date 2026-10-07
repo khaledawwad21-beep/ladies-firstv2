@@ -12,7 +12,7 @@ const app = fs.readFileSync(path.join(__dirname, "../../frontend/app.js"), "utf8
 
 test("storefront stability CSS is loaded through the real index.css chain", () => {
   assert.match(index, /<link rel="stylesheet" href="index\.css">/);
-  assert.match(indexCss, /@import\s+["']\.\/store-stability\.css["']/);
+  assert.match(indexCss, /@import\s+(?:url\()?["']\.\/store-stability\.css["']\)?/);
 });
 
 test("language switch persists Arabic or English and updates document direction", () => {
