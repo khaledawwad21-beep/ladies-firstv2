@@ -53,3 +53,15 @@ test("WhatsApp automation supports an injectable sender without changing product
   assert.match(source, /processLowStock\(db, config, context, result, sender\)/);
   assert.match(source, /processWaitlist\(db, config, result, sender\)/);
 });
+
+
+test("waitlist WhatsApp supports manual send and optional automatic mode",()=>{
+  const source=fs.readFileSync(path.join(__dirname,"../src/whatsapp-automation.js"),"utf8");
+  const admin=fs.readFileSync(path.join(__dirname,"../../frontend/admin.js"),"utf8");
+  assert.match(source,/waitlist_whatsapp_auto_enabled/);
+  assert.match(source,/\/api\/admin\/waitlist\/:id\/notify-whatsapp/);
+  assert.match(source,/sendWaitlistNotification/);
+  assert.match(source,/runWaitlistRestockNotifications/);
+  assert.match(admin,/sendWaitlistWhatsApp/);
+  assert.match(admin,/id="waitlistWaAuto"/);
+});
