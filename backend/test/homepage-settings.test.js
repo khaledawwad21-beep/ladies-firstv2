@@ -71,6 +71,8 @@ test('actual storefront respects configured order and text, repeats images with 
   vm.runInContext(functions,context);
   assert.deepEqual(Array.from(context.heroSlides(),x=>x.image),['/api/images/test','https://example.test/banner.jpg','/api/images/test']);
   assert.equal(context.heroSlides()[0].mobileImage,'/api/images/mobile-test');
+  assert.equal(context.heroMobileImageFor({image:'/assets/campaign/slide-01-boutique.webp?v=20261008'}),'/assets/campaign/slide-01-boutique-mobile.webp?v=20261008');
+  assert.equal(context.heroMobileImageFor({image:'/api/images/custom'}),'');
   assert.equal(context.heroSlides()[0].title,'عنوان');assert.equal(context.heroSlides()[2].title,'عنوان آخر');
   context.currentLang='en';assert.equal(context.heroSlides()[1].title,'Second');
   state.lf_hero_slides=[];assert.equal(context.heroSlides()[0].image,'/default.png');
