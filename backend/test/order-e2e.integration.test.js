@@ -9,6 +9,7 @@ if (process.env.RUN_DB_E2E !== "1") {
   const { app, initDatabase } = require("../src/server");
   const { migrateDatabase } = require("../src/database-migrations");
   const { closeDatabase, db } = require("../src/db");
+  const { hashRecoveryCode } = require("../src/password-recovery");
 
   let server;
   let baseUrl;
