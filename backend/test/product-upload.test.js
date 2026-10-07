@@ -37,9 +37,9 @@ test('upload requires admin, validates content, deduplicates and survives app re
   try { const r=await fetch('http://127.0.0.1:'+restarted.address().port+image); assert.equal(r.status,200); assert.equal(r.headers.get('content-type'),'image/png');assert.deepEqual(Buffer.from(await r.arrayBuffer()),Buffer.from(png.split(',')[1],'base64')); } finally { await new Promise(resolve=>restarted.close(resolve)); }
 });
 test('create and reload retains multiple main/sub images, stock by color and offer fields', async () => {
-  const body={name:'اختبار منتج',price:25,old_price:30,cost_price:10,category:'عطور',brand:'Test Brand',mainImages:[image,image],subImages:[image],variants:[{name:'أحمر',stock:3},{name:'أزرق',stock:2}],metadata:{en:'Test product',top5:true,quickOffer:true,offerLabel:true,offerExpiry:'2026-12-01',videos:['https://www.youtube.com/watch?v=abc1234']}};
+  const body={name:'اختبار منتج',price:25,old_price:30,cost_price:10,supplierName:'Supplier One',category:'عطور',brand:'Test Brand',mainImages:[image,image],subImages:[image],variants:[{name:'أحمر',stock:3},{name:'أزرق',stock:2}],metadata:{en:'Test product',top5:true,quickOffer:true,offerLabel:true,offerExpiry:'2026-12-01',videos:['https://www.youtube.com/watch?v=abc1234']}};
   const response=await request('/api/admin/products','POST',body); const data=await response.json(); assert.equal(response.status,201,JSON.stringify(data)); product=data.product;
-  assert.equal(product.stock,5);assert.equal(product.mainImages.length,2);assert.equal(product.subImages.length,1);assert.equal(product.category,'عطور');assert.equal(product.brand,'Test Brand');assert.equal(product.metadata.quickOffer,true);assert.deepEqual(product.metadata.videos,['https://www.youtube.com/watch?v=abc1234']);assert.equal(Number(product.cost_price),10);assert.equal(product.variants[0].name,'أحمر');
+  assert.equal(product.stock,5);assert.equal(product.mainImages.length,2);assert.equal(product.subImages.length,1);assert.equal(product.category,'عطور');assert.equal(product.brand,'Test Brand');assert.equal(product.metadata.quickOffer,true);assert.deepEqual(product.metadata.videos,['https://www.youtube.com/watch?v=abc1234']);assert.equal(Number(product.cost_price),10);assert.equal(product.supplierName,'Supplier One');assert.equal(product.variants[0].name,'أحمر');
   const list=await (await request('/api/products')).json();assert.equal(list.products.length,1);assert.deepEqual(list.products[0].images,[image,image,image]);
 });
 test('editing updates the same product and retains variant IDs; invalid save is atomic', async () => {
@@ -60,6 +60,8 @@ test('actual admin product bundle uploads media before saving JSON product paylo
   assert.match(js,/Content-Type["']?\s*:\s*["']application\/json/);
   assert.match(js,/multiple accept="image\/png,image\/jpeg,image\/webp"/);
   assert.match(js,/cost_price/);
+  assert.match(js,/supplierName/);
+  assert.match(js,/psupplier/);
   assert.match(js,/variants:/);
   assert.match(js,/metadata:\{videos\}/);
   assert.match(js,/adminTaxonomyOptions/);
