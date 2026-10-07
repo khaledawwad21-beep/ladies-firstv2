@@ -78,6 +78,13 @@ jobs:
           DB_SSL: "false"
           JWT_SECRET: ci-e2e-secret-123456789012345678901234
         run: node --test test/variant-inventory-e2e.integration.test.js
+      - name: Run isolated staff permissions E2E
+        env:
+          RUN_ADMIN_PERMISSIONS_E2E: "1"
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          DB_SSL: "false"
+          JWT_SECRET: ci-e2e-secret-123456789012345678901234
+        run: node --test test/admin-permissions.e2e.test.js
 
 
   live-render-smoke:
