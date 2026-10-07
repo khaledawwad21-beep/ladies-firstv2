@@ -62,8 +62,11 @@ test('actual admin product bundle uploads media before saving JSON product paylo
   assert.match(js,/cost_price/);
   assert.match(js,/variants:/);
   assert.match(js,/metadata:\{videos\}/);
-  assert.match(js,/pbrandList/);
-  assert.match(js,/pcatList/);
+  assert.match(js,/adminTaxonomyOptions/);
+  assert.match(js,/id="pbrand"/);
+  assert.match(js,/id="pcat"/);
+  assert.match(js,/pVideoFiles/);
+  assert.match(js,/\/api\/admin\/uploads\/video/);
   assert.match(js,/if\s*\(button\?\.disabled\)\s*return/);
   assert.doesNotMatch(js,/new FormData\(/);
 });
@@ -88,6 +91,24 @@ test('actual admin product bundle uploads media before saving JSON product paylo
   assert.equal((await request('/api/admin/products/'+product.id+'/offers','PATCH',{top5:false,quickOffer:false,offerExpiry:'',quickOfferExpiry:null})).status,200);
   row=(await query('SELECT * FROM products WHERE id=$1',[product.id])).rows[0];assert.equal(row.is_featured,false);assert.equal(row.metadata.quickOffer,false);assert.equal(row.metadata.offerExpiry,'');
 });
+test('offer editor can change sale and original prices atomically', async () => {
+  const response=await request('/api/admin/products/'+product.id+'/offers','PATCH',{
+    onSale:true,
+    salePrice:20,
+    originalPrice:30,
+    top5:true
+  });
+  const body=await response.json();
+  assert.equal(response.status,200,JSON.stringify(body));
+  assert.equal(Number(body.price),20);
+  assert.equal(Number(body.oldPrice),30);
+  const row=(await query('SELECT price,old_price,metadata FROM products WHERE id=$1',[product.id])).rows[0];
+  assert.equal(Number(row.price),20);
+  assert.equal(Number(row.old_price),30);
+  assert.equal(row.metadata.onSale,true);
+  assert.equal((await request('/api/admin/products/'+product.id+'/offers','PATCH',{onSale:true,salePrice:30,originalPrice:20})).status,400);
+});
+
  test('storefront respects selected Top 5, expiry, stock and quick-offer expiry',()=>{
   const source=fs.readFileSync(require('node:path').join(__dirname,'../../frontend/app.js'),'utf8');
   const context=vm.createContext({products:[{id:1,top5:true,stock:2,price:20,old:20},{id:2,onSale:true,stock:2,price:10,old:20},{id:3,top5:true,stock:2,price:5,old:20,offerExpiry:'2000-01-01'},{id:4,top5:true,stock:0,price:5,old:20}],totalStock:p=>p.stock});
@@ -106,10 +127,35 @@ test('product video metadata rejects unsafe URLs and storefront renders supporte
   assert.throws(() => cleanMetadata({videos:['javascript:alert(1)']}), /رابط الفيديو/);
   assert.throws(() => cleanMetadata({videos:Array(9).fill('https://example.test/video.mp4')}), /8 فيديوهات/);
   assert.deepEqual(cleanMetadata({videos:['https://example.test/video.mp4']}).videos,['https://example.test/video.mp4']);
+  const local='/api/videos/'+'a'.repeat(64);
+  assert.deepEqual(cleanMetadata({videos:[local]}).videos,[local]);
   const app=fs.readFileSync(require('node:path').join(__dirname,'../../frontend/app.js'),'utf8');
   assert.match(app,/function productVideoHtml\(/);
   assert.match(app,/youtube\.com\/embed/);
   assert.match(app,/productVideos/);
+  assert.match(app,/u\.pathname\.startsWith\('\/api\/videos\/'\)/);
+});
+
+test('admin can upload and range-stream a product video', async () => {
+  const token=createToken({id:1,role:'owner'});
+  const mp4=Buffer.concat([
+    Buffer.from([0,0,0,24]),
+    Buffer.from('ftypisom'),
+    Buffer.from('0000000000000000')
+  ]);
+  const upload=await fetch(base+'/api/admin/uploads/video',{
+    method:'POST',
+    headers:{Authorization:'Bearer '+token,'Content-Type':'video/mp4'},
+    body:mp4
+  });
+  const payload=await upload.json();
+  assert.equal(upload.status,201,JSON.stringify(payload));
+  assert.match(payload.url,/^\/api\/videos\/[a-f0-9]{64}$/);
+  const ranged=await fetch(base+payload.url,{headers:{Range:'bytes=0-7'}});
+  assert.equal(ranged.status,206);
+  assert.equal(ranged.headers.get('content-type'),'video/mp4');
+  assert.match(ranged.headers.get('content-range')||'',/^bytes 0-7\//);
+  assert.equal(Buffer.from(await ranged.arrayBuffer()).length,8);
 });
 
 
