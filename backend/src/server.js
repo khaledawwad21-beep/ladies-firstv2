@@ -110,6 +110,13 @@ function money(value) {
   ) / 100;
 }
 
+function createHttpError(status, code, message) {
+  const error = new Error(message || "حدث خطأ");
+  error.status = Number(status) || 500;
+  error.code = code || "HTTP_ERROR";
+  return error;
+}
+
 function cleanText(value) {
   if (
     value === undefined ||
