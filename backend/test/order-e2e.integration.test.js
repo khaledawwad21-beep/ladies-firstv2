@@ -481,6 +481,125 @@ if (process.env.RUN_DB_E2E !== "1") {
   });
 
 
+  test("maintenance mode and manual customer order blocking are server-enforced", async () => {
+    const ownerLogin = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        contact: "owner-e2e@example.test",
+        password: "owner-password-123"
+      })
+    });
+    const ownerHeaders = { Authorization: "Bearer " + ownerLogin.token };
+
+    const product = await api("/api/admin/products", {
+      method: "POST",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        name: "CI Guarded Checkout Product",
+        description: "Maintenance and block guard test",
+        price: 75,
+        cost_price: 25,
+        stock: 3,
+        images: ["https://example.com/ci-guarded-product.jpg"],
+        category: "CI Guard Category",
+        brand: "CI Guard Brand",
+        active: true
+      })
+    });
+    const productId = Number(product.product.id);
+
+    const customer = await api("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "CI Guard Customer",
+        email: "guard-customer-e2e@example.test",
+        password: "guard-customer-pass-123",
+        gender: "female",
+        age: 25
+      })
+    });
+    const customerId = Number(customer.user.id);
+    const customerHeaders = { Authorization: "Bearer " + customer.token };
+    const checkoutBody = {
+      customerName: "CI Guard Customer",
+      customerPhone: "+970599000055",
+      shippingAddress: "Nablus - guard CI",
+      shippingRegion: "westbank",
+      paymentMethod: "cash",
+      items: [{ productId, quantity: 1 }]
+    };
+
+    await api("/api/admin/settings", {
+      method: "PUT",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        maintenance_mode: true,
+        maintenance_message: "CI maintenance window"
+      })
+    });
+
+    const maintenanceResponse = await fetch(baseUrl + "/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...customerHeaders },
+      body: JSON.stringify(checkoutBody)
+    });
+    const maintenanceBody = await maintenanceResponse.json();
+    assert.equal(maintenanceResponse.status, 503);
+    assert.equal(maintenanceBody.code, "MAINTENANCE_MODE");
+    assert.match(String(maintenanceBody.message), /CI maintenance window/);
+
+    await api("/api/admin/settings", {
+      method: "PUT",
+      headers: ownerHeaders,
+      body: JSON.stringify({ maintenance_mode: false })
+    });
+
+    const blocked = await api("/api/admin/users/" + customerId, {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        ordering_blocked: true,
+        ordering_block_reason: "CI manual block",
+        ordering_block_until: null
+      })
+    });
+    assert.equal(blocked.user.orderingBlocked, true);
+
+    const blockedResponse = await fetch(baseUrl + "/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...customerHeaders },
+      body: JSON.stringify(checkoutBody)
+    });
+    const blockedBody = await blockedResponse.json();
+    assert.equal(blockedResponse.status, 403);
+    assert.equal(blockedBody.code, "ORDERING_BLOCKED");
+
+    const unblocked = await api("/api/admin/users/" + customerId, {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ ordering_blocked: false })
+    });
+    assert.equal(unblocked.user.orderingBlocked, false);
+
+    const checkout = await api("/api/orders", {
+      method: "POST",
+      headers: customerHeaders,
+      body: JSON.stringify(checkoutBody)
+    });
+    const orderId = Number(checkout.orderId || checkout.order?.id);
+    assert.ok(orderId > 0);
+
+    await api("/api/admin/orders/" + orderId + "/status", {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ status: "cancelled", cancelSource: "admin", cancellationReason: "CI cleanup" })
+    });
+
+    const stock = await api("/api/products/" + productId);
+    assert.equal(Number(stock.product.stock), 3);
+  });
+
+
   test("customer account state persists across login sessions", async () => {
     const ownerLogin = await api("/api/auth/login", {
       method: "POST",
