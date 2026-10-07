@@ -46,6 +46,7 @@ async function migrateDatabase() {
     await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_reason TEXT`);
     await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`);
 
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT`);
     await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_manual_discount_percent NUMERIC(5,2) NOT NULL DEFAULT 0`);
     await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_manual_discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0`);
     await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS is_gift BOOLEAN NOT NULL DEFAULT FALSE`);
