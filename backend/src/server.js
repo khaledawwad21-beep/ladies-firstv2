@@ -535,6 +535,7 @@ async function initDatabase() {
   await require('./whatsapp-automation').initWhatsAppAutomation(db);
   await require('./passkeys').initPasskeys(db);
   await require('./password-recovery').initPasswordRecovery(db);
+  await require('./staff-messages').initStaffMessages(db);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_name TEXT`);
   await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb`);
@@ -2129,6 +2130,7 @@ app.get(
             o.created_at >=
               NOW() -
               INTERVAL '7 days'
+            AND COALESCE(oi.is_gift,FALSE)=FALSE
             AND LOWER(
               o.status
             ) NOT IN (
@@ -2512,6 +2514,19 @@ app.post(
     try {
       const result =
         await transaction(async (client) => {
+          const maintenanceMode=(await getSetting("maintenance_mode",false,client))===true;
+          if(maintenanceMode){
+            const maintenanceMessage=cleanText(
+              await getSetting("maintenance_message","المتجر متوقف مؤقتًا للصيانة. يرجى المحاولة لاحقًا.",client),
+              1000
+            );
+            throw createHttpError(
+              503,
+              "MAINTENANCE_MODE",
+              maintenanceMessage || "المتجر متوقف مؤقتًا للصيانة. يرجى المحاولة لاحقًا."
+            );
+          }
+
           const phoneKey=String(customerPhone||"").replace(/\D/g,"");
           const blockedUser=await client.query(
             `SELECT id,ordering_block_reason,ordering_block_until
@@ -9209,6 +9224,15 @@ require("./account-state").registerAccountStateRoutes(app, {
 ========================================================= */
 
 require("./whatsapp-automation").registerWhatsAppAutomationRoutes(app, {
+  db,
+  requireAdmin
+});
+
+/* =========================================================
+   STAFF LOGIN ANNOUNCEMENTS
+========================================================= */
+
+require("./staff-messages").registerStaffMessageRoutes(app, {
   db,
   requireAdmin
 });
