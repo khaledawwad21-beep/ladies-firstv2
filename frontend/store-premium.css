@@ -1,0 +1,280 @@
+/* Ladies First — Premium storefront refinement
+   Visual-only layer loaded after the legacy inline CSS.
+   Goal: calm, luxurious, professional and mobile-first without changing storefront behavior. */
+
+:root{
+  --lf-plum:#5b3154;
+  --lf-plum-deep:#47243f;
+  --lf-rose:#c97992;
+  --lf-rose-deep:#b96582;
+  --lf-rose-soft:#f5e8ed;
+  --lf-cream:#faf7f2;
+  --lf-surface:#fffefd;
+  --lf-ink:#382e34;
+  --lf-muted:#7c6e76;
+  --lf-line:#e8dfe3;
+  --lf-success:#52705a;
+  --pink:var(--lf-rose);
+  --plum:var(--lf-plum);
+  --cream:var(--lf-cream);
+  --ink:var(--lf-ink);
+  --line:var(--lf-line);
+}
+
+html{background:var(--lf-cream)!important}
+body{
+  background:var(--lf-cream)!important;
+  color:var(--lf-ink)!important;
+  font-family:Tahoma,Arial,sans-serif!important;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+/* Announcement + navigation */
+.top{
+  background:var(--lf-plum-deep)!important;
+  color:#fff!important;
+  padding:9px 12px!important;
+  font-size:13px!important;
+  letter-spacing:.1px;
+}
+header{
+  background:rgba(255,254,253,.94)!important;
+  border-bottom:1px solid var(--lf-line)!important;
+  box-shadow:0 5px 22px rgba(71,36,63,.055)!important;
+  backdrop-filter:blur(14px)!important;
+  -webkit-backdrop-filter:blur(14px)!important;
+}
+.nav{padding-top:8px!important;padding-bottom:8px!important}
+.brand b{
+  color:var(--lf-plum)!important;
+  font-family:Georgia,"Times New Roman",serif!important;
+  font-weight:700!important;
+  letter-spacing:.2px;
+}
+.brand small{color:#917c88!important;letter-spacing:1.7px!important}
+.logo{
+  background:#fff!important;
+  border:1px solid rgba(201,121,146,.45)!important;
+  box-shadow:0 4px 14px rgba(71,36,63,.08)!important;
+}
+.iconbtn{
+  background:rgba(255,255,255,.92)!important;
+  color:var(--lf-plum)!important;
+  border:1px solid var(--lf-line)!important;
+  box-shadow:0 3px 12px rgba(71,36,63,.045)!important;
+}
+.iconbtn:active{transform:scale(.96)}
+.badge,.bottomNav i{background:var(--lf-rose)!important}
+
+/* Hero */
+.heroCard{
+  background:#eee7e9!important;
+  box-shadow:0 14px 36px rgba(71,36,63,.10)!important;
+}
+.heroCard:after{
+  background:linear-gradient(90deg,rgba(31,22,28,.35),rgba(31,22,28,.12) 52%,rgba(31,22,28,.02))!important;
+}
+.heroText{
+  background:var(--hero-text-bg,rgba(71,36,63,.70))!important;
+  border:1px solid rgba(255,255,255,.16)!important;
+  box-shadow:0 16px 42px rgba(31,22,28,.20)!important;
+  backdrop-filter:blur(7px)!important;
+  -webkit-backdrop-filter:blur(7px)!important;
+}
+.heroText h1{
+  text-shadow:0 2px 10px rgba(0,0,0,.32)!important;
+  line-height:1.25!important;
+}
+.heroText p{
+  text-shadow:0 1px 7px rgba(0,0,0,.28)!important;
+  line-height:1.65!important;
+}
+.cta{
+  background:var(--lf-plum)!important;
+  color:#fff!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  box-shadow:0 7px 18px rgba(71,36,63,.18)!important;
+}
+.heroArrow{
+  color:var(--lf-plum)!important;
+  background:rgba(255,255,255,.94)!important;
+  border:1px solid rgba(255,255,255,.72)!important;
+  box-shadow:0 6px 18px rgba(30,20,27,.12)!important;
+}
+.heroDots button{background:rgba(255,255,255,.72)!important;border-color:rgba(91,49,84,.3)!important}
+.heroDots button.active{background:var(--lf-plum)!important}
+
+/* Sections and category cards */
+.wrap{color:var(--lf-ink)!important}
+.sectionTitle h2,.featureTitle{color:var(--lf-plum)!important}
+.cat,.featureBlock{
+  background:var(--lf-surface)!important;
+  border:1px solid var(--lf-line)!important;
+  box-shadow:0 7px 22px rgba(71,36,63,.055)!important;
+}
+.cat{color:var(--lf-plum)!important}
+.cat label{font-weight:700!important}
+
+/* Search / controls */
+.search,.select,.field,.variantSelect,.quickOfferVariant{
+  background:#fff!important;
+  color:var(--lf-ink)!important;
+  border:1px solid var(--lf-line)!important;
+  box-shadow:none!important;
+}
+.search:focus,.select:focus,.field:focus,.variantSelect:focus,.quickOfferVariant:focus{
+  outline:2px solid rgba(201,121,146,.24)!important;
+  border-color:rgba(185,101,130,.62)!important;
+}
+
+/* Product cards */
+.card,.featureCard,.quickOfferCard,.favCard{
+  background:var(--lf-surface)!important;
+  border:1px solid var(--lf-line)!important;
+  box-shadow:0 8px 24px rgba(71,36,63,.055)!important;
+}
+.card{border-radius:20px!important}
+.pic{background:#f4edef!important}
+.body{color:var(--lf-ink)!important}
+.body h3,.quickOfferBody b,.featureCard .fprice,.price{color:var(--lf-plum)!important}
+.body p,.stockHint,.variantLabel{color:var(--lf-muted)!important}
+.old{color:#a89ca3!important}
+.offerText{
+  background:var(--lf-rose-soft)!important;
+  color:var(--lf-plum)!important;
+  border-color:#e8ccd6!important;
+}
+.add{
+  background:var(--lf-rose)!important;
+  color:#fff!important;
+  border-radius:14px!important;
+  box-shadow:0 7px 16px rgba(185,101,130,.16)!important;
+  font-weight:800!important;
+}
+.add:active{background:var(--lf-rose-deep)!important;transform:translateY(1px)}
+.quantityBar button,.qty button{
+  background:var(--lf-rose-soft)!important;
+  color:var(--lf-plum)!important;
+}
+.variantChip{
+  background:#fff!important;
+  color:var(--lf-plum)!important;
+  border-color:#e4d6dc!important;
+}
+.discount{background:var(--lf-plum)!important}
+.favBtn{color:var(--lf-plum)!important}
+.favBtn.active{background:var(--lf-rose-soft)!important}
+
+/* Quick offers / feature rails */
+.featureBlock{border-radius:18px!important}
+.featureNav button,.carouselArrow{
+  background:#fff!important;
+  color:var(--lf-plum)!important;
+  border-color:var(--lf-line)!important;
+  box-shadow:0 4px 12px rgba(71,36,63,.08)!important;
+}
+.quickOfferBuy{background:var(--lf-plum)!important;color:#fff!important}
+
+/* Checkout / account surfaces */
+.checkout,.shippingBox,.couponBox,.checkoutGate,.favoritesPanel,.orderSummary{
+  background:#fffafc!important;
+  border-color:var(--lf-line)!important;
+}
+.notice,.accountGreeting,.sideGreeting{
+  background:#f8eef2!important;
+  color:var(--lf-plum)!important;
+  border-color:#ead6de!important;
+}
+.success{background:#f0f5f1!important;color:var(--lf-success)!important;border-color:#d4e0d7!important}
+.sideAccountBtn,.orderSummaryCard button,.favCard button{background:var(--lf-plum)!important}
+
+/* Side drawer */
+.sideMenu,.panel,.modalBox,.productModal{background:var(--lf-surface)!important}
+.sideLink,.sideCat,.socialSideLink,.brandDetails summary{
+  background:#fff!important;
+  border-color:var(--lf-line)!important;
+}
+.sideLink,.brandDetails summary,.socialLinksSideTitle{color:var(--lf-plum)!important}
+.close,.sideClose{background:var(--lf-rose-soft)!important;color:var(--lf-plum)!important}
+
+/* Footer */
+footer{
+  background:var(--lf-plum-deep)!important;
+  color:#fff!important;
+  box-shadow:0 -8px 30px rgba(71,36,63,.07)!important;
+}
+.policyQuick button{
+  background:#fff!important;
+  color:var(--lf-plum)!important;
+  border-color:rgba(255,255,255,.45)!important;
+}
+
+/* Bottom navigation */
+.bottomNav{
+  background:rgba(255,254,253,.97)!important;
+  border-top:1px solid var(--lf-line)!important;
+  box-shadow:0 -5px 20px rgba(71,36,63,.07)!important;
+  backdrop-filter:blur(12px)!important;
+  -webkit-backdrop-filter:blur(12px)!important;
+}
+.bottomNav button,.bottomNav a{
+  background:transparent!important;
+  color:var(--lf-plum)!important;
+}
+
+/* WhatsApp keeps official brand green, but becomes visually quieter */
+.whatsappFloat{
+  padding:10px 14px!important;
+  border-radius:24px!important;
+  font-size:14px!important;
+  box-shadow:0 7px 18px rgba(0,0,0,.13)!important;
+}
+
+/* Naya launcher should belong to the same visual system */
+.naya-launcher{
+  background:var(--lf-plum)!important;
+  color:#fff!important;
+  box-shadow:0 9px 22px rgba(71,36,63,.20)!important;
+}
+
+/* Accessibility + subtle interaction */
+button,a{-webkit-tap-highlight-color:transparent}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(201,121,146,.28)!important;
+  outline-offset:2px!important;
+}
+@media (hover:hover) and (pointer:fine){
+  .card,.featureCard,.cat,.iconbtn,.cta,.add{transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease}
+  .card:hover,.featureCard:hover,.cat:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(71,36,63,.09)!important}
+  .iconbtn:hover{background:#fff7fa!important}
+  .cta:hover{background:var(--lf-plum-deep)!important}
+  .add:hover{background:var(--lf-rose-deep)!important}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+
+@media(max-width:760px){
+  .top{font-size:12px!important;padding:8px 10px!important}
+  .brand b{font-size:21px!important}
+  .heroCard{box-shadow:none!important}
+  .heroText{
+    background:var(--hero-text-bg,rgba(71,36,63,.72))!important;
+    border-radius:18px!important;
+    box-shadow:0 12px 32px rgba(31,22,28,.17)!important;
+  }
+  .heroSlider .heroText{padding:14px 16px!important}
+  .featureBlock{border-radius:16px!important}
+  .card{border-radius:18px!important}
+  .add{min-height:48px!important}
+  .whatsappFloat{left:12px!important;bottom:78px!important;padding:9px 12px!important;font-size:13px!important}
+}
+
+@media(max-width:420px){
+  .nav{gap:6px!important}
+  .iconbtn{width:41px!important;height:41px!important}
+  .logo{width:52px!important;height:52px!important}
+  .brand b{font-size:19px!important}
+  .heroSlider .heroText{left:11%!important;right:11%!important;max-width:78%!important}
+}
