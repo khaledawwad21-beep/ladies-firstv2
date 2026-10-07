@@ -32,3 +32,11 @@ test("orders use a boolean loyalty reversal flag consistently",()=>{
   assert.match(server,/loyalty_points_reversed BOOLEAN\s+NOT NULL DEFAULT FALSE/);
   assert.match(server,/\$21,\s+FALSE,\s+'pending'/);
 });
+
+test("daily sales report aggregates costs by date without correlated ungrouped columns",()=>{
+  const server=fs.readFileSync(path.join(__dirname,"../src/server.js"),"utf8");
+  assert.match(server,/WITH order_days AS/);
+  assert.match(server,/cost_days AS/);
+  assert.match(server,/LEFT JOIN cost_days cd ON cd\.date = od\.date/);
+  assert.doesNotMatch(server,/DATE\(po\.created_at\) = DATE\(orders\.created_at\)/);
+});
