@@ -6,6 +6,7 @@ const fs=require("node:fs");
 const path=require("node:path");
 
 const admin=fs.readFileSync(path.join(__dirname,"../../frontend/admin.js"),"utf8");
+const store=fs.readFileSync(path.join(__dirname,"../../frontend/app.js"),"utf8");
 const adminHtml=fs.readFileSync(path.join(__dirname,"../../frontend/admin.html"),"utf8");
 const adminOffers=fs.readFileSync(path.join(__dirname,"../../frontend/admin-offers.js"),"utf8");
 const adminHome=fs.readFileSync(path.join(__dirname,"../../frontend/admin-homepage.js"),"utf8");
