@@ -1014,10 +1014,14 @@ window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings()
     image.src=src;image.alt=alt||'صورة المنتج';reset();overlay.classList.add('open');document.documentElement.classList.add('lf-image-zoom-open');document.body.classList.add('lf-image-zoom-open');
   }
   document.addEventListener('click',event=>{
-    const source=event.target.closest&&event.target.closest('#mainProductImg');
-    if(source){event.preventDefault();open(source.currentSrc||source.src,source.alt);return}
+    const source=event.target.closest&&event.target.closest('#modalBody img');
+    if(source){
+      event.preventDefault();event.stopPropagation();
+      if(source.closest('.thumbs')&&typeof pickImg==='function')pickImg(source,source.currentSrc||source.src);
+      open(source.currentSrc||source.src,source.alt||'صورة المنتج');return;
+    }
     if(event.target===overlay||event.target.closest('.lfImageZoom__close'))close();
-  });
+  },true);
   document.addEventListener('keydown',event=>{
     if(event.key==='Escape'&&overlay.classList.contains('open'))close();
     const target=event.target;
