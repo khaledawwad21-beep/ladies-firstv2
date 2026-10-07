@@ -988,3 +988,61 @@ function nayaAnswer(q){const t=String(q||'').trim().toLowerCase();const a=getAcc
 function sendNaya(){const input=document.getElementById('nayaInput');if(!input)return;const q=input.value.trim();if(!q)return;input.value='';nayaAddMessage(q,true);setTimeout(()=>nayaAddMessage(nayaAnswer(q),false),180)}
 function nayaQuick(text){const input=document.getElementById('nayaInput');if(input){input.value=text;sendNaya()}}
 window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings();await lfSyncMe();await lfLoadLoyalty();await lfSyncProducts();await lfSyncAccountState();await lfSyncCatalog();await lfSyncMyOrders();renderAccountContent();initCountrySelectors();updateAccountBadge();restartFeatureAuto();await openPublicOrderFromUrl()});
+
+
+/* Full-screen product image viewer with tap, pinch and drag zoom for mobile. */
+(()=>{
+  const overlay=document.createElement('div');
+  overlay.id='lfImageZoom';
+  overlay.className='lfImageZoom';
+  overlay.setAttribute('aria-label','تكبير صورة المنتج');
+  overlay.innerHTML='<div class="lfImageZoom__bar"><button type="button" class="lfImageZoom__close" aria-label="إغلاق الصورة">×</button><button type="button" class="lfImageZoom__toggle" aria-label="تكبير الصورة">＋ تكبير</button></div><div class="lfImageZoom__stage"><img class="lfImageZoom__image" alt="صورة المنتج" draggable="false"></div><div class="lfImageZoom__hint">قرّبي بإصبعين أو اضغطي مرتين للتكبير، واسحبي الصورة للتحريك</div>';
+  document.body.appendChild(overlay);
+  const image=overlay.querySelector('.lfImageZoom__image');
+  const toggle=overlay.querySelector('.lfImageZoom__toggle');
+  let scale=1,moveX=0,moveY=0,pointers=new Map(),pinchDistance=0,pinchScale=1,dragStart=null,lastTap=0;
+  const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
+  function paint(){
+    image.style.transform='translate3d('+moveX+'px,'+moveY+'px,0) scale('+scale+')';
+    toggle.textContent=scale>1.05?'− تصغير':'＋ تكبير';
+    toggle.setAttribute('aria-label',scale>1.05?'تصغير الصورة':'تكبير الصورة');
+  }
+  function reset(){scale=1;moveX=0;moveY=0;pointers.clear();paint()}
+  function close(){overlay.classList.remove('open');document.documentElement.classList.remove('lf-image-zoom-open');document.body.classList.remove('lf-image-zoom-open');reset()}
+  function open(src,alt){
+    image.src=src;image.alt=alt||'صورة المنتج';reset();overlay.classList.add('open');document.documentElement.classList.add('lf-image-zoom-open');document.body.classList.add('lf-image-zoom-open');
+  }
+  document.addEventListener('click',event=>{
+    const source=event.target.closest&&event.target.closest('#mainProductImg');
+    if(source){event.preventDefault();open(source.currentSrc||source.src,source.alt);return}
+    if(event.target===overlay||event.target.closest('.lfImageZoom__close'))close();
+  });
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&overlay.classList.contains('open'))close();
+    const target=event.target;
+    if((event.key==='Enter'||event.key===' ')&&target&&target.id==='mainProductImg'){event.preventDefault();open(target.currentSrc||target.src,target.alt)}
+  });
+  toggle.addEventListener('click',()=>{if(scale>1.05){reset()}else{scale=2;moveX=0;moveY=0;paint()}});
+  image.addEventListener('dblclick',event=>{event.preventDefault();if(scale>1.05)reset();else{scale=2;paint()}});
+  const distance=()=>{const p=[...pointers.values()];return p.length<2?0:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)};
+  image.addEventListener('pointerdown',event=>{
+    if(!overlay.classList.contains('open'))return;
+    pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    try{image.setPointerCapture(event.pointerId)}catch{}
+    if(pointers.size===2){pinchDistance=distance();pinchScale=scale;dragStart=null}
+    else if(pointers.size===1)dragStart={x:event.clientX,y:event.clientY,moveX,moveY};
+  });
+  image.addEventListener('pointermove',event=>{
+    if(!pointers.has(event.pointerId))return;
+    pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(pointers.size>=2&&pinchDistance){scale=clamp(pinchScale*(distance()/pinchDistance),1,4);if(scale===1){moveX=0;moveY=0}paint()}
+    else if(scale>1.05&&dragStart){moveX=dragStart.moveX+event.clientX-dragStart.x;moveY=dragStart.moveY+event.clientY-dragStart.y;paint()}
+  });
+  const endPointer=event=>{
+    pointers.delete(event.pointerId);
+    if(pointers.size<2)pinchDistance=0;
+    if(pointers.size===1){const p=[...pointers.values()][0];dragStart={x:p.x,y:p.y,moveX,moveY}}
+    else dragStart=null;
+  };
+  image.addEventListener('pointerup',endPointer);image.addEventListener('pointercancel',endPointer);image.addEventListener('lostpointercapture',endPointer);
+})();
