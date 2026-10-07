@@ -1,5 +1,9 @@
 "use strict";
 
+const ADMIN_IMAGE_TARGET_BYTES = Math.floor(2.5 * 1024 * 1024);
+const ADMIN_IMAGE_MAX_DIMENSION = 2400;
+const ADMIN_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+
 function adminImageDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -9,11 +13,86 @@ function adminImageDataUrl(file) {
   });
 }
 
+function adminLoadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("تعذر فتح الصورة للضغط"));
+    };
+    image.src = url;
+  });
+}
+
+function adminCanvasBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => {
+      if (!blob) return reject(new Error("تعذر ضغط الصورة"));
+      resolve(blob);
+    }, type, quality);
+  });
+}
+
+async function adminPrepareProductImage(file) {
+  if (!ADMIN_IMAGE_TYPES.has(String(file?.type || "").toLowerCase())) {
+    throw new Error("صيغة الصورة غير مدعومة. استخدمي PNG أو JPG أو WebP.");
+  }
+
+  if (Number(file.size || 0) > 0 && file.size <= ADMIN_IMAGE_TARGET_BYTES) {
+    return adminImageDataUrl(file);
+  }
+
+  const image = await adminLoadImage(file);
+  const sourceWidth = Number(image.naturalWidth || image.width || 0);
+  const sourceHeight = Number(image.naturalHeight || image.height || 0);
+  if (!sourceWidth || !sourceHeight) throw new Error("أبعاد الصورة غير صالحة");
+
+  const initialScale = Math.min(
+    1,
+    ADMIN_IMAGE_MAX_DIMENSION / Math.max(sourceWidth, sourceHeight)
+  );
+  let width = Math.max(1, Math.round(sourceWidth * initialScale));
+  let height = Math.max(1, Math.round(sourceHeight * initialScale));
+  let quality = 0.9;
+  let blob = null;
+
+  for (let attempt = 0; attempt < 9; attempt++) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { alpha: true });
+    if (!context) throw new Error("تعذر تجهيز الصورة للرفع");
+    context.drawImage(image, 0, 0, width, height);
+
+    blob = await adminCanvasBlob(canvas, "image/webp", quality);
+    if (blob.size <= ADMIN_IMAGE_TARGET_BYTES) break;
+
+    if (quality > 0.65) {
+      quality = Math.max(0.65, quality - 0.08);
+    } else {
+      width = Math.max(1, Math.round(width * 0.82));
+      height = Math.max(1, Math.round(height * 0.82));
+      quality = 0.82;
+    }
+  }
+
+  if (!blob || blob.size > ADMIN_IMAGE_TARGET_BYTES) {
+    throw new Error("تعذر ضغط الصورة لحجم مناسب. جرّبي صورة بأبعاد أقل.");
+  }
+
+  return adminImageDataUrl(blob);
+}
+
 async function adminUploadProductImage(file) {
   if (!file) return "";
   const token = localStorage.getItem("lf_admin_token") || "";
   if (!token) throw new Error("يجب تسجيل الدخول أولاً");
-  const data = await adminImageDataUrl(file);
+  const data = await adminPrepareProductImage(file);
   const response = await fetch("/api/admin/uploads/image", {
     method: "POST",
     headers: {"Content-Type":"application/json", Authorization:"Bearer "+token},
