@@ -1,9 +1,55 @@
 function safeMediaUrl(value){const s=String(value||'');if(/[<>\"'\\\x00-\x20]/.test(s))return '#';return /^(https?:\/\/|\/(?!\/)|data:image\/(png|jpeg|webp);base64,)/i.test(s)?s:'#'}
 const $=s=>document.querySelector(s),E=v=>String(v??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x])),M=v=>Number(v||0).toFixed(2);let sec='dashboard',currentAdminUser=null;
+const ADMIN_MALE_COPY=[
+  ['اختاري','اختر'],['استخدمي','استخدم'],['راجعي','راجع'],['اضغطي','اضغط'],
+  ['أضيفي','أضف'],['اكتبي','اكتب'],['عدّلي','عدّل'],['أدخلي','أدخل'],
+  ['احذفي','احذف'],['رتبي','رتب'],['اتركي','اترك'],['حدّثي','حدّث'],
+  ['جرّبي','جرّب'],['سيدتي','سيدي']
+];
+function adminIsMale(){return String(currentAdminUser?.gender||'').toLowerCase()==='male'}
+function adminGenderText(value){
+  let text=String(value??'');
+  if(!adminIsMale())return text;
+  for(const [female,male] of ADMIN_MALE_COPY)text=text.split(female).join(male);
+  return text;
+}
+let adminGenderCopyBusy=false;
+function applyAdminGenderCopy(root=document){
+  if(!currentAdminUser||adminGenderCopyBusy)return;
+  adminGenderCopyBusy=true;
+  try{
+    if(adminIsMale()){
+      const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+      const nodes=[];
+      while(walker.nextNode())nodes.push(walker.currentNode);
+      nodes.forEach(node=>{
+        const parent=node.parentElement;
+        if(!parent||['SCRIPT','STYLE','TEXTAREA','OPTION'].includes(parent.tagName))return;
+        const next=adminGenderText(node.nodeValue);
+        if(next!==node.nodeValue)node.nodeValue=next;
+      });
+      root.querySelectorAll?.('input[placeholder],textarea[placeholder],[title],[aria-label]').forEach(el=>{
+        for(const attr of ['placeholder','title','aria-label']){
+          if(!el.hasAttribute(attr))continue;
+          const value=el.getAttribute(attr),next=adminGenderText(value);
+          if(next!==value)el.setAttribute(attr,next);
+        }
+      });
+    }
+    const greeting=$('#adminGreeting');
+    if(greeting){
+      const name=currentAdminUser?.name||currentAdminUser?.email||currentAdminUser?.phone||'';
+      greeting.textContent=name?(adminIsMale()?'نورتنا ':'نورتينا ')+name+' 🩷':'';
+    }
+  }finally{adminGenderCopyBusy=false}
+}
+const adminGenderObserver=new MutationObserver(()=>{if(currentAdminUser)setTimeout(()=>applyAdminGenderCopy($('#app')||document),0)});
+adminGenderObserver.observe(document.documentElement,{childList:true,subtree:true});
+
 async function api(u,o={}){const token=localStorage.getItem('lf_admin_token')||'';const headers={'Content-Type':'application/json',...(o.headers||{})};if(token)headers.Authorization='Bearer '+token;let r=await fetch(u,{...o,headers}),d={};try{d=await r.json()}catch{}if(r.status===401){localStorage.removeItem('lf_admin_token');showLogin();const e=Error(d.message||'انتهت جلسة الدخول');e.status=401;e.code=d.code||'UNAUTHORIZED';throw e}if(!r.ok||d.ok===false){const e=Error(d.message||('HTTP '+r.status));e.status=r.status;e.code=d.code||'HTTP_ERROR';e.data=d;throw e}return d}
 
 function showLogin(){const l=$('#login'),a=$('#app');if(l)l.hidden=false;if(a)a.hidden=true;const b=$('#recoveryBox');if(b)b.hidden=true}
-async function showApp(){const l=$('#login'),a=$('#app');if(l)l.hidden=true;if(a)a.hidden=false;try{const d=await api('/api/auth/me');if(!d.user||!['owner','admin','staff'].includes(String(d.user.role||'').toLowerCase())){localStorage.removeItem('lf_admin_token');showLogin();$('#loginMsg').textContent='جلسة الإدارة غير صالحة أو الحساب غير مفعل.';return}currentAdminUser=d.user;applyAdminPermissions();const allowed=navs.find(n=>!n.hidden);if(!allowed){$('#title').textContent='لا توجد صلاحيات';$('#sections').innerHTML='<div class="card"><h2>لا توجد صلاحيات إدارية مخصصة لهذا الحساب.</h2><p>راجعي المالك لتحديد الأقسام المسموح بها.</p></div>';return}if(!canAdminSection(sec))sec=allowed.dataset.s;navs.forEach(n=>n.classList.toggle('active',n.dataset.s===sec));$('#title').textContent=titles[sec];await load()}catch(e){if(a)a.hidden=true;if(l)l.hidden=false;const msg=e&&e.message?e.message:'تعذر التحقق من جلسة الدخول';$('#loginMsg').textContent=msg.includes('جلسة')||msg.includes('انتهت')?msg:'تعذر فتح لوحة التحكم: '+msg}}
+async function showApp(){const l=$('#login'),a=$('#app');if(l)l.hidden=true;if(a)a.hidden=false;try{const d=await api('/api/auth/me');if(!d.user||!['owner','admin','staff'].includes(String(d.user.role||'').toLowerCase())){localStorage.removeItem('lf_admin_token');showLogin();$('#loginMsg').textContent='جلسة الإدارة غير صالحة أو الحساب غير مفعل.';return}currentAdminUser=d.user;applyAdminPermissions();applyAdminGenderCopy($('#app')||document);const allowed=navs.find(n=>!n.hidden);if(!allowed){$('#title').textContent='لا توجد صلاحيات';$('#sections').innerHTML='<div class="card"><h2>لا توجد صلاحيات إدارية مخصصة لهذا الحساب.</h2><p>راجعي المالك لتحديد الأقسام المسموح بها.</p></div>';return}if(!canAdminSection(sec))sec=allowed.dataset.s;navs.forEach(n=>n.classList.toggle('active',n.dataset.s===sec));$('#title').textContent=titles[sec];await load()}catch(e){if(a)a.hidden=true;if(l)l.hidden=false;const msg=e&&e.message?e.message:'تعذر التحقق من جلسة الدخول';$('#loginMsg').textContent=msg.includes('جلسة')||msg.includes('انتهت')?msg:'تعذر فتح لوحة التحكم: '+msg}}
 async function adminLogin(){const contact=$('#loginContact').value.trim(),password=$('#loginPassword').value||'',msg=$('#loginMsg');if(!contact||!password){msg.textContent='أدخل البريد أو الهاتف وكلمة المرور';return}try{const d=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contact,password})});const x=await d.json();if(!d.ok||x.ok===false)throw Error(x.message||'بيانات الدخول غير صحيحة');if(!['owner','admin','staff'].includes(String(x.user?.role||'').toLowerCase()))throw Error('هذا الحساب ليس حساب إدارة');localStorage.setItem('lf_admin_token',x.token);showApp()}catch(e){msg.textContent=e.message}}
 async function adminPasskeyLogin(){const contact=$('#loginContact').value.trim(),msg=$('#loginMsg');if(!contact){msg.textContent='أدخل البريد أو الهاتف أولًا';return}if(!window.LFPasskeys?.supported()){msg.textContent='هذا الجهاز أو المتصفح لا يدعم تسجيل الدخول بالبصمة.';return}try{let r=await fetch('/api/passkeys/login/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contact})}),o=await r.json();if(!r.ok||o.ok===false)throw Error(o.message||'لا توجد بصمة مفعلة');const credential=await window.LFPasskeys.getCredential(o);r=await fetch('/api/passkeys/login/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({challengeId:o.challengeId,credential})});const x=await r.json();if(!r.ok||x.ok===false)throw Error(x.message||'تعذر التحقق من البصمة');if(!['owner','admin','staff'].includes(String(x.user?.role||'').toLowerCase()))throw Error('هذه البصمة ليست لحساب إدارة');localStorage.setItem('lf_admin_token',x.token);msg.textContent='';showApp()}catch(e){msg.textContent=e?.name==='NotAllowedError'?'تم إلغاء طلب البصمة أو لم يتم التعرف عليها.':(e.message||'تعذر تسجيل الدخول بالبصمة')}}
 async function logout(){try{await api('/api/auth/logout',{method:'POST'});}catch{}localStorage.removeItem('lf_admin_token');showLogin()}
@@ -769,5 +815,5 @@ async function waitlist(){
   await fetchWaitlistRows();
 }
 async function setWaitlistStatus(id,status){await api('/api/admin/waitlist/'+id,{method:'PATCH',body:JSON.stringify({status})});toast(status==='notified'?'تم تسجيل الإشعار':'تم تحديث طلب التوفر');waitlist()}
-function modal(t,b){$('#mt').textContent=t;$('#mb').innerHTML=b;$('#modal').classList.add('open');initDateInputs($('#modal'))}function closeModal(){$('#modal').classList.remove('open')}
+function modal(t,b){$('#mt').textContent=adminGenderText(t);$('#mb').innerHTML=b;$('#modal').classList.add('open');initDateInputs($('#modal'));applyAdminGenderCopy($('#modal'))}function closeModal(){$('#modal').classList.remove('open')}
 (async()=>{const token=localStorage.getItem('lf_admin_token');if(token){await showApp()}else{showLogin()}})()
