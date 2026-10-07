@@ -474,6 +474,7 @@ async function initDatabase() {
       ADD COLUMN IF NOT EXISTS ordering_block_until TIMESTAMPTZ
   `);
 
+  await require("./order-block-history").initOrderBlockHistory(db);
   await initAdminPermissions(db);
   await require("./auth").initSessionSecurity(db);
 
@@ -4487,6 +4488,14 @@ app.patch(
                       [reason,autoBlockDays,customerUserId]
                     );
                     if(blocked.rowCount){
+                      await require("./order-block-history").recordOrderBlockEvent(client,{
+                        userId:customerUserId,
+                        action:"auto_blocked",
+                        source:"customer_cancellations",
+                        reason,
+                        blockedUntil:blocked.rows[0].ordering_block_until||null,
+                        actorUserId:req.user?.id||null
+                      });
                       autoBlockedCustomer={
                         userId:customerUserId,
                         cancellationCount,
@@ -5373,7 +5382,7 @@ app.patch(
     try {
       const targetUser = await db(
         `
-        SELECT id, role
+        SELECT id, role, ordering_blocked, ordering_block_reason, ordering_block_until
         FROM users
         WHERE id = $1
         LIMIT 1
@@ -5625,6 +5634,37 @@ app.patch(
           message:
             "المستخدم غير موجود"
         });
+      }
+
+      const blockFieldsRequested =
+        req.body.ordering_blocked !== undefined ||
+        req.body.orderingBlocked !== undefined ||
+        req.body.ordering_block_reason !== undefined ||
+        req.body.orderingBlockReason !== undefined ||
+        req.body.ordering_block_until !== undefined ||
+        req.body.orderingBlockUntil !== undefined;
+
+      if(blockFieldsRequested){
+        const before=targetUser.rows[0],after=result.rows[0];
+        const beforeUntil=before.ordering_block_until?new Date(before.ordering_block_until).toISOString():null;
+        const afterUntil=after.ordering_block_until?new Date(after.ordering_block_until).toISOString():null;
+        const changed=
+          Boolean(before.ordering_blocked)!==Boolean(after.ordering_blocked) ||
+          String(before.ordering_block_reason||"")!==String(after.ordering_block_reason||"") ||
+          beforeUntil!==afterUntil;
+        if(changed){
+          const action=Boolean(after.ordering_blocked)
+            ? (Boolean(before.ordering_blocked)?"updated":"blocked")
+            : "unblocked";
+          await require("./order-block-history").recordOrderBlockEvent(db,{
+            userId,
+            action,
+            source:"manual",
+            reason:after.ordering_block_reason||null,
+            blockedUntil:after.ordering_block_until||null,
+            actorUserId:req.user?.id||null
+          });
+        }
       }
 
       return res.json({
@@ -9276,6 +9316,15 @@ require("./waitlist").registerWaitlistRoutes(app, {
 require("./cart-tracking").registerCartTrackingRoutes(app, {
   db,
   requireAuth,
+  requireAdmin
+});
+
+/* =========================================================
+   CUSTOMER ORDER BLOCK HISTORY
+========================================================= */
+
+require("./order-block-history").registerOrderBlockHistoryRoutes(app, {
+  db,
   requireAdmin
 });
 
