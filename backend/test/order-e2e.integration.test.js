@@ -407,6 +407,18 @@ if (process.env.RUN_DB_E2E !== "1") {
     assert.equal(cartAfterRelogin.snapshot.itemCount, 2);
     assert.equal(cartAfterRelogin.snapshot.items[0].packagingId, "clear-ribbon");
 
+    await api(`/api/admin/users/${Number(registered.user.id)}`, {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ gender: "female", age: 32 })
+    });
+
+    const meAfterAdminEdit = await api("/api/auth/me", { headers: secondHeaders });
+    assert.equal(meAfterAdminEdit.user.gender, "female");
+    assert.equal(Number(meAfterAdminEdit.user.age), 32);
+    assert.equal(meAfterAdminEdit.greeting, "نورتينا");
+    assert.equal(meAfterAdminEdit.user.whatsapp_opt_in, true);
+
     await api("/api/cart/snapshot", {
       method: "DELETE",
       headers: secondHeaders
