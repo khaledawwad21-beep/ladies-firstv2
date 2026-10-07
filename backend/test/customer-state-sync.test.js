@@ -50,3 +50,29 @@ test("cart persistence sends packaging selection to the server", () => {
   assert.match(app, /packagingId:i\.packagingId\|\|''/);
   assert.match(app, /mergeCartSnapshot\(/);
 });
+
+
+test("WhatsApp opt-in belongs to the customer profile route and is returned by auth/me", () => {
+  const categoryStart = server.indexOf('app.patch(\n  "/api/admin/categories/:id"');
+  const brandStart = server.indexOf('app.post(\n  "/api/admin/brands"', categoryStart);
+  const categoryPatch = server.slice(categoryStart, brandStart);
+  assert.doesNotMatch(categoryPatch, /whatsapp_opt_in/);
+
+  const userStart = server.indexOf('app.patch(\n  "/api/users/me"');
+  const loyaltyStart = server.indexOf('app.get(\n  "/api/loyalty"', userStart);
+  const userPatch = server.slice(userStart, loyaltyStart);
+  assert.match(userPatch, /whatsapp_opt_in/);
+  assert.match(userPatch, /whatsapp_opt_in_updated_at/);
+
+  const meStart = server.indexOf('app.get(\n  "/api/auth/me"');
+  const ownerStart = server.indexOf('app.post(\n  "/api/auth/bootstrap-owner"', meStart);
+  const meRoute = server.slice(meStart, ownerStart);
+  assert.match(meRoute, /whatsapp_opt_in/);
+  assert.match(meRoute, /whatsapp_opt_in_updated_at/);
+});
+
+
+test("storefront prefers the server WhatsApp preference over stale local state", () => {
+  assert.match(app, /serverOptIn=d\.user\.whatsapp_opt_in\?\?d\.user\.whatsappOptIn/);
+  assert.match(app, /whatsapp_opt_in:whatsappOptIn/);
+});

@@ -1417,6 +1417,8 @@ app.get(
             role,
             permissions,
             loyalty_points,
+            whatsapp_opt_in,
+            whatsapp_opt_in_updated_at,
             is_active,
             created_at,
             updated_at
@@ -5976,28 +5978,6 @@ app.patch(
       );
     }
 
-    if (
-      req.body.whatsapp_opt_in !==
-      undefined ||
-      req.body.whatsappOptIn !==
-      undefined
-    ) {
-      const enabled =
-        req.body.whatsapp_opt_in !== undefined
-          ? Boolean(req.body.whatsapp_opt_in)
-          : Boolean(req.body.whatsappOptIn);
-
-      add(
-        "whatsapp_opt_in",
-        enabled
-      );
-
-      add(
-        "whatsapp_opt_in_updated_at",
-        new Date()
-      );
-    }
-
     if (!fields.length) {
       return res.status(400).json({
         ok: false,
@@ -7973,6 +7953,34 @@ app.patch(
       add(
         "age",
         age
+      );
+    }
+
+    if (
+      req.body.whatsapp_opt_in !==
+      undefined ||
+      req.body.whatsappOptIn !==
+      undefined
+    ) {
+      const rawOptIn =
+        req.body.whatsapp_opt_in !== undefined
+          ? req.body.whatsapp_opt_in
+          : req.body.whatsappOptIn;
+
+      const enabled =
+        rawOptIn === true ||
+        rawOptIn === 1 ||
+        rawOptIn === "1" ||
+        String(rawOptIn).toLowerCase() === "true";
+
+      add(
+        "whatsapp_opt_in",
+        enabled
+      );
+
+      add(
+        "whatsapp_opt_in_updated_at",
+        new Date()
       );
     }
 
