@@ -15,7 +15,7 @@ before(async()=>{
     CREATE TABLE products(id BIGINT PRIMARY KEY,stock INT,is_active BOOLEAN);
     CREATE TABLE product_variants(id BIGINT PRIMARY KEY,product_id BIGINT,stock INT,is_active BOOLEAN);
     CREATE TABLE orders(id BIGINT PRIMARY KEY,status TEXT,created_at TIMESTAMPTZ);
-    CREATE TABLE order_items(product_id BIGINT,order_id BIGINT,quantity INT,product_name TEXT);
+    CREATE TABLE order_items(product_id BIGINT,order_id BIGINT,quantity INT,product_name TEXT,is_gift BOOLEAN NOT NULL DEFAULT FALSE);
   `);
   server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));base='http://127.0.0.1:'+server.address().port;
 });
@@ -25,10 +25,13 @@ beforeEach(async()=>{
     INSERT INTO product_variants VALUES (1,5,2,TRUE),(2,5,100,FALSE),(3,8,0,TRUE);
     INSERT INTO orders VALUES (1,'delivered',NOW()-INTERVAL '8 days'),(2,'confirmed',NOW()-INTERVAL '1 day'),
       (3,'cancelled',NOW()),(4,'CANCELED',NOW()),(5,'ملغي',NOW()),(6,'pending',NOW()+INTERVAL '1 day');
-    INSERT INTO order_items VALUES (1,1,30,'Old'),(2,2,2,'Old product name'),(2,2,3,'Renamed product'),
+    INSERT INTO order_items(product_id,order_id,quantity,product_name) VALUES
+      (1,1,30,'Old'),(2,2,2,'Old product name'),(2,2,3,'Renamed product'),
       (3,2,100,'Sold out'),(4,2,100,'Disabled'),(5,2,3,'Available variant'),(6,2,5,'Tie'),
       (7,3,100,'Cancelled'),(7,4,100,'Cancelled'),(7,5,100,'Cancelled'),(7,6,100,'Future'),
-      (8,2,100,'Variants sold out'),(999,2,100,'Deleted product');`);
+      (8,2,100,'Variants sold out'),(999,2,100,'Deleted product');
+    INSERT INTO order_items(product_id,order_id,quantity,product_name,is_gift)
+      VALUES (2,2,999,'Free gift',TRUE);`);
 });
 after(async()=>{if(server)await new Promise(r=>server.close(r));await database.close();});
 async function read(){const response=await fetch(base+'/api/store/best-sellers');assert.equal(response.status,200);return response.json();}
@@ -46,7 +49,7 @@ test('empty history yields no invented products and ranking is capped at five',a
   await database.exec('DELETE FROM order_items');assert.deepEqual((await read()).bestSellers,[]);
   for(let id=10;id<17;id++) {
     await database.query('INSERT INTO products VALUES($1,2,TRUE)',[id]);
-    await database.query("INSERT INTO order_items VALUES($1,2,$2,'Product')",[id,id]);
+    await database.query("INSERT INTO order_items(product_id,order_id,quantity,product_name) VALUES($1,2,$2,'Product')",[id,id]);
   }
   assert.deepEqual((await read()).bestSellers.map(x=>Number(x.productId)),[16,15,14,13,12]);
 });
