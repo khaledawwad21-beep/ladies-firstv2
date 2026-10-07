@@ -84,6 +84,14 @@ test('actual admin product bundle uploads media before saving JSON product paylo
   assert.match(js,/pVideoFiles/);
   assert.match(js,/\/api\/admin\/uploads\/video/);
   assert.match(js,/if\s*\(button\?\.disabled\)\s*return/);
+  assert.match(js,/adminQueueProductFiles/);
+  assert.match(js,/adminMoveExistingImage/);
+  assert.match(js,/adminMovePendingImage/);
+  assert.match(js,/adminSetPrimaryExistingImage/);
+  assert.match(js,/adminSetPrimaryPendingImage/);
+  assert.match(js,/adminSwitchExistingImage/);
+  assert.match(js,/adminRemovePendingImage/);
+  assert.match(js,/pendingMain\.indexOf\(adminProductPrimaryFile\)/);
   assert.doesNotMatch(js,/new FormData\(/);
 });
 
