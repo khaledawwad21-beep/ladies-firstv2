@@ -38,6 +38,7 @@ async function migrateDatabase() {
     await client.query(`UPDATE order_items SET total = COALESCE(NULLIF(total,0), total_price, unit_price * quantity, 0)`);
     await client.query(`UPDATE order_items SET total_price = COALESCE(NULLIF(total_price,0), total, unit_price * quantity, 0)`);
 
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS staff_message_seen_version TEXT`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ordering_blocked BOOLEAN NOT NULL DEFAULT FALSE`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ordering_block_reason TEXT`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ordering_block_until TIMESTAMPTZ`);
