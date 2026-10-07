@@ -493,7 +493,63 @@ let couponCode=localStorage.getItem('lf_coupon')||'';
 let lfLoyalty={points:0,settings:{enabled:false,redeemEnabled:true,pointValue:0.1}};
 async function lfLoadLoyalty(){if(!lfToken())return;try{const d=await lfFetch('/api/loyalty');lfLoyalty=d;const a=load(ACCOUNT_KEY,null)||{};a.points=Number(d.points||0);save(ACCOUNT_KEY,a);updateCheckoutTotal()}catch(e){console.warn('API loyalty unavailable',e.message)}}
 function getPointsRedeem(){const e=document.getElementById('pointsRedeem');return Math.max(0,Math.floor(Number(e?.value)||0))}
-function getCartTotals(pay,code=couponCode){let subtotal=0,visaDiscount=0,packagingTotal=0;cart.forEach(i=>{const p=products.find(x=>x.id===i.id);if(!p)return;const qty=Math.max(1,Number(i.qty)||1),line=(Number(p.price)||0)*qty;subtotal+=line;const pkg=getPackaging(i.packagingId);if(pkg)packagingTotal+=(Number(pkg.price)||0)*qty});if(pay==='visa')visaDiscount=subtotal*(Math.min(100,Math.max(0,Number(storeCommerceSettings.visaDiscountPercent)||0))/100);const afterVisa=Math.max(0,subtotal-visaDiscount);const coupon=findCoupon(code);let couponDiscount=0;if(coupon){const v=Math.max(0,Number(coupon.value)||0);couponDiscount=coupon.type==='fixed'?Math.min(afterVisa,v):afterVisa*Math.min(100,v)/100}const ship=currentShipping();const shippingFee=ship.fee;const redeemEnabled=!!lfLoyalty?.settings?.enabled&&lfLoyalty?.settings?.redeemEnabled!==false;const pv=Math.max(0,Number(lfLoyalty?.settings?.pointValue||0));const requested=getPointsRedeem();const balance=Math.max(0,Number(lfLoyalty?.points||0));const pointsRedeemed=redeemEnabled?Math.min(requested,balance):0;const loyaltyDiscount=Math.min(pointsRedeemed*pv,Math.max(0,afterVisa-couponDiscount));return {subtotal,visaDiscount,couponDiscount,packagingTotal,shippingFee,pointsRedeemed,loyaltyDiscount,total:Math.max(0,afterVisa-couponDiscount-loyaltyDiscount)+packagingTotal+shippingFee,coupon,shippingRegion:document.getElementById('shippingRegion')?.value||'westbank',shippingRegionName:currentLang==='en'?ship.en:ship.ar}}
+function calculateDiscountBreakdown(subtotal,pay,coupon,visaPercent){
+  const merchandise=Math.max(0,Number(subtotal)||0);
+  let couponDiscount=0;
+  if(coupon){
+    const type=String(coupon.type||coupon.discount_type||'percent').toLowerCase();
+    const value=Math.max(0,Number(coupon.value??coupon.discount_value??0)||0);
+    couponDiscount=type==='fixed'
+      ?Math.min(merchandise,value)
+      :Math.min(merchandise,merchandise*(Math.min(100,value)/100));
+  }
+  const afterCoupon=Math.max(0,merchandise-couponDiscount);
+  const visaRate=pay==='visa'?Math.min(100,Math.max(0,Number(visaPercent)||0)):0;
+  const visaDiscount=afterCoupon*(visaRate/100);
+  return {couponDiscount,visaDiscount,afterDiscounts:Math.max(0,afterCoupon-visaDiscount)};
+}
+function getCartTotals(pay,code=couponCode){
+  let subtotal=0,packagingTotal=0;
+  cart.forEach(i=>{
+    const p=products.find(x=>x.id===i.id);
+    if(!p)return;
+    const qty=Math.max(1,Number(i.qty)||1),line=(Number(p.price)||0)*qty;
+    subtotal+=line;
+    const pkg=getPackaging(i.packagingId);
+    if(pkg)packagingTotal+=(Number(pkg.price)||0)*qty;
+  });
+  const coupon=findCoupon(code);
+  const discounts=calculateDiscountBreakdown(
+    subtotal,
+    pay,
+    coupon,
+    storeCommerceSettings.visaDiscountPercent
+  );
+  const ship=currentShipping();
+  const shippingFee=ship.fee;
+  const redeemEnabled=!!lfLoyalty?.settings?.enabled&&lfLoyalty?.settings?.redeemEnabled!==false;
+  const pv=Math.max(0,Number(lfLoyalty?.settings?.pointValue||0));
+  const requested=getPointsRedeem();
+  const balance=Math.max(0,Number(lfLoyalty?.points||0));
+  const pointsRedeemed=redeemEnabled?Math.min(requested,balance):0;
+  const loyaltyDiscount=Math.min(
+    pointsRedeemed*pv,
+    discounts.afterDiscounts
+  );
+  return {
+    subtotal,
+    visaDiscount:discounts.visaDiscount,
+    couponDiscount:discounts.couponDiscount,
+    packagingTotal,
+    shippingFee,
+    pointsRedeemed,
+    loyaltyDiscount,
+    total:Math.max(0,discounts.afterDiscounts-loyaltyDiscount)+packagingTotal+shippingFee,
+    coupon,
+    shippingRegion:document.getElementById('shippingRegion')?.value||'westbank',
+    shippingRegionName:currentLang==='en'?ship.en:ship.ar
+  };
+}
 function applyCoupon(){const input=document.getElementById('couponInput');const code=String(input?.value||'').trim().toUpperCase();if(!code)return alert(currentLang==='en'?'Enter a coupon code':'اكتبي كود الخصم');const c=findCoupon(code);if(!c)return alert(currentLang==='en'?'Invalid or expired coupon':'كود الخصم غير صحيح أو غير فعال');couponCode=code;localStorage.setItem('lf_coupon',couponCode);renderCart();alert(currentLang==='en'?'Coupon applied':'تم تطبيق كود الخصم')}
 function clearCoupon(){couponCode='';localStorage.removeItem('lf_coupon');renderCart()}
 function updateCheckoutTotal(){const pay=document.querySelector('input[name="pay"]:checked')?.value||'cod';const t=getCartTotals(pay);const el=document.getElementById('checkoutTotal');if(el)el.textContent=`${currentLang==='en'?'Total:':'الإجمالي:'} ${t.total.toFixed(2)} ₪`;const sh=document.getElementById('shippingLine');if(sh)sh.textContent=`${currentLang==='en'?'Delivery:':'التوصيل:'} ${t.shippingRegionName} — ${t.shippingFee.toFixed(2)} ₪`;const pkg=document.getElementById('packagingTotalLine');if(pkg)pkg.textContent=t.packagingTotal>0?`🎁 ${currentLang==='en'?'Wrapping:':'التغليف:'} +${t.packagingTotal.toFixed(2)} ₪`:'';const vd=document.getElementById('visaDiscountLine');if(vd)vd.textContent=t.visaDiscount>0?`خصم Visa: -${t.visaDiscount.toFixed(2)} ₪`:'';const cd=document.getElementById('couponDiscountLine');if(cd)cd.textContent=t.couponDiscount>0?`${currentLang==='en'?'Coupon discount:':'خصم الكوبون:'} -${t.couponDiscount.toFixed(2)} ₪`:'';const ld=document.getElementById('loyaltyDiscountLine');if(ld)ld.textContent=t.loyaltyDiscount>0?`⭐ خصم استبدال النقاط: -${t.loyaltyDiscount.toFixed(2)} ₪ (${t.pointsRedeemed} نقطة)`:''}
