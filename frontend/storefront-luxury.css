@@ -389,7 +389,7 @@ html.lf-image-zoom-open,body.lf-image-zoom-open{overflow:hidden!important;oversc
 
 /* v40: keep the product details modal and its final action clear of the fixed mobile dock. */
 .galleryModal{
-  z-index:900!important;overflow-y:auto!important;overscroll-behavior:contain!important;
+  z-index:9000!important;overflow-y:auto!important;overscroll-behavior:contain!important;
 }
 .productModal{
   margin-block:auto!important;padding-bottom:calc(28px + env(safe-area-inset-bottom))!important;
