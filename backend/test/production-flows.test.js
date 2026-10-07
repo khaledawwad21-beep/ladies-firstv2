@@ -69,3 +69,11 @@ test("coupon type and value are server validated", () => {
   assert.match(server, /INVALID_COUPON_VALUE/);
   assert.match(server, /couponType === "percent" && couponValue > 100/);
 });
+
+
+test("guest checkout is allowed while personal order history stays authenticated", () => {
+  assert.match(server, /app\.post\(\s*"\/api\/orders",\s*optionalAuth/s);
+  assert.match(server, /const userId = req\.user\?\.id \|\| null/);
+  assert.match(server, /const loyaltyPoints = userId && loyaltyEnabled/);
+  assert.match(server, /app\.get\(\s*"\/api\/orders",\s*requireAuth/s);
+});
