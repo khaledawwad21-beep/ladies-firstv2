@@ -13,6 +13,7 @@ async function getBestSellers() {
       JOIN orders o ON o.id = oi.order_id
       JOIN products p ON p.id = oi.product_id
       WHERE LOWER(o.status) NOT IN ('cancelled', 'canceled', 'ملغي')
+        AND COALESCE(oi.is_gift,FALSE)=FALSE
         AND o.created_at <= NOW()
         AND oi.quantity > 0
         AND p.is_active = TRUE
