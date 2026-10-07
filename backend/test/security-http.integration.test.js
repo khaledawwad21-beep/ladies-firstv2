@@ -70,6 +70,9 @@ test('public catalog hides purchase costs and rejects image attribute injection'
  const good=await call('/api/admin/products','POST',{name:'Security product',price:50,cost_price:11,stock:5,images:['https://example.com/image.png']});assert.equal(good.status,201);
  const p=await call('/api/products/'+good.data.product.id,'GET',null,null);assert.equal(p.status,200);assert.equal(p.data.product.cost_price,undefined);
  assert.equal(Number(good.data.product.cost_price),11);
+ const adminRead=await call('/api/admin/products');assert.equal(adminRead.status,200);assert.equal(Number(adminRead.data.products.find(p=>p.id==good.data.product.id).cost_price),11);
+ assert.equal((await call('/api/admin/products','GET',null,null)).status,401);
+ assert.equal((await call('/api/admin/products','GET',null,customer.token)).status,403);
  const bad=await call('/api/admin/products','POST',{name:'Invalid image',price:50,stock:1,images:['https://example.com/x" onerror="window.probe=1']});assert.equal(bad.status,400);
 });
 test('customer cannot read or return another customer order and prices come from server',async()=>{

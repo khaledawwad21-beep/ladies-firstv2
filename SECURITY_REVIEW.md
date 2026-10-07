@@ -1,6 +1,6 @@
 # Security review — 7 October 2026
 
-Scope: application source, production gateway, customer/admin APIs, sessions and roles, public responses, catalog rendering, media input, isolated HTTP/database tests, dependency audit, container build configuration, and a read-only live health/header check. Baseline reviewed: `0856dab`; changes reconciled with `045a6e5` (guest checkout and updated discount math).
+Scope: application source, production gateway, customer/admin APIs, sessions and roles, public responses, catalog rendering, media input, isolated HTTP/database tests, dependency audit, container build configuration, and a read-only live health/header check. Baseline reviewed: `0856dab`; changes reconciled with `e08b5b7` (including guest checkout, updated discount math, staff permissions, image compression and waitlist tests).
 
 This is an application security review, not a certification that the site has no vulnerabilities. Live customer records were not modified, paid integrations were not invoked, and no attack traffic was sent to production.
 
@@ -14,7 +14,7 @@ This is an application security review, not a certification that the site has no
 | Staff could reach paid Tripo operations outside granular admin routing | High: unauthorized integration usage | Restricted to active owner/admin accounts |
 | Dynamic strings used unsafe JavaScript/HTML attribute contexts | High: stored script injection through catalog inputs | JSON-encoded event arguments plus HTML escaping, safe media URLs, rejection of unsafe image sources, and executable regression probes |
 | Public settings returned arbitrary stored settings | Medium: potentially private integration data disclosed | Explicit public setting allowlist; synthetic secret tested, no real secret values read |
-| Public catalog/customer responses included internal purchase costs | Medium: internal business data disclosed | Remove cost fields recursively from public/customer responses; admin reporting retains costs |
+| Public catalog/customer responses included internal purchase costs | Medium: internal business data disclosed | Remove cost fields recursively from public/customer responses; admin reporting and the authenticated product editor retain costs |
 | Arbitrary origins were allowed with credentials; browser defenses absent | Medium: cross-origin abuse exposure | Same-origin/explicit allowlist, bearer-only authentication, framing/MIME/referrer/CSP baseline headers |
 | Authentication and guest-write endpoints lacked general request throttling | Medium: brute force/resource abuse | Bounded process-local per-IP/per-route limits and Retry-After |
 | First-owner provisioning was public when no owner existed | High for a fresh deployment | Production setup requires private BOOTSTRAP_TOKEN of at least 32 characters |
@@ -24,8 +24,8 @@ Also fixed a pre-existing missing closing brace in `whatsappOrderUrl`, and added
 ## Verification
 
 - Initial isolated security probes: 8 failures reproduced out of 9 cases before remediation.
-- Final local full suite: 216 tests, 211 passed, 5 gated real-PostgreSQL E2E tests skipped locally. PGlite tests execute PostgreSQL SQL in-process; they do not replace the real PostgreSQL CI jobs.
-- Includes 19 dedicated security tests across HTTP, rendered event handlers and JavaScript syntax.
+- Final local full suite: 227 tests, 220 passed, 7 gated real-PostgreSQL E2E tests skipped locally. PGlite tests execute PostgreSQL SQL in-process; they do not replace the real PostgreSQL CI jobs.
+- Includes 20 dedicated security tests across HTTP, rendered event handlers and JavaScript syntax.
 - Tested account disable/demotion, privilege boundaries, password/session revocation, logout, forged JWTs, cross-customer order access/returns, server-side prices, cookie-only rejection, SQL-injection-shaped input, restricted Tripo access, settings/cost privacy, media validation, rate limits, production setup lock and browser headers.
 - npm audit on the resolved dependency tree: 0 known advisories reported. This does not cover unknown vulnerabilities or external frontend CDN assets.
 - Pattern scan of 47 tracked runtime/config/frontend files found no matching common private-key, GitHub-token, OpenAI-key or AWS-key patterns. This was not an exhaustive historical secret audit.

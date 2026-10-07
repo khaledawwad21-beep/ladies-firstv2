@@ -25,3 +25,14 @@ test('image sources reject executable protocols and attribute breakouts',()=>{
  for(const value of ['javascript:alert(1)','https://example.com/x" onerror="probe=1','data:text/html,test'])assert.equal(ctx.safeImg(value),'/safe.png');
  assert.equal(ctx.safeImg('https://example.com/product.png'),'https://example.com/product.png');
 });
+test('admin product objects cannot escape their edit-button attribute',async()=>{
+ const source=fs.readFileSync(path.join(root,'admin.js'),'utf8');
+ const start=source.indexOf('async function products()');const end=source.indexOf('\nfunction productForm',start);
+ const elements={'#sections':{innerHTML:''},'#pq':{value:''}};
+ const payload="x' onmouseover='globalThis.probe=1";
+ const product={id:1,name:payload,price:5,stock:1,is_active:true};
+ const ctx=vm.createContext({$:s=>elements[s],E:v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])),M:Number,
+  api:async route=>{assert.equal(route,'/api/admin/products');return {products:[product]}},table:(_,rows)=>rows,productForm:p=>assert.equal(p.name,payload)});
+ vm.runInContext(source.slice(start,end),ctx);await vm.runInContext('products()',ctx);
+ const handler=elements['#sections'].innerHTML.match(/onclick='([^']*)'/)[1];vm.runInContext(decode(handler),ctx);assert.equal(ctx.probe,undefined);
+});

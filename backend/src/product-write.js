@@ -41,6 +41,10 @@ async function taxonomy(client, table, id, name) {
   return result.rows[0].id;
 }
 function registerProductWrites(app, getProducts) {
+  app.get('/api/admin/products', requireAdmin, async (req, res, next) => {
+    try { res.json({ ok: true, products: await getProducts() }); }
+    catch (error) { next(error); }
+  });
   async function save(req, res, next) {
     try {
       const body = req.body || {};

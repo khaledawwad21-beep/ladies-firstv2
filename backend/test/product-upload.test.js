@@ -111,3 +111,17 @@ test('product video metadata rejects unsafe URLs and storefront renders supporte
   assert.match(app,/youtube\.com\/embed/);
   assert.match(app,/productVideos/);
 });
+
+
+test('large product images are compressed client-side before upload', () => {
+  const js=fs.readFileSync(require('node:path').join(__dirname,'../../frontend/admin-product-upload.js'),'utf8');
+  assert.match(js,/ADMIN_IMAGE_TARGET_BYTES\s*=\s*Math\.floor\(2\.5 \* 1024 \* 1024\)/);
+  assert.match(js,/ADMIN_IMAGE_MAX_DIMENSION\s*=\s*2400/);
+  assert.match(js,/function adminLoadImage\(/);
+  assert.match(js,/function adminCanvasBlob\(/);
+  assert.match(js,/async function adminPrepareProductImage\(/);
+  assert.match(js,/canvas\.toBlob/);
+  assert.match(js,/"image\/webp"/);
+  assert.match(js,/const data = await adminPrepareProductImage\(file\)/);
+  assert.doesNotMatch(js,/const data = await adminImageDataUrl\(file\);\s*const response = await fetch\("\/api\/admin\/uploads\/image"/);
+});

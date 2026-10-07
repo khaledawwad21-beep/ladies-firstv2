@@ -39,3 +39,13 @@ test("storefront has one authoritative waitlist implementation", () => {
   assert.doesNotMatch(app, /lfOldJoinWaitlist/);
   assert.doesNotMatch(app, /joinWaitlist\s*=\s*async function/);
 });
+
+
+test("CI executes isolated waitlist restock PostgreSQL E2E", () => {
+  const workflow = fs.readFileSync(
+    path.join(__dirname, "../../.github/workflows/production-regression.yml"),
+    "utf8"
+  );
+  assert.match(workflow, /Run isolated waitlist restock E2E/);
+  assert.match(workflow, /waitlist-e2e\.integration\.test\.js/);
+});
