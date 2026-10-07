@@ -8,7 +8,7 @@ if (process.env.RUN_DB_E2E !== "1") {
 } else {
   const { app, initDatabase } = require("../src/server");
   const { migrateDatabase } = require("../src/database-migrations");
-  const { closeDatabase } = require("../src/db");
+  const { closeDatabase, db } = require("../src/db");
 
   let server;
   let baseUrl;
@@ -147,4 +147,160 @@ if (process.env.RUN_DB_E2E !== "1") {
     const cancelledCustomerOrder = customerOrdersAfterCancel.orders.find(order => Number(order.id) === orderId);
     assert.equal(String(cancelledCustomerOrder.status).toLowerCase(), "cancelled");
   });
+
+  test("advanced checkout keeps coupon Visa loyalty packaging shipping and reports financially consistent", async () => {
+    const ownerLogin = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        contact: "owner-e2e@example.test",
+        password: "owner-password-123"
+      })
+    });
+    const ownerHeaders = { Authorization: "Bearer " + ownerLogin.token };
+
+    await api("/api/admin/settings", {
+      method: "PUT",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        visa_discount_percent: 10,
+        loyalty_enabled: true,
+        loyalty_redeem_enabled: true,
+        loyalty_point_value: 0.5,
+        loyalty_points_per_currency: 1,
+        loyalty_earning_mode: "amount",
+        shipping_fees: { westbank: 20, jerusalem: 35, inside: 70 },
+        shipping_discount_percentages: { westbank: 25, jerusalem: 0, inside: 0 },
+        packaging_options: [
+          { id: "clear-ribbon", nameAr: "تغليف شفاف", nameEn: "Clear wrapping", price: 5, active: true }
+        ]
+      })
+    });
+
+    await api("/api/admin/coupons", {
+      method: "POST",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        code: "ADV10",
+        discountType: "percent",
+        discountValue: 10,
+        minimumAmount: 100,
+        maxUses: 5
+      })
+    });
+
+    const product = await api("/api/admin/products", {
+      method: "POST",
+      headers: ownerHeaders,
+      body: JSON.stringify({
+        name: "CI Advanced Checkout Product",
+        description: "Advanced isolated checkout integration product",
+        price: 100,
+        cost_price: 40,
+        stock: 5,
+        images: ["https://example.com/ci-advanced-product.jpg"],
+        category: "CI Advanced Category",
+        brand: "CI Advanced Brand",
+        active: true
+      })
+    });
+    const productId = Number(product.product.id);
+
+    const customer = await api("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "CI Advanced Customer",
+        email: "advanced-customer-e2e@example.test",
+        password: "advanced-pass-123",
+        gender: "female",
+        age: 29
+      })
+    });
+    const customerId = Number(customer.user.id);
+    await db("UPDATE users SET loyalty_points=20 WHERE id=$1", [customerId]);
+    const customerHeaders = { Authorization: "Bearer " + customer.token };
+
+    const checkout = await api("/api/orders", {
+      method: "POST",
+      headers: customerHeaders,
+      body: JSON.stringify({
+        customerName: "CI Advanced Customer",
+        customerPhone: "+970599000002",
+        shippingAddress: "Nablus - advanced CI checkout",
+        shippingRegion: "westbank",
+        paymentMethod: "visa",
+        couponCode: "ADV10",
+        pointsToRedeem: 20,
+        items: [{
+          productId,
+          quantity: 2,
+          packagingId: "clear-ribbon"
+        }]
+      })
+    });
+
+    const orderId = Number(checkout.orderId || checkout.order?.id);
+    assert.ok(orderId > 0);
+
+    const adminOrder = await api(`/api/admin/orders/${orderId}`, { headers: ownerHeaders });
+    const order = adminOrder.order;
+    assert.equal(Number(order.subtotal), 200);
+    assert.equal(Number(order.coupon_discount), 20);
+    assert.equal(Number(order.visa_discount), 18);
+    assert.equal(Number(order.loyalty_discount), 10);
+    assert.equal(Number(order.points_redeemed), 20);
+    assert.equal(Number(order.shipping_base_cost), 20);
+    assert.equal(Number(order.shipping_discount_percent), 25);
+    assert.equal(Number(order.shipping_discount_amount), 5);
+    assert.equal(Number(order.shipping_cost), 15);
+    assert.equal(Number(order.packaging_cost), 10);
+    assert.equal(Number(order.total), 177);
+    assert.equal(String(order.payment_method), "visa");
+
+    const loyaltyAfterCheckout = await api("/api/loyalty", { headers: customerHeaders });
+    assert.equal(Number(loyaltyAfterCheckout.points), 152);
+    assert.ok(loyaltyAfterCheckout.transactions.some(tx => tx.transaction_type === "redeem" && Number(tx.points) === -20));
+    assert.ok(loyaltyAfterCheckout.transactions.some(tx => tx.transaction_type === "order_award" && Number(tx.points) === 152));
+
+    const reportDate = String(order.created_at).slice(0, 10);
+    const report = await api(`/api/admin/reports/sales?from=${reportDate}&to=${reportDate}`, { headers: ownerHeaders });
+    assert.equal(Number(report.summary.orders), 1);
+    assert.equal(Number(report.summary.sales), 162);
+    assert.equal(Number(report.summary.cost), 80);
+    assert.equal(Number(report.summary.profit), 82);
+
+    const customerOrders = await api("/api/orders", { headers: customerHeaders });
+    const customerOrder = customerOrders.orders.find(x => Number(x.id) === orderId);
+    assert.ok(customerOrder);
+    assert.equal(Number(customerOrder.total), 177);
+    assert.equal(Number(customerOrder.coupon_discount), 20);
+    assert.equal(Number(customerOrder.visa_discount), 18);
+    assert.equal(Number(customerOrder.loyalty_discount), 10);
+    assert.equal(Number(customerOrder.packaging_cost), 10);
+    assert.equal(Number(customerOrder.shipping_cost), 15);
+
+    await api(`/api/admin/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ status: "cancelled" })
+    });
+
+    const loyaltyAfterCancel = await api("/api/loyalty", { headers: customerHeaders });
+    assert.equal(Number(loyaltyAfterCancel.points), 20);
+    assert.ok(loyaltyAfterCancel.transactions.some(tx => tx.transaction_type === "redeem_refund" && Number(tx.points) === 20));
+    assert.ok(loyaltyAfterCancel.transactions.some(tx => tx.transaction_type === "order_reversal" && Number(tx.points) === -152));
+
+    const coupons = await api("/api/admin/coupons", { headers: ownerHeaders });
+    const coupon = coupons.coupons.find(x => String(x.code).toUpperCase() === "ADV10");
+    assert.equal(Number(coupon.used_count), 0);
+
+    const stockAfterCancel = await api(`/api/products/${productId}`);
+    assert.equal(Number(stockAfterCancel.product.stock), 5);
+
+    const reportAfterCancel = await api(`/api/admin/reports/sales?from=${reportDate}&to=${reportDate}`, { headers: ownerHeaders });
+    assert.equal(Number(reportAfterCancel.summary.orders), 0);
+    assert.equal(Number(reportAfterCancel.summary.sales), 0);
+    assert.equal(Number(reportAfterCancel.summary.cost), 0);
+    assert.equal(Number(reportAfterCancel.summary.profit), 0);
+  });
+
 }

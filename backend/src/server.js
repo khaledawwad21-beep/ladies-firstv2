@@ -5599,48 +5599,43 @@ app.get(
       const rows =
         await db(
           `
+          WITH order_days AS (
+            SELECT
+              DATE(created_at) AS date,
+              COUNT(*) FILTER (
+                WHERE status <> 'cancelled'
+              )::int AS orders,
+              COALESCE(
+                SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
+                  WHERE status <> 'cancelled'
+                ),
+                0
+              ) AS sales
+            FROM orders
+            WHERE created_at >= $1::date
+              AND created_at < ($2::date + INTERVAL '1 day')
+            GROUP BY DATE(created_at)
+          ),
+          cost_days AS (
+            SELECT
+              DATE(po.created_at) AS date,
+              COALESCE(SUM(oi.purchase_price * oi.quantity),0) AS cost
+            FROM order_items oi
+            JOIN orders po ON po.id = oi.order_id
+            WHERE po.status <> 'cancelled'
+              AND po.created_at >= $1::date
+              AND po.created_at < ($2::date + INTERVAL '1 day')
+            GROUP BY DATE(po.created_at)
+          )
           SELECT
-            DATE(created_at) AS date,
-            COUNT(*) FILTER (
-              WHERE status <> 'cancelled'
-            )::int AS orders,
-
-            COALESCE(
-              SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
-                WHERE status <> 'cancelled'
-              ),
-              0
-            ) AS sales,
-
-            COALESCE((
-              SELECT SUM(oi.purchase_price * oi.quantity)
-              FROM order_items oi
-              JOIN orders po ON po.id = oi.order_id
-              WHERE po.status <> 'cancelled'
-                AND DATE(po.created_at) = DATE(orders.created_at)
-            ),0) AS cost,
-
-            COALESCE(
-              SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
-                WHERE status <> 'cancelled'
-              ),0
-            ) - COALESCE((
-              SELECT SUM(oi.purchase_price * oi.quantity)
-              FROM order_items oi
-              JOIN orders po ON po.id = oi.order_id
-              WHERE po.status <> 'cancelled'
-                AND DATE(po.created_at) = DATE(orders.created_at)
-            ),0) AS profit
-
-          FROM orders
-
-          WHERE created_at >= $1::date
-            AND created_at <
-              ($2::date + INTERVAL '1 day')
-
-          GROUP BY DATE(created_at)
-
-          ORDER BY DATE(created_at)
+            od.date,
+            od.orders,
+            od.sales,
+            COALESCE(cd.cost,0) AS cost,
+            od.sales - COALESCE(cd.cost,0) AS profit
+          FROM order_days od
+          LEFT JOIN cost_days cd ON cd.date = od.date
+          ORDER BY od.date
           `,
           [
             from,
