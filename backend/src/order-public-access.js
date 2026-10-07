@@ -59,6 +59,11 @@ function safeOrder(order) {
     shipping: Number(order.shipping_cost ?? order.shipping ?? 0),
     shippingRegion: order.shipping_region || null,
     shippingWaived: Boolean(order.shipping_waived),
+    shippingBaseCost: Number(order.shipping_base_cost ?? order.shipping_cost ?? order.shipping ?? 0),
+    shippingAutoDiscountPercent: Number(order.shipping_discount_percent || 0),
+    shippingAutoDiscountAmount: Number(order.shipping_discount_amount || 0),
+    shippingManualDiscountPercent: Number(order.shipping_manual_discount_percent || 0),
+    shippingManualDiscountAmount: Number(order.shipping_manual_discount_amount || 0),
     packaging: Number(order.packaging_cost ?? order.packaging ?? 0),
     total: Number(order.total || 0),
     paymentMethod: order.payment_method || "cash",
@@ -76,7 +81,8 @@ function safeItem(item) {
     image: item.image || "",
     quantity: Number(item.quantity || 0),
     unitPrice: Number(item.unit_price || 0),
-    total: Number(item.total || 0)
+    total: Number(item.total || 0),
+    isGift: Boolean(item.is_gift)
   };
 }
 
@@ -141,6 +147,11 @@ function registerOrderPublicAccessRoutes(app, deps) {
           shipping_cost,
           shipping_region,
           shipping_waived,
+          shipping_base_cost,
+          shipping_discount_percent,
+          shipping_discount_amount,
+          shipping_manual_discount_percent,
+          shipping_manual_discount_amount,
           packaging,
           packaging_cost,
           total,
@@ -173,7 +184,8 @@ function registerOrderPublicAccessRoutes(app, deps) {
           image,
           quantity,
           unit_price,
-          total
+          total,
+          is_gift
         FROM order_items
         WHERE order_id = $1
         ORDER BY id
