@@ -44,6 +44,9 @@ test("staff announcement is versioned and read once per staff member",()=>{
   assert.match(admin,/openStaffChatFor/);
   assert.match(staffConversations,/staffChatComposerIsFocused/);
   assert.match(staffConversations,/staffChatDrafts/);
+  assert.match(staffConversations,/staffChatContextSearch/);
+  assert.match(staffConversations,/بحث مباشر/);
+  assert.match(staffConversations,/productNumber/);
   assert.match(staffConversations,/staffChatNewConversationDraft/);
   assert.match(staffConversations,/staffChatCaptureNewConversationDraft/);
 });
