@@ -244,16 +244,36 @@ async function cleanupRecovery(db) {
   `);
 }
 
+function recoveryPhoneCandidates(value) {
+  if (String(value || '').includes('@')) return [];
+  const normalized = normalizePhone(value);
+  const digits = String(normalized || '').replace(/\D/g, '');
+  const candidates = new Set(normalized ? [normalized] : []);
+  if (/^(?:\+?970|00970)(?:56|59)\d{7}$/.test(normalized)) {
+    const local = digits.startsWith('00970') ? '0' + digits.slice(5) : '0' + digits.slice(3);
+    candidates.add(local);
+    candidates.add('+970' + local.slice(1));
+  } else if (/^0(?:56|59)\d{7}$/.test(digits)) {
+    candidates.add('+970' + digits.slice(1));
+    candidates.add('970' + digits.slice(1));
+    candidates.add('00970' + digits.slice(1));
+  }
+  return [...candidates];
+}
+
 async function findUserForContact(db, contact) {
+  const isEmail = String(contact || '').includes('@');
+  const email = isEmail ? normalizeEmail(contact) : null;
+  const phones = isEmail ? [] : recoveryPhoneCandidates(contact);
   const result = await db(
     `
     SELECT id, name, email, phone, is_active
     FROM users
-    WHERE email = $1
-       OR phone = $1
+    WHERE ($1::text IS NOT NULL AND email = $1)
+       OR phone = ANY($2::text[])
     LIMIT 1
     `,
-    [contact]
+    [email, phones]
   );
   return result.rows[0] || null;
 }
@@ -601,6 +621,7 @@ module.exports = {
   hashRecoveryCode,
   safeCode,
   providerStatus,
+  recoveryPhoneCandidates,
   initPasswordRecovery,
   registerPasswordRecoveryRoutes
 };

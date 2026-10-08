@@ -22,6 +22,20 @@ test("staff announcement is versioned and read once per staff member",()=>{
   assert.match(admin,/acknowledgeStaffMessage/);
 });
 
+test("staff announcements reach active employee sessions and use employee-specific greeting copy",()=>{
+  assert.match(admin,/startStaffMessagePolling/);
+  assert.match(admin,/checkStaffGeneralMessage/);
+  assert.match(admin,/adminGender\(\)/);
+  assert.match(admin,/في فريق Ladies First/);
+});
+
+test("storefront announcement has a separate publish action and refreshes active visitors",()=>{
+  assert.match(admin,/publishStorefrontGeneralMessage/);
+  assert.match(admin,/لم يتم تأكيد حفظ الرسالة/);
+  assert.match(app,/refreshStorefrontAnnouncement/);
+  assert.match(app,/setInterval\(refreshStorefrontAnnouncement,60000\)/);
+});
+
 test("storefront public announcement is exposed through safe public settings",()=>{
   assert.match(security,/storefront_general_message/);
   assert.match(admin,/storefrontMessageEnabled/);

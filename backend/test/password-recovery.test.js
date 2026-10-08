@@ -20,6 +20,12 @@ test("password recovery normalizes contact and validates 6-digit codes", () => {
   assert.throws(() => recovery.safeCode("12345"), /6 أرقام/);
 });
 
+test("recovery matches Palestinian phone numbers in local and international formats", () => {
+  assert.ok(recovery.recoveryPhoneCandidates("+970599123456").includes("0599123456"));
+  assert.ok(recovery.recoveryPhoneCandidates("0599123456").includes("+970599123456"));
+  assert.deepEqual(recovery.recoveryPhoneCandidates("user@example.com"), []);
+});
+
 test("recovery codes are one-way hashed with the configured secret", () => {
   const previous = process.env.PASSWORD_RECOVERY_SECRET;
   process.env.PASSWORD_RECOVERY_SECRET = "test-recovery-secret";
