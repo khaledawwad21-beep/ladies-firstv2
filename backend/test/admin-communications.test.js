@@ -16,12 +16,15 @@ const indexHtml=fs.readFileSync(path.join(__dirname,"../../frontend/index.html")
 
 test("staff announcement is versioned and read once per staff member",()=>{
   assert.match(staffMessages,/staff_message_seen_version/);
+  assert.match(staffMessages,/staff_general_message_reads/);
+  assert.match(staffMessages,/staff_general_message_history/);
   assert.match(staffMessages,/crypto\.randomUUID\(\)/);
   assert.match(staffMessages,/\/api\/staff-message/);
   assert.match(staffMessages,/\/api\/staff-message\/read/);
   assert.match(staffMessages,/\/api\/admin\/settings\/staff-message/);
   assert.match(admin,/checkStaffGeneralMessage/);
   assert.match(admin,/acknowledgeStaffMessage/);
+  assert.match(admin,/سجل الرسائل السابقة/);
 });
 
 test("staff announcements reach active employee sessions and use employee-specific greeting copy",()=>{
@@ -39,7 +42,7 @@ test("storefront announcement has a separate publish action and refreshes active
 });
 
 test("changed message scripts use fresh cache versions",()=>{
-  assert.match(adminHtml,/admin\.js\?v=20261008-5/);
+  assert.match(adminHtml,/admin\.js\?v=20261008-6/);
   assert.match(indexHtml,/app\.js\?v=20261009-3/);
 });
 
@@ -59,3 +62,4 @@ test("maintenance mode blocks checkout on backend and renders a blocking storefr
   assert.match(app,/maintenanceOverlay/);
   assert.match(storeCss,/\.maintenanceOverlay/);
 });
+
