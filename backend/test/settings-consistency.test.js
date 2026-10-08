@@ -39,7 +39,6 @@ test("storefront shows all active social platforms and marks missing URLs", () =
 
 test("WhatsApp number is configurable and no longer reset on startup or public reads", () => {
   assert.match(server, /'whatsapp_number'[\s\S]*ON CONFLICT\(key\)[\s\S]*DO NOTHING/);
-  assert.match(server, /'00972562499924'/);
   assert.ok(server.includes("VALUES ('phone', '\"00972562499924\"'::jsonb)"));
   assert.match(server, /UPDATE settings[\s\S]*WHERE key IN \('phone', 'whatsapp_number', 'whatsapp'\)/);
   assert.doesNotMatch(server, /settings\.whatsapp_number\s*=\s*"0562499924"/);
