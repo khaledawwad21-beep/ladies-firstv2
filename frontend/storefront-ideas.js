@@ -51,7 +51,7 @@
       if (action.dataset.ideaAction === "watch") showPairing(action.dataset.id || "");
       if (action.dataset.ideaAction === "product") {
         const id = action.dataset.id;
-        if (id && typeof window.openProduct === "function") window.openProduct(id);
+        if (id && typeof window.openProduct === "function") { close(); window.openProduct(id); }
       }
     });
     document.addEventListener("keydown", e => { if (e.key === "Escape" && modal && modal.getAttribute("aria-hidden") === "false") close(); });
