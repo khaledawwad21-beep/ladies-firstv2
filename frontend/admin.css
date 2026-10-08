@@ -74,6 +74,7 @@ input[type="date"]{cursor:pointer}
 .invoiceBrand{display:flex;align-items:center;gap:10px}
 .invoiceLogo{width:58px;height:58px;object-fit:contain}
 .invoiceCustomer{line-height:1.55;margin:7px 0 9px}
+.invoiceThankYou{margin:10px 0 8px;padding:8px 12px;border:1px solid #ead3df;border-radius:10px;background:#fff8fb;color:#713d58;text-align:center;font-size:12px;font-weight:700;line-height:1.5}
 .invoiceTotals.compact{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px;margin-top:7px}
 .invoiceGrandTotal{grid-column:1/-1;font-size:14px}
 @media print{
@@ -85,6 +86,7 @@ input[type="date"]{cursor:pointer}
   .print .printhead{padding-bottom:5px;margin-bottom:5px}
   .print .invoiceLogo{width:48px;height:48px}
   .print .invoiceCustomer{margin:4px 0 6px;line-height:1.35}
+  .print .invoiceThankYou{margin:5px 0;padding:5px 8px;font-size:10px}
   .print .table th,.print .table td{padding:4px 5px;font-size:10px}
   .print .invoiceTotals.compact{gap:2px 10px;margin-top:5px}
   .print .qrrow{gap:24px;margin-top:7px}

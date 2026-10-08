@@ -631,6 +631,25 @@ async function toggleOrderShipping(id,waived){
   if(!confirm(msg))return;
   try{await api('/api/admin/orders/'+id+'/shipping-waiver',{method:'PATCH',body:JSON.stringify({waived:!!waived})});toast(waived?'تم إعفاء الطلب من التوصيل':'تمت إعادة رسوم التوصيل');await openOrderDetails(id);await orders()}catch(e){alert(e.message||'تعذر تعديل رسوم التوصيل')}
 }
+const INVOICE_THANK_YOU_PHRASES=[
+  "شكرًا لثقتكِ بنا، نتمنى لكِ لحظات جميلة مع اختياركِ 🌷",
+  "اختياركِ أسعدنا، ونتمنى أن تعودي إلينا دائمًا 💕",
+  "من القلب شكرًا لكِ، استمتعي بتفاصيلكِ الجميلة ✨",
+  "طلبكِ وصل بكل حب، نتمنى أن يضيف يومًا جميلًا ليومكِ 🌸",
+  "سعادتكِ هي أجمل ما في طلبكِ، شكرًا لاختياركِ لنا 💝",
+  "كل قطعة تحمل لمسة جمال، نتمنى أن تحبي اختياركِ 🌹",
+  "شكرًا لأنكِ جزء من حكايتنا، ننتظركِ دائمًا بكل حب 💗",
+  "تستحقين كل ما هو جميل، شكرًا لثقتكِ بنا 🌼",
+  "نتمنى أن يكون طلبكِ بداية لمزيد من اللحظات الحلوة 💐",
+  "اختيار جميل من ذوق جميل، شكرًا لكِ 💖",
+  "أرسلنا طلبكِ بمحبة، ونتمنى أن يصلكِ الفرح معه 🎀",
+  "شكرًا لزيارتكِ متجرنا، نرجو أن نكون دائمًا عند حسن ظنكِ 🌷"
+];
+function invoiceThankYouPhrase(orderId){
+  const id=Math.abs(Number(orderId)||0);
+  return INVOICE_THANK_YOU_PHRASES[id%INVOICE_THANK_YOU_PHRASES.length];
+}
+
 async function invoice(id){
   const [d,publicLink,settingsData]=await Promise.all([
     api('/api/admin/orders/'+id),
@@ -643,6 +662,7 @@ async function invoice(id){
   const region={westbank:'الضفة',jerusalem:'القدس',inside:'الداخل'}[String(o.shipping_region||'').toLowerCase()]||o.shipping_region||'-';
   const shipping=o.shipping_waived?'معفى':M(o.shipping_cost||0)+' ₪';
   const storeName=String(settings.store_name||'Ladies First');
+  const thankYouPhrase=invoiceThankYouPhrase(id);
   const logo=safeMediaUrl(settings.store_logo||'');
   const autoAmount=Math.max(0,Number(o.shipping_discount_amount||0)||0);
   const manualAmount=Math.max(0,Number(o.shipping_manual_discount_amount||0)||0);
@@ -656,6 +676,7 @@ async function invoice(id){
     </div>
     <div class="invoiceCustomer">العميل: ${E(o.user_name||o.customer_name||'-')} — الهاتف: ${E(o.user_phone||o.customer_phone||'-')}<br>البريد: ${E(o.user_email||'-')} — منطقة التوصيل: ${E(region)} — طريقة الدفع: ${E(payment)}<br>العنوان: ${E(o.shipping_address||'-')}</div>
     ${table(['المنتج','الخيار','الكمية','السعر','الإجمالي'],items.map(i=>`<tr class="${i.is_gift?'gift-order-row':''}"><td>${i.is_gift?'🎁 هدية — ':''}${E(i.product_name||'-')}</td><td>${E(i.variant_name||'-')}</td><td>${i.quantity}</td><td>${i.is_gift?'0.00':M(i.unit_price)}</td><td>${i.is_gift?'0.00':M(i.total)}</td></tr>`))}
+    <div class="invoiceThankYou">${E(thankYouPhrase)}</div>
     <div class="invoiceTotals compact">
       <span>المجموع الفرعي: <b>${M(o.subtotal||0)} ₪</b></span>
       <span>خصم الكوبون${o.coupon_code?' ('+E(o.coupon_code)+')':''}: <b>-${M(o.coupon_discount||0)} ₪</b></span>
