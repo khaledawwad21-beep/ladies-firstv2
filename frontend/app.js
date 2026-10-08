@@ -1054,8 +1054,8 @@ function nayaExplicitGiftRequest(q){
 }
 function nayaExplicitSelfRecommendation(q){
   const text=String(q||'').toLowerCase();
-  const asksForAdvice=/(اقترح|اقتراح|تنصح|ترشيح|تجميعة|مجموعة|عطر|عطور|مكياج|اكسسوار|شنطة|منتج|يناسبني|بناسبني)/.test(text);
-  const forSelf=/(لنفسي|نفسي|الي|إلي|يناسبني|بناسبني|ذوقي|لاستخدامي|لي أنا|إلي أنا)/.test(text);
+  const asksForAdvice=/(اقترح|اقتراح|تنصح|ترشيح|تجميعة|مجموعة|عطر|عطور|مكياج|اكسسوار|شنطة|منتج|يناسبني|تناسبني|بناسبني)/.test(text);
+  const forSelf=/(لنفسي|نفسي|الي|إلي|يناسبني|تناسبني|بناسبني|ذوقي|لاستخدامي|لي أنا|إلي أنا)/.test(text);
   const giftHistory=nayaAiHistory.filter(x=>x.role==='user').slice(-4).map(x=>x.content).join(' ');
   return asksForAdvice&&forSelf&&!nayaExplicitGiftRequest(q)&&!nayaExplicitGiftRequest(giftHistory);
 }
