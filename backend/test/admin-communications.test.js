@@ -9,6 +9,7 @@ const server=fs.readFileSync(path.join(__dirname,"../src/server.js"),"utf8");
 const security=fs.readFileSync(path.join(__dirname,"../src/security-policy.js"),"utf8");
 const staffMessages=fs.readFileSync(path.join(__dirname,"../src/staff-messages.js"),"utf8");
 const admin=fs.readFileSync(path.join(__dirname,"../../frontend/admin.js"),"utf8");
+const staffConversations=fs.readFileSync(path.join(__dirname,"../../frontend/admin-conversations.js"),"utf8");
 const app=fs.readFileSync(path.join(__dirname,"../../frontend/app.js"),"utf8");
 const storeCss=fs.readFileSync(path.join(__dirname,"../../frontend/store-premium.css"),"utf8");
 const adminHtml=fs.readFileSync(path.join(__dirname,"../../frontend/admin.html"),"utf8");
@@ -28,6 +29,8 @@ test("staff announcement is versioned and read once per staff member",()=>{
   assert.match(admin,/data-message-version/);
   assert.match(admin,/سجل الرسائل السابقة/);
   assert.match(admin,/openStaffChatFor/);
+  assert.match(staffConversations,/staffChatComposerIsFocused/);
+  assert.match(staffConversations,/staffChatDrafts/);
 });
 
 test("staff announcements reach active employee sessions and use employee-specific greeting copy",()=>{
@@ -46,7 +49,7 @@ test("storefront announcement has a separate publish action and refreshes active
 
 test("changed message scripts use fresh cache versions",()=>{
   assert.match(adminHtml,/admin\.js\?v=20261008-8/);
-  assert.match(adminHtml,/admin-conversations\.js\?v=20261008-1/);
+  assert.match(adminHtml,/admin-conversations\.js\?v=20261008-2/);
   assert.match(adminHtml,/data-s="messages"/);
   assert.match(indexHtml,/app\.js\?v=20261009-4/);
 });
