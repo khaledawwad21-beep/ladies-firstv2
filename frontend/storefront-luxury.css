@@ -439,3 +439,39 @@ html.lf-image-zoom-open,body.lf-image-zoom-open{overflow:hidden!important;oversc
   .actions{gap:3px!important}
   .actions .iconbtn{width:32px!important;height:32px!important;flex-basis:32px!important}
 }
+
+/* Store branding: consistent mobile header, editable subtitle and tappable logo zoom. */
+.logoZoomTrigger{display:grid;place-items:center;flex:0 0 auto;width:48px;height:48px;padding:0;border:1px solid var(--lf-line);border-radius:50%;background:#fff;box-shadow:0 3px 11px rgba(67,38,63,.06);cursor:zoom-in}
+.logoZoomTrigger:focus-visible{outline:2px solid var(--lf-plum);outline-offset:3px}
+.logoZoomTrigger .logo{display:block;width:38px!important;height:38px!important;object-fit:contain}
+.storeLogoZoom{position:fixed;inset:0;z-index:20000;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(35,20,33,.68);backdrop-filter:blur(8px)}
+.storeLogoZoom.open{display:flex}
+.storeLogoZoom__dialog{position:relative;display:grid;place-items:center;max-width:min(88vw,640px);max-height:88vh;padding:clamp(16px,4vw,30px);border:1px solid rgba(255,255,255,.75);border-radius:26px;background:#fffdfb;box-shadow:0 24px 70px rgba(20,10,20,.32)}
+.storeLogoZoom__dialog img{display:block;width:min(68vw,460px);height:min(68vw,460px);max-width:74vw;max-height:74vh;object-fit:contain;border-radius:18px}
+.storeLogoZoom__close{position:absolute;top:-13px;inset-inline-end:-13px;z-index:1;display:grid;place-items:center;width:42px;height:42px;border:1px solid var(--lf-line);border-radius:50%;background:#fff;color:var(--lf-plum);font-size:30px;line-height:1;box-shadow:0 5px 18px rgba(35,20,33,.18);cursor:pointer}
+body.store-logo-zoom-open{overflow:hidden}
+@media(max-width:760px){
+  .nav{grid-template-columns:40px minmax(0,1fr) 120px!important;grid-template-areas:"menu brand actions"!important;column-gap:7px!important;row-gap:0!important;min-height:72px!important;padding:7px 12px!important}
+  .menuBtn{justify-self:center!important;width:36px!important;height:36px!important}
+  .brandLockup{justify-content:center!important;gap:7px!important;min-width:0!important}
+  .brand{min-width:0!important;max-width:100%;text-align:center!important}
+  .brand b{display:block;white-space:nowrap!important;font-size:clamp(17px,4.8vw,22px)!important;line-height:1.05}
+  .brand small{display:block!important;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(6px,1.8vw,8px)!important;letter-spacing:1px!important;line-height:1.2}
+  .logoZoomTrigger{width:40px;height:40px}
+  .logoZoomTrigger .logo{width:32px!important;height:32px!important}
+  .actions{justify-self:start!important;gap:5px!important;min-width:0!important}
+  .actions .iconbtn{width:34px!important;height:34px!important;flex:0 0 34px!important;font-size:13px!important}
+  .headerSearch{padding:0 12px 10px}
+  .storeLogoZoom__dialog img{width:min(76vw,420px);height:min(76vw,420px);max-height:70vh}
+}
+@media(max-width:380px){
+  .nav{grid-template-columns:36px minmax(0,1fr) 108px!important;column-gap:5px!important;padding-inline:9px!important}
+  .menuBtn{width:34px!important;height:34px!important}
+  .brandLockup{gap:4px!important}
+  .brand b{font-size:clamp(15px,4.8vw,18px)!important}
+  .brand small{font-size:6px!important;letter-spacing:.6px!important}
+  .logoZoomTrigger{width:36px;height:36px}
+  .logoZoomTrigger .logo{width:29px!important;height:29px!important}
+  .actions{gap:3px!important}
+  .actions .iconbtn{width:32px!important;height:32px!important;flex-basis:32px!important}
+}
