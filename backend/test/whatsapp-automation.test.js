@@ -12,6 +12,7 @@ const {
 
 test("WhatsApp recipient normalization keeps digits only", () => {
   assert.equal(normalizeRecipient("+970 56-249-9924"), "970562499924");
+  assert.equal(normalizeRecipient("00972562499924"), "972562499924");
   assert.equal(normalizeRecipient("123"), "");
 });
 
