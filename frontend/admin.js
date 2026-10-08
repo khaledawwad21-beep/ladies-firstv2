@@ -191,9 +191,10 @@ function applyAdminPermissions(){navs.forEach(n=>n.hidden=!canAdminSection(n.dat
 function permissionChecks(selected=[]){const set=new Set(Array.isArray(selected)?selected:[]);return Object.entries(permissionLabels).map(([key,label])=>`<label style="display:flex;gap:8px;align-items:center;padding:8px;border:1px solid #eadce3;border-radius:10px"><input type="checkbox" class="staffPerm" value="${key}" ${set.has(key)?'checked':''}> ${label}</label>`).join('')}
 function selectedStaffPermissions(){return [...document.querySelectorAll('.staffPerm:checked')].map(x=>x.value)}
 function staffPermissionText(x){if(x.role==='owner')return 'كامل — Owner';if(x.role==='admin')return 'كامل — Admin';const p=Array.isArray(x.permissions)?x.permissions:[];return p.length?p.map(k=>permissionLabels[k]||k).join('، '):'بدون صلاحيات'}
-const navs=[...document.querySelectorAll('.nav')];navs.forEach(n=>n.onclick=()=>{if(!canAdminSection(n.dataset.s))return toast('ليس لديك صلاحية لهذا القسم');sec=n.dataset.s;navs.forEach(x=>x.classList.toggle('active',x===n));$('#title').textContent=titles[sec];load()});
+const navs=[...document.querySelectorAll('.nav')];navs.forEach(n=>n.onclick=()=>{if(!canAdminSection(n.dataset.s))return toast('ليس لديك صلاحية لهذا القسم');adminCatalogProductFilter=null;sec=n.dataset.s;navs.forEach(x=>x.classList.toggle('active',x===n));$('#title').textContent=titles[sec];load()});
 function openAdminSection(section){
   if(!canAdminSection(section))return toast('ليس لديك صلاحية لهذا القسم');
+  adminCatalogProductFilter=null;
   sec=section;
   navs.forEach(x=>x.classList.toggle('active',x.dataset.s===sec));
   $('#title').textContent=titles[sec];
@@ -301,13 +302,31 @@ async function saveUser(id){
 }
 let adminProductsCache=[];
 let adminProductCategories=[];
+let adminCatalogProductFilter=null;
+function catalogProductMatches(p,filter=adminCatalogProductFilter){
+  if(!filter)return true;
+  const id=filter.kind==='category'?(p.categoryId??p.category_id):(p.brandId??p.brand_id);
+  return String(id)===String(filter.id);
+}
+async function openCatalogProducts(kind,id){
+  if(!canAdminSection('products'))return toast('ليس لديك صلاحية عرض المنتجات');
+  const item=(kind==='category'?adminCategoryCache:adminBrandCache).find(x=>String(x.id)===String(id));
+  if(!item)return;
+  adminCatalogProductFilter={kind,id:item.id,name:item.name};
+  sec='products';
+  navs.forEach(x=>x.classList.toggle('active',x.dataset.s===sec));
+  $('#title').textContent='منتجات '+item.name;
+  try{await products();$('#sections').scrollIntoView({behavior:'smooth',block:'start'})}catch(e){toast(e.message)}
+}
+function clearCatalogProductFilter(){adminCatalogProductFilter=null;$('#title').textContent=titles.products;return products()}
+
 function renderProductRows(){
   const box=$('#productRows');if(!box)return;
   const q=String($('#pq')?.value||'').trim().toLowerCase();
-  const list=adminProductsCache.filter(p=>!q||[p.name,p.sku,p.barcode,p.productNumber,p.product_number,p.brand,p.category].filter(Boolean).join(' ').toLowerCase().includes(q));
+  const list=adminProductsCache.filter(p=>catalogProductMatches(p)).filter(p=>!q||[p.name,p.sku,p.barcode,p.productNumber,p.product_number,p.brand,p.category].filter(Boolean).join(' ').toLowerCase().includes(q));
   box.innerHTML=table(['المنتج','رقم المنتج','الباركود','السعر','المخزون','الحالة',''],list.map(p=>`<tr><td>${E(p.name)}</td><td>${E(p.productNumber||p.product_number||'-')}</td><td>${E(p.barcode||'-')}</td><td>${M(p.price)}</td><td>${p.stock??0}</td><td>${(p.isActive!==false&&p.is_active!==false)?'فعال':'متوقف'}</td><td><button class="btn" onclick='productForm(${E(JSON.stringify(p))})'>تعديل</button></td></tr>`));
 }
-async function products(){const[d,c]=await Promise.all([api('/api/admin/products'),api('/api/categories')]);adminProductsCache=d.products||[];adminProductCategories=c.categories||[];$('#sections').innerHTML=`<div class="card"><h2>المنتجات</h2><div class="toolbar"><input id="pq" class="field" placeholder="بحث مباشر بالاسم أو رقم المنتج أو الباركود أو SKU أو البراند أو الفئة" oninput="renderProductRows()"><button class="btn" onclick="productForm()">+ منتج جديد</button></div><div id="productRows"></div></div>`;renderProductRows()}
+async function products(){const[d,c]=await Promise.all([api('/api/admin/products'),api('/api/categories')]);adminProductsCache=d.products||[];adminProductCategories=c.categories||[];$('#sections').innerHTML=`<div class="card"><h2>${adminCatalogProductFilter?'منتجات '+E(adminCatalogProductFilter.name):'المنتجات'}</h2>${adminCatalogProductFilter?'<div class="toolbar"><button class="btn" onclick="openAdminSection(&quot;catalog&quot;)">الرجوع للفئات والبراندات</button><button class="btn" onclick="clearCatalogProductFilter()">كل المنتجات</button></div>':''}<div class="toolbar"><input id="pq" class="field" placeholder="بحث مباشر بالاسم أو رقم المنتج أو الباركود أو SKU أو البراند أو الفئة" oninput="renderProductRows()"><button class="btn" onclick="productForm()">+ منتج جديد</button></div><div id="productRows"></div></div>`;renderProductRows()}
 function productForm(p={}){const selectedCategory=Number(p.categoryId??p.category_id)||0;const categoryOptions=`<option value="">اختيار الفئة</option>${adminProductCategories.map(c=>`<option value="${Number(c.id)}" ${Number(c.id)===selectedCategory?'selected':''}>${E(c.name)} — فئة ${Number(c.id)}</option>`).join('')}`;modal(p.id?'تعديل المنتج':'منتج جديد',`<div class="formgrid"><input id="pn" class="field" value="${E(p.name||'')}" placeholder="اسم المنتج"><label class="full">الفئة<select id="pc" class="field">${categoryOptions}</select></label><input id="pbarcode" class="field" value="${E(p.barcode||'')}" placeholder="الباركود (اختياري — يجب ألا يتكرر)"><label class="field">رقم المنتج<input class="field" readonly value="${E(p.productNumber||p.product_number||'')}" placeholder="يُنشأ تلقائيًا بعد الحفظ"></label><input id="pp" class="field" type="number" step=".01" value="${p.price??''}" placeholder="السعر"><input id="po" class="field" type="number" step=".01" value="${p.old_price??''}" placeholder="السعر القديم"><input id="ps" class="field" type="number" value="${p.stock??0}" placeholder="المخزون"><input id="pi" class="field full" value="${E(p.image_url||p.imageUrl||'')}" placeholder="رابط الصورة"><textarea id="pd" class="field full" rows="5" placeholder="الوصف">${E(p.description||'')}</textarea><div class="full">رقم المنتج يتكون من رقم الفئة وتسلسله داخلها، مثل 1-1 ثم 1-2.</div></div><div class="actions"><button class="btn primary" onclick="saveProduct(${p.id||0})">حفظ</button>${p.id?`<button class="btn" type="button" onclick="openStaffChatFor('product',${Number(p.id)})">💬 ملاحظة داخلية</button>`:''}</div>`)}
 async function saveProduct(id){const categoryId=Number($('#pc').value);if(!categoryId){toast('اختاري فئة المنتج');return}const b={name:$('#pn').value,categoryId,barcode:$('#pbarcode').value,price:Number($('#pp').value),oldPrice:$('#po').value?Number($('#po').value):null,stock:Number($('#ps').value),imageUrl:$('#pi').value,description:$('#pd').value};await api(id?'/api/admin/products/'+id:'/api/admin/products',{method:id?'PUT':'POST',body:JSON.stringify(b)});closeModal();toast('تم حفظ المنتج');products()}
 let adminInventoryCache=[],adminInventoryVariants=[],adminInventoryEditVariants=[];
@@ -786,8 +805,8 @@ function renderCatalogRows(){
   const cq=String($('#categorySearch')?.value||'').trim().toLowerCase();
   const bq=String($('#brandSearch')?.value||'').trim().toLowerCase();
   const cbox=$('#categoryRows'),bbox=$('#brandRows');
-  if(cbox)cbox.innerHTML=table(['الاسم'],adminCategoryCache.filter(x=>!cq||String(x.name||'').toLowerCase().includes(cq)).map(x=>`<tr><td>${E(x.name)}</td></tr>`));
-  if(bbox)bbox.innerHTML=table(['الاسم'],adminBrandCache.filter(x=>!bq||String(x.name||'').toLowerCase().includes(bq)).map(x=>`<tr><td>${E(x.name)}</td></tr>`));
+  if(cbox)cbox.innerHTML=table(['الاسم'],adminCategoryCache.filter(x=>!cq||String(x.name||'').toLowerCase().includes(cq)).map(x=>`<tr><td><button type="button" class="catalog-product-link" onclick="openCatalogProducts('category',${Number(x.id)})">${E(x.name)}</button></td></tr>`));
+  if(bbox)bbox.innerHTML=table(['الاسم'],adminBrandCache.filter(x=>!bq||String(x.name||'').toLowerCase().includes(bq)).map(x=>`<tr><td><button type="button" class="catalog-product-link" onclick="openCatalogProducts('brand',${Number(x.id)})">${E(x.name)}</button></td></tr>`));
 }
 async function catalog(){
   const[c,b]=await Promise.all([api('/api/categories'),api('/api/brands')]);

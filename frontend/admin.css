@@ -202,3 +202,8 @@ input[type="date"]{cursor:pointer}
 #categoryRows tr,#brandRows tr{display:block;border:1px solid var(--line);border-radius:9px;background:#faf6f9}
 #categoryRows td,#brandRows td{display:flex;align-items:center;justify-content:center;min-height:36px;padding:6px 9px!important;border:0;font-size:13px;overflow-wrap:anywhere;text-align:center}
 @media(max-width:360px){#categoryRows tbody,#brandRows tbody{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+#categoryRows td,#brandRows td{padding:0!important}
+.catalog-product-link{display:block;width:100%;min-height:36px;padding:6px 9px;border:0;border-radius:9px;background:transparent;color:inherit;font:inherit;cursor:pointer;overflow-wrap:anywhere}
+.catalog-product-link:hover{background:#efe2ed}
+.catalog-product-link:focus-visible{outline:2px solid var(--primary,#64365f);outline-offset:2px}
