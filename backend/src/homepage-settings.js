@@ -23,6 +23,10 @@ function socialUrl(value) {
 
 function validateHomepageSettings(incoming) {
   const result = {...incoming};
+  if (Object.hasOwn(incoming, 'store_description')) {
+    if (typeof incoming.store_description !== 'string' || incoming.store_description.length > 80) invalid('النص أسفل اسم المتجر طويل أو غير صالح');
+    result.store_description = incoming.store_description.trim();
+  }
   if (Object.hasOwn(incoming, 'hero_slides')) {
     if (!Array.isArray(incoming.hero_slides) || incoming.hero_slides.length > 12) invalid('الحد الأقصى 12 صورة للسلايدر');
     result.hero_slides = incoming.hero_slides.map((slide, index) => {
