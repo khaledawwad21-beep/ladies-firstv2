@@ -382,7 +382,7 @@ async function openOrderDetails(id){
   const manualPct=Math.max(0,Number(o.shipping_manual_discount_percent||0)||0);
   const manualAmount=Math.max(0,Number(o.shipping_manual_discount_amount||0)||0);
   modal('إدارة الطلب #'+id,`<div class="formgrid">
-    <div class="full notice"><b>${E(o.user_name||o.customer_name||'-')}</b> — ${E(o.user_phone||o.customer_phone||'-')}<br>${E(o.shipping_address||'-')}<br>الدفع: ${E(payment)} — التوصيل: ${E(orderRegionLabel(o.shipping_region))}</div>
+    <div class="full notice"><b>حساب المستخدم:</b> ${E(o.user_name||'طلب ضيف')}${o.user_email?' — '+E(o.user_email):''}${o.user_phone?' — '+E(o.user_phone):''}<br><b>بيانات الاستلام بالطلب:</b> ${E(o.customer_name||'-')} — ${E(o.customer_phone||'-')}<br>${E(o.shipping_address||'-')}<br>الدفع: ${E(payment)} — التوصيل: ${E(orderRegionLabel(o.shipping_region))}</div>${Array.isArray(o.status_history)&&o.status_history.length?`<div class="full notice"><b>سجل الحالات:</b><br>${o.status_history.map(h=>E(orderStatusLabel(h.status))+' — '+E(new Date(h.changed_at).toLocaleString('ar-PS'))).join('<br>')}</div>`:''}
     <label>حالة الطلب<select id="orderStatusEdit" class="field" data-saved-status="${E(o.status||'')}" onchange="handleOrderStatusSelect(${Number(id)})" ${cancelled?'disabled':''}>${orderStatusOptions(o.status)}</select></label>
     <div id="orderCancellationFields" class="full cancellation-fields" ${String(o.status||'').toLowerCase()==='cancelled'?'':'hidden'}>
       <div class="formgrid">
@@ -540,7 +540,7 @@ async function handleOrderStatusSelect(id){
   const select=$('#orderStatusEdit');
   if(!select)return;
   toggleCancellationFields();
-  if(select.value!=='delivered')return;
+  if(select.value==='cancelled'||select.value===String(select.dataset.savedStatus||''))return;
   select.disabled=true;
   try{await saveOrderStatus(id)}
   finally{if(select.isConnected)select.disabled=false}
@@ -562,12 +562,8 @@ async function saveOrderStatus(id){
     const d=await api('/api/admin/orders/'+id+'/status',{method:'PATCH',body:JSON.stringify({status,cancelSource,cancellationReason})});
     if(d.autoBlockedCustomer){
       alert('تم إلغاء الطلب، ووصل الزبون إلى حد الإلغاءات المحدد لذلك تم منعه تلقائيًا من الطلب.');
-    }else if(status==='delivered'){
-      if(d.customerAccountLinkedNow)toast('تم تسليم الطلب #'+id+' وربطه بحساب الزبون');
-      else if(d.customerAccountLinked)toast('تم تسجيل الطلب #'+id+' كتم التسليم');
-      else toast('تم تسجيل الطلب #'+id+' كتم التسليم، لكن لم نجد حسابًا واحدًا مطابقًا لرقم هاتف الطلب');
     }else{
-      toast('تم تحديث حالة الطلب');
+      toast(status==='delivered'?'تم تسجيل التسليم وإضافته إلى سجل تتبع الطلب':'تم تحديث الحالة وإضافتها إلى سجل تتبع الطلب');
     }
     closeModal();
     await orders();
