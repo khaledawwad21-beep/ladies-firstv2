@@ -408,6 +408,7 @@ html.lf-image-zoom-open,body.lf-image-zoom-open{overflow:hidden!important;oversc
 /* Campaign hero controls: keep uploaded images visible, honor background alpha and position sliders. */
 .heroSlider .heroLogoLayer{display:block!important}
 .heroSlider .heroText[hidden]{display:none!important}
+.heroSlider .heroCard.logo-only:after{background:transparent!important}
 .heroSlider .heroText{background:var(--hero-text-bg,rgba(67,38,63,.58))!important;left:clamp(24%,var(--hero-text-x,70%),76%)!important;right:auto!important;top:clamp(12%,var(--hero-text-y,70%),88%)!important;bottom:auto!important;transform:translate(-50%,-50%)!important}
 @media(max-width:700px){.heroSlider .heroText{left:clamp(38%,var(--hero-text-x,50%),62%)!important;top:clamp(24%,var(--hero-text-y,70%),76%)!important;right:auto!important;bottom:auto!important;transform:translate(-50%,-50%)!important;max-width:76%!important;width:auto!important}}
 

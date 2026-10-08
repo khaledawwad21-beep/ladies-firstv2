@@ -748,7 +748,7 @@ function renderHeroSlider(fade=true){
   const s=slides[heroIndex];
   const title=document.getElementById('heroTitle'),desc=document.getElementById('heroDesc'),cta=document.getElementById('heroCta');
   if(title)title.textContent=s.title;if(desc)desc.textContent=s.desc;if(cta)cta.textContent=currentLang==='en'?'Shop now':'تسوقي الآن';
-  const textPanel=document.querySelector('.heroSlider .heroText');if(textPanel)textPanel.hidden=!!s.hideText;
+  const heroCard=document.querySelector('.heroSlider .heroCard');if(heroCard)heroCard.classList.toggle('logo-only',!!s.hideText);const textPanel=document.querySelector('.heroSlider .heroText');if(textPanel)textPanel.hidden=!!s.hideText;
   const active=document.getElementById(heroLayer==='A'?'heroLogoA':'heroLogoB');
   const inactive=document.getElementById(heroLayer==='A'?'heroLogoB':'heroLogoA');
   if(active){const mobile=typeof window!=='undefined'&&window.matchMedia&&window.matchMedia('(max-width: 700px)').matches;const mobileImage=mobile?heroMobileImageFor(s):'';const image=mobileImage||s.image;active.src=safeImg(image,LOGO);active.onerror=()=>{active.onerror=null;active.src=safeImg(s.image,LOGO)};active.classList.add('active')}
