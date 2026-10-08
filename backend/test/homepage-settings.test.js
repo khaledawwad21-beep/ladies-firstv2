@@ -29,7 +29,7 @@ test('homepage updates require admin and persist through public settings reads',
   assert.equal((await request('/api/admin/settings',body)).status,200);
   saved=(await (await request('/api/settings',null,null)).json()).settings;
   assert.equal(saved.hero_slides[0].titleAr,'عنوان');assert.equal(saved.hero_slides[0].mobileImage,'/api/images/mobile-test');assert.equal(saved.hero_slides[1].titleEn,'Second');
-  assert.deepEqual(saved.hero_text_style,style);assert.equal(saved.store_name,'Keep this setting');
+  assert.deepEqual(saved.hero_text_style,{...style,intervalSeconds:3,transition:'fade'});assert.equal(saved.store_name,'Keep this setting');
   const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3XcAAAAASUVORK5CYII=';
   const uploaded=await fetch(base+'/api/admin/uploads/image',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+createToken({id:1,role:'owner'})},body:JSON.stringify({data:image})});
   assert.equal(uploaded.status,201);const url=(await uploaded.json()).url;
@@ -84,10 +84,11 @@ test('admin draft preserves edits across add/reorder/remove, saves only slider s
     rendered=html;
     for(const match of html.matchAll(/<input[^>]*id="([^"]+)"[^>]*value="([^"]*)"/g))nodes['#'+match[1]]={value:match[2]};
     for(const match of html.matchAll(/<textarea[^>]*id="([^"]+)"[^>]*>([^<]*)<\/textarea>/g))nodes['#'+match[1]]={value:match[2]};
-    const font=/<option value="([^"]+)" selected/.exec(html);nodes['#hpFont']={value:font?font[1]:style.font};
+    nodes['#hpTransition']={value:'fade'};
+    const font=/<select id="hpFont"[^>]*>[\s\S]*?<option value="([^"]+)" selected/.exec(html);nodes['#hpFont']={value:font?font[1]:style.font};
   }});
   let payload,fail=false;
-  const context=vm.createContext({window:{},$:(key)=>nodes[key],E:value=>String(value??'').replace(/</g,'&lt;').replace(/"/g,'&quot;'),toast:()=>{},api:async(url,options)=>{payload=JSON.parse(options.body);if(fail)throw Error('تعذر الحفظ');},adminUploadProductImage:async()=>'/api/images/uploaded',adminUploadMany:async files=>[...files].map(()=>'/api/images/uploaded')});
+  const context=vm.createContext({clearTimeout:()=>{},setTimeout:()=>0,window:{},$:(key)=>nodes[key],E:value=>String(value??'').replace(/</g,'&lt;').replace(/"/g,'&quot;'),toast:()=>{},api:async(url,options)=>{payload=JSON.parse(options.body);if(fail)throw Error('تعذر الحفظ');},adminUploadProductImage:async()=>'/api/images/uploaded',adminUploadMany:async files=>[...files].map(()=>'/api/images/uploaded')});
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../../frontend/admin-homepage.js'),'utf8'),context);
   context.hpRender();context.hpAdd();nodes['#hp_0_image'].value='/one.png';nodes['#hp_0_titleAr'].value='Edited';
   context.hpAdd();nodes['#hp_1_image'].value='/two.png';context.hpMove(1,-1);await context.hpSave();
@@ -96,4 +97,14 @@ test('admin draft preserves edits across add/reorder/remove, saves only slider s
   fail=true;await context.hpSave();assert.equal(nodes['#hpMessage'].textContent,'تعذر الحفظ');assert.equal(nodes['#hpFields'].disabled,false);
   fail=false;context.hpRemove(0);await context.hpSave();assert.equal(payload.hero_slides.length,1);assert.equal(payload.hero_slides[0].titleAr,'Edited');
   await context.hpUpload({files:[{name:'upload.png'}],value:'upload.png'});await context.hpSave();assert.equal(payload.hero_slides[1].image,'/api/images/uploaded');
+});
+
+test('slider timing and transitions validate and persist without accepting unsafe values',()=>{
+  const {validateHomepageSettings}=require('../src/homepage-settings');
+  for(const transition of ['fade','slide','zoom','instant']){
+    const result=validateHomepageSettings({hero_text_style:{...style,intervalSeconds:7,transition}});
+    assert.equal(result.hero_text_style.intervalSeconds,7);assert.equal(result.hero_text_style.transition,transition);
+  }
+  for(const intervalSeconds of [0,31,NaN,'7'])assert.throws(()=>validateHomepageSettings({hero_text_style:{...style,intervalSeconds}}));
+  assert.throws(()=>validateHomepageSettings({hero_text_style:{...style,transition:'unknown'}}));
 });

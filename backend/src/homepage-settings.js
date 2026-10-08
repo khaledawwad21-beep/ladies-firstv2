@@ -59,6 +59,12 @@ function validateHomepageSettings(incoming) {
       if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) invalid('مكان النص يجب أن يكون بين 0 و100');
       clean[key] = Math.round(value);
     }
+    const seconds = style.intervalSeconds ?? 3;
+    if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 2 || seconds > 30) invalid('مدة التقليب يجب أن تكون بين 2 و30 ثانية');
+    const transition = style.transition ?? 'fade';
+    if (!['fade','slide','zoom','instant'].includes(transition)) invalid('أسلوب الانتقال غير صالح');
+    clean.intervalSeconds = seconds;
+    clean.transition = transition;
     result.hero_text_style = clean;
   }
   if (Object.hasOwn(incoming, 'shipping_fees')) {
