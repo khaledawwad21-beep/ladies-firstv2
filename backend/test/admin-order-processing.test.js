@@ -30,6 +30,25 @@ test("selecting delivered status saves immediately",()=>{
   assert.ok(admin.includes("await saveOrderStatus(id)"));
 });
 
+test("all non-cancelled order statuses save automatically while cancellation remains deliberate",()=>{
+  assert.ok(admin.includes("select.value==='cancelled'||select.value===String(select.dataset.savedStatus||'')"));
+  assert.ok(admin.includes("await saveOrderStatus(id)"));
+});
+
+test("customer order history uses account identity and has status events",()=>{
+  assert.match(server,/CREATE TABLE IF NOT EXISTS order_status_history/);
+  assert.match(server,/WHERE o\.user_id = \$1/);
+  assert.match(server,/INSERT INTO order_status_history/);
+  assert.match(admin,/بيانات الاستلام بالطلب/);
+  assert.match(admin,/سجل الحالات/);
+});
+
+test("customer tracking shows status history without relying on order phone",()=>{
+  assert.match(admin,/orderUserId===userId/);
+  assert.match(admin,/orderTrackingHtml\(o\)/);
+  assert.match(server,/completed_at = CASE/);
+});
+
 test("delivering a guest order links only to one unique customer phone match",()=>{
   assert.match(server,/matchingCustomers\.rowCount === 1/);
   assert.match(server,/LIMIT 2/);
