@@ -15,7 +15,8 @@ function getWhatsAppConfig() {
     abandonedTemplate: env("WHATSAPP_ABANDONED_TEMPLATE"),
     lowStockTemplate: env("WHATSAPP_LOW_STOCK_TEMPLATE"),
     waitlistTemplate: env("WHATSAPP_WAITLIST_TEMPLATE"),
-    campaignTemplate: env("WHATSAPP_CAMPAIGN_TEMPLATE")
+    campaignTemplate: env("WHATSAPP_CAMPAIGN_TEMPLATE"),
+    deliveredTemplate: env("WHATSAPP_DELIVERED_TEMPLATE")
   };
 }
 
@@ -66,9 +67,99 @@ async function initWhatsAppAutomation(db) {
   `);
 
   await db(`
+    CREATE TABLE IF NOT EXISTS order_delivery_followups (
+      order_id BIGINT PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+      user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+      recipient TEXT NOT NULL,
+      template_name TEXT NOT NULL,
+      status TEXT NOT NULL,
+      provider_message_id TEXT,
+      error_message TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      sent_at TIMESTAMPTZ
+    )
+  `);
+
+  await db(`
     CREATE INDEX IF NOT EXISTS whatsapp_automation_recent_idx
     ON whatsapp_automation_log(reminder_type, user_id, sent_at DESC)
   `);
+}
+
+async function sendDeliveredThankYou(db, orderId, options = {}) {
+  const config = options.config || getWhatsAppConfig();
+  const sender = typeof options.sendTemplate === "function" ? options.sendTemplate : sendTemplate;
+  if (!config.accessToken || !config.phoneNumberId || !config.deliveredTemplate) {
+    return { sent: false, skipped: true, reason: "not_configured" };
+  }
+
+  const orderResult = await db(
+    `SELECT o.id, o.user_id, o.customer_name, o.customer_phone,
+            u.name AS user_name, u.phone AS user_phone, u.whatsapp_opt_in
+     FROM orders o
+     LEFT JOIN users u ON u.id = o.user_id
+     WHERE o.id = $1
+     LIMIT 1`,
+    [orderId]
+  );
+  const order = orderResult.rows[0];
+  if (!order) return { sent: false, skipped: true, reason: "order_not_found" };
+  if (!order.user_id || order.whatsapp_opt_in !== true) {
+    return { sent: false, skipped: true, reason: "not_opted_in" };
+  }
+
+  const recipient = normalizeRecipient(order.customer_phone || order.user_phone);
+  const accountPhone = normalizeRecipient(order.user_phone);
+  if (!recipient || !accountPhone || recipient !== accountPhone) {
+    return { sent: false, skipped: true, reason: "phone_mismatch" };
+  }
+
+  const storeResult = await db(
+    `SELECT COALESCE(
+       (SELECT value #>> '{}' FROM settings WHERE key = 'whatsapp_number' LIMIT 1),
+       (SELECT value #>> '{}' FROM settings WHERE key = 'whatsapp' LIMIT 1),
+       ''
+     ) AS phone`
+  );
+  const storePhone = normalizeRecipient(storeResult.rows[0]?.phone);
+  if (!storePhone) return { sent: false, skipped: true, reason: "store_phone_missing" };
+
+  const feedbackText = `مرحبًا Ladies First، استلمت طلبي رقم #${order.id} وعندي ملاحظة:`;
+  const feedbackUrl = `https://wa.me/${storePhone}?text=${encodeURIComponent(feedbackText)}`;
+  const customerName = String(order.user_name || order.customer_name || "عزيزتنا").slice(0, 120);
+  const claim = await db(
+    `INSERT INTO order_delivery_followups
+       (order_id, user_id, recipient, template_name, status)
+     VALUES ($1, $2, $3, $4, 'sending')
+     ON CONFLICT (order_id) DO NOTHING
+     RETURNING order_id`,
+    [order.id, order.user_id, recipient, config.deliveredTemplate]
+  );
+  if (!claim.rowCount) return { sent: false, skipped: true, reason: "already_attempted" };
+
+  try {
+    const sent = await sender(
+      config,
+      recipient,
+      config.deliveredTemplate,
+      [customerName, String(order.id), feedbackUrl]
+    );
+    await db(
+      `UPDATE order_delivery_followups
+       SET status = 'sent', provider_message_id = $1, sent_at = NOW()
+       WHERE order_id = $2`,
+      [sent.id || null, order.id]
+    );
+    return { sent: true, orderId: Number(order.id), providerMessageId: sent.id || null };
+  } catch (error) {
+    await db(
+      `UPDATE order_delivery_followups
+       SET status = 'failed', error_message = $1
+       WHERE order_id = $2`,
+      [String(error.message || error).slice(0, 800), order.id]
+    ).catch(() => {});
+    throw error;
+  }
 }
 
 async function settingEnabled(db, key) {
@@ -574,7 +665,8 @@ function registerWhatsAppAutomationRoutes(app, deps) {
           abandoned: Boolean(config.abandonedTemplate),
           lowStock: Boolean(config.lowStockTemplate),
           waitlist: Boolean(config.waitlistTemplate),
-          campaign: Boolean(config.campaignTemplate)
+          campaign: Boolean(config.campaignTemplate),
+          delivered: Boolean(config.deliveredTemplate)
         },
         recent: recent.rows
       });
@@ -657,5 +749,6 @@ module.exports = {
   runWhatsAppCampaign,
   campaignRecipients,
   sendWaitlistNotification,
+  sendDeliveredThankYou,
   runWaitlistRestockNotifications
 };
