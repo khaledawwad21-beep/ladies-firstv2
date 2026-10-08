@@ -325,6 +325,8 @@ window.productForm = async function productForm(p={}) {
   }catch{}
   const currentCategory=String(p.category||p.cat||'').trim();
   const currentBrand=String(p.brand||'').trim();
+  const currentBarcode=String(p.barcode||'').trim();
+  const currentProductNumber=String(p.productNumber||p.product_number||'').trim();
   const active=p.id?((p.isActive!==false)&&(p.is_active!==false)):true;
   adminProductPendingImages={main:[],sub:[]};
   adminProductPrimaryFile=null;
@@ -342,10 +344,17 @@ window.productForm = async function productForm(p={}) {
     <label>تكلفة الشراء<input id="pcost" class="field compact-field" type="number" min="0" step=".01" value="${p.cost_price??p.cost??0}" placeholder="تكلفة الشراء"></label>
     <label>المورد / التاجر<input id="psupplier" class="field compact-field" value="${E(p.supplierName??p.supplier_name??'')}" placeholder="اسم المورد أو التاجر"></label>
 
-    <label>الفئة
+    <label>الفئة *
       <select id="pcat" class="field compact-field" onchange="adminToggleTaxonomyNew('pcat','pcatNewWrap')">
-        ${adminTaxonomyOptions(categories,currentCategory,'بدون فئة','+ إضافة فئة جديدة')}
+        ${adminTaxonomyOptions(categories,currentCategory,'اختيار الفئة','+ إضافة فئة جديدة')}
       </select>
+    </label>
+    <label>الباركود (اختياري)
+      <input id="pbarcode" class="field compact-field" maxlength="100" value="${E(currentBarcode)}" placeholder="أدخل باركودًا غير مستخدم">
+    </label>
+    <label>رقم المنتج
+      <input id="pproductNumber" class="field compact-field" readonly value="${E(currentProductNumber)}" placeholder="يُنشأ تلقائيًا بعد الحفظ">
+      <small class="small-note">يتولد تلقائيًا حسب الفئة عند حفظ المنتج.</small>
     </label>
     <label id="pcatNewWrap" hidden>اسم الفئة الجديدة<input id="pcatNew" class="field compact-field" placeholder="اسم الفئة الجديدة"></label>
 
@@ -399,6 +408,9 @@ window.saveProduct = async function saveProduct(id) {
     if (!name) throw new Error("اسم المنتج مطلوب");
     adminCaptureVariants();
 
+    const category=$("#pcat")?.value==="__new__"?$("#pcatNew")?.value.trim():$("#pcat")?.value.trim();
+    if(!category)throw new Error("اختاري فئة للمنتج ليُنشأ رقمه تلقائيًا");
+
     const pendingMain=[...adminProductPendingImages.main];
     const pendingSub=[...adminProductPendingImages.sub];
     const newMains=await adminUploadMany(pendingMain);
@@ -427,7 +439,8 @@ window.saveProduct = async function saveProduct(id) {
       cost_price: Number($("#pcost").value || 0),
       supplierName: $("#psupplier")?.value.trim() || "",
       stock: Number($("#ps").value || 0),
-      category: $("#pcat").value==="__new__"?$("#pcatNew").value.trim():$("#pcat").value.trim(),
+      category,
+      barcode: $("#pbarcode")?.value.trim() || "",
       brand: $("#pbrand").value==="__new__"?$("#pbrandNew").value.trim():$("#pbrand").value.trim(),
       active: !!$("#pactive").checked,
       description: $("#pd").value || "",
