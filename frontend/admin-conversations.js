@@ -7,12 +7,27 @@ let staffChatThreads = [];
 let activeStaffChatId = null;
 let activeStaffChat = null;
 let staffChatRefreshTimer = null;
+let staffChatDrafts = new Map();
+let staffChatFirstMessageDraft = "";
+let staffChatReplyDraftOwner = null;
 
 function staffChatCan(permission) {
   const role = String(currentAdminUser?.role || "").toLowerCase();
   return role === "owner" || role === "admin" ||
     (Array.isArray(currentAdminUser?.permissions) && currentAdminUser.permissions.includes(permission));
 }
+
+function staffChatComposerIsFocused() {
+  return ["staffChatFirstMessage", "staffChatReply"].includes(document.activeElement?.id);
+}
+
+document.addEventListener("input", (event) => {
+  const target = event.target;
+  if (target?.id === "staffChatFirstMessage") staffChatFirstMessageDraft = target.value;
+  if (target?.id === "staffChatReply" && staffChatReplyDraftOwner !== null) {
+    staffChatDrafts.set(staffChatReplyDraftOwner, target.value);
+  }
+});
 
 async function loadStaffConversations() {
   try {
@@ -46,6 +61,7 @@ async function refreshStaffConversations() {
       const detail = await api(`/api/staff-conversations/${Number(activeStaffChatId)}`);
       activeStaffChat = detail.conversation ? { ...detail.conversation, messages: detail.messages || [] } : null;
     }
+    if (staffChatComposerIsFocused()) return;
     renderStaffConversations();
   } catch (error) {
     console.warn("[STAFF CHAT REFRESH]", error);
@@ -79,6 +95,10 @@ function staffContextOptions() {
 function renderStaffConversations() {
   const box = $("#sections");
   if (!box) return;
+  const existingReply = $("#staffChatReply");
+  if (existingReply && staffChatReplyDraftOwner !== null) staffChatDrafts.set(staffChatReplyDraftOwner, existingReply.value);
+  const existingFirstMessage = $("#staffChatFirstMessage");
+  if (existingFirstMessage) staffChatFirstMessageDraft = existingFirstMessage.value;
   const current = activeStaffChat;
   box.innerHTML = `<div class="staff-chat-layout">
     <section class="card staff-chat-sidebar">
@@ -98,6 +118,11 @@ function renderStaffConversations() {
     </section>
   </div>`;
   staffContextOptions();
+  const firstMessageField = $("#staffChatFirstMessage");
+  if (firstMessageField) firstMessageField.value = staffChatFirstMessageDraft;
+  const replyField = $("#staffChatReply");
+  staffChatReplyDraftOwner = replyField && activeStaffChatId ? Number(activeStaffChatId) : null;
+  if (replyField && staffChatReplyDraftOwner !== null) replyField.value = staffChatDrafts.get(staffChatReplyDraftOwner) || "";
   const messages = $("#staffChatMessages");
   if (messages) messages.scrollTop = messages.scrollHeight;
 }
@@ -112,6 +137,9 @@ async function createStaffConversation() {
       method: "POST",
       body: JSON.stringify({ recipientId, contextType, contextId, message })
     });
+    staffChatFirstMessageDraft = "";
+    const firstMessageField = $("#staffChatFirstMessage");
+    if (firstMessageField) firstMessageField.value = "";
     activeStaffChatId = Number(data.conversationId);
     await loadStaffConversations();
     await openStaffConversation(activeStaffChatId);
@@ -137,11 +165,14 @@ async function sendStaffConversationMessage() {
   const message = $("#staffChatReply")?.value || "";
   if (!activeStaffChatId || !message.trim()) return;
   try {
-    await api(`/api/staff-conversations/${Number(activeStaffChatId)}/messages`, {
+    const conversationId = Number(activeStaffChatId);
+    await api(`/api/staff-conversations/${conversationId}/messages`, {
       method: "POST",
       body: JSON.stringify({ message })
     });
-    await openStaffConversation(activeStaffChatId);
+    staffChatDrafts.delete(conversationId);
+    staffChatReplyDraftOwner = null;
+    await openStaffConversation(conversationId);
   } catch (error) {
     alert(error.message || "تعذر إرسال الرسالة");
   }
