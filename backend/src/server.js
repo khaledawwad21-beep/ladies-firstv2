@@ -3670,7 +3670,7 @@ app.post(
   optionalAuth,
   async (req, res) => {
     const orderId = integer(String(req.body?.orderNumber ?? req.body?.orderId ?? "").replace(/[^0-9]/g, ""), NaN);
-    const phoneKey = String(req.body?.phone ?? req.body?.customerPhone ?? "").replace(/\\D/g, "");
+    const phoneKey = String(req.body?.phone ?? req.body?.customerPhone ?? "").replace(/\D/g, "");
     if (!Number.isFinite(orderId) || orderId <= 0 || (!req.user?.id && phoneKey.length < 6)) {
       return res.status(400).json({ok:false,message:"أدخلي رقم الطلب ورقم الهاتف المستخدم في الطلب"});
     }
@@ -3683,7 +3683,7 @@ app.post(
       if (!result.rowCount) return res.status(404).json({ok:false,message:"لم نعثر على طلب بهذه البيانات"});
       const order = result.rows[0];
       const accountOwnsOrder = Boolean(req.user?.id && String(req.user.id) === String(order.user_id || ""));
-      const phoneMatches = phoneKey.length >= 6 && phoneKey === String(order.customer_phone || "").replace(/\\D/g, "");
+      const phoneMatches = phoneKey.length >= 6 && phoneKey === String(order.customer_phone || "").replace(/\D/g, "");
       if (!accountOwnsOrder && !phoneMatches) {
         return res.status(404).json({ok:false,message:"لم نعثر على طلب بهذه البيانات"});
       }
