@@ -67,7 +67,7 @@ test("storefront announcement has a separate publish action and refreshes active
 
 test("changed message scripts use fresh cache versions",()=>{
   assert.match(adminHtml,/admin\.js\?v=20261008-9/);
-  assert.match(adminHtml,/admin-conversations\.js\?v=20261008-3/);
+  assert.match(adminHtml,/admin-conversations\.js\?v=20261008-4/);
   assert.match(adminHtml,/data-s="messages"/);
   assert.match(indexHtml,/app\.js\?v=20261009-4/);
 });
