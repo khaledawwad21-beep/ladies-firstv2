@@ -10,6 +10,7 @@ let staffChatRefreshTimer = null;
 let staffChatDrafts = new Map();
 let staffChatFirstMessageDraft = "";
 let staffChatReplyDraftOwner = null;
+let staffChatNewConversationDraft = { recipientId: "", contextType: "", contextId: "" };
 
 function staffChatCan(permission) {
   const role = String(currentAdminUser?.role || "").toLowerCase();
@@ -18,7 +19,25 @@ function staffChatCan(permission) {
 }
 
 function staffChatComposerIsFocused() {
-  return ["staffChatFirstMessage", "staffChatReply"].includes(document.activeElement?.id);
+  return ["staffChatRecipient", "staffChatContextType", "staffChatContextId", "staffChatFirstMessage", "staffChatReply"].includes(document.activeElement?.id);
+}
+
+function staffChatCaptureNewConversationDraft() {
+  const recipient = $("#staffChatRecipient");
+  const contextType = $("#staffChatContextType");
+  const contextId = $("#staffChatContextId");
+  const firstMessage = $("#staffChatFirstMessage");
+  if (recipient) staffChatNewConversationDraft.recipientId = recipient.value;
+  let typeChanged = false;
+  if (contextType) {
+    const nextType = contextType.value || "";
+    typeChanged = nextType !== staffChatNewConversationDraft.contextType;
+    if (typeChanged) staffChatNewConversationDraft.contextId = "";
+    staffChatNewConversationDraft.contextType = nextType;
+  }
+  if (!typeChanged && contextId?.value) staffChatNewConversationDraft.contextId = contextId.value;
+  if (!staffChatNewConversationDraft.contextType) staffChatNewConversationDraft.contextId = "";
+  if (firstMessage) staffChatFirstMessageDraft = firstMessage.value;
 }
 
 document.addEventListener("input", (event) => {
@@ -72,7 +91,12 @@ function staffContextOptions() {
   const type = $("#staffChatContextType")?.value || "";
   const select = $("#staffChatContextId");
   if (!select) return;
+  const typeChanged = type !== staffChatNewConversationDraft.contextType;
+  if (typeChanged) staffChatNewConversationDraft.contextId = "";
+  else if (select.value) staffChatNewConversationDraft.contextId = select.value;
+  staffChatNewConversationDraft.contextType = type;
   if (!type) {
+    staffChatNewConversationDraft.contextId = "";
     select.innerHTML = '<option value="">بدون ربط بطلب أو منتج</option>';
     select.disabled = true;
     return;
@@ -90,11 +114,14 @@ function staffContextOptions() {
       : `${item.name || "منتج"} — ${item.sku || "#" + id}`;
     return `<option value="${id}">${E(label)}</option>`;
   }).join("");
+  select.value = staffChatNewConversationDraft.contextId;
+  if (select.value !== staffChatNewConversationDraft.contextId) staffChatNewConversationDraft.contextId = "";
 }
 
 function renderStaffConversations() {
   const box = $("#sections");
   if (!box) return;
+  staffChatCaptureNewConversationDraft();
   const existingReply = $("#staffChatReply");
   if (existingReply && staffChatReplyDraftOwner !== null) staffChatDrafts.set(staffChatReplyDraftOwner, existingReply.value);
   const existingFirstMessage = $("#staffChatFirstMessage");
@@ -103,9 +130,9 @@ function renderStaffConversations() {
   box.innerHTML = `<div class="staff-chat-layout">
     <section class="card staff-chat-sidebar">
       <h2>محادثة جديدة</h2>
-      <label>الموظف أو المسؤول<select id="staffChatRecipient" class="field"><option value="">اختيار الموظف</option>${staffChatContacts.map((person) => `<option value="${Number(person.id)}">${E(person.name || person.email || "حساب إداري")} — ${E(person.role || "staff")}</option>`).join("")}</select></label>
+      <label>الموظف أو المسؤول<select id="staffChatRecipient" class="field" onchange="staffChatCaptureNewConversationDraft()"><option value="">اختيار الموظف</option>${staffChatContacts.map((person) => `<option value="${Number(person.id)}">${E(person.name || person.email || "حساب إداري")} — ${E(person.role || "staff")}</option>`).join("")}</select></label>
       <label>ربط المحادثة<select id="staffChatContextType" class="field" onchange="staffContextOptions()"><option value="">محادثة مباشرة</option>${staffChatCan("orders") ? '<option value="order">ملاحظة على طلب</option>' : ""}${staffChatCan("products") ? '<option value="product">ملاحظة على منتج</option>' : ""}</select></label>
-      <select id="staffChatContextId" class="field" disabled><option value="">بدون ربط بطلب أو منتج</option></select>
+      <select id="staffChatContextId" class="field" disabled onchange="staffChatCaptureNewConversationDraft()"><option value="">بدون ربط بطلب أو منتج</option></select>
       <textarea id="staffChatFirstMessage" class="field" rows="3" maxlength="3000" placeholder="اكتب ملاحظة أو رسالة للموظف"></textarea>
       <button class="btn primary" type="button" onclick="createStaffConversation()">بدء المحادثة</button>
       <h2 class="staff-chat-list-title">محادثاتي</h2>
@@ -117,7 +144,13 @@ function renderStaffConversations() {
       <div class="staff-chat-compose"><textarea id="staffChatReply" class="field" rows="2" maxlength="3000" placeholder="اكتب ردًا… واستخدم Ctrl+Enter للإرسال" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendStaffConversationMessage()}"></textarea><button class="btn primary" type="button" onclick="sendStaffConversationMessage()">إرسال</button></div>` : '<div class="staff-chat-empty"><b>المحادثة الداخلية</b><p>اختاري محادثة من القائمة، أو ابدئي محادثة جديدة. ويمكن ربطها بطلب أو منتج لتبقى الملاحظة مع سياقها.</p></div>'}
     </section>
   </div>`;
+  const recipientField = $("#staffChatRecipient");
+  if (recipientField) recipientField.value = staffChatNewConversationDraft.recipientId;
+  const contextTypeField = $("#staffChatContextType");
+  if (contextTypeField) contextTypeField.value = staffChatNewConversationDraft.contextType;
   staffContextOptions();
+  const contextIdField = $("#staffChatContextId");
+  if (contextIdField) contextIdField.value = staffChatNewConversationDraft.contextId;
   const firstMessageField = $("#staffChatFirstMessage");
   if (firstMessageField) firstMessageField.value = staffChatFirstMessageDraft;
   const replyField = $("#staffChatReply");
@@ -138,6 +171,7 @@ async function createStaffConversation() {
       body: JSON.stringify({ recipientId, contextType, contextId, message })
     });
     staffChatFirstMessageDraft = "";
+    staffChatNewConversationDraft = { recipientId: "", contextType: "", contextId: "" };
     const firstMessageField = $("#staffChatFirstMessage");
     if (firstMessageField) firstMessageField.value = "";
     activeStaffChatId = Number(data.conversationId);
@@ -186,5 +220,8 @@ async function openStaffChatFor(contextType, contextId) {
   staffContextOptions();
   const linked = $("#staffChatContextId");
   if (linked) linked.value = String(contextId);
+  staffChatNewConversationDraft.recipientId = $("#staffChatRecipient")?.value || staffChatNewConversationDraft.recipientId;
+  staffChatNewConversationDraft.contextType = contextType;
+  staffChatNewConversationDraft.contextId = String(contextId);
   $("#staffChatRecipient")?.focus();
 }
