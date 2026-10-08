@@ -22,6 +22,17 @@ function staffChatComposerIsFocused() {
   return ["staffChatRecipient", "staffChatContextType", "staffChatContextSearch", "staffChatContextId", "staffChatFirstMessage", "staffChatReply"].includes(document.activeElement?.id);
 }
 
+function staffChatHasNewConversationDraft() {
+  staffChatCaptureNewConversationDraft();
+  return Boolean(
+    staffChatNewConversationDraft.recipientId ||
+    staffChatNewConversationDraft.contextType ||
+    staffChatNewConversationDraft.contextId ||
+    staffChatNewConversationDraft.searchQuery ||
+    staffChatFirstMessageDraft
+  );
+}
+
 function staffChatCaptureNewConversationDraft() {
   const recipient = $("#staffChatRecipient");
   const contextType = $("#staffChatContextType");
@@ -85,7 +96,7 @@ async function refreshStaffConversations() {
       const detail = await api(`/api/staff-conversations/${Number(activeStaffChatId)}`);
       activeStaffChat = detail.conversation ? { ...detail.conversation, messages: detail.messages || [] } : null;
     }
-    if (staffChatComposerIsFocused()) return;
+    if (staffChatComposerIsFocused() || staffChatHasNewConversationDraft()) return;
     renderStaffConversations();
   } catch (error) {
     console.warn("[STAFF CHAT REFRESH]", error);
