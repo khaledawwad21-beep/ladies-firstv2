@@ -182,6 +182,20 @@ function returnHistoryHtml(o){
     return '<div class="notice" style="margin-top:8px"><b>'+type+' × '+Number(r.quantity||1)+'</b> — '+(status[r.status]||esc(r.status||''))+'<br>'+esc(r.reason||'')+'<br>'+payer+settlement+(r.replacement_product_name?'<br>البديل: '+esc(r.replacement_product_name)+(r.replacement_variant_name?' — '+esc(r.replacement_variant_name):''):'')+'</div>';
   }).join('')+'</div>';
 }
+async function trackCustomerOrder(){
+  const orderNumber=document.getElementById('trackOrderNumber')?.value.trim().replace(/[^0-9]/g,'')||'';
+  const phone=document.getElementById('trackOrderPhone')?.value.trim()||'';
+  const host=document.getElementById('customerOrderTrackingResult');
+  if(!host)return;
+  if(!orderNumber){host.innerHTML='<div class="notice">أدخلي رقم الطلب للمتابعة.</div>';return}
+  host.innerHTML='<div class="notice">جاري البحث عن الطلب…</div>';
+  try{
+    const d=await lfFetch('/api/orders/track',{method:'POST',body:JSON.stringify({orderNumber,phone})});
+    host.innerHTML=orderTrackingHtml({...d.order,id:d.order.id,statusHistory:d.statusHistory||[]})+`<div class="orderSummary">الإجمالي: ${Number(d.order.total||0).toFixed(2)} ₪</div>`;
+  }catch(e){
+    host.innerHTML='<div class="notice">'+esc(e.message||'لم نعثر على طلب بهذه البيانات')+'</div>';
+  }
+}
 function orderTrackingHtml(o){
   const events=Array.isArray(o?.statusHistory)?o.statusHistory:(Array.isArray(o?.status_history)?o.status_history:[]);
   const current=publicOrderStatusLabel(o?.status||'pending');
