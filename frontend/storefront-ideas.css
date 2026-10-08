@@ -18,3 +18,7 @@ body.lf-dialog-locked .naya-fab,body.lf-dialog-locked .naya-launcher,body.lf-dia
  .lf-idea-panel,.modalBox,.productModal,.quickSearchDialog{max-height:calc(100dvh - 120px - env(safe-area-inset-bottom))!important;overscroll-behavior:contain}
  .drawer .panel{bottom:calc(80px + env(safe-area-inset-bottom))!important;max-height:calc(100dvh - 110px - env(safe-area-inset-bottom))!important}
 }
+
+.heroCard[data-transition=fade] .heroLogoLayer,.heroCard[data-transition=smooth] .heroLogoLayer{transition:opacity .95s cubic-bezier(.22,1,.36,1);transform:none;will-change:opacity}
+.heroCard[data-transition=smooth] .heroLogoLayer.active{opacity:1}
+@media(prefers-reduced-motion:reduce){.heroCard[data-transition=fade] .heroLogoLayer,.heroCard[data-transition=smooth] .heroLogoLayer{transition:none}}

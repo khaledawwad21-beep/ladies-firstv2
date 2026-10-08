@@ -168,3 +168,7 @@ input[type="date"]{cursor:pointer}
 .hp-order-item label{display:block;margin-top:7px;font-size:12px}.hp-order-item .field{width:100%;min-width:0;padding:6px}
 .hp-is-dragging{opacity:.55}.hp-drop-target{border-color:#63345e!important;background:#f7edf4!important;outline:2px solid #63345e33}
 @media(max-width:600px){.hp-order-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.heroCard[data-transition=fade] .heroLogoLayer,.heroCard[data-transition=smooth] .heroLogoLayer{transition:opacity .95s cubic-bezier(.22,1,.36,1);transform:none;will-change:opacity}
+.heroCard[data-transition=smooth] .heroLogoLayer.active{opacity:1}
+@media(prefers-reduced-motion:reduce){.heroCard[data-transition=fade] .heroLogoLayer,.heroCard[data-transition=smooth] .heroLogoLayer{transition:none}}

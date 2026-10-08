@@ -716,7 +716,7 @@ function appendOrderWhatsAppButton(order){
   button.addEventListener('click',()=>sendOrderWhatsApp(order));box.appendChild(button);
 }
 function placeOrder(){if(!cart.length)return alert(currentLang==='en'?'Your cart is empty':'السلة فارغة');const name=document.getElementById('name').value.trim(),phoneRaw=document.getElementById('phone').value.trim(),countryIso=document.getElementById('checkoutCountryCode')?.value||'PS',phone=normalizePhone(phoneRaw,countryIso),city=document.getElementById('city').value.trim(),address=document.getElementById('address').value.trim();if(!name||!phoneRaw||!city||!address)return alert(currentLang==='en'?'Please fill in name, phone, city and address':'يرجى تعبئة الاسم والجوال والمدينة والعنوان');if(!validMobile(phoneRaw,countryIso))return alert(currentLang==='en'?'Enter a valid international mobile number':'أدخل رقم جوال صحيح مع اختيار الدولة');const pay=document.querySelector('input[name="pay"]:checked')?.value||'cod';const items=makeOrderItems(pay);if(!items.length)return alert('تعذر تجهيز المنتجات في الطلب');for(const it of items){const p=products.find(x=>x.id===it.productId);const available=variantStock(p,it.variant);if(!p||Number(it.qty)>available)return alert(insufficientStockMessage(available))}const totals=getCartTotals(pay);const total=totals.total;const orders=load('lf_orders',[]);const order={id:Date.now(),createdAt:Date.now(),date:new Date().toLocaleString('ar-PS'),name,phone:normalizePhone(phone),city,address,notes:document.getElementById('notes').value.trim(),pay,total,subtotal:totals.subtotal,visaDiscount:totals.visaDiscount,couponCode:totals.coupon?.code||'',couponDiscount:totals.couponDiscount||0,couponType:totals.coupon?.type||'',couponValue:totals.coupon?.value||0,shippingRegion:totals.shippingRegion,shippingRegionName:totals.shippingRegionName,shippingFee:totals.shippingFee,shippingWaived:false,accountRef:getAccount()?.contact||'',items,status:'جديد',inventoryState:'deducted'};orders.unshift(order);if(!save('lf_orders',orders))return;items.forEach(it=>{const p=products.find(x=>x.id===it.productId);const vs=variantList(p);if(vs.length){const v=p.variants.find(v=>v.name===it.variant);if(v)v.stock=Math.max(0,Number(v.stock)||0)-Number(it.qty);p.stock=totalStock(p)}else p.stock=Math.max(0,(Number(p.stock)||0)-Number(it.qty));});save('lf_products',products);cart=[];save('lf_cart',cart);couponCode='';localStorage.removeItem('lf_coupon');clearCheckoutDraft();renderProducts();renderCart();document.getElementById('drawer').style.display='block';document.getElementById('checkout').innerHTML=customerOrderSuccessHtml(order.id,pay);appendOrderWhatsAppButton(order);setTimeout(()=>sendOrderWhatsApp(order),350)}
-let heroIndex=0,heroTimer=null,heroLayer='A';
+let heroIndex=0,heroTimer=null,heroLayer='A',heroRenderRequest=0;
 function getCustomHeroSlides(){
   let arr=load('lf_hero_slides',null);
   if(!Array.isArray(arr)) arr=[];
@@ -758,7 +758,7 @@ function heroMobileImageFor(slide){
 }
 function renderHeroSlider(fade=true){
   applyHeroTextStyle();
-  const effect=load('lf_hero_text_style',{}).transition||'fade';
+  const effect=load('lf_hero_text_style',{}).transition||'smooth';
   document.querySelector('.heroCard')?.setAttribute('data-transition',effect);
   const slides=heroSlides();
   if(!slides.length)return;
@@ -767,10 +767,32 @@ function renderHeroSlider(fade=true){
   const title=document.getElementById('heroTitle'),desc=document.getElementById('heroDesc'),cta=document.getElementById('heroCta');
   if(title)title.textContent=s.title;if(desc)desc.textContent=s.desc;if(cta)cta.textContent=currentLang==='en'?'Shop now':'تسوقي الآن';
   const heroCard=document.querySelector('.heroSlider .heroCard');if(heroCard)heroCard.classList.toggle('logo-only',!!s.hideText);const textPanel=document.querySelector('.heroSlider .heroText');if(textPanel)textPanel.hidden=!!s.hideText;
-  const active=document.getElementById(heroLayer==='A'?'heroLogoA':'heroLogoB');
-  const inactive=document.getElementById(heroLayer==='A'?'heroLogoB':'heroLogoA');
-  if(active){const mobile=typeof window!=='undefined'&&window.matchMedia&&window.matchMedia('(max-width: 700px)').matches;const mobileImage=mobile?heroMobileImageFor(s):'';const image=mobileImage||s.image;active.src=safeImg(image,LOGO);active.onerror=()=>{active.onerror=null;active.src=safeImg(s.image,LOGO)};active.classList.add('active')}
-  if(inactive)inactive.classList.remove('active');
+  const request=++heroRenderRequest;
+  const layerA=document.getElementById('heroLogoA'),layerB=document.getElementById('heroLogoB');
+  const previous=layerB?.classList.contains('active')&&layerB.style.zIndex==='2'?layerB:layerA?.classList.contains('active')?layerA:layerB?.classList.contains('active')?layerB:null;
+  const active=previous===layerA?layerB:layerA;
+  const mobile=typeof window!=='undefined'&&window.matchMedia&&window.matchMedia('(max-width: 700px)').matches;
+  const image=safeImg((mobile?heroMobileImageFor(s):'')||s.image,LOGO);
+  const reveal=src=>{
+    if(request!==heroRenderRequest||!active)return;
+    active.classList.remove('active');void active.offsetWidth;
+    active.src=src;active.style.zIndex='2';if(previous)previous.style.zIndex='1';
+    active.classList.add('active');
+    if(['smooth','fade'].includes(effect)&&fade){
+      // Keep the previous image solid until the incoming image has fully appeared.
+      setTimeout(()=>{if(request===heroRenderRequest)previous?.classList.remove('active')},950);
+    }else previous?.classList.remove('active');
+    if(fade&&textPanel&&typeof textPanel.animate==='function'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)textPanel.animate([{opacity:.25,transform:'translateY(8px)'},{opacity:1,transform:'translateY(0)'}],{duration:800,easing:'cubic-bezier(.22,1,.36,1)',composite:'add'});
+  };
+  if(typeof Image==='undefined')reveal(image);
+  else{
+    const preload=new Image();let fallbackUsed=false;
+    preload.onload=()=>{const ready=typeof preload.decode==='function'?preload.decode().catch(()=>{}):Promise.resolve();ready.then(()=>reveal(preload.src))};
+    preload.onerror=()=>{if(fallbackUsed)return;fallbackUsed=true;preload.src=safeImg(s.image,LOGO)};
+    preload.src=image;
+    // Warm the next slide while the current one is on screen.
+    const next=slides[(heroIndex+1)%slides.length];if(next){const warm=new Image();warm.src=safeImg((mobile?heroMobileImageFor(next):'')||next.image,LOGO)}
+  }
   const dots=document.getElementById('heroDots');
   if(dots)dots.innerHTML=slides.map((_,i)=>`<button class="${i===heroIndex?'active':''}" onclick="heroGo(${i})"></button>`).join('');
 }

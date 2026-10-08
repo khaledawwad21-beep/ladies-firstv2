@@ -101,7 +101,7 @@ test('admin draft preserves edits across add/reorder/remove, saves only slider s
 
 test('slider timing and transitions validate and persist without accepting unsafe values',()=>{
   const {validateHomepageSettings}=require('../src/homepage-settings');
-  for(const transition of ['fade','slide','zoom','instant']){
+  for(const transition of ['smooth','fade','slide','zoom','instant']){
     const result=validateHomepageSettings({hero_text_style:{...style,intervalSeconds:7,transition}});
     assert.equal(result.hero_text_style.intervalSeconds,7);assert.equal(result.hero_text_style.transition,transition);
   }
