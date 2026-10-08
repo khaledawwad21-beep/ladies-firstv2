@@ -782,9 +782,9 @@ function renderHeroSlider(fade=true){
     active.classList.add('active');
     if(['smooth','fade'].includes(effect)&&fade){
       // Keep the previous image solid until the incoming image has fully appeared.
-      setTimeout(()=>{if(request===heroRenderRequest)previous?.classList.remove('active')},950);
+      setTimeout(()=>{if(request===heroRenderRequest)previous?.classList.remove('active')},2000);
     }else previous?.classList.remove('active');
-    if(fade&&textPanel&&typeof textPanel.animate==='function'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)textPanel.animate([{opacity:.25,transform:'translateY(8px)'},{opacity:1,transform:'translateY(0)'}],{duration:800,easing:'cubic-bezier(.22,1,.36,1)',composite:'add'});
+    if(fade&&textPanel&&typeof textPanel.animate==='function'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)textPanel.animate([{opacity:.25,transform:'translateY(8px)'},{opacity:1,transform:'translateY(0)'}],{duration:2000,easing:'cubic-bezier(.22,1,.36,1)',composite:'add'});
   };
   if(typeof Image==='undefined')reveal(image);
   else{

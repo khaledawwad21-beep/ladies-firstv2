@@ -139,13 +139,13 @@ input[type="date"]{cursor:pointer}
 
 .lf-store-idea-admin{display:flex;flex-direction:column;gap:4px;margin-top:10px;padding:12px 14px;border:1px solid #eadce3;border-radius:14px;background:#fbf4f7;color:#63345e}.lf-store-idea-admin small{color:#7d6b79;font-size:12px;font-weight:400}.lf-exclusive-launch{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid #eadce3;border-radius:12px;background:#fffdfb;color:#56364f}.lf-exclusive-launch input{width:18px;height:18px;accent-color:#63345e}
 /* Shared transition definitions for the store and admin preview. */
-.heroCard[data-transition] .heroLogoLayer{opacity:0;transform:none;transition:opacity .65s ease,transform .65s ease;pointer-events:none}
+.heroCard[data-transition] .heroLogoLayer{opacity:0;transform:none;transition:opacity 2s ease,transform 2s ease;pointer-events:none}
 .heroCard[data-transition] .heroLogoLayer.active{opacity:1;transform:none}
 .heroCard[data-transition=slide] .heroLogoLayer{transform:translateX(100%)}
 .heroCard[data-transition=slide] .heroLogoLayer.active{transform:translateX(0)}
 .heroCard[data-transition=zoom] .heroLogoLayer{transform:scale(1.12)}
 .heroCard[data-transition=zoom] .heroLogoLayer.active{transform:scale(1)}
-.heroCard[data-transition=instant] .heroLogoLayer{transition:none}
+.heroCard[data-transition=instant] .heroLogoLayer{transition:opacity 2s linear}
 @media(prefers-reduced-motion:reduce){.heroCard[data-transition] .heroLogoLayer{transition:none;transform:none}}
 
 .hp-motion-preview{position:relative;height:240px;overflow:hidden;background:#fbf4ec;border-radius:16px;margin:12px 0}
@@ -169,7 +169,7 @@ input[type="date"]{cursor:pointer}
 .hp-is-dragging{opacity:.55}.hp-drop-target{border-color:#63345e!important;background:#f7edf4!important;outline:2px solid #63345e33}
 @media(max-width:600px){.hp-order-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-.heroCard[data-transition=fade] .heroLogoLayer,.heroCard[data-transition=smooth] .heroLogoLayer{transition:opacity .95s cubic-bezier(.22,1,.36,1);transform:none;will-change:opacity}
+.heroCard[data-transition=fade] .heroLogoLayer,.heroCard[data-transition=smooth] .heroLogoLayer{transition:opacity 2s cubic-bezier(.22,1,.36,1);transform:none;will-change:opacity}
 .heroCard[data-transition=smooth] .heroLogoLayer.active{opacity:1}
 @media(prefers-reduced-motion:reduce){.heroCard[data-transition=fade] .heroLogoLayer,.heroCard[data-transition=smooth] .heroLogoLayer{transition:none}}
 
