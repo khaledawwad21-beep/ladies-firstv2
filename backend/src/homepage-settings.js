@@ -23,6 +23,16 @@ function socialUrl(value) {
 
 function validateHomepageSettings(incoming) {
   const result = {...incoming};
+  if (Object.hasOwn(incoming, 'feature_carousels')) {
+    const settings=incoming.feature_carousels;
+    if (!settings || typeof settings!=='object' || Array.isArray(settings)) invalid('إعدادات شرائح المنتجات غير صالحة');
+    result.feature_carousels={};
+    for(const key of ['top5','bestSellers']) {
+      const item=settings[key];
+      if(!item || typeof item!=='object' || typeof item.intervalSeconds!=='number' || !Number.isFinite(item.intervalSeconds) || item.intervalSeconds<2 || item.intervalSeconds>30 || !['smooth','slide','fade','instant'].includes(item.transition)) invalid('اختاري مدة بين 2 و30 ثانية وأسلوب انتقال صالح');
+      result.feature_carousels[key]={intervalSeconds:item.intervalSeconds,transition:item.transition};
+    }
+  }
   if (Object.hasOwn(incoming, 'store_description')) {
     if (typeof incoming.store_description !== 'string' || incoming.store_description.length > 80) invalid('النص أسفل اسم المتجر طويل أو غير صالح');
     result.store_description = incoming.store_description.trim();

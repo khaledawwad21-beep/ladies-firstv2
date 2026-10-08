@@ -41,7 +41,7 @@ test("Top 5 and best sellers keep arrows, native touch scrolling and autoplay", 
   assert.match(index, /overflow-x:auto!important/);
   assert.match(app, /function moveFeatureCarousel\(/);
   assert.match(app, /function autoFeatureCarousels\(/);
-  assert.match(app, /setInterval\(autoFeatureCarousels,3500\)/);
+  assert.match(app, /setInterval\(autoFeatureCarousels,250\)/);
 });
 
 

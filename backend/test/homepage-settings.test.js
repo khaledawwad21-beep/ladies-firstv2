@@ -22,14 +22,15 @@ async function request(route,body,role='owner') {
   return fetch(base+route,{method:body?'PUT':'GET',headers:{'Content-Type':'application/json',...(role?{Authorization:'Bearer '+createToken({id:role==='customer'?2:1,role})}:{})},...(body?{body:JSON.stringify(body)}:{})});
 }
 test('homepage updates require admin and persist through public settings reads',async()=>{
-  const body={hero_slides:[{image:'/api/images/test',mobileImage:'/api/images/mobile-test',titleAr:' عنوان ',descEn:'Description'},{image:'https://example.test/banner.jpg',titleEn:'Second'}],hero_text_style:style};
+  const featureSettings={top5:{intervalSeconds:4,transition:'smooth'},bestSellers:{intervalSeconds:7,transition:'fade'}};
+  const body={feature_carousels:featureSettings,hero_slides:[{image:'/api/images/test',mobileImage:'/api/images/mobile-test',titleAr:' عنوان ',descEn:'Description'},{image:'https://example.test/banner.jpg',titleEn:'Second'}],hero_text_style:style};
   assert.equal((await request('/api/admin/settings',body,null)).status,401);
   assert.equal((await request('/api/admin/settings',body,'customer')).status,403);
   assert.equal((await request('/api/admin/settings',{store_name:'Keep this setting'})).status,200);
   assert.equal((await request('/api/admin/settings',body)).status,200);
   saved=(await (await request('/api/settings',null,null)).json()).settings;
   assert.equal(saved.hero_slides[0].titleAr,'عنوان');assert.equal(saved.hero_slides[0].mobileImage,'/api/images/mobile-test');assert.equal(saved.hero_slides[1].titleEn,'Second');
-  assert.deepEqual(saved.hero_text_style,{...style,intervalSeconds:3,transition:'fade'});assert.equal(saved.store_name,'Keep this setting');
+  assert.deepEqual(saved.hero_text_style,{...style,intervalSeconds:3,transition:'fade'});assert.equal(saved.store_name,'Keep this setting');assert.deepEqual(saved.feature_carousels,featureSettings);
   const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3XcAAAAASUVORK5CYII=';
   const uploaded=await fetch(base+'/api/admin/uploads/image',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+createToken({id:1,role:'owner'})},body:JSON.stringify({data:image})});
   assert.equal(uploaded.status,201);const url=(await uploaded.json()).url;
@@ -88,7 +89,7 @@ test('admin draft preserves edits across add/reorder/remove, saves only slider s
     const font=/<select id="hpFont"[^>]*>[\s\S]*?<option value="([^"]+)" selected/.exec(html);nodes['#hpFont']={value:font?font[1]:style.font};
   }});
   let payload,fail=false;
-  const context=vm.createContext({clearTimeout:()=>{},setTimeout:()=>0,window:{},$:(key)=>nodes[key],E:value=>String(value??'').replace(/</g,'&lt;').replace(/"/g,'&quot;'),toast:()=>{},api:async(url,options)=>{payload=JSON.parse(options.body);if(fail)throw Error('تعذر الحفظ');},adminUploadProductImage:async()=>'/api/images/uploaded',adminUploadMany:async files=>[...files].map(()=>'/api/images/uploaded')});
+  const context=vm.createContext({clearInterval:()=>{},clearTimeout:()=>{},setTimeout:()=>0,window:{},$:(key)=>nodes[key],E:value=>String(value??'').replace(/</g,'&lt;').replace(/"/g,'&quot;'),toast:()=>{},api:async(url,options)=>{payload=JSON.parse(options.body);if(fail)throw Error('تعذر الحفظ');},adminUploadProductImage:async()=>'/api/images/uploaded',adminUploadMany:async files=>[...files].map(()=>'/api/images/uploaded')});
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../../frontend/admin-homepage.js'),'utf8'),context);
   context.hpRender();context.hpAdd();nodes['#hp_0_image'].value='/one.png';nodes['#hp_0_titleAr'].value='Edited';
   context.hpAdd();nodes['#hp_1_image'].value='/two.png';context.hpMove(1,-1);await context.hpSave();
