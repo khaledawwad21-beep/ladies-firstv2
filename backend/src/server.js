@@ -69,6 +69,8 @@ app.use(
   })
 );
 
+require("./naya-ai").registerNayaAi(app, { db });
+
 app.use(
   "/uploads",
   express.static(UPLOADS_DIR)
