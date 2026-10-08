@@ -10,7 +10,7 @@ let staffChatRefreshTimer = null;
 let staffChatDrafts = new Map();
 let staffChatFirstMessageDraft = "";
 let staffChatReplyDraftOwner = null;
-let staffChatNewConversationDraft = { recipientId: "", contextType: "", contextId: "" };
+let staffChatNewConversationDraft = { recipientId: "", contextType: "", contextId: "", searchQuery: "" };
 
 function staffChatCan(permission) {
   const role = String(currentAdminUser?.role || "").toLowerCase();
@@ -19,13 +19,14 @@ function staffChatCan(permission) {
 }
 
 function staffChatComposerIsFocused() {
-  return ["staffChatRecipient", "staffChatContextType", "staffChatContextId", "staffChatFirstMessage", "staffChatReply"].includes(document.activeElement?.id);
+  return ["staffChatRecipient", "staffChatContextType", "staffChatContextSearch", "staffChatContextId", "staffChatFirstMessage", "staffChatReply"].includes(document.activeElement?.id);
 }
 
 function staffChatCaptureNewConversationDraft() {
   const recipient = $("#staffChatRecipient");
   const contextType = $("#staffChatContextType");
   const contextId = $("#staffChatContextId");
+  const contextSearch = $("#staffChatContextSearch");
   const firstMessage = $("#staffChatFirstMessage");
   if (recipient) staffChatNewConversationDraft.recipientId = recipient.value;
   let typeChanged = false;
@@ -36,7 +37,11 @@ function staffChatCaptureNewConversationDraft() {
     staffChatNewConversationDraft.contextType = nextType;
   }
   if (!typeChanged && contextId?.value) staffChatNewConversationDraft.contextId = contextId.value;
-  if (!staffChatNewConversationDraft.contextType) staffChatNewConversationDraft.contextId = "";
+  if (!staffChatNewConversationDraft.contextType) {
+    staffChatNewConversationDraft.contextId = "";
+    staffChatNewConversationDraft.searchQuery = "";
+  }
+  if (contextSearch) staffChatNewConversationDraft.searchQuery = contextSearch.value;
   if (firstMessage) staffChatFirstMessageDraft = firstMessage.value;
 }
 
@@ -87,31 +92,75 @@ async function refreshStaffConversations() {
   }
 }
 
+function normalizeStaffChatSearch(value) {
+  return String(value || "").replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit))).trim().toLowerCase();
+}
+
 function staffContextOptions() {
   const type = $("#staffChatContextType")?.value || "";
+  const searchWrap = $("#staffChatContextSearchWrap");
+  const search = $("#staffChatContextSearch");
   const select = $("#staffChatContextId");
   if (!select) return;
   const typeChanged = type !== staffChatNewConversationDraft.contextType;
-  if (typeChanged) staffChatNewConversationDraft.contextId = "";
-  else if (select.value) staffChatNewConversationDraft.contextId = select.value;
+  if (typeChanged) {
+    staffChatNewConversationDraft.contextId = "";
+    staffChatNewConversationDraft.searchQuery = "";
+  } else if (select.value) {
+    staffChatNewConversationDraft.contextId = select.value;
+  }
   staffChatNewConversationDraft.contextType = type;
   if (!type) {
     staffChatNewConversationDraft.contextId = "";
+    staffChatNewConversationDraft.searchQuery = "";
+    if (searchWrap) searchWrap.style.display = "none";
     select.innerHTML = '<option value="">بدون ربط بطلب أو منتج</option>';
     select.disabled = true;
     return;
   }
-  const values = type === "order" ? staffChatOrders : staffChatProducts;
-  select.disabled = false;
-  if (!values.length) {
-    select.innerHTML = '<option value="">لا توجد سجلات متاحة لصلاحية هذا الحساب</option>';
-    return;
+  if (searchWrap) searchWrap.style.display = "block";
+  if (search) {
+    search.placeholder = type === "order" ? "ابحث برقم الطلب أو هاتف العميل" : "ابحث باسم المنتج أو رقم المنتج";
+    search.value = staffChatNewConversationDraft.searchQuery || "";
   }
-  select.innerHTML = `<option value="">اختاري ${type === "order" ? "طلبًا" : "منتجًا"}</option>` + values.map((item) => {
+  select.disabled = false;
+  searchStaffContext();
+}
+
+function searchStaffContext() {
+  const type = $("#staffChatContextType")?.value || "";
+  const search = $("#staffChatContextSearch");
+  const select = $("#staffChatContextId");
+  if (!type || !search || !select) return;
+  const query = normalizeStaffChatSearch(search.value);
+  staffChatNewConversationDraft.searchQuery = search.value;
+  const values = type === "order" ? staffChatOrders : staffChatProducts;
+  let matches = [];
+  if (query) {
+    if (type === "order") {
+      const digits = query.replace(/\\D/g, "");
+      matches = values.filter((order) => {
+        const id = normalizeStaffChatSearch(order.id);
+        const phone = normalizeStaffChatSearch(order.customer_phone || order.user_phone || order.phone).replace(/\\D/g, "");
+        return id.includes(query.replace(/^#/, "")) || (digits.length > 0 && phone.includes(digits));
+      });
+    } else {
+      matches = values.filter((product) => {
+        const name = normalizeStaffChatSearch(product.name);
+        const number = normalizeStaffChatSearch(product.productNumber || product.product_number);
+        return name.includes(query) || number.includes(query);
+      });
+    }
+  }
+  matches = matches.slice(0, 50);
+  const placeholder = query
+    ? (matches.length ? "اختاري نتيجة البحث" : "لا توجد نتائج مطابقة")
+    : (type === "order" ? "اكتبي رقم الطلب أو هاتف العميل للبحث" : "اكتبي اسم المنتج أو رقمه للبحث");
+  select.innerHTML = `<option value="">${E(placeholder)}</option>` + matches.map((item) => {
     const id = Number(item.id) || 0;
     const label = type === "order"
-      ? `#${id} — ${item.customer_name || item.user_email || "طلب"} — ${item.status || ""}`
-      : `${item.name || "منتج"} — ${item.sku || "#" + id}`;
+      ? `#${id} — ${item.customer_name || item.user_email || "طلب"} — ${item.customer_phone || item.user_phone || item.phone || "بدون هاتف"} — ${item.status || ""}`
+      : `${item.name || "منتج"} — رقم المنتج ${item.productNumber || item.product_number || "غير متوفر"}`;
     return `<option value="${id}">${E(label)}</option>`;
   }).join("");
   select.value = staffChatNewConversationDraft.contextId;
@@ -132,7 +181,8 @@ function renderStaffConversations() {
       <h2>محادثة جديدة</h2>
       <label>الموظف أو المسؤول<select id="staffChatRecipient" class="field" onchange="staffChatCaptureNewConversationDraft()"><option value="">اختيار الموظف</option>${staffChatContacts.map((person) => `<option value="${Number(person.id)}">${E(person.name || person.email || "حساب إداري")} — ${E(person.role || "staff")}</option>`).join("")}</select></label>
       <label>ربط المحادثة<select id="staffChatContextType" class="field" onchange="staffContextOptions()"><option value="">محادثة مباشرة</option>${staffChatCan("orders") ? '<option value="order">ملاحظة على طلب</option>' : ""}${staffChatCan("products") ? '<option value="product">ملاحظة على منتج</option>' : ""}</select></label>
-      <select id="staffChatContextId" class="field" disabled onchange="staffChatCaptureNewConversationDraft()"><option value="">بدون ربط بطلب أو منتج</option></select>
+      <label id="staffChatContextSearchWrap" style="display:none">بحث مباشر<input id="staffChatContextSearch" class="field" type="search" autocomplete="off" oninput="searchStaffContext()"></label>
+      <select id="staffChatContextId" class="field" size="5" disabled onchange="staffChatCaptureNewConversationDraft()"><option value="">بدون ربط بطلب أو منتج</option></select>
       <textarea id="staffChatFirstMessage" class="field" rows="3" maxlength="3000" placeholder="اكتب ملاحظة أو رسالة للموظف"></textarea>
       <button class="btn primary" type="button" onclick="createStaffConversation()">بدء المحادثة</button>
       <h2 class="staff-chat-list-title">محادثاتي</h2>
@@ -148,6 +198,8 @@ function renderStaffConversations() {
   if (recipientField) recipientField.value = staffChatNewConversationDraft.recipientId;
   const contextTypeField = $("#staffChatContextType");
   if (contextTypeField) contextTypeField.value = staffChatNewConversationDraft.contextType;
+  const contextSearchField = $("#staffChatContextSearch");
+  if (contextSearchField) contextSearchField.value = staffChatNewConversationDraft.searchQuery || "";
   staffContextOptions();
   const contextIdField = $("#staffChatContextId");
   if (contextIdField) contextIdField.value = staffChatNewConversationDraft.contextId;
@@ -171,7 +223,7 @@ async function createStaffConversation() {
       body: JSON.stringify({ recipientId, contextType, contextId, message })
     });
     staffChatFirstMessageDraft = "";
-    staffChatNewConversationDraft = { recipientId: "", contextType: "", contextId: "" };
+    staffChatNewConversationDraft = { recipientId: "", contextType: "", contextId: "", searchQuery: "" };
     const firstMessageField = $("#staffChatFirstMessage");
     if (firstMessageField) firstMessageField.value = "";
     activeStaffChatId = Number(data.conversationId);
@@ -216,12 +268,20 @@ async function openStaffChatFor(contextType, contextId) {
   await openAdminSection("messages");
   const type = $("#staffChatContextType");
   if (!type) return;
-  type.value = contextType;
-  staffContextOptions();
-  const linked = $("#staffChatContextId");
-  if (linked) linked.value = String(contextId);
+  const records = contextType === "order" ? staffChatOrders : staffChatProducts;
+  const record = records.find((item) => Number(item.id) === Number(contextId));
   staffChatNewConversationDraft.recipientId = $("#staffChatRecipient")?.value || staffChatNewConversationDraft.recipientId;
   staffChatNewConversationDraft.contextType = contextType;
   staffChatNewConversationDraft.contextId = String(contextId);
+  staffChatNewConversationDraft.searchQuery = contextType === "order"
+    ? String(contextId)
+    : String(record?.productNumber || record?.product_number || record?.name || "");
+  type.value = contextType;
+  staffContextOptions();
+  const search = $("#staffChatContextSearch");
+  if (search) search.value = staffChatNewConversationDraft.searchQuery;
+  searchStaffContext();
+  const linked = $("#staffChatContextId");
+  if (linked) linked.value = String(contextId);
   $("#staffChatRecipient")?.focus();
 }
