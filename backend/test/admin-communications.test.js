@@ -22,6 +22,7 @@ test("product identifiers are unique and generated within their category",()=>{
   assert.match(server,/product_category_sequences/);
   assert.match(server,/product_number/);
   assert.match(productWrite,/productSequence/);
+  assert.match(productWrite,/ON CONFLICT\\(category_id\\)/);
   assert.match(productWrite,/هذا الباركود مستخدم لمنتج آخر/);
   assert.match(admin,/id="pbarcode"/);
   assert.match(admin,/productNumber/);
