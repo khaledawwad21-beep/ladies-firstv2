@@ -94,8 +94,6 @@ function registerProductWrites(app, getProducts) {
         const brand = brandProvided
           ? await taxonomy(client, 'brands', body.brandId ?? body.brand_id, body.brand)
           : (existing?.brand_id ?? null);
-        if (!id && !category) invalid('اختاري فئة للمنتج حتى يتم توليد رقمه تلقائيًا');
-
         const barcodeInput = body.barcode !== undefined ? String(body.barcode || '').trim() : String(existing?.barcode || '');
         if (barcodeInput.length > 100) invalid('الباركود يجب ألا يتجاوز 100 حرف');
         const barcode = barcodeInput || null;
@@ -103,15 +101,21 @@ function registerProductWrites(app, getProducts) {
         let productSequence = Number(existing?.product_sequence) || null;
         let productNumber = existing?.product_number || null;
         const categoryChanged = !id || Number(category || 0) !== Number(existing?.category_id || 0);
-        if (category && (categoryChanged || !productSequence || !productNumber)) {
-          const lockedCategory = await client.query('SELECT id FROM categories WHERE id = $1 FOR UPDATE', [category]);
-          if (!lockedCategory.rowCount) invalid('الفئة المحددة غير موجودة');
+        if (category && categoryChanged) {
+          const existingCategory = await client.query('SELECT id FROM categories WHERE id = $1', [category]);
+          if (!existingCategory.rows.length) invalid('الفئة المحددة غير موجودة');
+        }
+        if (!id || categoryChanged || !productSequence || !productNumber) {
           const nextSequence = await client.query(
-            'SELECT COALESCE(MAX(product_sequence), 0) + 1 AS next FROM products WHERE category_id = $1',
+            `INSERT INTO product_category_sequences(category_id, last_sequence)
+             VALUES (COALESCE($1::bigint, 0), 1)
+             ON CONFLICT(category_id) DO UPDATE
+               SET last_sequence = product_category_sequences.last_sequence + 1
+             RETURNING last_sequence`,
             [category]
           );
-          productSequence = Number(nextSequence.rows[0].next);
-          productNumber = String(category) + '-' + String(productSequence);
+          productSequence = Number(nextSequence.rows[0].last_sequence);
+          productNumber = String(Number(category) || 0) + '-' + String(productSequence);
         }
         const supplier = String(
           body.supplierName ??
