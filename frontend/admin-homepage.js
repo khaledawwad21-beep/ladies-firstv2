@@ -2,7 +2,7 @@
 
 const hpFonts = [['Tahoma,Arial,sans-serif','Tahoma'],['Arial,Tahoma,sans-serif','Arial'],['Georgia,serif','Georgia']];
 const hpDefaultStyle = {font:hpFonts[0][0],color:'#ffffff',opacity:1,bgColor:'#63345e',bgOpacity:.58,x:70,y:70};
-let hpSlides = [], hpStyle = {...hpDefaultStyle}, hpBusy = false, hpLoadRequest = 0;
+let hpSlides = [], hpStyle = {...hpDefaultStyle}, hpBusy = false, hpLoadRequest = 0, hpPointerDrag = null;
 
 window.homepage = async function homepage() {
   const request = ++hpLoadRequest;
@@ -26,6 +26,7 @@ function hpCapture() {
   if (!$('#hpEditor')) return;
   hpSlides.forEach((slide,index)=>{
     for(const key of ['image','mobileImage','titleAr','titleEn','descAr','descEn']) slide[key]=$(`#hp_${index}_${key}`).value.trim();
+    slide.hideText=$(`#hp_${index}_hideText`)?.checked===true;
   });
   hpStyle={font:$('#hpFont').value,color:$('#hpColor').value,bgColor:$('#hpBg').value,opacity:Number($('#hpOpacity').value),bgOpacity:Number($('#hpBgOpacity').value),x:Number($('#hpX').value),y:Number($('#hpY').value)};
 }
@@ -34,10 +35,10 @@ function hpPreviewUrl(value) {
   return /^https?:\/\//i.test(url)||/^\/(?!\/)[^\\]+$/.test(url)?url:'';
 }
 function hpRender() {
-  $('#sections').innerHTML=`<div id="hpEditor" class="card"><h2>صور السلايدر والنصوص</h2><p>تظهر الصور بهذا الترتيب، وتتبدل تلقائيًا كل 3 ثوانٍ. استخدمي صورة الكمبيوتر 1920×1080 (16:9) وصورة الجوال 1080×1350 (4:5) لتظهر السلايدات كاملة. صورة الجوال اختيارية؛ إن تركت فارغة تُستخدم صورة الكمبيوتر.</p><fieldset id="hpFields" style="border:0;padding:0;min-width:0" ${hpBusy?'disabled':''}>
+  $('#sections').innerHTML=`<div id="hpEditor" class="card"><h2>صور السلايدر والنصوص</h2><p>تظهر الصور بهذا الترتيب، وتتبدل تلقائيًا كل 3 ثوانٍ. استخدمي صورة الكمبيوتر 1920×900 (2.13:1) وصورة الجوال 1080×1350 (4:5) لتظهر الصورة كاملة بدون قص. صورة الجوال اختيارية؛ إن تركت فارغة تُستخدم صورة الكمبيوتر.</p><fieldset id="hpFields" style="border:0;padding:0;min-width:0" ${hpBusy?'disabled':''}>
     <div class="toolbar"><button class="btn" type="button" onclick="hpUseWarmCampaign()">تحميل سلايدات الحملة الدافئة</button><button class="btn" type="button" onclick="hpAdd()">+ شريحة يدوية</button><label class="btn" for="hpFile">اختيار صور للسلايدر</label><input id="hpFile" type="file" multiple accept="image/png,image/jpeg,image/webp" onchange="hpUpload(this)" style="display:none"></div>
     <small class="small-note">بعد الرفع تظهر الصورة ضمن الشرائح تلقائيًا. اضغطي «حفظ السلايدر» لاعتمادها.</small><p id="hpMessage" role="status">${hpBusy?'جاري الرفع أو الحفظ…':''}</p>
-    ${hpSlides.map((slide,i)=>`<div id="hpSlide_${i}" class="card"><h3>الصورة ${i+1}</h3>${hpPreviewUrl(slide.image)?`<img src="${E(hpPreviewUrl(slide.image))}" alt="معاينة الصورة ${i+1}" style="display:block;width:100%;max-height:240px;object-fit:contain;border-radius:12px">`:""}<div class="formgrid"><label>رابط صورة الكمبيوتر — 1920×1080 (16:9)<input id="hp_${i}_image" class="field" value="${E(slide.image||"")}" placeholder="https://… أو رابط الصورة المرفوعة"></label><div><label>رابط صورة الجوال — 1080×1350 (4:5)<input id="hp_${i}_mobileImage" class="field" value="${E(slide.mobileImage||"")}" placeholder="اختياري — اتركيه فارغًا لاستخدام صورة الكمبيوتر"></label><label class="btn" for="hpMobileFile_${i}">اختيار صورة الجوال</label><input id="hpMobileFile_${i}" type="file" accept="image/png,image/jpeg,image/webp" onchange="hpUploadMobile(${i},this)" style="display:none"></div><label>العنوان بالعربية<input id="hp_${i}_titleAr" class="field" maxlength="200" value="${E(slide.titleAr||'')}"></label><label>العنوان بالإنجليزية<input id="hp_${i}_titleEn" class="field" maxlength="200" value="${E(slide.titleEn||'')}"></label><label>الوصف بالعربية<textarea id="hp_${i}_descAr" class="field" maxlength="1000">${E(slide.descAr||'')}</textarea></label><label>الوصف بالإنجليزية<textarea id="hp_${i}_descEn" class="field" maxlength="1000">${E(slide.descEn||'')}</textarea></label></div><div class="toolbar"><button type="button" class="btn" onclick="hpMove(${i},-1)" ${i===0?'disabled':''}>للأعلى</button><button type="button" class="btn" onclick="hpMove(${i},1)" ${i===hpSlides.length-1?'disabled':''}>للأسفل</button><button type="button" class="btn" onclick="hpRemove(${i})">حذف الصورة</button></div></div>`).join('')}
+    ${hpSlides.map((slide,i)=>`<div id="hpSlide_${i}" class="card hp-slide" data-hp-slide="${i}"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>الشريحة ${i+1}</h3><button type="button" class="btn" style="touch-action:none;cursor:grab" aria-label="اسحبي لإعادة ترتيب الشريحة ${i+1}" onpointerdown="hpDragStart(event,${i})" onpointerup="hpDragEnd(event,${i})" onpointercancel="hpDragEnd(event,${i})">⠿ اسحبي للترتيب</button></div>${hpPreviewUrl(slide.image)?`<img src="${E(hpPreviewUrl(slide.image))}" alt="معاينة الصورة ${i+1}" style="display:block;width:100%;aspect-ratio:2.13/1;max-height:240px;object-fit:cover;object-position:center;border-radius:12px">`:""}<div class="formgrid"><label>رابط صورة الكمبيوتر — 1920×900 (2.13:1)<input id="hp_${i}_image" class="field" value="${E(slide.image||"")}" placeholder="https://… أو رابط الصورة المرفوعة"></label><div><label>رابط صورة الجوال — 1080×1350 (4:5)<input id="hp_${i}_mobileImage" class="field" value="${E(slide.mobileImage||"")}" placeholder="اختياري — اتركيه فارغًا لاستخدام صورة الكمبيوتر"></label><label class="btn" for="hpMobileFile_${i}">اختيار صورة الجوال</label><input id="hpMobileFile_${i}" type="file" accept="image/png,image/jpeg,image/webp" onchange="hpUploadMobile(${i},this)" style="display:none"></div><label>العنوان بالعربية<input id="hp_${i}_titleAr" class="field" maxlength="200" value="${E(slide.titleAr||'')}"></label><label>العنوان بالإنجليزية<input id="hp_${i}_titleEn" class="field" maxlength="200" value="${E(slide.titleEn||'')}"></label><label>الوصف بالعربية<textarea id="hp_${i}_descAr" class="field" maxlength="1000">${E(slide.descAr||'')}</textarea></label><label>الوصف بالإنجليزية<textarea id="hp_${i}_descEn" class="field" maxlength="1000">${E(slide.descEn||'')}</textarea></label><label><input id="hp_${i}_hideText" type="checkbox" ${slide.hideText===true?'checked':''}> إخفاء النص والزر لإظهار صورة الشعار فقط</label></div><div class="toolbar"><button type="button" class="btn" onclick="hpMove(${i},-1)" ${i===0?'disabled':''}>للأعلى</button><button type="button" class="btn" onclick="hpMove(${i},1)" ${i===hpSlides.length-1?'disabled':''}>للأسفل</button><button type="button" class="btn" onclick="hpRemove(${i})">حذف الصورة</button></div></div>`).join('')}
     <h3>تنسيق النص</h3><div class="formgrid"><label>الخط<select id="hpFont" class="field">${hpFonts.map(([value,name])=>`<option value="${value}" ${hpStyle.font===value?'selected':''}>${name}</option>`).join('')}</select></label><label>لون النص<input id="hpColor" class="field" type="color" value="${hpStyle.color}"></label><label>لون خلفية النص<input id="hpBg" class="field" type="color" value="${hpStyle.bgColor}"></label><label>ظهور النص (0 شفاف، 1 كامل)<input id="hpOpacity" class="field" type="number" min="0" max="1" step=".05" value="${hpStyle.opacity}"></label><label>شفافية خلفية النص (0 شفافة، 1 كاملة)<input id="hpBgOpacity" class="field" type="number" min="0" max="1" step=".05" value="${hpStyle.bgOpacity}"></label><label>مكان النص أفقيًا (0 يسار، 100 يمين)<input id="hpX" class="field" type="range" min="0" max="100" step="1" value="${hpStyle.x}" oninput="document.getElementById('hpXValue').textContent=this.value+'%'"><output id="hpXValue">${hpStyle.x}%</output></label><label>مكان النص عموديًا (0 أعلى، 100 أسفل)<input id="hpY" class="field" type="range" min="0" max="100" step="1" value="${hpStyle.y}" oninput="document.getElementById('hpYValue').textContent=this.value+'%'"><output id="hpYValue">${hpStyle.y}%</output></label></div>
     <div class="actions"><button class="btn primary" type="button" onclick="hpSave()">حفظ السلايدر</button><a class="btn" href="/" target="_blank" rel="noopener">فتح المتجر</a></div>
     </fieldset></div>`;
@@ -57,6 +58,22 @@ function hpUseWarmCampaign() {
 function hpAdd() {if(hpBusy)return;hpCapture();if(hpSlides.length>=12)return toast('الحد الأقصى 12 صورة');hpSlides.push({image:'',mobileImage:'',titleAr:'',titleEn:'',descAr:'',descEn:''});hpRender();}
 function hpRemove(index) {if(hpBusy)return;hpCapture();hpSlides.splice(index,1);hpRender();}
 function hpMove(index,delta) {if(hpBusy)return;hpCapture();const next=index+delta;if(next<0||next>=hpSlides.length)return;[hpSlides[index],hpSlides[next]]=[hpSlides[next],hpSlides[index]];hpRender();}
+function hpDragStart(event,index) {
+  if(hpBusy || (event.pointerType==='mouse' && event.button!==0))return;
+  event.preventDefault();hpCapture();hpPointerDrag={from:index,pointerId:event.pointerId};
+  try{event.currentTarget.setPointerCapture(event.pointerId)}catch{}
+  event.currentTarget.closest('[data-hp-slide]')?.classList.add('hp-is-dragging');
+}
+function hpDragEnd(event,index) {
+  const drag=hpPointerDrag;if(!drag||drag.pointerId!==event.pointerId)return;
+  event.currentTarget.closest('[data-hp-slide]')?.classList.remove('hp-is-dragging');hpPointerDrag=null;
+  if(event.type==='pointercancel')return;
+  const targetCard=document.elementFromPoint(event.clientX,event.clientY)?.closest('[data-hp-slide]');
+  const to=targetCard?Number(targetCard.dataset.hpSlide):index;
+  if(!Number.isInteger(to)||to===drag.from)return;
+  const [slide]=hpSlides.splice(drag.from,1);hpSlides.splice(Math.max(0,Math.min(to,hpSlides.length)),0,slide);hpRender();
+  $('#hpMessage').textContent='تم تغيير ترتيب الشرائح. اضغطي «حفظ السلايدر» لاعتماده.';
+}
 async function hpUpload(input) {
   if(hpBusy||!input.files?.length)return;
   hpCapture();
