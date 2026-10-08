@@ -54,7 +54,34 @@ if(typeof MutationObserver!=='undefined'&&document?.documentElement){
 async function api(u,o={}){const token=localStorage.getItem('lf_admin_token')||'';const headers={'Content-Type':'application/json',...(o.headers||{})};if(token)headers.Authorization='Bearer '+token;let r=await fetch(u,{...o,headers}),d={};try{d=await r.json()}catch{}if(r.status===401){localStorage.removeItem('lf_admin_token');showLogin();const e=Error(d.message||'انتهت جلسة الدخول');e.status=401;e.code=d.code||'UNAUTHORIZED';throw e}if(!r.ok||d.ok===false){const e=Error(d.message||('HTTP '+r.status));e.status=r.status;e.code=d.code||'HTTP_ERROR';e.data=d;throw e}return d}
 
 function showLogin(){const l=$('#login'),a=$('#app');if(l)l.hidden=false;if(a)a.hidden=true;const b=$('#recoveryBox');if(b)b.hidden=true}
-async function showApp(){const l=$('#login'),a=$('#app');if(l)l.hidden=true;if(a)a.hidden=false;try{const d=await api('/api/auth/me');if(!d.user||!['owner','admin','staff'].includes(String(d.user.role||'').toLowerCase())){localStorage.removeItem('lf_admin_token');showLogin();$('#loginMsg').textContent='جلسة الإدارة غير صالحة أو الحساب غير مفعل.';return}currentAdminUser=d.user;applyAdminPermissions();applyAdminGenderCopy($('#app')||document);startStaffMessagePolling();const allowed=navs.find(n=>!n.hidden);if(!allowed){$('#title').textContent='لا توجد صلاحيات';$('#sections').innerHTML='<div class="card"><h2>لا توجد صلاحيات إدارية مخصصة لهذا الحساب.</h2><p>راجعي المالك لتحديد الأقسام المسموح بها.</p></div>';return}if(!canAdminSection(sec))sec=allowed.dataset.s;navs.forEach(n=>n.classList.toggle('active',n.dataset.s===sec));$('#title').textContent=titles[sec];await load()}catch(e){if(a)a.hidden=true;if(l)l.hidden=false;const msg=e&&e.message?e.message:'تعذر التحقق من جلسة الدخول';$('#loginMsg').textContent=msg.includes('جلسة')||msg.includes('انتهت')?msg:'تعذر فتح لوحة التحكم: '+msg}}
+
+const STAFF_DAILY_MOTIVATIONS=[
+  'خطوة صغيرة بإتقان اليوم تصنع فرقًا كبيرًا مع الوقت.',
+  'كل يوم فرصة جديدة لنترك أثرًا جميلًا في تجربة زبائننا.',
+  'نجاح الفريق يبدأ بتعاوننا واهتمامنا بالتفاصيل.',
+  'ابتسامتك واهتمامك يصنعان تجربة أجمل لكل زبونة.',
+  'إنجاز اليوم يبدأ بتركيز هادئ ونية طيبة.',
+  'كل موقف لطيف قد يصنع ذكرى جميلة لزبونة.',
+  'وجودك وجهدك جزء مهم من نجاح Ladies First.',
+  'ابدأ يومك بثقة؛ إنجازاتك الصغيرة تستحق التقدير.',
+  'التفاصيل الجميلة تصنع فرقًا، وشغلك اليوم يضيف لمستك.',
+  'يوم جديد، فرصة جديدة للتعاون والإنجاز.'
+];
+function showDailyStaffMotivation(){
+  if(String(currentAdminUser?.role||'').toLowerCase()!=='staff')return;
+  const now=new Date(),dayKey=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
+  const identity=String(currentAdminUser?.id||currentAdminUser?.email||currentAdminUser?.phone||'staff');
+  const key='lf_staff_motivation_seen:'+identity;
+  try{if(localStorage.getItem(key)===dayKey)return;localStorage.setItem(key,dayKey)}catch{}
+  const dayNumber=Math.floor(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate())/86400000);
+  const offset=[...identity].reduce((sum,ch)=>sum+ch.charCodeAt(0),0);
+  const message=STAFF_DAILY_MOTIVATIONS[(dayNumber+offset)%STAFF_DAILY_MOTIVATIONS.length];
+  const name=String(currentAdminUser?.name||'').trim();
+  const greeting=name?'صباح الخير، '+E(name)+' 🌸':'صباح الخير 🌸';
+  modal('رسالة صباحية من Ladies First','<div class="staff-login-message"><div class="staff-message-copy"><b>'+greeting+'</b><p>'+E(message)+'</p></div><div class="actions"><button class="btn primary" type="button" onclick="closeModal()">شكرًا، لنبدأ يومنا</button></div></div>');
+}
+
+async function showApp(){const l=$('#login'),a=$('#app');if(l)l.hidden=true;if(a)a.hidden=false;try{const d=await api('/api/auth/me');if(!d.user||!['owner','admin','staff'].includes(String(d.user.role||'').toLowerCase())){localStorage.removeItem('lf_admin_token');showLogin();$('#loginMsg').textContent='جلسة الإدارة غير صالحة أو الحساب غير مفعل.';return}currentAdminUser=d.user;applyAdminPermissions();applyAdminGenderCopy($('#app')||document);showDailyStaffMotivation();startStaffMessagePolling();const allowed=navs.find(n=>!n.hidden);if(!allowed){$('#title').textContent='لا توجد صلاحيات';$('#sections').innerHTML='<div class="card"><h2>لا توجد صلاحيات إدارية مخصصة لهذا الحساب.</h2><p>راجعي المالك لتحديد الأقسام المسموح بها.</p></div>';return}if(!canAdminSection(sec))sec=allowed.dataset.s;navs.forEach(n=>n.classList.toggle('active',n.dataset.s===sec));$('#title').textContent=titles[sec];await load()}catch(e){if(a)a.hidden=true;if(l)l.hidden=false;const msg=e&&e.message?e.message:'تعذر التحقق من جلسة الدخول';$('#loginMsg').textContent=msg.includes('جلسة')||msg.includes('انتهت')?msg:'تعذر فتح لوحة التحكم: '+msg}}
 async function adminLogin(){const contact=$('#loginContact').value.trim(),password=$('#loginPassword').value||'',msg=$('#loginMsg');if(!contact||!password){msg.textContent='أدخل البريد أو الهاتف وكلمة المرور';return}try{const d=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contact,password})});const x=await d.json();if(!d.ok||x.ok===false)throw Error(x.message||'بيانات الدخول غير صحيحة');if(!['owner','admin','staff'].includes(String(x.user?.role||'').toLowerCase()))throw Error('هذا الحساب ليس حساب إدارة');localStorage.setItem('lf_admin_token',x.token);showApp()}catch(e){msg.textContent=e.message}}
 async function adminPasskeyLogin(){const contact=$('#loginContact').value.trim(),msg=$('#loginMsg');if(!contact){msg.textContent='أدخل البريد أو الهاتف أولًا';return}if(!window.LFPasskeys?.supported()){msg.textContent='هذا الجهاز أو المتصفح لا يدعم تسجيل الدخول بالبصمة.';return}try{let r=await fetch('/api/passkeys/login/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contact})}),o=await r.json();if(!r.ok||o.ok===false)throw Error(o.message||'لا توجد بصمة مفعلة');const credential=await window.LFPasskeys.getCredential(o);r=await fetch('/api/passkeys/login/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({challengeId:o.challengeId,credential})});const x=await r.json();if(!r.ok||x.ok===false)throw Error(x.message||'تعذر التحقق من البصمة');if(!['owner','admin','staff'].includes(String(x.user?.role||'').toLowerCase()))throw Error('هذه البصمة ليست لحساب إدارة');localStorage.setItem('lf_admin_token',x.token);msg.textContent='';showApp()}catch(e){msg.textContent=e?.name==='NotAllowedError'?'تم إلغاء طلب البصمة أو لم يتم التعرف عليها.':(e.message||'تعذر تسجيل الدخول بالبصمة')}}
 async function logout(){try{await api('/api/auth/logout',{method:'POST'});}catch{}stopStaffMessagePolling();localStorage.removeItem('lf_admin_token');showLogin()}
