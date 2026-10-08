@@ -78,4 +78,6 @@ test("staff messages persist read receipts and remain available in history", asy
   const history = await call(app, "GET", "/api/admin/settings/staff-message", owner);
   assert.equal(history.payload.history.length, 2);
   assert.equal(history.payload.history[1].readCount, 1);
+  assert.equal(history.payload.history[1].active, false);
+  assert.equal(history.payload.history[0].active, true);
 });
