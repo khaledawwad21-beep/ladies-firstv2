@@ -109,3 +109,11 @@ test("delivery route only queues the message on the first delivered transition",
   assert.match(serverSource, /isNewDelivery:oldStatus!==\"delivered\"&&newStatus===\"delivered\"/);
   assert.match(serverSource, /if\(result\.isNewDelivery\)[\s\S]*sendDeliveredThankYou/);
 });
+
+
+test("invoice printing removes the admin shell page before the invoice", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../../frontend/admin.css"), "utf8");
+  const printHardening = css.slice(css.indexOf("/* Invoice print hardening"));
+  assert.match(printHardening, /@media print\{\s*\.shell\{display:none!important\}/);
+  assert.match(css, /\.print\{display:block!important\}/);
+});
