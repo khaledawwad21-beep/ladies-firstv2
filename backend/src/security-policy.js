@@ -44,7 +44,7 @@ function createSecurityPolicy({now=Date.now,limit=30,windowMs=15*60*1000}={}) {
       res.set('Access-Control-Allow-Headers','Content-Type,Authorization,X-Bootstrap-Token');
       return res.sendStatus(204);
     }
-    if(req.method==='POST' && (path.startsWith('/api/auth/')||path.startsWith('/api/passkeys/')||path==='/api/waitlist'||path==='/api/orders')) {
+    if(req.method==='POST' && (path.startsWith('/api/auth/')||path.startsWith('/api/passkeys/')||path==='/api/waitlist'||(path==='/api/orders'||path==='/api/orders/track'))) {
       const timestamp=now();
       if(attempts.size>10000)for(const [key,value] of attempts)if(value.until<=timestamp)attempts.delete(key);
       const key=(req.ip||req.socket.remoteAddress||'unknown')+':'+path;
