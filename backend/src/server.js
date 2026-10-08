@@ -572,6 +572,29 @@ async function initDatabase() {
     ON CONFLICT(category_id) DO UPDATE
       SET last_sequence = GREATEST(product_category_sequences.last_sequence, EXCLUDED.last_sequence)
   `);
+  await db(`
+    CREATE OR REPLACE FUNCTION assign_product_number_before_insert() RETURNS TRIGGER AS $
+    DECLARE next_sequence INTEGER;
+    BEGIN
+      IF NEW.product_number IS NULL OR NEW.product_sequence IS NULL THEN
+        INSERT INTO product_category_sequences(category_id, last_sequence)
+        VALUES (COALESCE(NEW.category_id, 0), 1)
+        ON CONFLICT(category_id) DO UPDATE
+          SET last_sequence = product_category_sequences.last_sequence + 1
+        RETURNING last_sequence INTO next_sequence;
+        NEW.product_sequence := next_sequence;
+        NEW.product_number := COALESCE(NEW.category_id, 0)::TEXT || '-' || next_sequence::TEXT;
+      END IF;
+      RETURN NEW;
+    END;
+    $ LANGUAGE plpgsql
+  `);
+  await db(`DROP TRIGGER IF EXISTS products_assign_number_before_insert ON products`);
+  await db(`
+    CREATE TRIGGER products_assign_number_before_insert
+    BEFORE INSERT ON products
+    FOR EACH ROW EXECUTE FUNCTION assign_product_number_before_insert()
+  `);
 
   await require('./product-media').initMedia();
   await require('./waitlist').initWaitlist(db);
