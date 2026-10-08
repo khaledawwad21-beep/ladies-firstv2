@@ -76,10 +76,14 @@ app.use(
   express.static(UPLOADS_DIR)
 );
 
+app.use('/api/admin',require('./staff-activity').activityMiddleware(db));
+
 app.use(
   "/api/admin",
   createAdminPermissionGuard(db, requireAuth)
 );
+
+require('./staff-activity').registerStaffActivity(app,{db,transaction,requireAdmin});
 
 /* =========================================================
    HELPERS
@@ -862,6 +866,7 @@ async function initDatabase() {
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS processing_at TIMESTAMPTZ`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMPTZ`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`);
+  await require("./staff-activity").initStaffActivity(db);
 
   await db(`
     CREATE TABLE IF NOT EXISTS order_status_history (
