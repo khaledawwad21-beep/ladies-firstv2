@@ -758,6 +758,8 @@ function heroMobileImageFor(slide){
 }
 function renderHeroSlider(fade=true){
   applyHeroTextStyle();
+  const effect=load('lf_hero_text_style',{}).transition||'fade';
+  document.querySelector('.heroCard')?.setAttribute('data-transition',effect);
   const slides=heroSlides();
   if(!slides.length)return;
   if(heroIndex>=slides.length)heroIndex=0;
@@ -775,7 +777,7 @@ function renderHeroSlider(fade=true){
 if(typeof window!=='undefined'&&window.matchMedia){const heroMobileQuery=window.matchMedia('(max-width: 700px)');const heroMobileChange=()=>renderHeroSlider(false);if(heroMobileQuery.addEventListener)heroMobileQuery.addEventListener('change',heroMobileChange);else if(heroMobileQuery.addListener)heroMobileQuery.addListener(heroMobileChange)}
 function heroGo(i){heroIndex=i;heroLayer=heroLayer==='A'?'B':'A';renderHeroSlider(true);restartHeroTimer()}
 function heroMove(d){const n=heroSlides().length;if(n<2)return;heroIndex=(heroIndex+d+n)%n;heroLayer=heroLayer==='A'?'B':'A';renderHeroSlider(true);restartHeroTimer()}
-function restartHeroTimer(){clearTimeout(heroTimer);if(heroSlides().length<2)return;heroTimer=setTimeout(()=>{heroMove(1)},3000)}
+function restartHeroTimer(){clearTimeout(heroTimer);if(heroSlides().length<2)return;heroTimer=setTimeout(()=>{heroMove(1)},Math.max(2,Math.min(30,Number(load('lf_hero_text_style',{}).intervalSeconds)||3))*1000)}
 function pauseHeroTimer(){clearTimeout(heroTimer)}
 function resumeHeroTimer(){restartHeroTimer()}
 
@@ -1172,4 +1174,26 @@ window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings()
  const visible=s=>{if(!s?.el)return false;if(s.kind==='side')return s.el.classList.contains('open');if(s.kind==='quickSearch')return s.el.classList.contains('open');if(s.kind==='naya')return s.el.classList.contains('open')||getComputedStyle(s.el).display!=='none';return getComputedStyle(s.el).display!=='none'};
  document.addEventListener('touchstart',event=>{const target=event.target;if(!(target instanceof Element))return;const s=surfaceFor(target);if(!visible(s))return;const box=s.kind==='quickSearch'?s.el.querySelector('.quickSearchDialog'):s.kind==='side'?s.el.querySelector('.sideMenu'):s.kind==='cart'?s.el.querySelector('.panel'):s.kind==='product'?s.el.querySelector('.productModal'):s.kind==='naya'?s.el:s.el.querySelector('.modalBox');if(!box)return;const r=box.getBoundingClientRect(),touch=event.touches[0],inHandle=touch.clientY-r.top<=76,inHeader=!!target.closest('.close,.sideClose,.naya-header,.orderDetailHead');if(!inHandle&&!inHeader)return;if(target.closest('input,textarea,select,button:not(.close):not(.sideClose)'))return;start={kind:s.kind,x:touch.clientX,y:touch.clientY}},{passive:true});
  document.addEventListener('touchend',event=>{if(!start)return;const touch=event.changedTouches[0],dx=touch.clientX-start.x,dy=touch.clientY-start.y,kind=start.kind;start=null;if(kind==='quickSearch'&&dy>75&&dy>Math.abs(dx)*1.25){closeQuickSearch();return}if(kind==='side'&&Math.abs(dx)>75&&Math.abs(dx)>Math.abs(dy)*1.25){toggleSideMenu();return}if(dy>75&&dy>Math.abs(dx)*1.25){if(kind==='cart')closeCart();else if(kind==='product')closeModal();else if(kind==='account')closeAccount();else if(kind==='order')closeOrderDetail();else if(kind==='policy')closePolicy();else if(kind==='naya')closeNaya();else if(kind==='side')toggleSideMenu()}},{passive:true});
+})();
+
+// A horizontal swipe changes slides; vertical gestures remain normal page scrolling.
+(()=>{
+ const card=document.querySelector('.heroSlider .heroCard');if(!card)return;
+ let start=null,swiped=false;
+ card.style.touchAction='pan-y';
+ card.addEventListener('pointerdown',e=>{if(e.target.closest('button,a,input')||!e.isPrimary)return;start={id:e.pointerId,x:e.clientX,y:e.clientY};swiped=false;pauseHeroTimer();if(e.pointerType==='mouse')card.setPointerCapture(e.pointerId)});
+ card.addEventListener('pointerup',e=>{if(!start||e.pointerId!==start.id)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3){swiped=true;heroMove(dx<0?1:-1)}else resumeHeroTimer()});
+ card.addEventListener('pointercancel',()=>{start=null;resumeHeroTimer()});
+ card.addEventListener('click',e=>{if(swiped){e.preventDefault();e.stopPropagation();swiped=false}},true);
+ card.querySelectorAll('img').forEach(img=>img.draggable=false);
+})();
+// Lock the document at its current scroll position while any store dialog is open.
+(()=>{
+ let locked=false,scrollY=0,previous={};
+ const ids=['modal','drawer','accountModal','orderDetailModal','policyModal','quickSearchOverlay','sideMenuOverlay','nayaAssistant'];
+ const isOpen=el=>el&&getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden'&&(el.classList.contains('open')||el.style.display==='flex'||el.style.display==='block');
+ function sync(){const open=ids.some(id=>isOpen(document.getElementById(id)))||!!document.querySelector('.lf-idea-modal[aria-hidden="false"],.lfImageZoom.open');
+ if(open&&!locked){scrollY=window.scrollY;previous={position:document.body.style.position,top:document.body.style.top,width:document.body.style.width};locked=true;document.body.classList.add('lf-dialog-locked');Object.assign(document.body.style,{position:'fixed',top:`-${scrollY}px`,width:'100%'});}
+ else if(!open&&locked){locked=false;document.body.classList.remove('lf-dialog-locked');Object.assign(document.body.style,previous);window.scrollTo(0,scrollY)}}
+ const observer=new MutationObserver(sync);observer.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class','style','aria-hidden'],childList:true});sync();
 })();
