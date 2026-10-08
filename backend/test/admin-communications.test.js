@@ -40,7 +40,7 @@ test("storefront announcement has a separate publish action and refreshes active
 
 test("changed message scripts use fresh cache versions",()=>{
   assert.match(adminHtml,/admin\.js\?v=20261008-5/);
-  assert.match(indexHtml,/app\.js\?v=20261009-2/);
+  assert.match(indexHtml,/app\.js\?v=20261009-3/);
 });
 
 test("storefront public announcement is exposed through safe public settings",()=>{
