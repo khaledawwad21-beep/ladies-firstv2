@@ -7,6 +7,8 @@ const path = require("node:path");
 
 const server = fs.readFileSync(path.join(__dirname, "../src/server.js"), "utf8");
 const admin = fs.readFileSync(path.join(__dirname, "../../frontend/admin.js"), "utf8");
+const app = fs.readFileSync(path.join(__dirname, "../../frontend/app.js"), "utf8");
+const security = fs.readFileSync(path.join(__dirname, "../src/security-policy.js"), "utf8");
 
 test("cancelled orders are terminal after stock and loyalty reversal", () => {
   assert.match(server, /oldStatus === "cancelled"/);
@@ -44,9 +46,12 @@ test("customer order history uses account identity and has status events",()=>{
 });
 
 test("customer tracking shows status history without relying on order phone",()=>{
-  assert.match(admin,/orderUserId===userId/);
-  assert.match(admin,/orderTrackingHtml\(o\)/);
+  assert.match(app,/orderUserId===userId/);
+  assert.match(app,/orderTrackingHtml\(o\)/);
+  assert.match(app,/trackCustomerOrder/);
+  assert.match(server,/\/api\/orders\/track/);
   assert.match(server,/completed_at = CASE/);
+  assert.match(security,/path==='\/api\/orders\/track'/);
 });
 
 test("delivering a guest order links only to one unique customer phone match",()=>{
