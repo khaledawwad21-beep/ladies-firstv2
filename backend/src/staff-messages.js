@@ -43,6 +43,13 @@ async function ensureMessageHistory(db, message) {
      ON CONFLICT(version) DO NOTHING`,
     [message.version, message.message, message.targetRoles, message.createdAt, message.createdBy, message.active]
   );
+  await db(
+    `INSERT INTO staff_general_message_reads(message_version,user_id,role,read_at)
+     SELECT $1,id,role,COALESCE(updated_at,NOW()) FROM users
+     WHERE staff_message_seen_version=$1 AND role=ANY($2::text[])
+     ON CONFLICT(message_version,user_id) DO NOTHING`,
+    [message.version, message.targetRoles]
+  );
 }
 
 async function getSetting(db, key, fallback = null) {
@@ -197,6 +204,7 @@ function registerStaffMessageRoutes(app, { db, requireAdmin }) {
         createdBy: Number(req.user.id) || null,
         targetRoles
       };
+      await db("UPDATE staff_general_message_history SET active=FALSE WHERE active=TRUE");
       await db(
         `INSERT INTO staff_general_message_history(version,message,target_roles,created_at,created_by,active)
          VALUES($1,$2,$3::text[],$4::timestamptz,$5,$6)`,
