@@ -67,7 +67,7 @@ app.use(
     extended: true,
     limit: "5mb"
   })
-);
+);\n\nrequire("./naya-ai").registerNayaAi(app, { db });
 
 app.use(
   "/uploads",
