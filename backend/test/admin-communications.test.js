@@ -24,6 +24,8 @@ test("staff announcement is versioned and read once per staff member",()=>{
   assert.match(staffMessages,/\/api\/admin\/settings\/staff-message/);
   assert.match(admin,/checkStaffGeneralMessage/);
   assert.match(admin,/acknowledgeStaffMessage/);
+  assert.match(admin,/this\.dataset\.messageVersion/);
+  assert.match(admin,/data-message-version/);
   assert.match(admin,/سجل الرسائل السابقة/);
   assert.match(admin,/openStaffChatFor/);
 });
@@ -43,7 +45,7 @@ test("storefront announcement has a separate publish action and refreshes active
 });
 
 test("changed message scripts use fresh cache versions",()=>{
-  assert.match(adminHtml,/admin\.js\?v=20261008-7/);
+  assert.match(adminHtml,/admin\.js\?v=20261008-8/);
   assert.match(adminHtml,/admin-conversations\.js\?v=20261008-1/);
   assert.match(adminHtml,/data-s="messages"/);
   assert.match(indexHtml,/app\.js\?v=20261009-4/);
