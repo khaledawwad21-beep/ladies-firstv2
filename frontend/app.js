@@ -1031,7 +1031,22 @@ function nayaAddMessage(text,user=false){const box=document.getElementById('naya
 function nayaAnswer(q){const t=String(q||'').trim().toLowerCase();const a=getAccount();if(!t)return 'أنا معكِ 🌸 اكتبي لي ماذا تريدين وسأساعدك.';if(t.includes('جسم')||t.includes('مقاس')||t.includes('تجربة')||t.includes('جربي')){openNayaBodyProfile();return 'أكيد 🌸 افتحي لوحة المقاسات ووافقي على رسالة الخصوصية، وبعدها أعطيكِ معاينة تقريبية على نايا.';}if(t.includes('سلة')||t.includes('cart'))return `عندكِ حاليًا ${cart.reduce((n,i)=>n+(Number(i.qty)||0),0)} قطعة في السلة 🛍️`+(cart.length?' ويمكنكِ فتحها من زر السلة.':'، والسلة فارغة حاليًا.');if(t.includes('مفضل')||t.includes('favorite'))return `عندكِ ${getFavorites().length} منتج في المفضلة ❤️`;if(t.includes('حساب')||t.includes('account'))return a?`حسابكِ محفوظ باسم ${a.name||'سيدتي'} 🩷 ويمكنكِ تعديل بياناته من حسابي.`:'يمكنكِ فتح حسابي وإنشاء حساب اختياري لحفظ بياناتك وطلباتك.';if(t.includes('واتس')||t.includes('whatsapp'))return 'يمكنكِ اختيار الدولة والمفتاح يدويًا أو استخدام تحديد الموقع، وبعدها حفظ تفضيلات رسائل واتساب 🌍💬';if(t.includes('عرض')||t.includes('سعر')||t.includes('منتج')){const hits=products.filter(p=>String(p.name||'').toLowerCase().includes(t)||String(p.en||'').toLowerCase().includes(t)).slice(0,3);if(hits.length)return 'وجدت لكِ: '+hits.map(p=>`${p.name} — ${Number(p.price)||0} ₪`).join(' | ');const offers=quickOffers().slice(0,3);if(offers.length)return 'هذه بعض العروض السريعة الآن: '+offers.map(p=>`${p.name} — ${Number(p.price)||0} ₪`).join(' | ')}if(t.includes('شحن')||t.includes('توصيل'))return 'التوصيل المعروض في المتجر يعتمد على منطقة الشحن عند إتمام الطلب 🚚';return `أهلًا ${a?.name||'فيكِ'} 🌸 أنا نايا، أقدر أساعدكِ في المنتجات والسلة والمفضلة والحساب والطلبات.`}
 function sendNaya(){const input=document.getElementById('nayaInput');if(!input)return;const q=input.value.trim();if(!q)return;input.value='';nayaAddMessage(q,true);setTimeout(()=>nayaAddMessage(nayaAnswer(q),false),180)}
 function nayaQuick(text){const input=document.getElementById('nayaInput');if(input){input.value=text;sendNaya()}}
-window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings();await lfSyncMe();await lfLoadLoyalty();await lfSyncProducts();await lfSyncAccountState();await lfSyncCatalog();await lfSyncMyOrders();renderAccountContent();initCountrySelectors();updateAccountBadge();restartFeatureAuto();await openPublicOrderFromUrl()});
+let storefrontAnnouncementPoll=null;
+async function refreshStorefrontAnnouncement(){
+  try{
+    const response=await fetch('/api/settings',{cache:'no-store'});
+    if(!response.ok)return;
+    const data=await response.json();
+    if(data.ok===false)return;
+    const next=normalizeStorefrontPublicMessage(data.settings?.storefront_general_message);
+    if(next.active!==storefrontGeneralMessage.active||next.message!==storefrontGeneralMessage.message){
+      storefrontGeneralMessage=next;
+      save('lf_storefront_general_message',next);
+      renderStoreTopBar();
+    }
+  }catch{}
+}
+window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings();if(!storefrontAnnouncementPoll)storefrontAnnouncementPoll=window.setInterval(refreshStorefrontAnnouncement,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshStorefrontAnnouncement()});await lfSyncMe();await lfLoadLoyalty();await lfSyncProducts();await lfSyncAccountState();await lfSyncCatalog();await lfSyncMyOrders();renderAccountContent();initCountrySelectors();updateAccountBadge();restartFeatureAuto();await openPublicOrderFromUrl()});
 
 
 /* Full-screen product image viewer with tap, pinch and drag zoom for mobile. */
