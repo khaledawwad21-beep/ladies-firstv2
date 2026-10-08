@@ -489,18 +489,20 @@ function featureCardHtml(p,extra=''){const img=safeImg(mainImagesOf(p)[0],LOGO);
 let featureTimer=null;
 const featureTouchState={};
 const featureDragState={};
-function bindFeatureCarousel(el){if(!el||el.dataset.carouselBound==='1')return;el.dataset.carouselBound='1';el.style.touchAction='auto';const pause=()=>{featureAutoPausedUntil=Date.now()+8000};['pointerdown','touchstart','wheel'].forEach(name=>el.addEventListener(name,pause,{passive:true}));}function moveFeatureCarousel(id,dir){const el=document.getElementById(id);if(!el)return;const card=el.querySelector('.featureCard');const gap=parseInt(getComputedStyle(el).gap||'10',10)||10;const amount=(card?.getBoundingClientRect().width||190)+gap;el.scrollBy({left:dir*amount,behavior:'smooth'});}
+function featureMotionSettings(id){return load('lf_feature_carousels',{})[id==='top5Grid'?'top5':'bestSellers']||{intervalSeconds:3.5,transition:'smooth'}}
+function bindFeatureCarousel(el){if(!el||el.dataset.carouselBound==='1')return;el.dataset.carouselBound='1';el.style.touchAction='auto';window.LFCarouselMotion?.bind(el)}
+function moveFeatureCarousel(id,dir){const el=document.getElementById(id);if(!el)return;window.LFCarouselMotion?.move(el,dir,featureMotionSettings(id));}
 function initFeatureCarousels(){bindFeatureCarousel(document.getElementById('top5Grid'));bindFeatureCarousel(document.getElementById('bestSellersGrid'));}
-function autoFeatureCarousels(){['top5Grid','bestSellersGrid'].forEach(id=>{const el=document.getElementById(id);if(Date.now()<featureAutoPausedUntil||!el||el.scrollWidth<=el.clientWidth+5)return;const card=el.querySelector('.featureCard');const amount=(card?.getBoundingClientRect().width||190)+10;const max=el.scrollWidth-el.clientWidth;if(el.scrollLeft>=max-4)el.scrollTo({left:0,behavior:'smooth'});else el.scrollBy({left:amount,behavior:'smooth'});});}
+function autoFeatureCarousels(){if(document.hidden)return;['top5Grid','bestSellersGrid'].forEach(id=>window.LFCarouselMotion?.tick(document.getElementById(id),featureMotionSettings(id)))}
 let featureAutoTimer=null;let featureAutoPausedUntil=0;
-function restartFeatureAuto(){clearInterval(featureAutoTimer);featureAutoTimer=setInterval(autoFeatureCarousels,3500);}
+function restartFeatureAuto(){clearInterval(featureAutoTimer);featureAutoTimer=setInterval(autoFeatureCarousels,250);}
 
 function renderFeatureSections(){
   const t=document.getElementById('top5Grid'),b=document.getElementById('bestSellersGrid');
   if(!t||!b)return;
   const top=getTop5(),best=getBestSellers();
   t.innerHTML=top.length?top.map(p=>featureCardHtml(p)).join(''):'<div class="empty">لا توجد عروض حالياً</div>';
-  b.innerHTML=best.length?best.map(x=>featureCardHtml(x.p,`<div class="soldCount">${currentLang==='en'?'Sold':'مباع'}: ${x.qty} ${window.LF_BEST_SELLERS_PERIOD==='week'?(currentLang==='en'?'in the last 7 days':'خلال آخر 7 أيام'):(currentLang==='en'?'all time':'خلال كل الفترة')}</div>`)).join(''):`<div class="empty">${bestSellersEmptyMessage()}</div>`;
+  b.innerHTML=best.length?best.map(x=>featureCardHtml(x.p)).join(''):`<div class="empty">${bestSellersEmptyMessage()}</div>`;
   t.scrollLeft=0;b.scrollLeft=0;
   initFeatureCarousels();
   restartFeatureAuto();
@@ -819,7 +821,7 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape')closeQuickSe
 window.addEventListener('pageshow',()=>document.querySelectorAll('.storeSearchInput').forEach(clearSearchAutofill));
 function updateNavCounts(){const n=cart.reduce((a,i)=>a+(Number(i.qty)||0),0);['bottomCount','sideCount'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=n})}const _updateCount=updateCount;updateCount=function(){_updateCount();updateNavCounts()};
 function renderNewUiLang(){const en=currentLang==='en';const m={sideMenuTitle:en?'Menu':'القائمة',sideHomeText:en?'Home':'الرئيسية',sideSearchText:en?'Search':'البحث',sideCatsLabel:en?'Categories':'الأصناف',sideCartText:en?'Shopping cart':'سلة التسوق',sideReturnsText:en?'Exchange & Return Policy':'سياسة التبديل والإرجاع',sideAboutText:en?'About us':'من نحن',footerAboutText:en?'About us':'من نحن',bnHome:en?'Home':'الرئيسية',bnCats:en?'Categories':'الأصناف',bnCart:en?'Cart':'السلة',bnSearch:en?'Search':'بحث',headerSearchText:en?'Search for a product':'ابحثي عن قطعة مميزة',quickSearchTitle:en?'Search products':'بحث عن المنتجات',quickSearchHint:en?'Enter a product name to see results':'اكتبي اسم المنتج لتظهر النتائج مباشرة',historySearchText:en?'Recent searches':'عمليات البحث',bnWhats:'WhatsApp'};Object.entries(m).forEach(([id,v])=>{const e=document.getElementById(id);if(e)e.textContent=v});const qi=document.getElementById('quickSearchInput');if(qi){qi.placeholder=en?'Search products...':'ابحثي عن منتج...';qi.setAttribute('aria-label',en?'Search products':'بحث المنتجات')}}
-window.addEventListener('storage',e=>{if(['lf_products','lf_cats','lf_brands','lf_hero','lf_hero_slides','lf_hero_text_style','lf_store_description','lf_favorites','lf_account','lf_social_links','lf_users'].includes(e.key)){products=load('lf_products',products);cats=load('lf_cats',cats);brands=load('lf_brands',brands);if(e.key==='lf_store_description')applyStoreDescription(load('lf_store_description','ONLINE STORE'));renderHero();heroIndex=0;renderHeroSlider();restartHeroTimer();renderCats();renderProducts();renderFeatureSections()}if(e.key==='lf_cart'){cart=load('lf_cart',[]);renderProducts();renderCart()}});
+window.addEventListener('storage',e=>{if(['lf_feature_carousels','lf_products','lf_cats','lf_brands','lf_hero','lf_hero_slides','lf_hero_text_style','lf_store_description','lf_favorites','lf_account','lf_social_links','lf_users'].includes(e.key)){products=load('lf_products',products);cats=load('lf_cats',cats);brands=load('lf_brands',brands);if(e.key==='lf_store_description')applyStoreDescription(load('lf_store_description','ONLINE STORE'));renderHero();heroIndex=0;renderHeroSlider();restartHeroTimer();renderCats();renderProducts();renderFeatureSections()}if(e.key==='lf_cart'){cart=load('lf_cart',[]);renderProducts();renderCart()}});
 function openProductFromHash(){const m=(location.hash||'').match(/^#product-(\d+)$/);if(m){const id=Number(m[1]);if(products.some(p=>p.id===id)){openProduct(id)}}else{const modal=document.getElementById('modal');if(modal)modal.style.display='none';}}
 window.addEventListener('hashchange',openProductFromHash);window.addEventListener('popstate',openProductFromHash);document.getElementById('cartBtn').onclick=openCart;document.getElementById('lang').onclick=toggleLanguage;document.getElementById('lang').textContent=currentLang==='ar'?'EN':'عربي';renderHistory();renderStaticLang();renderMaintenanceMode();setTimeout(openProductFromHash,50);
 renderHero();applyHeroTextStyle();renderHeroSlider();restartHeroTimer();renderNewUiLang();renderCats();renderProducts();renderFeatureSections();renderQuickOffers();renderCart();updateNavCounts();updateAccountBadge();updateStoreWhatsAppLinks();renderSocialLinks();
@@ -992,6 +994,7 @@ async function lfSyncStoreSettings(){
     }
     if(typeof st.store_description==='string'){applyStoreDescription(st.store_description);save('lf_store_description',String(st.store_description).trim().slice(0,80));}
     if(Array.isArray(st.hero_slides))save('lf_hero_slides',st.hero_slides);
+    if(st.feature_carousels)save('lf_feature_carousels',st.feature_carousels);
     if(st.hero_text_style&&typeof st.hero_text_style==='object')save('lf_hero_text_style',st.hero_text_style);
     if(st.social_links&&typeof st.social_links==='object')save('lf_social_links',st.social_links);
     if(Array.isArray(st.packaging_options))save('lf_packaging_options',st.packaging_options);

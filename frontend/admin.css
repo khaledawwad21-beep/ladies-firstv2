@@ -172,3 +172,5 @@ input[type="date"]{cursor:pointer}
 .heroCard[data-transition=fade] .heroLogoLayer,.heroCard[data-transition=smooth] .heroLogoLayer{transition:opacity .95s cubic-bezier(.22,1,.36,1);transform:none;will-change:opacity}
 .heroCard[data-transition=smooth] .heroLogoLayer.active{opacity:1}
 @media(prefers-reduced-motion:reduce){.heroCard[data-transition=fade] .heroLogoLayer,.heroCard[data-transition=smooth] .heroLogoLayer{transition:none}}
+
+.hp-feature-preview{display:flex;gap:12px;overflow-x:auto;direction:rtl;overscroll-behavior-x:contain;touch-action:pan-x pan-y;padding:10px;background:#fbf4ec;border-radius:14px}.hp-feature-preview .featureCard{flex:0 0 150px;border:1px solid #eadce3;background:white;border-radius:12px;overflow:hidden;min-height:100px}.hp-feature-preview img{width:100%;height:100px;object-fit:contain;pointer-events:none}.hp-feature-preview b{display:block;padding:10px;font-size:13px}

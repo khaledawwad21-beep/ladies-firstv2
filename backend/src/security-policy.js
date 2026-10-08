@@ -2,7 +2,7 @@
 const crypto = require('node:crypto');
 const PUBLIC_SETTINGS = new Set([
   'store_name','store_logo','store_description','currency','whatsapp_number','whatsapp',
-  'cats','brands','hero','hero_slides','hero_text_style','social_links','social',
+  'cats','brands','hero','hero_slides','hero_text_style','feature_carousels','social_links','social',
   'packaging_options','visa_discount_percent','shipping_fee','shipping_fees','shipping_discount_percentages',
   'loyalty_enabled','loyalty_redeem_enabled','loyalty_point_value','loyalty_points_per_currency',
   'loyalty_earning_mode','loyalty_points_per_order','return_policy','privacy_policy',
