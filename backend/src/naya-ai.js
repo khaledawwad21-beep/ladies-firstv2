@@ -17,6 +17,7 @@ function buildNayaMessages({message,history:chatHistory,catalog,customerProfile}
   "عاملي كل زبون باحترام ودفء واهتمام، بصياغة مهذبة وواضحة من دون مبالغة أو ألفاظ جارحة أو ألقاب حميمة.",
   "أجيبي بلغة الزبون؛ بالعربية استخدمي لهجة فلسطينية طبيعية وأنيقة. استخدمي «سيدتي» أو «سيدي» فقط عندما تكون صيغة المخاطبة معروفة، وإلا فاستخدمي صياغة محايدة.",
   "أجيبي باختصار وبأسلوب راقٍ. اعتذري بلطف عند تعذر المساعدة واشكري الزبون عند إتمام الطلب أو توضيح احتياجه.",
+  "التزمي بمنتجات المتجر والترشيحات والهدايا والطلبات ومعلومات الحساب والسياسات. إذا كان السؤال خارج هذه المواضيع، وجّهي الزبون بلطف إلى ما يمكن أن تساعديه به داخل المتجر، ولا تدخلي في دردشة جانبية.",
   "عند طلب تجميعة أو توصية شخصية، حددي أولًا هل هي للعميل نفسه أم هدية لشخص آخر. إذا لم يتضح ذلك، اسألي سؤالًا لطيفًا ومختصرًا ولا تقدمي تجميعة قبل معرفة المستلم.",
   "إذا كانت التوصية للعميل نفسه، استخدمي العمر والجنس المتاحين في ملفه إن وُجدا ولا تعيدي السؤال عنهما. إذا كانت معلومة لازمة ناقصة، اسألي فقط عنها وعن المناسبة أو الذوق أو الميزانية عندما تكون مهمة.",
   "إذا كانت هدية لشخص آخر، لا تستخدمي بيانات صاحب الحساب. اسألي عن عمر وجنس المستلم والمناسبة والذوق أو الميزانية عند الحاجة، واستفيدي من المعلومات التي ذكرها العميل سابقًا في المحادثة.",
@@ -42,7 +43,28 @@ function parseReply(content,catalog){
 }
 function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.now}={}){
  if(typeof db!=="function")throw Error("Naya AI requires db");
- const router=express.Router(),limits=new Map();
+ const router=express.Router(),limits=new Map(),speechLimits=new Map();
+ router.post("/tts",async(req,res)=>{
+  res.set("Cache-Control","no-store");
+  const t=now(),ip=String(req.ip||"unknown"),recent=(speechLimits.get(ip)||[]).filter(x=>t-x<WINDOW);
+  if(recent.length>=10)return res.status(429).json({ok:false,code:"NAYA_TTS_RATE_LIMIT",message:"جربي الاستماع بعد دقائق."});
+  recent.push(t);speechLimits.set(ip,recent);
+  const input=clean(req.body?.text,1200);
+  if(!input)return res.status(400).json({ok:false,code:"NAYA_TTS_TEXT_REQUIRED",message:"لا يوجد نص لتشغيله صوتيًا."});
+  const key=clean(env.OPENAI_API_KEY,500);
+  if(!key)return res.status(503).json({ok:false,code:"NAYA_AI_NOT_CONFIGURED",message:"الصوت غير متاح حاليًا."});
+  const allowedVoices=new Set(["alloy","ash","ballad","coral","echo","fable","nova","onyx","sage","shimmer","verse","marin","cedar"]);
+  const configuredVoice=clean(env.NAYA_TTS_VOICE||"coral",20);
+  const voice=allowedVoices.has(configuredVoice)?configuredVoice:"coral";
+  try{
+   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,instructions:"تحدثي بصوت أنثوي دافئ وواضح، بلهجة فلسطينية حضرية طبيعية، وبأسلوب مستشارة مبيعات لبقة. انطقي النص العربي كما هو، من دون إضافة كلمات."})});
+   if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_TTS_BUSY":"NAYA_TTS_UPSTREAM",message:"تعذر تشغيل صوت نايا الآن."});
+   const audio=await r.arrayBuffer();
+   res.set("Content-Type","audio/mpeg");
+   res.set("Content-Length",String(audio.byteLength));
+   return res.status(200).send(Buffer.from(audio));
+  }catch{return res.status(502).json({ok:false,code:"NAYA_TTS_UNAVAILABLE",message:"تعذر تشغيل صوت نايا الآن."})}
+ });
  router.post("/chat",async(req,res)=>{
   res.set("Cache-Control","no-store");
   const t=now(),ip=String(req.ip||"unknown"),recent=(limits.get(ip)||[]).filter(x=>t-x<WINDOW);
@@ -57,7 +79,7 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
    const catalog=(result.rows||[]).map(product);
    const modelCatalog=catalog.map(({id,name,category,brand,description,price,oldPrice,stock,available,variants})=>({id,name,category,brand,description,price,oldPrice,stock,available,variants}));
    const messages=buildNayaMessages({message,history:req.body?.history,catalog:modelCatalog,customerProfile:req.body?.customerProfile});
-   const r=await fetchImpl("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:clean(env.NAYA_OPENAI_MODEL||env.OPENAI_MODEL||"gpt-4o-mini",100),messages,temperature:.35,max_tokens:500,response_format:{type:"json_object"}})});
+   const r=await fetchImpl("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:clean(env.NAYA_OPENAI_MODEL||env.OPENAI_MODEL||"gpt-6-luna",100),messages,temperature:.35,max_tokens:500,response_format:{type:"json_object"}})});
    if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_AI_BUSY":"NAYA_AI_UPSTREAM",message:"نايا غير متاحة مؤقتًا. جربي بعد شوي."});
    const responseContent=(await r.json())?.choices?.[0]?.message?.content;
    if(typeof responseContent!=="string")return res.status(502).json({ok:false,code:"NAYA_AI_EMPTY",message:"ما وصلنا رد من نايا."});

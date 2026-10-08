@@ -30,3 +30,33 @@ test("Naya passes only sanitized self profile and says not to use it for gifts",
  assert.doesNotMatch(profile.content,/private|123/);
  assert.match(profile.content,/لا تستخدم هذه البيانات إذا كانت التوصية هدية لشخص آخر/);
 });
+
+
+test("Naya defaults to the selected cost-efficient OpenAI model",async t=>{
+ let captured;
+ const app=express();app.use(express.json());
+ app.use("/api/ai",createNayaAiRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:"أهلًا",recommendationIds:[]})}}]})}}}));
+ const s=app.listen(0);t.after(()=>s.close());await new Promise(r=>s.once("listening",r));
+ const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/chat`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"مرحبا"})});
+ assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).model,"gpt-6-luna");
+});
+
+test("Naya voice endpoint uses the server key and returns uncached audio",async t=>{
+ let captured;
+ const bytes=Buffer.from([1,2,3,4]);
+ const app=express();app.use(express.json());
+ app.use("/api/ai",createNayaAiRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async(url,o)=>{captured={url,o};return{ok:true,arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)}}}));
+ const s=app.listen(0);t.after(()=>s.close());await new Promise(r=>s.once("listening",r));
+ const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا وسهلًا سيدتي"})});
+ assert.equal(res.status,200);assert.equal(res.headers.get("content-type"),"audio/mpeg");assert.equal(res.headers.get("cache-control"),"no-store");
+ assert.equal(captured.url,"https://api.openai.com/v1/audio/speech");assert.equal(captured.o.headers.Authorization,"Bearer secret");
+ const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"coral");assert.match(payload.instructions,/فلسطينية حضرية/);
+ assert.deepEqual(Buffer.from(await res.arrayBuffer()),bytes);
+});
+
+test("Naya voice endpoint refuses text without an API key",async t=>{
+ const app=express();app.use(express.json());app.use("/api/ai",createNayaAiRouter({db:async()=>({rows:[]}),env:{}}));
+ const s=app.listen(0);t.after(()=>s.close());await new Promise(r=>s.once("listening",r));
+ const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"مرحبًا"})});
+ assert.equal(res.status,503);assert.equal((await res.json()).code,"NAYA_AI_NOT_CONFIGURED");
+});
