@@ -81,10 +81,16 @@ async function checkStaffGeneralMessage(){
   }finally{staffMessageCheckBusy=false}
 }
 async function acknowledgeStaffMessage(version){
+  const button=$('#modalBox .actions .btn.primary');
+  if(button){button.disabled=true;button.textContent='جارٍ تسجيل القراءة…'}
   try{
-    await api('/api/staff-message/read',{method:'POST',body:JSON.stringify({version})});
+    const result=await api('/api/staff-message/read',{method:'POST',body:JSON.stringify({version})});
+    if(!result.ok)throw Error(result.message||'تعذر تسجيل قراءة الرسالة');
     closeModal();
-  }catch(e){alert(e.message||'تعذر تسجيل قراءة الرسالة')}
+  }catch(e){
+    if(button){button.disabled=false;button.textContent='تمت القراءة'}
+    alert(e.message||'تعذر تسجيل قراءة الرسالة');
+  }
 }
 function normalizeStorefrontMessage(value){
   if(typeof value==='string')return {active:!!value.trim(),message:value.trim()};
@@ -951,6 +957,7 @@ async function settings(){let [d,staffMessageData]=await Promise.all([api('/api/
   <textarea id="staffGeneralMessageText" class="field" rows="3" placeholder="اكتب رسالة جديدة للموظفين" ${canPublishStaffMessage?'':'hidden'}></textarea>
   <div class="actions" ${canPublishStaffMessage?'':'hidden'}><button class="btn primary" type="button" onclick="publishStaffGeneralMessage()">نشر رسالة جديدة</button>${staffMessage.version?`<button class="btn" type="button" onclick="toggleStaffGeneralMessage(${staffMessage.active?'false':'true'})">${staffMessage.active?'إيقاف الرسالة':'إعادة تفعيل الرسالة'}</button>`:''}</div>
 <p class="small-note" ${canPublishStaffMessage?'hidden':''}>النشر والتفعيل متاحان للمالك أو Admin فقط.</p>
+<details class="staff-message-history" ${canPublishStaffMessage?'':'hidden'}><summary>سجل الرسائل السابقة (${(staffMessageData.history||[]).length})</summary>${(staffMessageData.history||[]).length?(staffMessageData.history||[]).map(item=>`<article class="notice" style="margin-top:10px"><b>${E(new Date(item.createdAt).toLocaleString('ar-PS'))}</b> — ${item.active?'فعالة':'متوقفة'} — قرأها ${Number(item.readCount||0)} حساب<div style="margin-top:6px;white-space:pre-wrap">${E(item.message||'')}</div><small>موجهة إلى: ${E((item.targetRoles||[]).join('، '))}${item.createdBy?' — نشرها '+E(item.createdBy):''}</small></article>`).join(''):'<p class="small-note">لا توجد رسائل سابقة.</p>'}</details>
 </div>
 <div class="card maintenance-admin-card" ${isOwner?'':'hidden'}><h2>وضع الطوارئ / الصيانة</h2>
   <label class="toolbar"><input id="maintenanceMode" type="checkbox" data-current="${s.maintenance_mode===true?'true':'false'}" ${s.maintenance_mode===true?'checked':''}> إيقاف واجهة المتجر مؤقتًا</label>
@@ -1085,3 +1092,4 @@ async function sendWaitlistWhatsApp(id){
 async function setWaitlistStatus(id,status){await api('/api/admin/waitlist/'+id,{method:'PATCH',body:JSON.stringify({status})});toast(status==='notified'?'تم تسجيل الإشعار':'تم تحديث طلب التوفر');waitlist()}
 function modal(t,b){$('#mt').textContent=adminGenderText(t);$('#mb').innerHTML=b;$('#modal').classList.add('open');initDateInputs($('#modal'));applyAdminGenderCopy($('#modal'))}function closeModal(){$('#modal').classList.remove('open')}
 (async()=>{const token=localStorage.getItem('lf_admin_token');if(token){await showApp()}else{showLogin()}})()
+
