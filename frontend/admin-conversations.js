@@ -138,10 +138,10 @@ function searchStaffContext() {
   let matches = [];
   if (query) {
     if (type === "order") {
-      const digits = query.replace(/\\D/g, "");
+      const digits = query.replace(/\D/g, "");
       matches = values.filter((order) => {
         const id = normalizeStaffChatSearch(order.id);
-        const phone = normalizeStaffChatSearch(order.customer_phone || order.user_phone || order.phone).replace(/\\D/g, "");
+        const phone = normalizeStaffChatSearch(order.customer_phone || order.user_phone || order.phone).replace(/\D/g, "");
         return id.includes(query.replace(/^#/, "")) || (digits.length > 0 && phone.includes(digits));
       });
     } else {
