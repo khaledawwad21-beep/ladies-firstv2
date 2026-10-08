@@ -62,7 +62,7 @@ function validateHomepageSettings(incoming) {
     const seconds = style.intervalSeconds ?? 3;
     if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 2 || seconds > 30) invalid('مدة التقليب يجب أن تكون بين 2 و30 ثانية');
     const transition = style.transition ?? 'fade';
-    if (!['fade','slide','zoom','instant'].includes(transition)) invalid('أسلوب الانتقال غير صالح');
+    if (!['smooth','fade','slide','zoom','instant'].includes(transition)) invalid('أسلوب الانتقال غير صالح');
     clean.intervalSeconds = seconds;
     clean.transition = transition;
     result.hero_text_style = clean;
