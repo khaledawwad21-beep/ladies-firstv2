@@ -134,7 +134,7 @@ function toggleFavorite(id){const fav=getFavorites(),n=Number(id);saveFavorites(
 function favoriteCards(){return getFavorites().map(id=>products.find(p=>Number(p.id)===id)).filter(Boolean).map(p=>{const img=safeImg(mainImagesOf(p)[0],LOGO);return `<div class="favCard"><img src="${img}" onclick="openProduct(${p.id})"><div class="fcbody"><b>${esc(currentLang==='en'?(p.en||p.name):p.name)}</b><div>${Number(p.price)||0} ₪</div><button onclick="addSingleToCart(${p.id},selectedVariant(${p.id}));renderAccountContent()">🛍️ نقل للسلة</button><button onclick="toggleFavorite(${p.id})">♥ إزالة</button></div></div>`}).join('')}
 function openAccount(){document.getElementById('accountModal').style.display='flex';renderAccountContent();if(lfToken())lfSyncMyOrders().then(()=>renderAccountContent())}
 function closeAccount(){document.getElementById('accountModal').style.display='none'}
-function getAccountOrders(){const a=getAccount();if(!a)return [];const userId=String(a.id??a.user_id??'');return load('lf_orders',[]).filter(o=>{const orderUserId=String(o.user_id??o.userId??'');return (userId&&orderUserId===userId)||o.accountRef===a.contact}).slice(0,20)}
+function getAccountOrders(){const a=getAccount();if(!a)return [];const userId=String(a.serverUserId??a.id??a.user_id??'');return load('lf_orders',[]).filter(o=>{const orderUserId=String(o.user_id??o.userId??'');return (userId&&orderUserId===userId)||o.accountRef===a.contact}).slice(0,20)}
 function publicOrderStatusLabel(status){return ({pending:'جديد',confirmed:'مؤكد',processing:'قيد التجهيز',shipped:'تم الشحن',delivered:'تم التسليم',completed:'مكتمل',cancelled:'ملغي'})[String(status||'').toLowerCase()]||String(status||'-')}
 function publicOrderRegionLabel(region){return ({westbank:'الضفة',jerusalem:'القدس',inside:'الداخل'})[String(region||'').toLowerCase()]||String(region||'-')}
 function publicOrderDetailsHtml(data){
@@ -442,6 +442,7 @@ async function customerPasskeyLogin(){
     const user=result.user||{};
     const safe={
       ...user,
+      serverUserId:user?.id??user?.user_id??null,
       contact:accountMode==='email'?(user.email||info.contact):(user.phone||info.contact),
       type:accountMode,
       countryIso:accountMode==='whatsapp'?info.iso:'',
@@ -908,6 +909,7 @@ saveAccount=async function(){
     const userContact=accountMode==='email'?(user?.email||contact):(user?.phone||contact);
     const safe={
       ...(user||{}),
+      serverUserId:user?.id??user?.user_id??null,
       name:user?.name||name||'',
       contact:userContact,
       type:accountMode,
