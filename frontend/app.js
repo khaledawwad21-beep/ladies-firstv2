@@ -1047,7 +1047,36 @@ function nayaAddMessage(text,user=false){const box=document.getElementById('naya
 let nayaAiHistory=[];
 function nayaAppendRecommendations(items,node){if(!Array.isArray(items)||!items.length||!node)return;const box=document.createElement('div');box.className='naya-recommendations';items.slice(0,3).forEach(item=>{const btn=document.createElement('button');btn.type='button';btn.dataset.nayaProductId=String(item.id);btn.textContent=`${item.name} — ${Number(item.price)||0} ₪`;box.appendChild(btn)});node.appendChild(box);box.addEventListener('click',e=>{const button=e.target.closest('[data-naya-product-id]');if(button&&Number.isSafeInteger(Number(button.dataset.nayaProductId))&&typeof openProduct==='function')openProduct(Number(button.dataset.nayaProductId))})}
 function nayaLocalAnswer(q){const t=String(q||'').trim().toLowerCase();if(/(?:طولي|وزني|خصري|صدري|أردافي|مقاساتي|قياساتي|\\b(?:height|weight|waist|bust|hips)\\b).{0,12}\\d+/i.test(t))return{reply:'خلّينا نحافظ على خصوصية قياساتك 🌸 أدخليها فقط في لوحة المقاسات بعد الموافقة؛ لن أرسلها للمساعد الذكي.',recommendations:[]};if(/\\b(cart|basket)\\b|سلة/.test(t))return{reply:`عندكِ حاليًا ${cart.reduce((n,i)=>n+(Number(i.qty)||0),0)} قطعة في السلة 🛍️`+(cart.length?' ويمكنكِ فتحها من زر السلة.':'، والسلة فارغة حاليًا.'),recommendations:[]};if(/مفضلة|المفضلة|favorite/.test(t))return{reply:`عندكِ ${getFavorites().length} منتج في المفضلة ❤️`,recommendations:[]};if(/مقاساتي|مقاسات|قياسات|جرّبيها على نايا|جربيها على نايا/.test(t)){openNayaBodyProfile();return{reply:'أكيد 🌸 افتحي لوحة المقاسات ووافقي على رسالة الخصوصية، وبعدها أعطيكِ معاينة تقريبية على نايا.',recommendations:[]}}return null}
-async function nayaAnswer(q){const local=nayaLocalAnswer(q);if(local)return{...local,_local:true};const response=await fetch('/api/ai/chat',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({message:q,history:nayaAiHistory.slice(-8)})});const result=await response.json().catch(()=>({}));if(!response.ok||!result.ok)throw new Error(result.message||'نايا الذكية غير متاحة الآن. جربي بعد شوي.');return{reply:String(result.reply||'كيف أقدر أساعدكِ؟'),recommendations:Array.isArray(result.recommendations)?result.recommendations:[]}}
+const NAYA_PROFILE_AI_CONSENT_KEY='lf_naya_profile_ai_consent';
+function nayaExplicitGiftRequest(q){
+  const text=String(q||'').toLowerCase();
+  return /(هدية|هديه|لأمي|لامي|لأختي|لاختي|لصديقتي|لصديقي|لشخص ثاني|لشخص تاني|لحدا ثاني|لحدا تاني|لغيري)/.test(text)&&!/(لنفسي|الي|إلي|لنفسى)/.test(text);
+}
+function nayaExplicitSelfRecommendation(q){
+  const text=String(q||'').toLowerCase();
+  const asksForAdvice=/(اقترح|اقتراح|تنصح|ترشيح|تجميعة|مجموعة|عطر|عطور|مكياج|اكسسوار|شنطة|منتج|يناسبني|تناسبني|بناسبني)/.test(text);
+  const forSelf=/(لنفسي|نفسي|الي|إلي|يناسبني|تناسبني|بناسبني|ذوقي|لاستخدامي|لي أنا|إلي أنا)/.test(text);
+  const giftHistory=nayaAiHistory.filter(x=>x.role==='user').slice(-4).map(x=>x.content).join(' ');
+  return asksForAdvice&&forSelf&&!nayaExplicitGiftRequest(q)&&!nayaExplicitGiftRequest(giftHistory);
+}
+function nayaCustomerProfileForAi(q){
+  if(!nayaExplicitSelfRecommendation(q)||typeof getAccount!=='function'||typeof lfToken!=='function'||!lfToken())return null;
+  const account=getAccount();
+  if(!account)return null;
+  const profile={};
+  const age=Number(account.age),gender=String(account.gender||'').trim().toLowerCase();
+  if(Number.isInteger(age)&&age>=13&&age<=120)profile.age=age;
+  if(['female','male'].includes(gender))profile.gender=gender;
+  if(!Object.keys(profile).length)return null;
+  let consent=null;
+  try{consent=sessionStorage.getItem(NAYA_PROFILE_AI_CONSENT_KEY)}catch{}
+  if(consent!=='yes'&&consent!=='no'){
+    consent=window.confirm('لتخصيص الاقتراحات إلك، ستستخدم نايا العمر والجنس المحفوظين في حسابك، وسيُرسلان إلى مزوّد الذكاء الاصطناعي OpenAI. لن تُرسل بيانات التواصل أو قياسات الجسم. هل توافق على استخدامها؟')?'yes':'no';
+    try{sessionStorage.setItem(NAYA_PROFILE_AI_CONSENT_KEY,consent)}catch{}
+  }
+  return consent==='yes'?profile:null;
+}
+async function nayaAnswer(q){const local=nayaLocalAnswer(q);if(local)return{...local,_local:true};const customerProfile=nayaCustomerProfileForAi(q);const response=await fetch('/api/ai/chat',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({message:q,history:nayaAiHistory.slice(-8),...(customerProfile?{customerProfile}:{})})});const result=await response.json().catch(()=>({}));if(!response.ok||!result.ok)throw new Error(result.message||'نايا الذكية غير متاحة الآن. جربي بعد شوي.');return{reply:String(result.reply||'كيف أقدر أساعدكِ؟'),recommendations:Array.isArray(result.recommendations)?result.recommendations:[]}}
 async function sendNaya(){const input=document.getElementById('nayaInput');if(!input||input.dataset.sending==='true')return;const q=input.value.trim();if(!q)return;input.value='';input.dataset.sending='true';nayaAddMessage(q,true);try{const result=await nayaAnswer(q),node=nayaAddMessage(result.reply,false);if(!result._local){nayaAiHistory.push({role:'user',content:q},{role:'assistant',content:result.reply});nayaAiHistory=nayaAiHistory.slice(-8)}nayaAppendRecommendations(result.recommendations,node)}catch(error){nayaAddMessage(error.message||'تعذر الاتصال بنايا الآن. جربي بعد شوي.',false)}finally{input.dataset.sending='false';input.focus()}}
 function nayaQuick(text){const input=document.getElementById('nayaInput');if(input){input.value=text;sendNaya()}}
 let storefrontAnnouncementPoll=null;
