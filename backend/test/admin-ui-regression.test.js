@@ -125,3 +125,16 @@ test("inventory editor manages supplier colors and quantities together",()=>{
   assert.match(server,/supplier_name/);
   assert.match(server,/بيانات الألوان\/الخيارات غير صالحة أو مكررة/);
 });
+
+ test("catalog product filters match IDs and remain independent of product names",()=>{
+  const vm=require("node:vm");
+  const source=admin.slice(admin.indexOf('function catalogProductMatches('),admin.indexOf('async function openCatalogProducts('));
+  const context=vm.createContext({adminCatalogProductFilter:null});
+  vm.runInContext(source,context);
+  const matches=context.catalogProductMatches;
+  assert.equal(matches({categoryId:2,brandId:9},{kind:'category',id:'2'}),true);
+  assert.equal(matches({categoryId:3,category:'same name'},{kind:'category',id:2}),false);
+  assert.equal(matches({brand_id:9},{kind:'brand',id:'9'}),true);
+  assert.equal(matches({brandId:8},{kind:'brand',id:9}),false);
+  assert.equal(matches({}),true);
+ });
