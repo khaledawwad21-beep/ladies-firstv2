@@ -187,3 +187,5 @@ input[type="date"]{cursor:pointer}
  #waitlistRows .actions{flex-wrap:wrap;margin-top:0}
  #waitlistRows .actions .btn{min-height:42px}
 }
+
+.invoicePreparedBy{text-align:center;font-size:10px;color:#685363;margin-top:6px}.activity-action{display:block;font-size:10px;color:#887581}@media print{.print .invoicePreparedBy{font-size:8px;margin-top:4px}}
