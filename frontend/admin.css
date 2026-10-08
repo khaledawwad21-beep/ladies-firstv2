@@ -109,6 +109,7 @@ input[type="date"]{cursor:pointer}
 
 /* Invoice print hardening: fit the invoice cleanly on one A4 page when content is reasonable. */
 @media print{
+  .shell{display:none!important}
   html,body{width:210mm!important;min-width:0!important;margin:0!important;padding:0!important}
   .print{width:100%!important;max-width:196mm!important;margin:0 auto!important;overflow:visible!important}
   .print .invoicePage{box-sizing:border-box!important;width:100%!important;max-width:196mm!important;margin:0!important;padding:0!important}
