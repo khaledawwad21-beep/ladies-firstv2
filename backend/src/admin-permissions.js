@@ -32,7 +32,6 @@ function permissionForAdminRequest(req) {
   if (/\/api\/admin\/(whatsapp-|cart-reminders)/.test(path)) return "offers";
   if (/\/api\/admin\/products\/[^/]+\/offers(?:\/|$)/.test(path)) return "offers";
   if (/\/api\/admin\/uploads\/(?:image|video)(?:\/|$)/.test(path)) return "products";
-  if (/\/api\/admin\/staff-conversations(?:\/|$)/.test(path)) return "staff";
   if (/\/api\/admin\/staff(?:\/|$)/.test(path)) return "staff";
   if (/\/api\/admin\/settings(?:\/|$)/.test(path)) return "settings";
   if (/\/api\/admin\/reports(?:\/|$)/.test(path)) return "reports";
