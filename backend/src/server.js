@@ -69,7 +69,7 @@ app.use(
   })
 );
 
-require("./naya-ai").registerNayaAi(app, { db });
+require("./naya-ai").registerNayaAi(app, { db, optionalAuth: require("./auth").optionalAuth });
 
 app.use(
   "/uploads",

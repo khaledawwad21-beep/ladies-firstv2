@@ -24,6 +24,8 @@ async function migrateDatabase() {
     await client.query(`ALTER TABLE orders ALTER COLUMN loyalty_points_reversed SET DEFAULT FALSE`);
     await client.query(`ALTER TABLE orders ALTER COLUMN loyalty_points_reversed SET NOT NULL`);
 
+    await client.query(`CREATE TABLE IF NOT EXISTS store_ai_daily_usage (customer_key TEXT NOT NULL, usage_day DATE NOT NULL, message_count INTEGER NOT NULL DEFAULT 0 CHECK (message_count >= 0), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(customer_key,usage_day))`);
+
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT`);
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_name TEXT`);
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS slug TEXT`);
