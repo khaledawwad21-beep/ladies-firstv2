@@ -104,7 +104,7 @@ async function checkStaffGeneralMessage(){
     const d=await api('/api/staff-message');
     if(!d.shouldShow||!d.message?.message)return;
     const version=String(d.message.version||'');
-    modal('رسالة عامة من الإدارة',`<div class="staff-login-message"><div class="staff-message-copy">${E(d.message.message).replace(/\n/g,'<br>')}</div><div class="actions"><button class="btn primary" type="button" onclick="acknowledgeStaffMessage(${JSON.stringify(version)})">تمت القراءة</button></div></div>`);
+    modal('رسالة عامة من الإدارة',`<div class="staff-login-message"><div class="staff-message-copy">${E(d.message.message).replace(/\n/g,'<br>')}</div><div class="actions"><button class="btn primary" type="button" onclick="acknowledgeStaffMessage(this.dataset.messageVersion)" data-message-version="${E(version)}">تمت القراءة</button></div></div>`);
   }finally{staffMessageCheckBusy=false}
 }
 async function acknowledgeStaffMessage(version){
@@ -113,7 +113,7 @@ async function acknowledgeStaffMessage(version){
   try{
     const result=await api('/api/staff-message/read',{method:'POST',body:JSON.stringify({version})});
     if(!result.ok)throw Error(result.message||'تعذر تسجيل قراءة الرسالة');
-    closeModal();
+    closeModal();toast('تم تسجيل قراءة الرسالة، شكرًا.');
   }catch(e){
     if(button){button.disabled=false;button.textContent='تمت القراءة'}
     alert(e.message||'تعذر تسجيل قراءة الرسالة');
