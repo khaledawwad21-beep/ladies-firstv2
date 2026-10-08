@@ -54,11 +54,13 @@ test("customer tracking shows status history without relying on order phone",()=
   assert.match(security,/path==='\/api\/orders\/track'/);
 });
 
-test("delivering a guest order links only to one unique customer phone match",()=>{
-  assert.match(server,/matchingCustomers\.rowCount === 1/);
-  assert.match(server,/LIMIT 2/);
-  assert.match(server,/customerAccountLinkedNow/);
-  assert.match(admin,/لم نجد حسابًا واحدًا مطابقًا لرقم هاتف الطلب/);
+test("order ownership stays with the signed-in account while guest tracking verifies order phone",()=>{
+  assert.match(server,/WHERE o\.user_id = \$1/);
+  assert.match(server,/\/api\/orders\/track/);
+  assert.match(server,/normalizePhone/);
+  assert.doesNotMatch(server,/matchingCustomers\.rowCount === 1/);
+  assert.doesNotMatch(server,/customerAccountLinkedNow/);
+  assert.match(admin,/بيانات الاستلام بالطلب/);
 });
 
 test("admin order details show product image variant and totals", () => {
