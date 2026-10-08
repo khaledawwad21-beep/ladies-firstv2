@@ -68,7 +68,7 @@ async function initWhatsAppAutomation(db) {
 
   await db(`
     CREATE TABLE IF NOT EXISTS order_delivery_followups (
-      order_id BIGINT PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+      order_id BIGINT PRIMARY KEY,
       user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
       recipient TEXT NOT NULL,
       template_name TEXT NOT NULL,
