@@ -11,11 +11,11 @@
   if(wrap&&target>max-2)target=position>=max-2?0:max;else target=Math.max(0,Math.min(max,target));
   const start=el.scrollLeft,end=target===0?0:sign*target;
   const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  if(c.transition==='instant'||reduced){el.scrollLeft=end;return}
-  const duration=c.transition==='smooth'?950:c.transition==='fade'?800:600;
+  if(reduced){el.scrollLeft=end;return}
+  const duration=2000;
   const snap=el.style.scrollSnapType;el.style.setProperty('scroll-snap-type','none','important');el.style.setProperty('scroll-behavior','auto','important');
   let began=null;
-  const frame=time=>{if(began===null)began=time;const t=Math.min(1,(time-began)/duration),ease=1-Math.pow(1-t,3);el.scrollLeft=start+(end-start)*ease;
+  const frame=time=>{if(began===null)began=time;const t=Math.min(1,(time-began)/duration),ease=c.transition==='instant'?t:1-Math.pow(1-t,3);el.scrollLeft=start+(end-start)*ease;
    if(c.transition==='fade')el.style.opacity=String(.35+.65*Math.abs(2*t-1));
    if(t<1)s.frame=requestAnimationFrame(frame);else{el.style.scrollSnapType=snap;el.style.opacity='';s.frame=0;}
   };s.frame=requestAnimationFrame(frame);
