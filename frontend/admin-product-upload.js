@@ -335,7 +335,8 @@ window.productForm = async function productForm(p={}) {
     mainImages:[...mains],
     subImages:[...subs],
     variants:(p.variants||[]).map(v=>({id:v.id,name:v.name||v.color||"",stock:Number(v.stock)||0})),
-    videos:Array.isArray(metadata.videos)?[...metadata.videos]:[]
+    videos:Array.isArray(metadata.videos)?[...metadata.videos]:[],
+    metadata:{...metadata}
   };
   modal(p.id?"تعديل المنتج":"منتج جديد",`<div class="formgrid product-admin-form">
     <label>اسم المنتج<input id="pn" class="field compact-field" value="${E(p.name||"")}" placeholder="اسم المنتج"></label>
@@ -384,6 +385,11 @@ window.productForm = async function productForm(p={}) {
       <span id="productVideoPreview" class="admin-video-preview"></span>
     </label>
     <label class="full">روابط فيديوهات إضافية — رابط بكل سطر<textarea id="pvideos" class="field" rows="4" placeholder="https://youtube.com/...">${E(adminProductDraft.videos.join("\n"))}</textarea></label>
+    <div class="full lf-store-idea-admin"><b>بيانات التوصيات والظهور في المتجر</b><small>اختيارية. افصلي الوسوم بفاصلة، مثل: زهري، منعش.</small></div>
+    <label class="full">نفحات العطر — للعطور<input id="pScentTags" class="field compact-field" value="${E(Array.isArray(metadata.scentTags)?metadata.scentTags.join(", "):metadata.scentTags||"")}" placeholder="زهري، مسك، منعش"></label>
+    <label class="full">وسوم تنسيق الساعة والإكسسوارات<input id="pStyleTags" class="field compact-field" value="${E(Array.isArray(metadata.styleTags)?metadata.styleTags.join(", "):metadata.styleTags||"")}" placeholder="ذهبي، ناعم، كلاسيكي"></label>
+    <label class="full">المناسبات المناسبة للمنتج<input id="pOccasionTags" class="field compact-field" value="${E(Array.isArray(metadata.occasionTags)?metadata.occasionTags.join(", "):metadata.occasionTags||"")}" placeholder="هدية، دوام، سهرة"></label>
+    <label class="full lf-exclusive-launch"><input id="pExclusiveLaunch" type="checkbox" ${metadata.exclusiveLaunch===true||metadata.exclusiveLaunch===1?"checked":""}> إدراج المنتج ضمن الإطلاقات الحصرية</label>
     <div class="full"><div class="toolbar"><b>الألوان / الخيارات والمخزون لكل واحد</b><button type="button" class="btn" onclick="adminAddVariant()">+ إضافة لون/خيار</button></div><div id="productVariants"></div></div>
   </div><div class="actions"><button class="btn primary" type="button" onclick="saveProduct(${p.id||0})">حفظ المنتج</button></div>`);
   adminRenderExistingImages();
@@ -447,7 +453,12 @@ window.saveProduct = async function saveProduct(id) {
       mainImages,
       subImages,
       variants: adminProductDraft.variants.map(v=>({id:v.id,name:v.name,stock:Number(v.stock)||0})),
-      metadata:{videos}
+      metadata:{...adminProductDraft.metadata,videos,
+        scentTags:$("#pScentTags")?.value.trim()||"",
+        styleTags:$("#pStyleTags")?.value.trim()||"",
+        occasionTags:$("#pOccasionTags")?.value.trim()||"",
+        exclusiveLaunch:!!$("#pExclusiveLaunch")?.checked
+      }
     };
 
     const token = localStorage.getItem("lf_admin_token") || "";
