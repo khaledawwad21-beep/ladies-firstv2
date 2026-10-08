@@ -70,7 +70,7 @@ test("changed message scripts use fresh cache versions",()=>{
   assert.match(adminHtml,/admin-conversations\.js\?v=20261008-5/);
   assert.match(adminHtml,/admin-product-upload\.js\?v=20261008-1/);
   assert.match(adminHtml,/data-s="messages"/);
-  assert.match(indexHtml,/app\.js\?v=20261009-4/);
+  assert.match(indexHtml,/app\.js\?v=20261009-5/);
 });
 
 test("storefront public announcement is exposed through safe public settings",()=>{
