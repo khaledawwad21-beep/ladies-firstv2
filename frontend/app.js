@@ -11,7 +11,7 @@ function normalizeProductImages(p){if(!p)return p;const mains=Array.isArray(p.ma
 function mainImagesOf(p){return normalizeProductImages(p).mainImages||[]}
 function subImagesOf(p){return normalizeProductImages(p).subImages||[]}
 let products=[],cats={},brands={},cart=load('lf_cart',[]),heroSettings=load('lf_hero',DEFAULT_HERO);
-let storeCommerceSettings={visaDiscountPercent:0,whatsappNumber:'0562499924',shippingFees:{westbank:20,jerusalem:35,inside:70}};
+let storeCommerceSettings={visaDiscountPercent:0,whatsappNumber:'00972562499924',shippingFees:{westbank:20,jerusalem:35,inside:70}};
 function storeWhatsAppDigits(value=storeCommerceSettings.whatsappNumber){
   let digits=String(value||'').replace(/\D/g,'');
   if(digits.startsWith('00'))digits=digits.slice(2);
@@ -993,7 +993,7 @@ async function lfSyncStoreSettings(){
       jerusalem:Math.min(100,Math.max(0,Number(shippingDiscounts.jerusalem)||0)),
       inside:Math.min(100,Math.max(0,Number(shippingDiscounts.inside)||0))
     };
-    storeCommerceSettings.whatsappNumber=String(st.whatsapp_number||st.whatsapp||storeCommerceSettings.whatsappNumber||'0562499924');
+    storeCommerceSettings.whatsappNumber=String(st.whatsapp_number||st.whatsapp||storeCommerceSettings.whatsappNumber||'00972562499924');
     DEFAULT_SOCIAL_LINKS.whatsapp.url=storeWhatsAppHref();
     updateStoreWhatsAppLinks();
     renderSocialLinks();
