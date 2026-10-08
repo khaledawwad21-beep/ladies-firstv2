@@ -774,6 +774,8 @@ async function initDatabase() {
     NUMERIC(12,2)
   `);
 
+  await require("./staff-conversations").initStaffConversations(db);
+
   await db(`
     CREATE TABLE IF NOT EXISTS coupons (
       id BIGSERIAL PRIMARY KEY,
@@ -9488,6 +9490,15 @@ require("./whatsapp-automation").registerWhatsAppAutomationRoutes(app, {
 ========================================================= */
 
 require("./staff-messages").registerStaffMessageRoutes(app, {
+  db,
+  requireAdmin
+});
+
+/* =========================================================
+   STAFF INTERNAL CONVERSATIONS
+========================================================= */
+
+require("./staff-conversations").registerStaffConversationRoutes(app, {
   db,
   requireAdmin
 });
