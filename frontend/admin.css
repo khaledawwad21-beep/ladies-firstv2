@@ -189,3 +189,16 @@ input[type="date"]{cursor:pointer}
 }
 
 .invoicePreparedBy{text-align:center;font-size:10px;color:#685363;margin-top:6px}.activity-action{display:block;font-size:10px;color:#887581}@media print{.print .invoicePreparedBy{font-size:8px;margin-top:4px}}
+
+/* Compact catalog lists and input rows. */
+.catalog-add-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;max-width:360px}
+.catalog-add-row .field{width:100%!important;min-width:0!important;max-width:none!important;height:38px;padding:7px 10px!important;margin:0!important;font-size:13px;flex:none!important}
+.catalog-add-row #categorySearch,.catalog-add-row #brandSearch{grid-column:1/-1}
+.catalog-add-row .btn{height:38px;padding:7px 12px}
+#categoryRows .tablewrap,#brandRows .tablewrap{border:0;overflow:visible}
+#categoryRows table,#brandRows table{display:block;min-width:0!important;width:100%}
+#categoryRows thead,#brandRows thead{display:none}
+#categoryRows tbody,#brandRows tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:7px}
+#categoryRows tr,#brandRows tr{display:block;border:1px solid var(--line);border-radius:9px;background:#faf6f9}
+#categoryRows td,#brandRows td{display:flex;align-items:center;justify-content:center;min-height:36px;padding:6px 9px!important;border:0;font-size:13px;overflow-wrap:anywhere;text-align:center}
+@media(max-width:360px){#categoryRows tbody,#brandRows tbody{grid-template-columns:repeat(2,minmax(0,1fr))}}
