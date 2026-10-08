@@ -409,3 +409,33 @@ html.lf-image-zoom-open,body.lf-image-zoom-open{overflow:hidden!important;oversc
 .heroSlider .heroLogoLayer{display:block!important}
 .heroSlider .heroText{background:var(--hero-text-bg,rgba(67,38,63,.58))!important;left:clamp(24%,var(--hero-text-x,70%),76%)!important;right:auto!important;top:clamp(12%,var(--hero-text-y,70%),88%)!important;bottom:auto!important;transform:translate(-50%,-50%)!important}
 @media(max-width:700px){.heroSlider .heroText{left:clamp(38%,var(--hero-text-x,50%),62%)!important;top:clamp(24%,var(--hero-text-y,70%),76%)!important;right:auto!important;bottom:auto!important;transform:translate(-50%,-50%)!important;max-width:76%!important;width:auto!important}}
+
+
+/* Mobile header: keep the menu, centered brand and utility buttons in a balanced row. */
+@media(max-width:760px){
+  .nav{
+    grid-template-columns:40px minmax(0,1fr) 120px!important;
+    grid-template-areas:"menu brand actions"!important;
+    column-gap:8px!important;
+    min-height:68px!important;
+    padding:7px 12px!important;
+  }
+  .menuBtn{justify-self:center!important;flex:none!important}
+  .brandLockup{justify-content:center!important;gap:7px!important;min-width:0!important}
+  .brand{min-width:0!important}
+  .brand b{font-size:clamp(17px,4.8vw,22px)!important;white-space:nowrap!important}
+  .brand small{font-size:7px!important;letter-spacing:1.5px!important}
+  .logo{width:34px!important;height:34px!important}
+  .actions{justify-self:start!important;gap:4px!important;min-width:0!important}
+  .actions .iconbtn{width:34px!important;height:34px!important;flex:0 0 34px!important;font-size:13px!important}
+}
+@media(max-width:380px){
+  .nav{grid-template-columns:36px minmax(0,1fr) 108px!important;column-gap:5px!important;padding-inline:9px!important}
+  .menuBtn{width:34px!important;height:34px!important}
+  .brandLockup{gap:4px!important}
+  .brand b{font-size:clamp(15px,4.8vw,18px)!important}
+  .brand small{font-size:6px!important;letter-spacing:1px!important}
+  .logo{width:30px!important;height:30px!important}
+  .actions{gap:3px!important}
+  .actions .iconbtn{width:32px!important;height:32px!important;flex-basis:32px!important}
+}
