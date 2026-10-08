@@ -1136,15 +1136,29 @@ async function initDatabase() {
   `);
 
   await db(`
+    INSERT INTO settings (key, value)
+    VALUES ('phone', '"00972562499924"'::jsonb)
+    ON CONFLICT(key) DO NOTHING
+  `);
+
+  await db(`
     INSERT INTO settings
       (key, value)
     VALUES
       (
         'whatsapp_number',
-        '"0562499924"'::jsonb
+        '"00972562499924"'::jsonb
       )
     ON CONFLICT(key)
     DO NOTHING
+  `);
+
+  await db(`
+    UPDATE settings
+    SET value = '"00972562499924"'::jsonb
+    WHERE key IN ('phone', 'whatsapp_number', 'whatsapp')
+      AND regexp_replace(COALESCE(value #>> '{}', ''), '[^0-9]', '', 'g')
+        IN ('0562499924', '970562499924', '00970562499924', '972562499924')
   `);
 
   await db(`
@@ -2355,7 +2369,7 @@ app.get(
       settings.whatsapp_number =
         settings.whatsapp_number ||
         settings.whatsapp ||
-        "0562499924";
+        "00972562499924";
 
       if (
         !settings.social_links &&

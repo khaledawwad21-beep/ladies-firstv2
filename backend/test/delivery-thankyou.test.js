@@ -23,7 +23,7 @@ function makeDb(order, claimed = new Set()) {
   const writes = [];
   const db = async (sql, params = []) => {
     if (sql.includes("FROM orders o")) return { rowCount: order ? 1 : 0, rows: order ? [order] : [] };
-    if (sql.includes("FROM settings WHERE key = 'whatsapp_number'")) return { rowCount: 1, rows: [{ phone: "0562499924" }] };
+    if (sql.includes("FROM settings WHERE key = 'whatsapp_number'")) return { rowCount: 1, rows: [{ phone: "00972562499924" }] };
     if (sql.includes("INSERT INTO order_delivery_followups")) {
       const orderId = Number(params[0]);
       if (claimed.has(orderId)) return { rowCount: 0, rows: [] };
@@ -77,7 +77,7 @@ test("delivery thank-you sends a feedback link once to the opted-in account phon
   assert.equal(second.reason, "already_attempted");
   assert.equal(sent.length, 1);
   assert.deepEqual(sent[0][3].slice(0, 2), ["سارة", "41"]);
-  assert.match(sent[0][3][2], /https:\/\/wa\.me\/0562499924\?/);
+  assert.match(sent[0][3][2], /https:\/\/wa\.me\/972562499924\?/);
   assert.match(decodeURIComponent(sent[0][3][2]), /ملاحظة/);
   assert.equal(db.writes.at(-1).params[0], "wamid.test");
   assert.match(decodeURIComponent(sent[0][3][2]), /#41/);

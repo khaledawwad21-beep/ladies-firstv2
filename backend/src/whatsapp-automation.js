@@ -21,7 +21,8 @@ function getWhatsAppConfig() {
 }
 
 function normalizeRecipient(phone) {
-  const digits = String(phone ?? "").replace(/\D/g, "");
+  let digits = String(phone ?? "").replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
   return digits.length >= 8 ? digits : "";
 }
 
