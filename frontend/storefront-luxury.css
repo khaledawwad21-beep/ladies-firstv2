@@ -413,6 +413,10 @@ html.lf-image-zoom-open,body.lf-image-zoom-open{overflow:hidden!important;oversc
 @media(max-width:700px){.heroSlider .heroText{left:clamp(38%,var(--hero-text-x,50%),62%)!important;top:clamp(24%,var(--hero-text-y,70%),76%)!important;right:auto!important;bottom:auto!important;transform:translate(-50%,-50%)!important;max-width:76%!important;width:auto!important}}
 
 
+/* Logo slides preserve their full image proportions at desktop and mobile sizes. */
+.heroSlider .heroCard.logo-only{background:#fbf4ec!important}
+.heroSlider .heroCard.logo-only .heroLogoLayer{object-fit:contain!important;object-position:center!important;background:#fbf4ec!important}
+
 /* Mobile header: keep the menu, centered brand and utility buttons in a balanced row. */
 @media(max-width:760px){
   .nav{

@@ -984,6 +984,15 @@ async function lfSyncStoreSettings(){
     heroIndex=0;renderHero();renderHeroSlider();restartHeroTimer();renderCats();renderProducts();renderFeatureSections();
   }catch(e){console.warn('API settings unavailable',e.message)}
 }
+window.addEventListener('storage',event=>{
+  if(event.key!=='lf_hero_slides'||!event.newValue)return;
+  try{
+    const slides=JSON.parse(event.newValue);
+    if(!Array.isArray(slides))return;
+    save('lf_hero_slides',slides);
+    heroIndex=0;renderHero();renderHeroSlider();restartHeroTimer();
+  }catch(error){console.warn('Unable to refresh hero slides',error)}
+});
 async function lfSyncCatalog(){
   try{
     const [cd,bd]=await Promise.all([lfFetch('/api/categories'),lfFetch('/api/brands')]);
