@@ -4702,7 +4702,7 @@ app.patch(
               );
             }
 
-            return {order:updated.rows[0],autoBlockedCustomer};
+            return {order:updated.rows[0],autoBlockedCustomer,isNewDelivery:oldStatus!=="delivered"&&newStatus==="delivered"};
           }
         );
 
@@ -4710,6 +4710,11 @@ app.patch(
         require("./whatsapp-automation").runWaitlistRestockNotifications(db).catch(error=>
           console.error("[WAITLIST RESTOCK AFTER CANCELLATION]",error)
         );
+      }
+      if(result.isNewDelivery){
+        require("./whatsapp-automation").sendDeliveredThankYou(db,orderId).then(outcome=>{
+          if(outcome.failed)console.error("[ORDER DELIVERY THANK-YOU]",outcome.error||"send failed");
+        }).catch(error=>console.error("[ORDER DELIVERY THANK-YOU]",error));
       }
       return res.json({
         ok: true,
