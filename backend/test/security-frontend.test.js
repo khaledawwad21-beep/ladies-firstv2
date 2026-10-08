@@ -32,7 +32,7 @@ test('admin product objects cannot escape their edit-button attribute',async()=>
  const payload="x' onmouseover='globalThis.probe=1";
  const product={id:1,name:payload,price:5,stock:1,is_active:true};
  const ctx=vm.createContext({$:s=>elements[s],E:v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])),M:Number,
-  api:async route=>{assert.equal(route,'/api/admin/products');return {products:[product]}},table:(_,rows)=>rows.join(''),productForm:p=>assert.equal(p.name,payload)});
+  api:async route=>{assert.ok(['/api/admin/products','/api/categories'].includes(route));return route==='/api/admin/products'?{products:[product]}:{categories:[]}},table:(_,rows)=>rows.join(''),productForm:p=>assert.equal(p.name,payload)});
  vm.runInContext(source.slice(start,end),ctx);await vm.runInContext('products()',ctx);
  const handler=elements['#productRows'].innerHTML.match(/onclick='([^']*)'/)[1];vm.runInContext(decode(handler),ctx);assert.equal(ctx.probe,undefined);
 });

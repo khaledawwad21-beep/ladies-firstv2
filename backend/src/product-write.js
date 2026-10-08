@@ -86,8 +86,37 @@ function registerProductWrites(app, getProducts) {
         const existing = id ? (await client.query('SELECT * FROM products WHERE id = $1 FOR UPDATE', [id])).rows[0] : null;
         if (id && !existing) { const error = new Error('المنتج غير موجود'); error.status = 404; throw error; }
         const mergedMetadata = {...(existing?.metadata || {}), ...metadata};
-        const category = await taxonomy(client, 'categories', body.categoryId ?? body.category_id, body.category);
-        const brand = await taxonomy(client, 'brands', body.brandId ?? body.brand_id, body.brand);
+        const categoryProvided = body.categoryId !== undefined || body.category_id !== undefined || body.category !== undefined;
+        const category = categoryProvided
+          ? await taxonomy(client, 'categories', body.categoryId ?? body.category_id, body.category)
+          : (existing?.category_id ?? null);
+        const brandProvided = body.brandId !== undefined || body.brand_id !== undefined || body.brand !== undefined;
+        const brand = brandProvided
+          ? await taxonomy(client, 'brands', body.brandId ?? body.brand_id, body.brand)
+          : (existing?.brand_id ?? null);
+        const barcodeInput = body.barcode !== undefined ? String(body.barcode || '').trim() : String(existing?.barcode || '');
+        if (barcodeInput.length > 100) invalid('الباركود يجب ألا يتجاوز 100 حرف');
+        const barcode = barcodeInput || null;
+
+        let productSequence = Number(existing?.product_sequence) || null;
+        let productNumber = existing?.product_number || null;
+        const categoryChanged = !id || Number(category || 0) !== Number(existing?.category_id || 0);
+        if (category && categoryChanged) {
+          const existingCategory = await client.query('SELECT id FROM categories WHERE id = $1', [category]);
+          if (!existingCategory.rows.length) invalid('الفئة المحددة غير موجودة');
+        }
+        if (!id || categoryChanged || !productSequence || !productNumber) {
+          const nextSequence = await client.query(
+            `INSERT INTO product_category_sequences(category_id, last_sequence)
+             VALUES (COALESCE($1::bigint, 0), 1)
+             ON CONFLICT(category_id) DO UPDATE
+               SET last_sequence = product_category_sequences.last_sequence + 1
+             RETURNING last_sequence`,
+            [category]
+          );
+          productSequence = Number(nextSequence.rows[0].last_sequence);
+          productNumber = String(Number(category) || 0) + '-' + String(productSequence);
+        }
         const supplier = String(
           body.supplierName ??
           body.supplier_name ??
@@ -95,11 +124,13 @@ function registerProductWrites(app, getProducts) {
           ''
         ).trim().slice(0,200) || null;
         const values = [name, String(body.description || ''), price, oldPrice === '' ? null : oldPrice, stock, mains ? mains[0] : existing.image_url,
-          category, brand, body.active ?? body.isActive ?? existing?.is_active ?? true, body.isFeatured ?? mergedMetadata.top5 ?? existing?.is_featured ?? false, body.isBestSeller ?? existing?.is_best_seller ?? false, cost, supplier, JSON.stringify(mergedMetadata)];
+          category, brand, body.active ?? body.isActive ?? existing?.is_active ?? true, body.isFeatured ?? mergedMetadata.top5 ?? existing?.is_featured ?? false, body.isBestSeller ?? existing?.is_best_seller ?? false, cost, supplier,
+          barcode, productSequence, productNumber, JSON.stringify(mergedMetadata)];
         const result = id ? await client.query(`UPDATE products SET name=$1, description=$2, price=$3, old_price=$4, stock=$5, image_url=$6,
-          category_id=$7, brand_id=$8, is_active=$9, is_featured=$10, is_best_seller=$11, cost_price=$12, supplier_name=$13, metadata=$14::jsonb, updated_at=NOW() WHERE id=$15 RETURNING id`, [...values, id])
-          : await client.query(`INSERT INTO products (name, description, price, old_price, stock, image_url, category_id, brand_id, is_active, is_featured, is_best_seller, cost_price, supplier_name, metadata)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb) RETURNING id`, values);
+          category_id=$7, brand_id=$8, is_active=$9, is_featured=$10, is_best_seller=$11, cost_price=$12, supplier_name=$13,
+          barcode=$14, product_sequence=$15, product_number=$16, metadata=$17::jsonb, updated_at=NOW() WHERE id=$18 RETURNING id`, [...values, id])
+          : await client.query(`INSERT INTO products (name, description, price, old_price, stock, image_url, category_id, brand_id, is_active, is_featured, is_best_seller, cost_price, supplier_name, barcode, product_sequence, product_number, metadata)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb) RETURNING id`, values);
         const savedId = result.rows[0].id;
         if (mains) {
           await client.query('DELETE FROM product_images WHERE product_id = $1', [savedId]);
@@ -123,7 +154,12 @@ function registerProductWrites(app, getProducts) {
         console.error('[WAITLIST RESTOCK AFTER PRODUCT SAVE]', error)
       );
       res.status(id ? 200 : 201).json({ ok: true, product: products[0] });
-    } catch (error) { next(error); }
+    } catch (error) {
+      if (String(error.code) === '23505' && String(error.constraint || '').includes('barcode')) {
+        return res.status(409).json({ ok: false, message: 'هذا الباركود مستخدم لمنتج آخر' });
+      }
+      next(error);
+    }
   }
   app.post('/api/admin/products', requireAdmin, save);
   app.put('/api/admin/products/:id', requireAdmin, save);

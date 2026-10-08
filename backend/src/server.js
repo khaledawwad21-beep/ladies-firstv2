@@ -537,6 +537,39 @@ async function initDatabase() {
     TEXT
   `);
 
+  await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS barcode TEXT`);
+  await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_sequence INTEGER`);
+  await db(`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_number TEXT`);
+  await db(`
+    WITH ranked AS (
+      SELECT id, category_id,
+        ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY id)::INTEGER AS seq
+      FROM products
+    )
+    UPDATE products p
+    SET product_sequence = ranked.seq,
+        product_number = COALESCE(ranked.category_id::TEXT, '0') || '-' || ranked.seq::TEXT
+    FROM ranked
+    WHERE p.id = ranked.id
+      AND (p.product_sequence IS NULL OR p.product_number IS NULL)
+  `);
+  await db(`UPDATE products SET barcode = NULLIF(BTRIM(barcode), '') WHERE barcode IS NOT NULL`);
+  await db(`CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode_unique ON products(barcode) WHERE barcode IS NOT NULL`);
+  await db(`CREATE UNIQUE INDEX IF NOT EXISTS idx_products_number_unique ON products(product_number)`);
+  await db(`
+    CREATE TABLE IF NOT EXISTS product_category_sequences (
+      category_id BIGINT PRIMARY KEY,
+      last_sequence INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  await db(`
+    INSERT INTO product_category_sequences(category_id, last_sequence)
+    SELECT COALESCE(category_id, 0)::BIGINT, MAX(product_sequence)::INTEGER
+    FROM products
+    GROUP BY COALESCE(category_id, 0)
+    ON CONFLICT(category_id) DO UPDATE
+      SET last_sequence = GREATEST(product_category_sequences.last_sequence, EXCLUDED.last_sequence)
+  `);
   await require('./product-media').initMedia();
   await require('./waitlist').initWaitlist(db);
   await require('./cart-tracking').initCartTracking(db);
@@ -1827,6 +1860,10 @@ async function getProducts(
         p.id,
         p.name,
         p.sku,
+        p.barcode,
+        p.product_number AS "productNumber",
+        p.product_number,
+        p.product_sequence AS "productSequence",
         p.description,
         p.price,
         p.old_price AS "oldPrice",

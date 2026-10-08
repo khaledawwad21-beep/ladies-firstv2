@@ -10,11 +10,24 @@ const security=fs.readFileSync(path.join(__dirname,"../src/security-policy.js"),
 const staffMessages=fs.readFileSync(path.join(__dirname,"../src/staff-messages.js"),"utf8");
 const admin=fs.readFileSync(path.join(__dirname,"../../frontend/admin.js"),"utf8");
 const staffConversations=fs.readFileSync(path.join(__dirname,"../../frontend/admin-conversations.js"),"utf8");
+const productWrite=fs.readFileSync(path.join(__dirname,"../src/product-write.js"),"utf8");
 const app=fs.readFileSync(path.join(__dirname,"../../frontend/app.js"),"utf8");
 const storeCss=fs.readFileSync(path.join(__dirname,"../../frontend/store-premium.css"),"utf8");
 const adminHtml=fs.readFileSync(path.join(__dirname,"../../frontend/admin.html"),"utf8");
 const indexHtml=fs.readFileSync(path.join(__dirname,"../../frontend/index.html"),"utf8");
 
+test("product identifiers are unique and generated within their category",()=>{
+  assert.match(server,/ADD COLUMN IF NOT EXISTS barcode TEXT/);
+  assert.match(server,/idx_products_barcode_unique/);
+  assert.match(server,/product_category_sequences/);
+  assert.match(server,/product_number/);
+  assert.match(productWrite,/productSequence/);
+  assert.match(productWrite,/ON CONFLICT/);
+  assert.match(productWrite,/هذا الباركود مستخدم لمنتج آخر/);
+  assert.match(admin,/id="pbarcode"/);
+  assert.match(admin,/productNumber/);
+  assert.match(staffConversations,/staffChatNewConversationDraft/);
+});
 test("staff announcement is versioned and read once per staff member",()=>{
   assert.match(staffMessages,/staff_message_seen_version/);
   assert.match(staffMessages,/staff_general_message_reads/);
@@ -50,7 +63,7 @@ test("storefront announcement has a separate publish action and refreshes active
 });
 
 test("changed message scripts use fresh cache versions",()=>{
-  assert.match(adminHtml,/admin\.js\?v=20261008-8/);
+  assert.match(adminHtml,/admin\.js\?v=20261008-9/);
   assert.match(adminHtml,/admin-conversations\.js\?v=20261008-3/);
   assert.match(adminHtml,/data-s="messages"/);
   assert.match(indexHtml,/app\.js\?v=20261009-4/);
