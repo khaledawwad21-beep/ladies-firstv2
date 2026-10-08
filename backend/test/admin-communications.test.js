@@ -19,6 +19,7 @@ const indexHtml=fs.readFileSync(path.join(__dirname,"../../frontend/index.html")
 test("product identifiers are unique and generated within their category",()=>{
   assert.match(server,/ADD COLUMN IF NOT EXISTS barcode TEXT/);
   assert.match(server,/idx_products_barcode_unique/);
+  assert.match(server,/product_category_sequences/);
   assert.match(server,/product_number/);
   assert.match(productWrite,/productSequence/);
   assert.match(productWrite,/هذا الباركود مستخدم لمنتج آخر/);
