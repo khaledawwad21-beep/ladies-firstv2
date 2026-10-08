@@ -108,3 +108,22 @@ test('slider timing and transitions validate and persist without accepting unsaf
   for(const intervalSeconds of [0,31,NaN,'7'])assert.throws(()=>validateHomepageSettings({hero_text_style:{...style,intervalSeconds}}));
   assert.throws(()=>validateHomepageSettings({hero_text_style:{...style,transition:'unknown'}}));
 });
+
+test('compact ordering supports drag and position selection without losing slides',()=>{
+ const nodes={'#hpMessage':{}};let target=null;const listeners={};
+ const document={addEventListener:(name,fn)=>listeners[name]=fn,elementFromPoint:()=>({closest:()=>target}),querySelectorAll:()=>[]};
+ const context=vm.createContext({window:{innerHeight:800,scrollBy:()=>{}},document,$:key=>nodes[key],clearTimeout:()=>{},setTimeout:()=>0});
+ vm.runInContext(fs.readFileSync(path.join(__dirname,'../../frontend/admin-homepage.js'),'utf8'),context);
+ vm.runInContext("hpSlides=[{image:'/one.png',titleAr:'First'},{image:'/two.png',titleAr:'Second'},{image:'/three.png',titleAr:'Third'}];hpCapture=()=>{};hpRender=()=>{}",context);
+ const currentTarget={setPointerCapture:()=>{},closest:()=>({classList:{add:()=>{}}})};
+ context.hpDragStart({pointerType:'touch',pointerId:4,currentTarget,preventDefault:()=>{}},0);
+ target={dataset:{hpSlide:'2'},classList:{add:()=>{}}};
+ listeners.pointermove({pointerId:4,clientX:100,clientY:200});listeners.pointerup({pointerId:4,clientX:100,clientY:200,type:'pointerup'});
+ assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(hpSlides.map(x=>x.image))',context)),['/two.png','/three.png','/one.png']);
+ context.hpReorder(2,0);
+ assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(hpSlides.map(x=>x.titleAr))',context)),['First','Second','Third']);
+ context.hpDragStart({pointerType:'touch',pointerId:5,currentTarget,preventDefault:()=>{}},0);listeners.pointercancel({pointerId:5,clientX:100,clientY:200,type:'pointercancel'});
+ assert.equal(vm.runInContext('hpSlides.length',context),3);assert.equal(vm.runInContext('hpSlides[0].image',context),'/one.png');
+ const source=fs.readFileSync(path.join(__dirname,'../../frontend/admin-homepage.js'),'utf8');
+ assert.ok(source.indexOf('<h3>حركة السلايدر</h3>')<source.indexOf('id="hpSlide_${i}"'));
+});

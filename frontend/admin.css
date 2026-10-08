@@ -159,3 +159,12 @@ input[type="date"]{cursor:pointer}
  .print thead{display:table-header-group!important}
  .print tbody{break-inside:auto!important;page-break-inside:auto!important}
 }
+
+.hp-order-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}
+.hp-order-item{border:2px solid var(--line);border-radius:14px;padding:8px;background:#fff;min-width:0}
+.hp-order-handle{display:flex;flex-direction:column;gap:7px;width:100%;background:transparent;color:var(--p);border:0;cursor:grab;touch-action:none;user-select:none}
+.hp-order-handle img{width:100%;height:90px;object-fit:contain;border-radius:8px;pointer-events:none}
+.hp-order-actions{display:flex;gap:5px;margin-top:8px}.hp-order-actions .btn{flex:1;padding:7px}
+.hp-order-item label{display:block;margin-top:7px;font-size:12px}.hp-order-item .field{width:100%;min-width:0;padding:6px}
+.hp-is-dragging{opacity:.55}.hp-drop-target{border-color:#63345e!important;background:#f7edf4!important;outline:2px solid #63345e33}
+@media(max-width:600px){.hp-order-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
