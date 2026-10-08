@@ -77,7 +77,11 @@ test('actual admin product bundle uploads media before saving JSON product paylo
   assert.match(js,/supplierName/);
   assert.match(js,/psupplier/);
   assert.match(js,/variants:/);
-  assert.match(js,/metadata:\{videos\}/);
+    assert.match(js,/metadata:\{\.\.\.adminProductDraft\.metadata,videos,/);
+  assert.match(js,/scentTags:/);
+  assert.match(js,/styleTags:/);
+  assert.match(js,/occasionTags:/);
+  assert.match(js,/exclusiveLaunch:/);
   assert.match(js,/adminTaxonomyOptions/);
   assert.match(js,/id="pbrand"/);
   assert.match(js,/id="pcat"/);
