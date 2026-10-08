@@ -821,6 +821,29 @@ async function initDatabase() {
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_source TEXT`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_reason TEXT`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS processing_at TIMESTAMPTZ`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMPTZ`);
+  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`);
+
+  await db(`
+    CREATE TABLE IF NOT EXISTS order_status_history (
+      id BIGSERIAL PRIMARY KEY,
+      order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      status TEXT NOT NULL,
+      changed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+      changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db(`CREATE INDEX IF NOT EXISTS idx_order_status_history_order_id ON order_status_history(order_id, id)`);
+  await db(`
+    INSERT INTO order_status_history (order_id, status, changed_at)
+    SELECT o.id, o.status, COALESCE(o.updated_at, o.created_at, NOW())
+    FROM orders o
+    WHERE NOT EXISTS (
+      SELECT 1 FROM order_status_history h WHERE h.order_id = o.id
+    )
+  `);
 
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_discount NUMERIC(12,2) NOT NULL DEFAULT 0`);
   await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(12,2) NOT NULL DEFAULT 0`);
@@ -3338,6 +3361,12 @@ app.post(
           const order =
             orderResult.rows[0];
 
+          await client.query(
+            `INSERT INTO order_status_history (order_id, status, changed_by, changed_at)
+             VALUES ($1, 'pending', $2, COALESCE($3, NOW()))`,
+            [order.id, userId, order.created_at || null]
+          );
+
           if (pointsRedeemed > 0) {
             await client.query(`UPDATE users SET loyalty_points=GREATEST(0,COALESCE(loyalty_points,0)-$1),updated_at=NOW() WHERE id=$2`,[pointsRedeemed,userId]);
             await client.query(`INSERT INTO loyalty_points_transactions(user_id,order_id,points,transaction_type,note,created_at) VALUES($1,$2,$3,'redeem',$4,NOW())`,[userId,order.id,-pointsRedeemed,`استبدال نقاط في الطلب #${order.id}`]);
@@ -3569,6 +3598,14 @@ app.get(
           SELECT
             o.*,
             COALESCE(
+              (
+                SELECT json_agg(json_build_object('status', h.status, 'changed_at', h.changed_at) ORDER BY h.id)
+                FROM order_status_history h
+                WHERE h.order_id = o.id
+              ),
+              '[]'::json
+            ) AS status_history,
+            COALESCE(
               json_agg(
                 json_build_object(
                   'id', oi.id,
@@ -3627,6 +3664,54 @@ app.get(
 /* =========================================================
    SINGLE USER ORDER
    ========================================================= */
+
+app.post(
+  "/api/orders/track",
+  optionalAuth,
+  async (req, res) => {
+    const orderId = integer(String(req.body?.orderNumber ?? req.body?.orderId ?? "").replace(/[^0-9]/g, ""), NaN);
+    const phoneKey = String(req.body?.phone ?? req.body?.customerPhone ?? "").replace(/\D/g, "");
+    if (!Number.isFinite(orderId) || orderId <= 0 || (!req.user?.id && phoneKey.length < 6)) {
+      return res.status(400).json({ok:false,message:"أدخلي رقم الطلب ورقم الهاتف المستخدم في الطلب"});
+    }
+    try {
+      const result = await db(
+        `SELECT id, user_id, customer_phone, status, created_at, total, shipping_region, delivered_at
+         FROM orders WHERE id = $1 LIMIT 1`,
+        [orderId]
+      );
+      if (!result.rowCount) return res.status(404).json({ok:false,message:"لم نعثر على طلب بهذه البيانات"});
+      const order = result.rows[0];
+      const accountOwnsOrder = Boolean(req.user?.id && String(req.user.id) === String(order.user_id || ""));
+      const phoneMatches = phoneKey.length >= 6 && phoneKey === String(order.customer_phone || "").replace(/\D/g, "");
+      if (!accountOwnsOrder && !phoneMatches) {
+        return res.status(404).json({ok:false,message:"لم نعثر على طلب بهذه البيانات"});
+      }
+      const history = await db(
+        `SELECT status, changed_at
+         FROM order_status_history
+         WHERE order_id = $1
+         ORDER BY id`,
+        [orderId]
+      );
+      return res.json({
+        ok:true,
+        order:{
+          id:Number(order.id),
+          status:order.status,
+          created_at:order.created_at,
+          total:Number(order.total||0),
+          shipping_region:order.shipping_region||null,
+          delivered_at:order.delivered_at||null
+        },
+        statusHistory:history.rows
+      });
+    } catch (error) {
+      console.error("[ORDER TRACK]", error);
+      return res.status(500).json({ok:false,message:"تعذر تحميل تتبع الطلب"});
+    }
+  }
+);
 
 app.get(
   "/api/orders/:id",
@@ -4070,7 +4155,15 @@ app.get(
             o.*,
             u.name AS user_name,
             u.email AS user_email,
-            u.phone AS user_phone
+            u.phone AS user_phone,
+            COALESCE(
+              (
+                SELECT json_agg(json_build_object('status', h.status, 'changed_at', h.changed_at) ORDER BY h.id)
+                FROM order_status_history h
+                WHERE h.order_id = o.id
+              ),
+              '[]'::json
+            ) AS status_history
           FROM orders o
           LEFT JOIN users u
             ON u.id = o.user_id
@@ -4534,33 +4627,16 @@ app.patch(
               }
             }
 
-            let matchedCustomerUserId = null;
-            if (newStatus === "delivered" && !order.user_id) {
-              const phoneKey = String(order.customer_phone || "").replace(/\D/g, "");
-              if (phoneKey) {
-                const matchingCustomers = await client.query(
-                  `SELECT id
-                   FROM users
-                   WHERE role = 'customer'
-                     AND is_active = TRUE
-                     AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') = $1
-                   ORDER BY id
-                   LIMIT 2`,
-                  [phoneKey]
-                );
-                if (matchingCustomers.rowCount === 1) {
-                  matchedCustomerUserId = matchingCustomers.rows[0].id;
-                }
-              }
-            }
-
             const updated =
               await client.query(
                 `
                 UPDATE orders
                 SET status = $1,
-                    user_id = COALESCE(user_id, $6),
+                    confirmed_at = CASE WHEN $1 = 'confirmed' AND confirmed_at IS NULL THEN NOW() ELSE confirmed_at END,
+                    processing_at = CASE WHEN $1 = 'processing' AND processing_at IS NULL THEN NOW() ELSE processing_at END,
+                    shipped_at = CASE WHEN $1 = 'shipped' AND shipped_at IS NULL THEN NOW() ELSE shipped_at END,
                     delivered_at = CASE WHEN $1 = 'delivered' AND delivered_at IS NULL THEN NOW() ELSE delivered_at END,
+                    completed_at = CASE WHEN $1 = 'completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END,
                     cancelled_source = CASE WHEN $3::boolean THEN $4 ELSE cancelled_source END,
                     cancellation_reason = CASE WHEN $3::boolean THEN $5 ELSE cancellation_reason END,
                     cancelled_at = CASE WHEN $3::boolean THEN NOW() ELSE cancelled_at END,
@@ -4573,19 +4649,19 @@ app.patch(
                   orderId,
                   isNewCancellation,
                   cancellationSource || null,
-                  cancellationReason || null,
-                  matchedCustomerUserId
+                  cancellationReason || null
                 ]
               );
 
-            const customerAccountLinked = Boolean(updated.rows[0]?.user_id);
-            const customerAccountLinkedNow = !order.user_id && Boolean(matchedCustomerUserId) && customerAccountLinked;
-            return {
-              order: updated.rows[0],
-              autoBlockedCustomer,
-              customerAccountLinked,
-              customerAccountLinkedNow
-            };
+            if (oldStatus !== newStatus) {
+              await client.query(
+                `INSERT INTO order_status_history (order_id, status, changed_by, changed_at)
+                 VALUES ($1, $2, $3, NOW())`,
+                [orderId, newStatus, req.user?.id || null]
+              );
+            }
+
+            return {order:updated.rows[0],autoBlockedCustomer};
           }
         );
 

@@ -174,6 +174,14 @@ function registerOrderPublicAccessRoutes(app, deps) {
         return res.status(404).json({ ok: false, message: "تفاصيل الطلب غير متاحة" });
       }
 
+      const historyResult = await db(
+        `SELECT status, changed_at
+         FROM order_status_history
+         WHERE order_id = $1
+         ORDER BY id`,
+        [orderId]
+      );
+
       const itemsResult = await db(
         `
         SELECT
@@ -196,7 +204,8 @@ function registerOrderPublicAccessRoutes(app, deps) {
       return res.json({
         ok: true,
         order: safeOrder(order),
-        items: itemsResult.rows.map(safeItem)
+        items: itemsResult.rows.map(safeItem),
+        statusHistory: historyResult.rows
       });
     } catch (error) {
       console.error("[PUBLIC ORDER DETAILS]", error);

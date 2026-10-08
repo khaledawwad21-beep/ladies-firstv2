@@ -7,6 +7,8 @@ const path = require("node:path");
 
 const server = fs.readFileSync(path.join(__dirname, "../src/server.js"), "utf8");
 const admin = fs.readFileSync(path.join(__dirname, "../../frontend/admin.js"), "utf8");
+const app = fs.readFileSync(path.join(__dirname, "../../frontend/app.js"), "utf8");
+const security = fs.readFileSync(path.join(__dirname, "../src/security-policy.js"), "utf8");
 
 test("cancelled orders are terminal after stock and loyalty reversal", () => {
   assert.match(server, /oldStatus === "cancelled"/);
@@ -30,11 +32,35 @@ test("selecting delivered status saves immediately",()=>{
   assert.ok(admin.includes("await saveOrderStatus(id)"));
 });
 
-test("delivering a guest order links only to one unique customer phone match",()=>{
-  assert.match(server,/matchingCustomers\.rowCount === 1/);
-  assert.match(server,/LIMIT 2/);
-  assert.match(server,/customerAccountLinkedNow/);
-  assert.match(admin,/لم نجد حسابًا واحدًا مطابقًا لرقم هاتف الطلب/);
+test("all non-cancelled order statuses save automatically while cancellation remains deliberate",()=>{
+  assert.ok(admin.includes("select.value==='cancelled'||select.value===String(select.dataset.savedStatus||'')"));
+  assert.ok(admin.includes("await saveOrderStatus(id)"));
+});
+
+test("customer order history uses account identity and has status events",()=>{
+  assert.match(server,/CREATE TABLE IF NOT EXISTS order_status_history/);
+  assert.match(server,/WHERE o\.user_id = \$1/);
+  assert.match(server,/INSERT INTO order_status_history/);
+  assert.match(admin,/بيانات الاستلام بالطلب/);
+  assert.match(admin,/سجل الحالات/);
+});
+
+test("customer tracking shows status history without relying on order phone",()=>{
+  assert.match(app,/orderUserId===userId/);
+  assert.match(app,/orderTrackingHtml\(o\)/);
+  assert.match(app,/trackCustomerOrder/);
+  assert.match(server,/\/api\/orders\/track/);
+  assert.match(server,/completed_at = CASE/);
+  assert.match(security,/path==='\/api\/orders\/track'/);
+});
+
+test("order ownership stays with the signed-in account while guest tracking verifies order phone",()=>{
+  assert.match(server,/WHERE o\.user_id = \$1/);
+  assert.match(server,/\/api\/orders\/track/);
+  assert.match(server,/normalizePhone/);
+  assert.doesNotMatch(server,/matchingCustomers\.rowCount === 1/);
+  assert.doesNotMatch(server,/customerAccountLinkedNow/);
+  assert.match(admin,/بيانات الاستلام بالطلب/);
 });
 
 test("admin order details show product image variant and totals", () => {
