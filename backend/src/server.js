@@ -3665,6 +3665,54 @@ app.get(
    SINGLE USER ORDER
    ========================================================= */
 
+app.post(
+  "/api/orders/track",
+  optionalAuth,
+  async (req, res) => {
+    const orderId = integer(String(req.body?.orderNumber ?? req.body?.orderId ?? "").replace(/[^0-9]/g, ""), NaN);
+    const phoneKey = String(req.body?.phone ?? req.body?.customerPhone ?? "").replace(/\\D/g, "");
+    if (!Number.isFinite(orderId) || orderId <= 0 || (!req.user?.id && phoneKey.length < 6)) {
+      return res.status(400).json({ok:false,message:"أدخلي رقم الطلب ورقم الهاتف المستخدم في الطلب"});
+    }
+    try {
+      const result = await db(
+        `SELECT id, user_id, customer_phone, status, created_at, total, shipping_region, delivered_at
+         FROM orders WHERE id = $1 LIMIT 1`,
+        [orderId]
+      );
+      if (!result.rowCount) return res.status(404).json({ok:false,message:"لم نعثر على طلب بهذه البيانات"});
+      const order = result.rows[0];
+      const accountOwnsOrder = Boolean(req.user?.id && String(req.user.id) === String(order.user_id || ""));
+      const phoneMatches = phoneKey.length >= 6 && phoneKey === String(order.customer_phone || "").replace(/\\D/g, "");
+      if (!accountOwnsOrder && !phoneMatches) {
+        return res.status(404).json({ok:false,message:"لم نعثر على طلب بهذه البيانات"});
+      }
+      const history = await db(
+        `SELECT status, changed_at
+         FROM order_status_history
+         WHERE order_id = $1
+         ORDER BY id`,
+        [orderId]
+      );
+      return res.json({
+        ok:true,
+        order:{
+          id:Number(order.id),
+          status:order.status,
+          created_at:order.created_at,
+          total:Number(order.total||0),
+          shipping_region:order.shipping_region||null,
+          delivered_at:order.delivered_at||null
+        },
+        statusHistory:history.rows
+      });
+    } catch (error) {
+      console.error("[ORDER TRACK]", error);
+      return res.status(500).json({ok:false,message:"تعذر تحميل تتبع الطلب"});
+    }
+  }
+);
+
 app.get(
   "/api/orders/:id",
   requireAuth,
