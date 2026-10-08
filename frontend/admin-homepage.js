@@ -46,7 +46,7 @@ function hpRender() {
 function hpUseLogoSlide() {
   if(hpBusy)return;
   hpCapture();
-  const logoSlide={image:'/assets/campaign/slide-05-logo-desktop.jpg?v=20261009',mobileImage:'/assets/campaign/slide-05-logo-mobile.jpg?v=20261009',titleAr:'',titleEn:'',descAr:'',descEn:'',hideText:true};
+  const logoSlide={image:'/assets/campaign/slide-06-home-desktop.jpg?v=20261009',mobileImage:'/assets/campaign/slide-06-home-mobile.jpg?v=20261009',titleAr:'',titleEn:'',descAr:'',descEn:'',hideText:true};
   if(hpSlides.length)hpSlides[0]={...hpSlides[0],...logoSlide};
   else hpSlides=[logoSlide];
   hpRender();
