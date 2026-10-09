@@ -212,7 +212,7 @@ async function dash(){let d=await api('/api/admin/dashboard'),x=d.dashboard;cons
 ];$('#sections').innerHTML=`<div class="cards">${stats.map(a=>`<button type="button" class="stat admin-stat-link" onclick="openAdminSection('${a[2]}')"><small>${a[0]}</small><b>${a[1]}</b></button>`).join('')}</div><div class="grid"><div class="card"><h2>تنبيهات</h2>${x.lowStock?`يوجد ${x.lowStock} منتج منخفض المخزون.`:'لا يوجد تنبيه مخزون ضمن الحد الحالي.'}</div><div class="card"><h2>اختصارات</h2>اضغطي على أي بطاقة في الأعلى للانتقال مباشرة إلى القسم المرتبط.</div></div>`}let adminUsersCache=[];
 function renderUsersRows(){
   const box=$('#usersRows');if(!box)return;
-  box.innerHTML=table(['الاسم','البريد','الهاتف','الجنس','العمر','الدور','النقاط','الحالة','الطلب',''],adminUsersCache.map(u=>{const active=u.isActive!==false;const owner=String(u.role||'').toLowerCase()==='owner';const until=u.orderingBlockUntil?new Date(u.orderingBlockUntil):null;const blockActive=u.orderingBlocked===true&&(!until||until.getTime()>Date.now());const blockText=blockActive?(until?'ممنوع حتى '+until.toLocaleDateString('ar'):'ممنوع من الطلب'):(u.orderingBlocked?'انتهى المنع':'مسموح');return `<tr><td>${E(u.name||'-')}</td><td>${E(u.email||'-')}</td><td>${E(u.phone||'-')}</td><td>${E(u.gender||'-')}</td><td>${u.age??'-'}</td><td>${E(u.role||'-')}</td><td>${Number(u.loyaltyPoints||0)}</td><td>${active?'فعال':'متوقف'}</td><td>${E(blockText)}</td><td>${owner?'<span class="small-note">المالك يُدار من إعدادات الحساب</span>':`<button class="btn" onclick="editUser(${Number(u.id)})">تعديل</button>`}</td></tr>`}));
+  box.innerHTML=table(['الاسم','البريد','الهاتف','الجنس','العمر','الدور','النقاط','الحالة','الطلب',''],adminUsersCache.map(u=>{const active=u.isActive!==false;const owner=String(u.role||'').toLowerCase()==='owner';const until=u.orderingBlockUntil?new Date(u.orderingBlockUntil):null;const blockActive=u.orderingBlocked===true&&(!until||until.getTime()>Date.now());const blockText=blockActive?(until?'ممنوع حتى '+until.toLocaleDateString('ar'):'ممنوع من الطلب'):(u.orderingBlocked?'انتهى المنع':'مسموح');return `<tr data-admin-global-type="user" data-admin-global-id="${Number(u.id)}"><td>${E(u.name||'-')}</td><td>${E(u.email||'-')}</td><td>${E(u.phone||'-')}</td><td>${E(u.gender||'-')}</td><td>${u.age??'-'}</td><td>${E(u.role||'-')}</td><td>${Number(u.loyaltyPoints||0)}</td><td>${active?'فعال':'متوقف'}</td><td>${E(blockText)}</td><td>${owner?'<span class="small-note">المالك يُدار من إعدادات الحساب</span>':`<button class="btn" onclick="editUser(${Number(u.id)})">تعديل</button>`}</td></tr>`}));
 }
 async function userLiveSearch(){
   const search=String($('#uq')?.value||'').trim();
@@ -324,7 +324,7 @@ function renderProductRows(){
   const box=$('#productRows');if(!box)return;
   const q=String($('#pq')?.value||'').trim().toLowerCase();
   const list=adminProductsCache.filter(p=>catalogProductMatches(p)).filter(p=>!q||[p.name,p.sku,p.barcode,p.productNumber,p.product_number,p.brand,p.category].filter(Boolean).join(' ').toLowerCase().includes(q));
-  box.innerHTML=table(['المنتج','رقم المنتج','الباركود','السعر','المخزون','الحالة',''],list.map(p=>`<tr><td>${E(p.name)}</td><td>${E(p.productNumber||p.product_number||'-')}</td><td>${E(p.barcode||'-')}</td><td>${M(p.price)}</td><td>${p.stock??0}</td><td>${(p.isActive!==false&&p.is_active!==false)?'فعال':'متوقف'}</td><td><button class="btn" onclick='productForm(${E(JSON.stringify(p))})'>تعديل</button></td></tr>`));
+  box.innerHTML=table(['المنتج','رقم المنتج','الباركود','السعر','المخزون','الحالة',''],list.map(p=>`<tr data-admin-global-type="product" data-admin-global-id="${Number(p.id)}"><td>${E(p.name)}</td><td>${E(p.productNumber||p.product_number||'-')}</td><td>${E(p.barcode||'-')}</td><td>${M(p.price)}</td><td>${p.stock??0}</td><td>${(p.isActive!==false&&p.is_active!==false)?'فعال':'متوقف'}</td><td><button class="btn" onclick='productForm(${E(JSON.stringify(p))})'>تعديل</button></td></tr>`));
 }
 async function products(){const[d,c]=await Promise.all([api('/api/admin/products'),api('/api/categories')]);adminProductsCache=d.products||[];adminProductCategories=c.categories||[];$('#sections').innerHTML=`<div class="card"><h2>${adminCatalogProductFilter?'منتجات '+E(adminCatalogProductFilter.name):'المنتجات'}</h2>${adminCatalogProductFilter?'<div class="toolbar"><button class="btn" onclick="openAdminSection(&quot;catalog&quot;)">الرجوع للفئات والبراندات</button><button class="btn" onclick="clearCatalogProductFilter()">كل المنتجات</button></div>':''}<div class="toolbar"><input id="pq" class="field" placeholder="بحث مباشر بالاسم أو رقم المنتج أو الباركود أو SKU أو البراند أو الفئة" oninput="renderProductRows()"><button class="btn" onclick="productForm()">+ منتج جديد</button></div><div id="productRows"></div></div>`;renderProductRows()}
 function productForm(p={}){const selectedCategory=Number(p.categoryId??p.category_id)||0;const categoryOptions=`<option value="">اختيار الفئة</option>${adminProductCategories.map(c=>`<option value="${Number(c.id)}" ${Number(c.id)===selectedCategory?'selected':''}>${E(c.name)} — فئة ${Number(c.id)}</option>`).join('')}`;modal(p.id?'تعديل المنتج':'منتج جديد',`<div class="formgrid"><input id="pn" class="field" value="${E(p.name||'')}" placeholder="اسم المنتج"><label class="full">الفئة<select id="pc" class="field">${categoryOptions}</select></label><input id="pbarcode" class="field" value="${E(p.barcode||'')}" placeholder="الباركود (اختياري — يجب ألا يتكرر)"><label class="field">رقم المنتج<input class="field" readonly value="${E(p.productNumber||p.product_number||'')}" placeholder="يُنشأ تلقائيًا بعد الحفظ"></label><input id="pp" class="field" type="number" step=".01" value="${p.price??''}" placeholder="السعر"><input id="po" class="field" type="number" step=".01" value="${p.old_price??''}" placeholder="السعر القديم"><input id="ps" class="field" type="number" value="${p.stock??0}" placeholder="المخزون"><input id="pi" class="field full" value="${E(p.image_url||p.imageUrl||'')}" placeholder="رابط الصورة"><textarea id="pd" class="field full" rows="5" placeholder="الوصف">${E(p.description||'')}</textarea><div class="full">رقم المنتج يتكون من رقم الفئة وتسلسله داخلها، مثل 1-1 ثم 1-2.</div></div><div class="actions"><button class="btn primary" onclick="saveProduct(${p.id||0})">حفظ</button>${p.id?`<button class="btn" type="button" onclick="openStaffChatFor('product',${Number(p.id)})">💬 ملاحظة داخلية</button>`:''}</div>`)}
@@ -334,7 +334,7 @@ function renderInventoryRows(){
   const box=$('#inventoryRows');if(!box)return;
   const q=String($('#inventorySearch')?.value||'').trim().toLowerCase();
   const list=adminInventoryCache.filter(x=>!q||[`${x.name||''}`,`${x.sku||''}`,`${x.category_name||''}`,`${x.brand_name||''}`,`${x.supplier_name||''}`].join(' ').toLowerCase().includes(q));
-  box.innerHTML=table(['المنتج','SKU','الكمية','الفئة','البراند','المورد / التاجر',''],list.map(x=>`<tr><td>${E(x.name)}</td><td>${E(x.sku||'-')}</td><td>${x.stock??0}</td><td>${E(x.category_name||'-')}</td><td>${E(x.brand_name||'-')}</td><td>${E(x.supplier_name||'-')}</td><td><button class="btn" onclick="editInventoryProduct(${Number(x.id)})">تعديل المخزون</button></td></tr>`));
+  box.innerHTML=table(['المنتج','SKU','الكمية','الفئة','البراند','المورد / التاجر',''],list.map(x=>`<tr data-admin-global-type="inventory" data-admin-global-id="${Number(x.id)}"><td>${E(x.name)}</td><td>${E(x.sku||'-')}</td><td>${x.stock??0}</td><td>${E(x.category_name||'-')}</td><td>${E(x.brand_name||'-')}</td><td>${E(x.supplier_name||'-')}</td><td><button class="btn" onclick="editInventoryProduct(${Number(x.id)})">تعديل المخزون</button></td></tr>`));
 }
 async function inventory(){
   const d=await api('/api/admin/inventory');
@@ -433,7 +433,7 @@ function renderOrderRows(){
   const box=$('#orderRows');if(!box)return;
   const q=String($('#orderSearch')?.value||'').trim().toLowerCase();
   const filtered=adminOrdersCache.filter(o=>!q||String(o.id).includes(q)||String(o.customer_name||'').toLowerCase().includes(q)||String(o.user_email||'').toLowerCase().includes(q)||String(o.user_phone||o.customer_phone||'').toLowerCase().includes(q));
-  box.innerHTML=table(['رقم','العميل','الهاتف','الإجمالي','التوصيل','الحالة','التاريخ',''],filtered.map(o=>`<tr><td>#${o.id}</td><td>${E(o.customer_name||o.user_email||'-')}</td><td>${E(o.user_phone||o.customer_phone||'-')}</td><td>${M(o.total)} ₪</td><td>${o.shipping_waived?'معفى':M(o.shipping_cost||0)+' ₪'}</td><td>${orderStatusLabel(o.status)}</td><td>${new Date(o.created_at).toLocaleString('ar')}</td><td><button class="btn primary" onclick="openOrderDetails(${Number(o.id)})">إدارة</button><button class="btn" onclick="invoice(${Number(o.id)})">طباعة</button></td></tr>`));
+  box.innerHTML=table(['رقم','العميل','الهاتف','الإجمالي','التوصيل','الحالة','التاريخ',''],filtered.map(o=>`<tr data-admin-global-type="order" data-admin-global-id="${Number(o.id)}"><td>#${o.id}</td><td>${E(o.customer_name||o.user_email||'-')}</td><td>${E(o.user_phone||o.customer_phone||'-')}</td><td>${M(o.total)} ₪</td><td>${o.shipping_waived?'معفى':M(o.shipping_cost||0)+' ₪'}</td><td>${orderStatusLabel(o.status)}</td><td>${new Date(o.created_at).toLocaleString('ar')}</td><td><button class="btn primary" onclick="openOrderDetails(${Number(o.id)})">إدارة</button><button class="btn" onclick="invoice(${Number(o.id)})">طباعة</button></td></tr>`));
 }
 async function orders(){
   const previousSearch=String($('#orderSearch')?.value||'');
@@ -781,7 +781,7 @@ function renderReturnRows(){
     returnTypeLabel(x.request_type),returnStatusLabel(x.status),returnFeeLabel(x.fee_payer)
   ].join(' ').toLowerCase().includes(q));
   if(!list.length){box.innerHTML='<p class="small-note">لا توجد طلبات إرجاع/استبدال مطابقة.</p>';return}
-  box.innerHTML=table(['الطلب','النوع','العميل','المنتج','الكمية','السبب','الرسوم','فرق السعر','الحالة',''],list.map(x=>`<tr><td>#${E(x.order_id||'-')}</td><td>${returnTypeLabel(x.request_type)}</td><td>${E(x.customer_name||'-')}<br><small>${E(x.customer_phone||'-')}</small></td><td>${x.image?`<img src="${E(x.image)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-left:6px">`:''}${E(x.product_name||'-')}<br><small>${E(x.variant_name||'-')}</small></td><td>${Number(x.quantity)||0}</td><td>${E(x.reason||'-')}</td><td>${returnFeeLabel(x.fee_payer)}${Number(x.service_fee)>0?'<br>'+M(x.service_fee)+' ₪':''}</td><td>${M(x.price_difference||0)} ₪</td><td>${returnStatusLabel(x.status)}</td><td><button class="btn primary" onclick="editReturnRequestById(${Number(x.id)})">إدارة</button>${x.status==='completed'?'<button class="btn" onclick="printReturnSettlement('+Number(x.id)+')">وصل التسوية</button>':''}</td></tr>`));
+  box.innerHTML=table(['الطلب','النوع','العميل','المنتج','الكمية','السبب','الرسوم','فرق السعر','الحالة',''],list.map(x=>`<tr data-admin-global-type="return" data-admin-global-id="${Number(x.id)}"><td>#${E(x.order_id||'-')}</td><td>${returnTypeLabel(x.request_type)}</td><td>${E(x.customer_name||'-')}<br><small>${E(x.customer_phone||'-')}</small></td><td>${x.image?`<img src="${E(x.image)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-left:6px">`:''}${E(x.product_name||'-')}<br><small>${E(x.variant_name||'-')}</small></td><td>${Number(x.quantity)||0}</td><td>${E(x.reason||'-')}</td><td>${returnFeeLabel(x.fee_payer)}${Number(x.service_fee)>0?'<br>'+M(x.service_fee)+' ₪':''}</td><td>${M(x.price_difference||0)} ₪</td><td>${returnStatusLabel(x.status)}</td><td><button class="btn primary" onclick="editReturnRequestById(${Number(x.id)})">إدارة</button>${x.status==='completed'?'<button class="btn" onclick="printReturnSettlement('+Number(x.id)+')">وصل التسوية</button>':''}</td></tr>`));
 }
 async function returnsAdmin(){
   const [d,p]=await Promise.all([api('/api/admin/returns'),api('/api/products')]);
@@ -857,8 +857,8 @@ function renderCatalogRows(){
   const cq=String($('#categorySearch')?.value||'').trim().toLowerCase();
   const bq=String($('#brandSearch')?.value||'').trim().toLowerCase();
   const cbox=$('#categoryRows'),bbox=$('#brandRows');
-  if(cbox)cbox.innerHTML=table(['الاسم'],adminCategoryCache.filter(x=>!cq||String(x.name||'').toLowerCase().includes(cq)).map(x=>`<tr><td><button type="button" class="catalog-product-link" onclick="openCatalogProducts('category',${Number(x.id)})">${E(x.name)}</button></td></tr>`));
-  if(bbox)bbox.innerHTML=table(['الاسم'],adminBrandCache.filter(x=>!bq||String(x.name||'').toLowerCase().includes(bq)).map(x=>`<tr><td><button type="button" class="catalog-product-link" onclick="openCatalogProducts('brand',${Number(x.id)})">${E(x.name)}</button></td></tr>`));
+  if(cbox)cbox.innerHTML=table(['الاسم'],adminCategoryCache.filter(x=>!cq||String(x.name||'').toLowerCase().includes(cq)).map(x=>`<tr data-admin-global-type="category" data-admin-global-id="${Number(x.id)}"><td><button type="button" class="catalog-product-link" onclick="openCatalogProducts('category',${Number(x.id)})">${E(x.name)}</button></td></tr>`));
+  if(bbox)bbox.innerHTML=table(['الاسم'],adminBrandCache.filter(x=>!bq||String(x.name||'').toLowerCase().includes(bq)).map(x=>`<tr data-admin-global-type="brand" data-admin-global-id="${Number(x.id)}"><td><button type="button" class="catalog-product-link" onclick="openCatalogProducts('brand',${Number(x.id)})">${E(x.name)}</button></td></tr>`));
 }
 async function catalog(){
   const[c,b]=await Promise.all([api('/api/categories'),api('/api/brands')]);
@@ -915,7 +915,7 @@ function renderCouponRows(){
       const start=x.starts_at?couponDateValue(x.starts_at):'—';
       const end=x.expires_at?couponDateValue(x.expires_at):'—';
       const type=String(x.discount_type||'percent')==='fixed'?'₪':'%';
-      return `<tr>
+      return `<tr data-admin-global-type="coupon" data-admin-global-id="${Number(x.id)}">
         <td><b>${E(x.code)}</b></td>
         <td>${M(x.discount_value)} ${type}</td>
         <td>${M(x.minimum_amount||x.min_order||0)} ₪</td>
@@ -1173,7 +1173,7 @@ function renderStaffRows(){
   const list=adminStaffCache.filter(x=>!q||[
     x.name||'',x.email||'',x.phone||'',x.role||'',staffPermissionText(x)
   ].join(' ').toLowerCase().includes(q));
-  box.innerHTML=table(['الاسم','البريد','الهاتف','الجنس','الدور','الصلاحيات','الحالة',''],list.map(x=>`<tr><td>${E(x.name)}</td><td>${E(x.email)}</td><td>${E(x.phone||'-')}</td><td>${x.gender==='male'?'ذكر':x.gender==='female'?'أنثى':'-'}</td><td>${E(x.role)}</td><td>${E(staffPermissionText(x))}</td><td>${x.is_active?'فعال':'متوقف'}</td><td>${isOwner&&x.role!=='owner'?`<button class="btn" onclick='editStaff(${E(JSON.stringify(x))})'>تعديل الصلاحيات</button>`:''}</td></tr>`));
+  box.innerHTML=table(['الاسم','البريد','الهاتف','الجنس','الدور','الصلاحيات','الحالة',''],list.map(x=>`<tr data-admin-global-type="staff" data-admin-global-id="${Number(x.id)}"><td>${E(x.name)}</td><td>${E(x.email)}</td><td>${E(x.phone||'-')}</td><td>${x.gender==='male'?'ذكر':x.gender==='female'?'أنثى':'-'}</td><td>${E(x.role)}</td><td>${E(staffPermissionText(x))}</td><td>${x.is_active?'فعال':'متوقف'}</td><td>${isOwner&&x.role!=='owner'?`<button class="btn" onclick='editStaff(${E(JSON.stringify(x))})'>تعديل الصلاحيات</button>`:''}</td></tr>`));
 }
 async function staff(){
   const d=await api('/api/admin/staff'),isOwner=String(currentAdminUser?.role||'').toLowerCase()==='owner';
@@ -1193,7 +1193,7 @@ function waitStatusLabel(s){return s==='notified'?'تم الإشعار':s==='clo
 let adminWaitlistCache=[];
 function renderWaitlistRows(){
   const box=$('#waitlistRows');if(!box)return;
-  box.innerHTML=table(['المنتج','الزبون','الهاتف','الخيار','الحالة','التاريخ','الإجراء'],adminWaitlistCache.map(x=>`<tr><td><button class="btn" onclick="window.open('/#product-${Number(x.productId)}','_blank')">${x.productImage?`<img src="${E(x.productImage)}" alt="" style="width:42px;height:42px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-left:6px">`:''}${E(x.productName||'منتج')}</button></td><td>${E(x.name||'-')}</td><td>${E(x.phone||'-')}</td><td>${E(x.variant||'-')}</td><td>${waitStatusLabel(x.status)}</td><td>${x.createdAt?new Date(x.createdAt).toLocaleString('ar'):'-'}</td><td><div class="actions">${x.status==='waiting'?`<button class="btn primary" type="button" onclick="sendWaitlistWhatsApp(${Number(x.id)})" ${x.isAvailable===true?'':'disabled title="يتفعّل التذكير عند رجوع الصنف أو الخيار للمخزون"'}>تذكير عبر واتساب</button>${x.isAvailable===true?'':'<small class="waitlist-stock-note">يتفعّل عند توفر المنتج</small>'}<button class="btn" type="button" onclick="setWaitlistStatus(${Number(x.id)},'notified')">تسجيل إشعار يدوي</button>`:''}<button class="btn" onclick="setWaitlistStatus(${Number(x.id)},'${x.status==='closed'?'waiting':'closed'}')">${x.status==='closed'?'إعادة فتح':'إغلاق'}</button></div></td></tr>`));
+  box.innerHTML=table(['المنتج','الزبون','الهاتف','الخيار','الحالة','التاريخ','الإجراء'],adminWaitlistCache.map(x=>`<tr data-admin-global-type="waitlist" data-admin-global-id="${Number(x.id)}"><td><button class="btn" onclick="window.open('/#product-${Number(x.productId)}','_blank')">${x.productImage?`<img src="${E(x.productImage)}" alt="" style="width:42px;height:42px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-left:6px">`:''}${E(x.productName||'منتج')}</button></td><td>${E(x.name||'-')}</td><td>${E(x.phone||'-')}</td><td>${E(x.variant||'-')}</td><td>${waitStatusLabel(x.status)}</td><td>${x.createdAt?new Date(x.createdAt).toLocaleString('ar'):'-'}</td><td><div class="actions">${x.status==='waiting'?`<button class="btn primary" type="button" onclick="sendWaitlistWhatsApp(${Number(x.id)})" ${x.isAvailable===true?'':'disabled title="يتفعّل التذكير عند رجوع الصنف أو الخيار للمخزون"'}>تذكير عبر واتساب</button>${x.isAvailable===true?'':'<small class="waitlist-stock-note">يتفعّل عند توفر المنتج</small>'}<button class="btn" type="button" onclick="setWaitlistStatus(${Number(x.id)},'notified')">تسجيل إشعار يدوي</button>`:''}<button class="btn" onclick="setWaitlistStatus(${Number(x.id)},'${x.status==='closed'?'waiting':'closed'}')">${x.status==='closed'?'إعادة فتح':'إغلاق'}</button></div></td></tr>`));
   const labels=['المنتج','الزبون','الهاتف','الخيار','الحالة','التاريخ','الإجراء'];
   box.querySelectorAll('tbody tr').forEach(row=>[...row.cells].forEach((cell,i)=>cell.dataset.label=labels[i]||''));
 }
@@ -1308,18 +1308,30 @@ function adminGlobalSearchInput(){
   adminGlobalSearchTimer=setTimeout(async()=>{try{const entries=await loadAdminGlobalSearchIndex();if(String(input?.value||'').trim()===query)renderAdminGlobalSearchResults(query,entries)}catch{if(box){box.innerHTML='<div class="admin-global-search-empty">تعذر تحميل نتائج البحث الآن.</div>';box.hidden=false;input?.setAttribute('aria-expanded','true')}}},250);
 }
 function focusAdminGlobalRecordRow(item){
-  const rows=[...document.querySelectorAll('#sections tbody tr')],record=item.data||{};
-  const values=[record.name,record.productName,record.product_name,record.code,record.customer_name,record.customer_phone,record.phone,record.email,record.variant,record.variant_name,record.order_id]
-    .filter(value=>value!==undefined&&value!==null&&String(value).trim())
-    .map(value=>adminGlobalNormalize(value));
-  let best=null,bestScore=0;
-  for(const row of rows){
-    const text=adminGlobalNormalize(row.innerText||row.textContent||'');
-    const score=values.reduce((sum,value)=>sum+(text.includes(value)?1:0),0);
-    if(score>bestScore){best=row;bestScore=score}
+  const record=item.data||{};
+  const rows=[...document.querySelectorAll('#sections [data-admin-global-type][data-admin-global-id]')];
+  let target=rows.find(row=>row.dataset.adminGlobalType===String(item.type)&&row.dataset.adminGlobalId===String(item.id))||null;
+  if(!target){
+    const candidates=[...document.querySelectorAll('#sections tbody tr')];
+    const values=[record.name,record.productName,record.product_name,record.code,record.customer_name,record.customer_phone,record.phone,record.email,record.variant,record.variant_name,record.order_id]
+      .filter(value=>value!==undefined&&value!==null&&String(value).trim())
+      .map(value=>adminGlobalNormalize(value));
+    let scoreBest=0;
+    for(const row of candidates){
+      const text=adminGlobalNormalize(row.innerText||row.textContent||'');
+      const score=values.reduce((sum,value)=>sum+(text.includes(value)?1:0),0);
+      if(score>scoreBest){target=row;scoreBest=score}
+    }
   }
-  if(best){best.scrollIntoView({behavior:'smooth',block:'center'});best.classList.add('admin-global-row-focus');setTimeout(()=>best.classList.remove('admin-global-row-focus'),2200)}
+  if(!target){toast('لقيت النتيجة، لكن لم أتمكن من تحديد صفّها في القائمة.');return false}
+  document.querySelectorAll('#sections .admin-global-row-focus').forEach(row=>row.classList.remove('admin-global-row-focus'));
+  target.classList.add('admin-global-row-focus');
+  target.setAttribute('aria-current','true');
+  target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+  setTimeout(()=>{target.classList.remove('admin-global-row-focus');target.removeAttribute('aria-current')},5000);
+  return true;
 }
+
 function focusAdminGlobalSetting(item){
   const key=String(item.id||''),normalizedKey=adminGlobalNormalize(key).replace(/\s/g,'');
   const fields=[...document.querySelectorAll('#sections input,#sections select,#sections textarea, #sections button')];
@@ -1333,20 +1345,20 @@ async function openAdminGlobalSearchResult(index){
   const box=document.getElementById('adminGlobalSearchResults');if(box)box.hidden=true;
   const input=document.getElementById('adminGlobalSearch');if(input)input.blur();
   if(!canAdminSection(item.section))return toast('ليس لديك صلاحية لهذا القسم');
+  if(item.type==='order'){
+    const status=$('#orderStatusFilter'),search=$('#orderSearch');
+    if(status)status.value='';
+    if(search)search.value='';
+  }
   await openAdminSection(item.section);
   if(item.type==='section')return;
-  if(item.type==='order')return openOrderDetails(Number(item.id));
-  if(item.type==='message')return openStaffConversation(Number(item.id));
-  if(item.type==='product'){
-    const product=adminProductsCache.find(record=>Number(record.id)===Number(item.id))||item.data;
-    return productForm(product||{});
-  }
-  if(item.type==='user')return editUser(Number(item.id));
-  if(item.type==='inventory')return editInventoryProduct(Number(item.id));
-  if(item.type==='return')return editReturnRequestById(Number(item.id));
-  if(item.type==='coupon')return couponForm(Number(item.id));
-  if(item.type==='staff')return editStaff(item.data||{id:Number(item.id),name:item.title});
   if(item.type==='setting')return focusAdminGlobalSetting(item);
+  if(item.type==='message'){
+    await openStaffConversation(Number(item.id));
+    const thread=document.querySelector('#staffChatMessages')||document.querySelector('.staff-chat-layout');
+    if(thread){thread.classList.add('admin-global-row-focus');thread.scrollIntoView({behavior:'smooth',block:'center'})}
+    return;
+  }
   focusAdminGlobalRecordRow(item);
 }
 
