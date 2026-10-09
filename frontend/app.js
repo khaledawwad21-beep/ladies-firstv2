@@ -666,6 +666,7 @@ function getCheckoutDraft(){
     notes: document.getElementById('notes')?.value||'',
     shippingRegion: document.getElementById('shippingRegion')?.value||'westbank',
     countryIso: document.getElementById('checkoutCountryCode')?.value||'PS',
+    countryExplicit: localStorage.getItem('lf_checkout_country_explicit')==='1',
     pay: document.querySelector('input[name="pay"]:checked')?.value||'cod',
     giftCard: currentGiftCard||loadGiftCardDraft()
   };
@@ -676,12 +677,12 @@ function saveCheckoutDraft(){
 function loadCheckoutDraft(){
   try{return JSON.parse(localStorage.getItem('lf_checkout_draft')||'null')}catch(e){return null}
 }
-function clearCheckoutDraft(){try{localStorage.removeItem('lf_checkout_draft')}catch(e){}}
+function clearCheckoutDraft(){try{localStorage.removeItem('lf_checkout_draft');localStorage.removeItem('lf_checkout_country_explicit')}catch(e){}}
 function restoreCheckoutDraft(){
   const d=loadCheckoutDraft();currentGiftCard=d?.giftCard||loadGiftCardDraft();
   if(!d)return;
   const set=(id,v)=>{const el=document.getElementById(id);if(el&&v!=null)el.value=v};
-  if(document.getElementById('checkoutCountryCode')&&d.countryIso){document.getElementById('checkoutCountryCode').value=d.countryIso;syncCountryDialPreview('checkoutCountryCode','phone')}set('name',d.name);set('phone',d.phone);set('city',d.city);set('address',d.address);set('notes',d.notes);set('shippingRegion',d.shippingRegion||'westbank');
+  if(document.getElementById('checkoutCountryCode')){const countryIso=d.countryExplicit&&d.countryIso?d.countryIso:'PS';document.getElementById('checkoutCountryCode').value=COUNTRY_DIAL_CODES[countryIso]?countryIso:'PS';document.getElementById('checkoutCountryCode').dispatchEvent(new Event('change',{bubbles:true}))}set('name',d.name);set('phone',d.phone);set('city',d.city);set('address',d.address);set('notes',d.notes);set('shippingRegion',d.shippingRegion||'westbank');
   const pay=document.querySelector(`input[name="pay"][value="${d.pay||'cod'}"]`);if(pay)pay.checked=true;
   if(d.open){const f=document.getElementById('checkoutForm');const gate=document.querySelector('.checkoutGate');if(f){f.classList.add('open');if(gate)gate.style.display='none';}}
   updateCheckoutTotal();
@@ -696,9 +697,52 @@ const COUNTRY_DIAL_CODES={"PS":"970","JO":"962","SA":"966","AE":"971","QA":"974"
 const COUNTRY_NAMES={};
 function countryName(iso){try{return new Intl.DisplayNames([currentLang==='en'?'en':'ar'],{type:'region'}).of(iso)||iso}catch(e){return iso}}
 function countryOptions(selected='PS'){return Object.keys(COUNTRY_DIAL_CODES).sort((a,b)=>countryName(a).localeCompare(countryName(b),currentLang==='en'?'en':'ar')).map(iso=>`<option value="${iso}" data-dial="+${COUNTRY_DIAL_CODES[iso]}" ${iso===selected?'selected':''}>${countryName(iso)} (+${COUNTRY_DIAL_CODES[iso]})</option>`).join('')}
+let activeCountrySelect=null,countrySearchOverlay=null;
+const COUNTRY_PICKER_CSS=".country-search-wrap{flex:1 1 180px;min-width:0}.country-native-select{display:none!important}.country-search-trigger{width:100%;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #e3d9de;border-radius:10px;background:#fff;color:#3d3038;font:inherit;text-align:right}.country-search-trigger .country-trigger-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.country-search-trigger .country-trigger-arrow{font-size:13px;color:#756670}.country-search-overlay[hidden]{display:none!important}.country-search-overlay{position:fixed;inset:0;z-index:20000;display:grid;place-items:center;padding:14px;background:#241721bb;backdrop-filter:blur(3px)}.country-search-panel{width:min(100%,480px);max-height:min(86vh,720px);display:flex;flex-direction:column;overflow:hidden;border-radius:18px;background:#fff;box-shadow:0 20px 60px #0004;direction:rtl}.country-search-head{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;border-bottom:1px solid #eee5e9;color:#55263f;font-weight:700}.country-search-close{width:38px;height:38px;border:0;border-radius:50%;background:#f8f1f4;color:#55263f;font-size:22px}.country-search-input{margin:12px 14px;padding:12px 13px;border:1px solid #dfd1d8;border-radius:11px;font:inherit;outline:none}.country-search-input:focus{border-color:#c88f9f;box-shadow:0 0 0 3px #c88f9f25}.country-search-results{overflow:auto;padding:0 10px 12px;overscroll-behavior:contain}.country-search-option{width:100%;display:flex;align-items:center;gap:10px;padding:12px;border:0;border-bottom:1px solid #f0e9ec;background:#fff;color:#30242c;text-align:right;font:inherit}.country-search-option:hover,.country-search-option[aria-selected=true]{background:#fbf3f6}.country-search-check{width:22px;height:22px;display:grid;place-items:center;border:1.5px solid #c9bdc3;border-radius:50%;color:#fff;font-size:13px;flex:0 0 auto}.country-search-option[aria-selected=true] .country-search-check{background:#55263f;border-color:#55263f}.country-search-name{flex:1}.country-search-dial{color:#756670;direction:ltr}.country-search-empty{padding:22px;text-align:center;color:#756670}@media(max-width:600px){.country-search-overlay{padding:10px}.country-search-panel{width:100%;max-height:88dvh;border-radius:16px}.country-search-option{padding:14px 12px}}";
+function ensureCountrySearchOverlay(){
+ if(countrySearchOverlay)return countrySearchOverlay;
+ const style=document.createElement('style');style.textContent=COUNTRY_PICKER_CSS;document.head.appendChild(style);
+ const layer=document.createElement('div');layer.className='country-search-overlay';layer.hidden=true;
+ layer.innerHTML='<section class="country-search-panel" role="dialog" aria-modal="true" aria-labelledby="countrySearchTitle"><header class="country-search-head"><span id="countrySearchTitle">اختاري الدولة</span><button type="button" class="country-search-close" aria-label="إغلاق">×</button></header><input class="country-search-input" type="search" autocomplete="off" placeholder="ابحثي عن الدولة أو مفتاح الاتصال"><div class="country-search-results" role="listbox"></div></section>';
+ document.body.appendChild(layer);countrySearchOverlay=layer;
+ const input=layer.querySelector('.country-search-input'),results=layer.querySelector('.country-search-results');
+ layer._draw=function(query){
+  const q=String(query||'').trim().toLocaleLowerCase(),digits=q.replace(/[^0-9]/g,'');
+  const entries=Object.keys(COUNTRY_DIAL_CODES).map(iso=>({iso:iso,name:countryName(iso),dial:'+'+COUNTRY_DIAL_CODES[iso]})).sort((a,b)=>a.name.localeCompare(b.name,currentLang==='en'?'en':'ar'));
+  const filtered=entries.filter(x=>!q||x.name.toLocaleLowerCase().includes(q)||x.iso.toLowerCase().includes(q)||x.dial.includes(q)||Boolean(digits&&x.dial.replace(/[^0-9]/g,'').includes(digits)));
+  results.innerHTML='';
+  if(!filtered.length){const empty=document.createElement('div');empty.className='country-search-empty';empty.textContent=currentLang==='en'?'No countries found':'ما لقينا الدولة، جربي اسمًا أو مفتاحًا آخر';results.appendChild(empty);return}
+  filtered.forEach(x=>{const b=document.createElement('button');b.type='button';b.className='country-search-option';b.setAttribute('role','option');b.setAttribute('aria-selected',String(activeCountrySelect&&activeCountrySelect.value===x.iso));b.innerHTML='<span class="country-search-check"></span><span class="country-search-name"></span><span class="country-search-dial"></span>';b.querySelector('.country-search-check').textContent=activeCountrySelect&&activeCountrySelect.value===x.iso?'✓':'';b.querySelector('.country-search-name').textContent=x.name+' ('+x.iso+')';b.querySelector('.country-search-dial').textContent=x.dial;b.addEventListener('click',function(){const target=activeCountrySelect;if(!target)return;target.value=x.iso;target.dispatchEvent(new Event('change',{bubbles:true}));if(target.id==='checkoutCountryCode'){try{localStorage.setItem('lf_checkout_country_explicit','1')}catch(e){}if(typeof saveCheckoutDraft==='function')saveCheckoutDraft()}closeCountrySearch()});results.appendChild(b)});
+ };
+ layer._input=input;
+ layer.querySelector('.country-search-close').addEventListener('click',closeCountrySearch);
+ layer.addEventListener('click',function(e){if(e.target===layer)closeCountrySearch()});
+ input.addEventListener('input',function(){layer._draw(input.value)});
+ return layer
+}
+function updateCountrySearchTrigger(select){
+ const trigger=select&&select.parentElement&&select.parentElement.querySelector('.country-search-trigger');if(!trigger)return;
+ const option=select.selectedOptions&&select.selectedOptions[0],name=option&&option.textContent||countryName(select.value||'PS')+' (+970)';
+ trigger.querySelector('.country-trigger-label').textContent=name
+}
+function enhanceCountrySelect(select){
+ if(!select)return;const existing=select.parentElement&&select.parentElement.querySelector('.country-search-trigger');
+ if(existing){updateCountrySearchTrigger(select);return}
+ ensureCountrySearchOverlay();const wrap=document.createElement('div');wrap.className='country-search-wrap';
+ const trigger=document.createElement('button');trigger.type='button';trigger.className='country-search-trigger';trigger.setAttribute('aria-haspopup','dialog');trigger.setAttribute('aria-expanded','false');trigger.innerHTML='<span class="country-trigger-label"></span><span class="country-trigger-arrow" aria-hidden="true">⌄</span>';
+ trigger.addEventListener('click',function(){openCountrySearch(select,trigger)});select.parentNode.insertBefore(wrap,select);wrap.appendChild(trigger);wrap.appendChild(select);select.classList.add('country-native-select');select.addEventListener('change',function(){updateCountrySearchTrigger(select)});updateCountrySearchTrigger(select)
+}
+function openCountrySearch(select,trigger){
+ const layer=ensureCountrySearchOverlay();activeCountrySelect=select;layer._draw('');layer.hidden=false;trigger.setAttribute('aria-expanded','true');document.body.classList.add('country-search-open');layer._input.value='';layer._input.focus()
+}
+function closeCountrySearch(){
+ if(!countrySearchOverlay||countrySearchOverlay.hidden)return;
+ countrySearchOverlay.hidden=true;document.body.classList.remove('country-search-open');const target=activeCountrySelect;activeCountrySelect=null;const trigger=target&&target.parentElement&&target.parentElement.querySelector('.country-search-trigger');if(trigger){trigger.setAttribute('aria-expanded','false');trigger.focus()}
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&countrySearchOverlay&&!countrySearchOverlay.hidden)closeCountrySearch()});
 function selectedDial(id){const el=document.getElementById(id);if(!el)return '+970';return el.selectedOptions?.[0]?.dataset.dial||('+ '+(COUNTRY_DIAL_CODES[el.value]||'970')).replace(' ','')}
-function fillCountrySelect(id,selected='PS'){const el=document.getElementById(id);if(!el)return;const keep=selected||el.value||'PS';el.innerHTML=countryOptions(keep);}
-function initCountrySelectors(){const a=getAccount?.();const aSel=document.getElementById('accountCountryCode');if(aSel){fillCountrySelect('accountCountryCode',a?.countryIso||'PS');if(a?.countryIso&&COUNTRY_DIAL_CODES[a.countryIso])aSel.value=a.countryIso}const aeSel=document.getElementById('accountCountryEdit');if(aeSel){fillCountrySelect('accountCountryEdit',a?.countryIso||'PS');if(a?.countryIso&&COUNTRY_DIAL_CODES[a.countryIso])aeSel.value=a.countryIso}const cSel=document.getElementById('checkoutCountryCode');if(cSel){const draft=load('lf_checkout_draft',{});fillCountrySelect('checkoutCountryCode',draft?.countryIso||'PS');if(draft?.countryIso&&COUNTRY_DIAL_CODES[draft.countryIso])cSel.value=draft.countryIso}}
+function fillCountrySelect(id,selected='PS'){const el=document.getElementById(id);if(!el)return;const keep=selected||el.value||'PS';el.innerHTML=countryOptions(keep);enhanceCountrySelect(el);}
+function initCountrySelectors(){const a=getAccount?.();const aSel=document.getElementById('accountCountryCode');if(aSel){fillCountrySelect('accountCountryCode',a?.countryIso||'PS');if(a?.countryIso&&COUNTRY_DIAL_CODES[a.countryIso])aSel.value=a.countryIso}const aeSel=document.getElementById('accountCountryEdit');if(aeSel){fillCountrySelect('accountCountryEdit',a?.countryIso||'PS');if(a?.countryIso&&COUNTRY_DIAL_CODES[a.countryIso])aeSel.value=a.countryIso}const cSel=document.getElementById('checkoutCountryCode');if(cSel){const draft=load('lf_checkout_draft',{});const defaultIso=draft?.countryExplicit&&draft?.countryIso?draft.countryIso:'PS';fillCountrySelect('checkoutCountryCode',defaultIso);if(COUNTRY_DIAL_CODES[defaultIso])cSel.value=defaultIso;updateCountrySearchTrigger(cSel)}}
 function internationalPhone(countryIso,number){let n=String(number||'').trim().replace(/[\s\-().]/g,'');if(!n)return '';if(/^00/.test(n))n='+'+n.slice(2);if(/^\+/.test(n))return '+'+n.slice(1).replace(/\D/g,'');const dial=COUNTRY_DIAL_CODES[countryIso]||'970';n=n.replace(/\D/g,'');if(n.startsWith(dial))return '+'+n;if(n.startsWith('0'))n=n.slice(1);return '+'+dial+n}
 function normalizePhone(v,countryIso=''){let n=String(v||'').trim().replace(/[\s\-().]/g,'');if(/^00/.test(n))n='+'+n.slice(2);if(/^\+/.test(n))return '+'+n.slice(1).replace(/\D/g,'');if(countryIso)return internationalPhone(countryIso,n);return n.replace(/\D/g,'')}
 function validMobile(v,countryIso=''){const n=normalizePhone(v,countryIso);return /^\+[1-9]\d{6,14}$/.test(n)}
