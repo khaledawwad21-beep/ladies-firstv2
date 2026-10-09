@@ -1332,13 +1332,60 @@ function focusAdminGlobalRecordRow(item){
   return true;
 }
 
+const ADMIN_GLOBAL_SETTING_FIELD_IDS={
+  store_name:'stn',store_description:'storeDescription',store_logo:'storeLogoUrl',phone:'stp',whatsapp:'stw',whatsapp_number:'stw',currency:'cur',return_policy:'rp',
+  shipping_fees_westbank:'shipWestbank',shipping_fees_jerusalem:'shipJerusalem',shipping_fees_inside:'shipInside',
+  shipping_discount_percentages_westbank:'shipDiscountWestbank',shipping_discount_percentages_jerusalem:'shipDiscountJerusalem',shipping_discount_percentages_inside:'shipDiscountInside',
+  gift_card_price:'giftCardPrice',gift_card_free_threshold:'giftCardFreeThreshold',
+  loyalty_enabled:'loyaltyEnabled',loyalty_redeem_enabled:'loyaltyRedeem',loyalty_earning_mode:'loyaltyMode',loyalty_points_per_currency:'loyaltyRate',loyalty_points_per_order:'loyaltyPerOrder',loyalty_point_value:'loyaltyPointValue',visa_discount_percent:'visaDiscount',
+  abandoned_cart_whatsapp_enabled:'abandonedWa',low_stock_whatsapp_enabled:'lowStockWa',waitlist_whatsapp_auto_enabled:'waitlistWaAuto',
+  storefront_general_message:'storefrontGeneralMessageText',maintenance_mode:'maintenanceMode',maintenance_message:'maintenanceMessage',
+  customer_cancel_auto_block_enabled:'cancelAutoBlockEnabled',customer_cancel_auto_block_threshold:'cancelAutoBlockThreshold',customer_cancel_auto_block_days:'cancelAutoBlockDays'
+};
+const ADMIN_GLOBAL_SETTING_CARD_HINTS=[
+  [/shipping|deliver|freight|transport|رسوم التوصيل|النقل|الشحن/,'رسوم التوصيل'],
+  [/gift.?card|greeting.?card|بطاقات المعايدة|بطاقة هدية/,'بطاقات المعايدة'],
+  [/loyalty|point|نقاط الولاء|النقاط/,'نقاط الولاء'],
+  [/abandoned|low.?stock|waitlist|whatsapp|automation|أتمتة|واتساب/,'أتمتة السلة وواتساب'],
+  [/storefront.?general.?message|رسالة الزبائن|الرسائل العامة/,'الرسائل العامة'],
+  [/maintenance|الصيانة|الطوارئ/,'وضع الطوارئ / الصيانة'],
+  [/cancel.?auto.?block|الإلغاءات|المنع التلقائي/,'منع الطلب بعد الإلغاءات'],
+  [/store.?name|description|logo|currency|return.?policy|phone|whatsapp|اسم المتجر|الإعدادات/,'الإعدادات']
+];
 function focusAdminGlobalSetting(item){
-  const key=String(item.id||''),normalizedKey=adminGlobalNormalize(key).replace(/\s/g,'');
-  const fields=[...document.querySelectorAll('#sections input,#sections select,#sections textarea, #sections button')];
-  const target=fields.find(field=>adminGlobalNormalize(field.id||'').replace(/\s/g,'')===normalizedKey||adminGlobalNormalize(field.dataset.settingKey||'').replace(/\s/g,'')===normalizedKey);
-  const anchor=target?.closest('label,.card,.formgrid,.grid')||target;
-  if(anchor){anchor.scrollIntoView({behavior:'smooth',block:'center'});if(/INPUT|SELECT|TEXTAREA/.test(target.tagName))target.focus({preventScroll:true});return}
-  focusAdminGlobalRecordRow(item);
+  const key=String(item.data?.key||item.id||'').trim();
+  const normalizedKey=adminGlobalNormalize(key).replace(/[.\s-]/g,'_');
+  const fields=[...document.querySelectorAll('#sections input,#sections select,#sections textarea,#sections button')];
+  const directId=ADMIN_GLOBAL_SETTING_FIELD_IDS[normalizedKey]||ADMIN_GLOBAL_SETTING_FIELD_IDS[normalizedKey.replace(/_+/g,'_')];
+  const target=(directId?document.getElementById(directId):null)||fields.find(field=>{
+    const normalizedField=adminGlobalNormalize(field.id||'').replace(/[.\s-]/g,'_');
+    return normalizedField===normalizedKey||adminGlobalNormalize(field.dataset.settingKey||'').replace(/[.\s-]/g,'_')===normalizedKey;
+  });
+  const clearFocus=()=>document.querySelectorAll('#sections .admin-global-row-focus').forEach(node=>{node.classList.remove('admin-global-row-focus');node.removeAttribute('aria-current')});
+  const highlight=anchor=>{
+    if(!anchor)return false;
+    clearFocus();
+    anchor.classList.add('admin-global-row-focus');
+    anchor.setAttribute('aria-current','true');
+    anchor.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+    setTimeout(()=>{anchor.classList.remove('admin-global-row-focus');anchor.removeAttribute('aria-current')},5000);
+    return true;
+  };
+  if(target){
+    const anchor=target.closest('label')||target.closest('.card')||target;
+    highlight(anchor);
+    if(/INPUT|SELECT|TEXTAREA/.test(target.tagName))target.focus({preventScroll:true});
+    return true;
+  }
+  const hint=ADMIN_GLOBAL_SETTING_CARD_HINTS.find(([pattern])=>pattern.test(key)||pattern.test(String(item.title||''))||pattern.test(String(item.detail||'')));
+  if(hint){
+    const card=[...document.querySelectorAll('#sections .card')].find(node=>adminGlobalNormalize(node.querySelector('h2,h3')?.textContent||'').includes(adminGlobalNormalize(hint[1])));
+    if(highlight(card))return true;
+  }
+  const fieldsContainer=document.querySelector('#sections .grid');
+  if(highlight(fieldsContainer))return true;
+  toast('تم فتح قسم الإعدادات، لكن لم أتمكن من مطابقة هذا الإعداد بحقل محدد.');
+  return false;
 }
 async function openAdminGlobalSearchResult(index){
   const item=window.adminGlobalSearchVisibleResults?.[index];if(!item)return;
