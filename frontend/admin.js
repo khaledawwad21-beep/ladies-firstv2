@@ -1341,6 +1341,18 @@ function adminGlobalSearchInput(){
   if(box){box.innerHTML='<div class="admin-global-search-empty">جاري البحث في أقسام لوحة التحكم…</div>';box.hidden=false;input?.setAttribute('aria-expanded','true')}
   adminGlobalSearchTimer=setTimeout(async()=>{try{const entries=await loadAdminGlobalSearchIndex();if(String(input?.value||'').trim()===query)renderAdminGlobalSearchResults(query,entries)}catch{if(box){box.innerHTML='<div class="admin-global-search-empty">تعذر تحميل نتائج البحث الآن.</div>';box.hidden=false;input?.setAttribute('aria-expanded','true')}}},250);
 }
+function revealAdminGlobalTarget(target){
+  if(!target)return false;
+  const scrollToTarget=()=>{
+    if(!target.isConnected)return;
+    const rect=target.getBoundingClientRect();
+    const top=Math.max(0,window.scrollY+rect.top-Math.max(100,window.innerHeight*0.28));
+    window.scrollTo({top,behavior:'smooth'});
+  };
+  target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+  requestAnimationFrame(()=>{scrollToTarget();setTimeout(scrollToTarget,120)});
+  return true;
+}
 function focusAdminGlobalRecordRow(item){
   const record=item.data||{},type=String(item.type||''),id=String(item.id??'').trim();
   const allRows=[...document.querySelectorAll('#sections [data-admin-global-type][data-admin-global-id]')];
@@ -1373,7 +1385,7 @@ function focusAdminGlobalRecordRow(item){
   document.querySelectorAll('#sections .admin-global-row-focus').forEach(row=>{row.classList.remove('admin-global-row-focus');row.removeAttribute('aria-current')});
   target.classList.add('admin-global-row-focus');
   target.setAttribute('aria-current','true');
-  target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+  revealAdminGlobalTarget(target);
   setTimeout(()=>{target.classList.remove('admin-global-row-focus');target.removeAttribute('aria-current')},5000);
   return true;
 }
@@ -1392,14 +1404,13 @@ function focusAdminGlobalSetting(item){
     clearFocus();
     anchor.classList.add('admin-global-row-focus');
     anchor.setAttribute('aria-current','true');
-    anchor.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+    revealAdminGlobalTarget(anchor);
     setTimeout(()=>{anchor.classList.remove('admin-global-row-focus');anchor.removeAttribute('aria-current')},5000);
     return true;
   };
   if(target){
     const anchor=target.closest('label')||target.closest('.card')||target;
     highlight(anchor);
-    if(/INPUT|SELECT|TEXTAREA/.test(target.tagName))target.focus({preventScroll:true});
     return true;
   }
   const hint=ADMIN_GLOBAL_SETTING_CARD_HINTS.find(([pattern])=>pattern.test(key)||pattern.test(String(item.title||''))||pattern.test(String(item.detail||'')));
@@ -1423,6 +1434,7 @@ async function openAdminGlobalSearchResult(index){
     if(search)search.value='';
   }
   await openAdminSection(item.section);
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   if(item.type==='section')return;
   if(item.type==='setting')return focusAdminGlobalSetting(item);
   if(item.type==='message'){
