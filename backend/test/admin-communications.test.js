@@ -76,11 +76,11 @@ test("changed message scripts use fresh cache versions",()=>{
 
 test("global admin search exposes all results and the biometric security control",()=>{
   assert.match(admin,/showMoreAdminGlobalSearchResults/);
-  assert.match(admin,/window\\.adminGlobalSearchVisibleResults=matches/);
+  assert.ok(admin.includes("window.adminGlobalSearchVisibleResults=matches"));
   assert.match(admin,/admin_passkey_access/);
   assert.match(admin,/id="adminPasskeyHeading"/);
   assert.match(admin,/الدخول بالبصمة \/ قفل الجهاز/);
-  assert.doesNotMatch(admin,/\\.slice\\(0,35\\)/);
+  assert.ok(!admin.includes(".slice(0,35)"));
 });
 
 test("storefront public announcement is exposed through safe public settings",()=>{
