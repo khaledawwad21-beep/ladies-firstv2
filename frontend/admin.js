@@ -1389,6 +1389,31 @@ function focusAdminGlobalRecordRow(item){
   setTimeout(()=>{target.classList.remove('admin-global-row-focus');target.removeAttribute('aria-current')},5000);
   return true;
 }
+const ADMIN_GLOBAL_SETTING_FIELD_IDS={
+  store_name:'stn',store_description:'storeDescription',store_logo:'storeLogoFile',
+  phone:'stp',whatsapp:'stw',whatsapp_number:'stw',currency:'cur',return_policy:'rp',
+  shipping_fees_westbank:'shipWestbank',shipping_fees_jerusalem:'shipJerusalem',shipping_fees_inside:'shipInside',
+  shipping_discount_percentages_westbank:'shipDiscountWestbank',shipping_discount_percentages_jerusalem:'shipDiscountJerusalem',shipping_discount_percentages_inside:'shipDiscountInside',
+  gift_card_price:'giftCardPrice',gift_card_free_threshold:'giftCardFreeThreshold',
+  loyalty_enabled:'loyaltyEnabled',loyalty_redeem_enabled:'loyaltyRedeem',loyalty_earning_mode:'loyaltyMode',
+  loyalty_points_per_currency:'loyaltyRate',loyalty_points_per_order:'loyaltyPerOrder',loyalty_point_value:'loyaltyPointValue',
+  visa_discount_percent:'visaDiscount',
+  abandoned_cart_whatsapp_enabled:'abandonedWa',low_stock_whatsapp_enabled:'lowStockWa',waitlist_whatsapp_auto_enabled:'waitlistWaAuto',
+  storefront_general_message:'storefrontGeneralMessageText',maintenance_mode:'maintenanceMode',maintenance_message:'maintenanceMessage',
+  customer_cancel_auto_block_enabled:'cancelAutoBlockEnabled',customer_cancel_auto_block_threshold:'cancelAutoBlockThreshold',customer_cancel_auto_block_days:'cancelAutoBlockDays'
+};
+const ADMIN_GLOBAL_SETTING_CARD_HINTS=[
+  [/shipping|deliver|freight|transport|التوصيل|النقل|الشحن/,'رسوم التوصيل'],
+  [/gift.?card|greeting.?card|المعايدة|بطاقة هدية/,'بطاقات المعايدة'],
+  [/loyalty|point|الولاء|النقاط/,'نقاط الولاء'],
+  [/packaging|wrapping|التغليف/,'خيارات تغليف الهدايا'],
+  [/abandoned|low.?stock|waitlist|automation|أتمتة/,'أتمتة السلة وواتساب'],
+  [/storefront.?general.?message|staff.?general.?message|رسالة الزبائن|الرسائل العامة/,'الرسائل العامة'],
+  [/maintenance|الصيانة|الطوارئ/,'وضع الطوارئ / الصيانة'],
+  [/cancel.?auto.?block|الإلغاءات|المنع التلقائي/,'منع الطلب بعد الإلغاءات'],
+  [/store.?name|description|logo|currency|return.?policy|phone|whatsapp|اسم المتجر/,'الإعدادات']
+];
+
 function focusAdminGlobalSetting(item){
   const key=String(item.data?.key||item.id||'').trim();
   const normalizedKey=adminGlobalNormalize(key).replace(/[.\s-]/g,'_');
