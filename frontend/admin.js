@@ -1227,32 +1227,76 @@ async function staffActivityRun(page=1){const root=$('#staffActivityResults');if
 
 function staffActivityLabel(x){const suffix=String(x.action||'').split('/').pop();const labels={preparation:'تجهيز الطلبية',status:'تغيير الحالة',gifts:x.method==='DELETE'?'حذف هدية':'إضافة هدية','shipping-discount':'تعديل خصم التوصيل','shipping-waiver':'تعديل إعفاء التوصيل','notify-whatsapp':'إرسال تذكير التوفر عبر واتساب',image:'رفع صورة',video:'رفع فيديو','ordering-block':'تعديل منع الطلبات','password':'تغيير كلمة المرور','read':'تسجيل قراءة رسالة'};return labels[suffix]||({POST:'إضافة / تنفيذ إجراء',PUT:'تعديل',PATCH:'تعديل',DELETE:'حذف'}[x.method]||'إجراء إداري')}
 
-// Search across the currently open admin section, including table rows and nested result lists.
-function applyAdminGlobalSearch(){
-  const query=String(document.getElementById('adminGlobalSearch')?.value||'').trim().toLocaleLowerCase();
-  const root=document.getElementById('sections');
-  if(!root)return;
-  root.querySelectorAll('.admin-global-search-hidden').forEach(node=>node.classList.remove('admin-global-search-hidden'));
-  if(!query)return;
-  const candidates=new Set();
-  root.querySelectorAll('tbody tr').forEach(node=>candidates.add(node));
-  root.querySelectorAll('[id]').forEach(container=>{
-    if(!/(rows|results|items|list)$/i.test(container.id))return;
-    [...container.children].forEach(node=>{if(node.textContent?.trim())candidates.add(node)});
-  });
-  [...root.children].forEach(node=>{if(node.textContent?.trim())candidates.add(node)});
-  candidates.forEach(node=>{
-    const value=[node.innerText||node.textContent||'',...Array.from(node.querySelectorAll('input,textarea,select')).map(input=>input.value||input.placeholder||'')].join(' ').toLocaleLowerCase();
-    if(!value.includes(query))node.classList.add('admin-global-search-hidden');
-  });
+// Cross-section live search, loaded only from sections the current admin can access.
+let adminGlobalSearchIndexCache={key:'',loadedAt:0,entries:[],promise:null};
+let adminGlobalSearchTimer=null;
+function adminGlobalSearchKey(){return [String(currentAdminUser?.role||''),...(Array.isArray(currentAdminUser?.permissions)?currentAdminUser.permissions:[])].sort().join('|')}
+function adminGlobalNormalize(value){return String(value??'').toLocaleLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/\s+/g,' ').trim()}
+function adminGlobalFlatten(value,key='',depth=0){
+  if(depth>5||value==null)return '';
+  if(/^(image|imageurl|image_url|avatar|video|media|password|password_hash|token|secret|credential|permissions)$/i.test(key))return '';
+  if(typeof value==='string'||typeof value==='number'||typeof value==='boolean')return String(value);
+  if(Array.isArray(value))return value.slice(0,100).map(item=>adminGlobalFlatten(item,'',depth+1)).filter(Boolean).join(' ');
+  if(typeof value==='object')return Object.entries(value).map(([childKey,childValue])=>adminGlobalFlatten(childValue,childKey,depth+1)).filter(Boolean).join(' ');
+  return '';
 }
-function initAdminGlobalSearch(){
-  const root=document.getElementById('sections');
-  if(!root||root.dataset.globalSearchReady)return;
-  root.dataset.globalSearchReady='true';
-  new MutationObserver(()=>applyAdminGlobalSearch()).observe(root,{childList:true,subtree:true,characterData:true});
+function adminGlobalEntry(section,type,id,title,record,detail=''){
+  const flat=adminGlobalFlatten(record);
+  return {section,type,id,title:String(title||'').trim()||'نتيجة',detail:String(detail||flat).replace(/\s+/g,' ').trim().slice(0,240),search:adminGlobalNormalize([title,flat].join(' '))};
 }
-document.addEventListener('DOMContentLoaded',initAdminGlobalSearch,{once:true});
+async function loadAdminGlobalSearchIndex(){
+  const key=adminGlobalSearchKey(),now=Date.now(),cache=adminGlobalSearchIndexCache;
+  if(cache.key===key&&cache.entries.length&&now-cache.loadedAt<60000)return cache.entries;
+  if(cache.key===key&&cache.promise)return cache.promise;
+  const jobs=[];
+  const request=(permission,url,read)=>{if(canAdminSection(permission))jobs.push(api(url).then(data=>read(data)||[]).catch(()=>[]))};
+  request('products','/api/admin/products',d=>(d.products||[]).map(x=>adminGlobalEntry('products','product',x.id,x.name||('منتج #'+x.id),x,[x.brand,x.category,x.sku,x.barcode,x.productNumber||x.product_number].filter(Boolean).join(' · '))));
+  request('orders','/api/admin/orders',d=>(d.orders||[]).map(x=>adminGlobalEntry('orders','order',x.id,'طلب #'+x.id+' · '+(x.customer_name||x.user_email||'عميل'),x,[x.customer_phone||x.user_phone,x.status,x.total?'الإجمالي '+x.total+' ₪':'',(x.items||[]).map(i=>i.productName||i.product_name||'').join('، ')].filter(Boolean).join(' · '))));
+  request('users','/api/admin/users',d=>(d.users||[]).map(x=>adminGlobalEntry('users','user',x.id,x.name||x.email||('مستخدم #'+x.id),x,[x.phone,x.email,x.role].filter(Boolean).join(' · '))));
+  request('inventory','/api/admin/inventory',d=>[...(d.products||[]).map(x=>adminGlobalEntry('inventory','inventory',x.id,x.name||('منتج #'+x.id),x,[x.sku,x.category_name,x.brand_name,x.supplier_name,'المخزون '+(x.stock??0)].filter(Boolean).join(' · '))),...(d.variants||[]).map(x=>adminGlobalEntry('inventory','inventory',x.product_id,x.product_name||('منتج #'+x.product_id),x,[x.color,x.size,x.sku,'المخزون '+(x.stock??0)].filter(Boolean).join(' · ')))]);
+  request('returns','/api/admin/returns',d=>(d.requests||[]).map(x=>adminGlobalEntry('returns','return',x.id,'طلب إرجاع #'+(x.order_id||x.id)+' · '+(x.product_name||'منتج'),x,[x.customer_name,x.customer_phone,x.variant_name,x.reason,x.status].filter(Boolean).join(' · '))));
+  request('waitlist','/api/admin/waitlist?status=&search=',d=>(d.requests||[]).map(x=>adminGlobalEntry('waitlist','waitlist',x.id,x.productName||x.product_name||'طلب توفر',x,[x.name,x.phone,x.variant,x.status].filter(Boolean).join(' · '))));
+  request('coupons','/api/admin/coupons',d=>(d.coupons||[]).map(x=>adminGlobalEntry('coupons','coupon',x.id,x.code||('كوبون #'+x.id),x,[x.discount_value,x.discount_type,x.minimum_amount,x.status].filter(Boolean).join(' · '))));
+  request('staff','/api/admin/staff',d=>(d.staff||[]).map(x=>adminGlobalEntry('staff','staff',x.id,x.name||x.email||('موظف #'+x.id),x,[x.email,x.phone,x.role].filter(Boolean).join(' · '))));
+  request('catalog','/api/categories',d=>(d.categories||[]).map(x=>adminGlobalEntry('catalog','category',x.id,'فئة · '+(x.name||''),x,x.name||'')));
+  request('catalog','/api/brands',d=>(d.brands||[]).map(x=>adminGlobalEntry('catalog','brand',x.id,'براند · '+(x.name||''),x,x.name||'')));
+  request('settings','/api/admin/settings',d=>Object.entries(d.settings||{}).map(([key,value])=>adminGlobalEntry('settings','setting',key,key,{key,value},adminGlobalFlatten(value))));
+  request('dashboard','/api/admin/dashboard',d=>[adminGlobalEntry('dashboard','dashboard','dashboard','ملخص لوحة التحكم',d.dashboard||d)]);
+  if(canAdminSection('messages'))jobs.push(api('/api/staff-conversations').then(d=>(d.conversations||[]).map(x=>adminGlobalEntry('messages','message',x.id,x.other_name||'محادثة داخلية',x,[x.context_label,x.last_message].filter(Boolean).join(' · ')))).catch(()=>[]));
+  cache.key=key;cache.promise=Promise.all(jobs).then(groups=>{cache.entries=groups.flat();cache.loadedAt=Date.now();cache.promise=null;return cache.entries}).catch(error=>{cache.promise=null;throw error});
+  return cache.promise;
+}
+function renderAdminGlobalSearchResults(query,entries){
+  const box=document.getElementById('adminGlobalSearchResults');if(!box)return;
+  const tokens=adminGlobalNormalize(query).split(' ').filter(Boolean);
+  const matches=entries.filter(item=>tokens.every(token=>item.search.includes(token))).sort((a,b)=>{const q=adminGlobalNormalize(query);return Number(b.search.startsWith(q))-Number(a.search.startsWith(q))}).slice(0,35);
+  box.innerHTML=matches.length?matches.map((item,index)=>`<button class="admin-global-result" type="button" onclick="openAdminGlobalSearchResult(${index})"><span class="admin-global-result-main"><b>${E(item.title)}</b><small>${E(item.detail||item.section)}</small></span><span class="admin-global-result-section">${E(titles[item.section]||item.section)}</span></button>`).join(''):'<div class="admin-global-search-empty">لا توجد نتائج مطابقة في الأقسام المتاحة لحسابك.</div>';
+  box.hidden=false;window.adminGlobalSearchVisibleResults=matches;
+}
+function adminGlobalSearchInput(){
+  clearTimeout(adminGlobalSearchTimer);
+  const input=document.getElementById('adminGlobalSearch'),box=document.getElementById('adminGlobalSearchResults');
+  const query=String(input?.value||'').trim();
+  if(!query){if(box)box.hidden=true;input?.setAttribute('aria-expanded','false');return}
+  if(query.length<2){if(box){box.innerHTML='<div class="admin-global-search-empty">اكتب حرفين على الأقل للبحث في اللوحة.</div>';box.hidden=false;input?.setAttribute('aria-expanded','true')}return}
+  if(box){box.innerHTML='<div class="admin-global-search-empty">جاري البحث في أقسام لوحة التحكم…</div>';box.hidden=false;input?.setAttribute('aria-expanded','true')}
+  adminGlobalSearchTimer=setTimeout(async()=>{try{const entries=await loadAdminGlobalSearchIndex();if(String(input?.value||'').trim()===query)renderAdminGlobalSearchResults(query,entries)}catch{if(box){box.innerHTML='<div class="admin-global-search-empty">تعذر تحميل نتائج البحث الآن.</div>';box.hidden=false;input?.setAttribute('aria-expanded','true')}}},250);
+}
+async function openAdminGlobalSearchResult(index){
+  const item=window.adminGlobalSearchVisibleResults?.[index];if(!item)return;
+  const box=document.getElementById('adminGlobalSearchResults');if(box)box.hidden=true;
+  const input=document.getElementById('adminGlobalSearch');if(input)input.blur();
+  if(!canAdminSection(item.section))return toast('ليس لديك صلاحية لهذا القسم');
+  await openAdminSection(item.section);
+  if(item.type==='order'){return openOrderDetails(Number(item.id))}
+  if(item.type==='message'){return openStaffConversation(Number(item.id))}
+  const target={products:'#pq',inventory:'#inventorySearch',users:'#uq',returns:'#returnSearch',waitlist:'#wlq',coupons:'#couponSearch',staff:'#staffSearch',category:'#categorySearch',brand:'#brandSearch',product:'#pq'}[item.type];
+  const field=target?document.querySelector(target):null;
+  if(field){field.value=item.title.replace(/^(فئة · |براند · )/,'');field.dispatchEvent(new Event('input',{bubbles:true}))}
+}
+function applyAdminGlobalSearch(){adminGlobalSearchInput()}
+document.addEventListener('keydown',event=>{if(event.key==='Escape'){const box=document.getElementById('adminGlobalSearchResults');if(box){box.hidden=true;document.getElementById('adminGlobalSearch')?.setAttribute('aria-expanded','false')}}});
+document.addEventListener('click',event=>{const wrap=document.querySelector('.admin-global-search-wrap');const box=document.getElementById('adminGlobalSearchResults');if(box&&!wrap?.contains(event.target)){box.hidden=true;document.getElementById('adminGlobalSearch')?.setAttribute('aria-expanded','false')}});
 function adminScrollToEdge(edge){
   const modal=document.getElementById('modal');
   const panel=modal?.classList.contains('open')?modal.querySelector('.modal-card'):null;
