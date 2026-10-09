@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#592842">
+<title>بطاقتك من Ladies First</title>
+<style>
+:root{--plum:#55263f;--plum2:#75445d;--rose:#c88f9f;--gold:#b79a63;--cream:#fbf7f2;--ink:#30242c;--muted:#746a70;--line:#eadfe3;--white:#fff}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#fbf8f5,#f5edf0 60%,#f9f5ef);color:var(--ink);font-family:Tahoma,Arial,sans-serif}
+button,input,select,textarea{font:inherit}button{cursor:pointer}.shell{max-width:1240px;margin:auto;padding:20px 22px 52px}.top{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:6px 0 22px}.brand{display:flex;align-items:center;gap:13px}.brand img{width:86px;height:56px;object-fit:contain;border-radius:8px}.brand strong{display:block;color:var(--plum);font:700 21px Georgia,serif;letter-spacing:.02em}.brand small{display:block;color:var(--muted);margin-top:4px;font-size:11px;letter-spacing:.13em}.tag{border:1px solid #ddcbd2;border-radius:999px;padding:9px 15px;color:var(--plum);background:#fff8;font-size:13px}
+.hero{padding:25px 28px;border-radius:22px;background:linear-gradient(112deg,#55263f,#74455d 63%,#9b6b79);color:#fff;box-shadow:0 14px 35px #54263f24;position:relative;overflow:hidden}.hero:after{content:"";position:absolute;width:280px;height:280px;border:1px solid #ffffff25;border-radius:50%;left:-70px;top:-160px;box-shadow:0 0 0 28px #ffffff0a,0 0 0 60px #ffffff08}.hero h1{font:600 clamp(24px,4vw,36px) Georgia,serif;margin:0 0 8px}.hero p{margin:0;color:#f5eaf0;line-height:1.9;font-size:14px;max-width:690px}.step{font-size:12px;color:#f0dce5;margin-bottom:8px;letter-spacing:.04em}
+.layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);gap:22px;margin-top:22px;align-items:start}.panel{background:#fff;border:1px solid #eee4e8;border-radius:20px;padding:20px;box-shadow:0 7px 24px #4723370c}.panel h2{font:600 20px Georgia,serif;color:var(--plum);margin:0 0 14px}.sub{color:var(--muted);font-size:12px;margin:-5px 0 14px;line-height:1.7}.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.filter{border:1px solid var(--line);background:#fff;color:var(--plum2);border-radius:999px;padding:8px 13px;font-size:12px}.filter.active{background:var(--plum);color:#fff;border-color:var(--plum)}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-height:670px;overflow:auto;padding:2px 2px 4px}.card-choice{border:1px solid var(--line);border-radius:13px;background:#fff;padding:6px;text-align:right;transition:.18s;position:relative}.card-choice:hover{transform:translateY(-2px);box-shadow:0 8px 18px #55263f14}.card-choice.selected{border:2px solid var(--rose);padding:5px;box-shadow:0 0 0 3px #c88f9f20}.card-choice img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:8px;display:block}.card-choice span{display:block;padding:7px 4px 3px;color:#594953;font-size:11px}.pill{position:absolute;top:11px;right:11px;background:#fffdf5eF;color:var(--plum);font-size:10px;border-radius:20px;padding:5px 8px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:12px;color:#5b4d55;font-weight:600}.field input,.field select,.field textarea{border:1px solid #e6dce1;border-radius:11px;padding:11px 12px;background:#fff;color:var(--ink);outline:none}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--rose);box-shadow:0 0 0 3px #c88f9f20}.field textarea{min-height:76px;resize:vertical;line-height:1.8}.tiny{font-size:11px;color:var(--muted);line-height:1.7}.counter{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:-1px}.suggestions{display:grid;gap:7px}.suggest{border:1px solid #eee2e6;background:#fffafc;border-radius:10px;padding:9px 11px;text-align:right;color:#58444f;font-size:12px;line-height:1.7}.suggest:hover{border-color:var(--rose);background:#fff5f8}.suggest em{display:block;color:#9c7182;font-size:10px;font-style:normal;margin-bottom:2px}.gender{display:flex;gap:8px}.gender button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px;color:var(--plum2)}.gender button.active{background:#f7edf1;border-color:var(--rose);color:var(--plum);font-weight:700}.preview-wrap{position:sticky;top:14px}.preview-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.preview-head h2{margin:0}.preview{position:relative;width:100%;aspect-ratio:3/2;border-radius:13px;overflow:hidden;background:#eee;box-shadow:0 12px 28px #44243a20}.preview>img.bg{width:100%;height:100%;object-fit:cover;display:block}.copy-zone{position:absolute;top:14%;right:7%;width:42%;min-height:45%;display:flex;flex-direction:column;justify-content:center;text-align:center;color:#54263f;text-shadow:0 1px 1px #fff9;padding:8px;direction:rtl}.copy-zone.left{right:auto;left:7%}.copy-zone .recipient{font-size:clamp(12px,2vw,22px);font-weight:700;margin-bottom:4px}.copy-zone .message{font-family:Georgia,Tahoma,serif;font-size:clamp(13px,2.15vw,25px);line-height:1.6;overflow-wrap:anywhere}.copy-zone .from{font-size:clamp(10px,1.3vw,14px);margin-top:7px;color:#76556a}.logo-plate{position:absolute;bottom:3.2%;right:3.2%;width:26%;height:17%;border-radius:6px;background:#fffdf8;box-shadow:0 2px 8px #39203124;display:flex;align-items:center;justify-content:center;padding:3px 7px;overflow:hidden}.logo-plate img{width:100%;height:100%;object-fit:cover;object-position:center 50%}.preview-note{display:flex;justify-content:space-between;gap:10px;margin:9px 2px 0;font-size:10px;color:var(--muted)}.actions{display:flex;gap:9px;margin-top:15px}.primary,.secondary{border:0;border-radius:12px;padding:12px 16px;font-weight:700}.primary{background:var(--plum);color:#fff;flex:1;box-shadow:0 7px 14px #55263f24}.secondary{background:#f5eaef;color:var(--plum)}.primary:hover{background:#6a3551}.status{min-height:20px;color:#7e586b;font-size:11px;margin-top:8px}.foot{margin-top:22px;text-align:center;color:#8b7d84;font-size:11px}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.preview-wrap{position:static;grid-row:1}.cards{max-height:410px}.top{align-items:flex-start}.tag{font-size:11px}}
+@media(max-width:480px){.shell{padding:12px 12px 36px}.hero{padding:20px;border-radius:17px}.panel{padding:15px;border-radius:17px}.layout{gap:14px}.formgrid{grid-template-columns:1fr 1fr}.cards{gap:8px}.brand img{width:68px;height:48px}.brand strong{font-size:18px}.tag{padding:8px 10px}.preview-note{font-size:9px}}
+@page{size:150mm 100mm;margin:0}
+@media print{body{background:#fff}.top,.hero,.picker-panel,.editor-panel,.foot{display:none!important}.shell{max-width:none;padding:0;margin:0}.layout{display:block;margin:0}.preview-wrap{position:static;margin:0;padding:0}.preview-head,.preview-note,.actions,.status{display:none!important}.preview{width:150mm;height:100mm;aspect-ratio:auto;border-radius:0;box-shadow:none;print-color-adjust:exact;-webkit-print-color-adjust:exact}.copy-zone{top:14%;right:7%;width:42%;min-height:45%}.copy-zone.left{right:auto;left:7%}.copy-zone .recipient{font-size:17pt}.copy-zone .message{font-size:18pt}.copy-zone .from{font-size:10pt}.logo-plate{width:26%;height:17%;bottom:3.2%;right:3.2%;border-radius:2mm;box-shadow:none;padding:1mm 2mm}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="brand"><img src="assets/official-logo.png" alt="Ladies First"><div><strong>Ladies First</strong><small>BEAUTY · FASHION · ACCESSORIES</small></div></div>
+    <div class="tag">بطاقات هدايا مصممة خصيصًا لك</div>
+  </header>
+  <section class="hero"><div class="step">اختر المناسبة · صمّم رسالتك · اطبع بطاقتك</div><h1>هدية بكلماتك، ولمسة من Ladies First</h1><p>اختاري تصميمًا أفقيًا بمقاس 15 × 10 سم، ثم أضيفي اسم المُهدى إليه ورسالة قصيرة. يظهر الشعار في مساحة مستقلة أسفل البطاقة حتى تبقى الجملة واضحة.</p></section>
+  <main class="layout">
+    <section class="panel picker-panel">
+      <h2>اختاري البطاقة</h2><p class="sub">21 تصميمًا: 18 لمناسبات متنوعة و3 خاصة بعيد الزواج.</p>
+      <div class="filters" id="filters"></div><div class="cards" id="cards"></div>
+    </section>
+    <section class="panel editor-panel">
+      <h2>رسالتك الخاصة</h2><p class="sub">الجمل المقترحة تتغير حسب المناسبة وصيغة المخاطبة.</p>
+      <div class="formgrid">
+        <div class="field"><label for="occasion">المناسبة</label><select id="occasion"></select></div>
+        <div class="field"><label>صيغة المخاطبة</label><div class="gender"><button type="button" data-gender="f" class="active">مؤنث</button><button type="button" data-gender="m">مذكر</button></div></div>
+        <div class="field full"><label>جمل مقترحة</label><div class="suggestions" id="suggestions"></div></div>
+        <div class="field full"><label for="message">الجملة على البطاقة</label><textarea id="message" maxlength="180" placeholder="اكتبي جملتك أو اختاري من المقترحات"></textarea><div class="counter"><span>حتى 12 كلمة حتى تبقى البطاقة مرتبة</span><span id="wordCount">0 / 12</span></div></div>
+        <div class="field"><label for="recipient">اسم المُهدى إليه</label><input id="recipient" maxlength="32" placeholder="الاسم" required></div>
+        <div class="field"><label for="sender">اسم صاحب الهدية (اختياري)</label><input id="sender" maxlength="32" placeholder="من ..."></div>
+        <div class="field full"><div class="tiny">المعاينة مباشرة. يمكنك طباعة البطاقة أو حفظها PDF من نافذة الطباعة. لا يتم إرسال الأسماء أو الرسائل إلى خادم.</div></div>
+      </div>
+    </section>
+    <section class="panel preview-wrap">
+      <div class="preview-head"><h2>معاينة البطاقة</h2><span class="tag">15 × 10 سم</span></div>
+      <div class="preview" id="preview"><img class="bg" id="previewBg" alt="تصميم البطاقة"><div class="copy-zone" id="copyZone"><div class="recipient" id="previewRecipient"></div><div class="message" id="previewMessage"></div><div class="from" id="previewFrom"></div></div><div class="logo-plate"><img src="assets/official-logo.png" alt="الشعار الرسمي لـ Ladies First"></div></div>
+      <div class="preview-note"><span>الجملة والشعار في منطقتين منفصلتين</span><span id="selectedName"></span></div>
+      <div class="actions"><button class="primary" id="printBtn" type="button">طباعة البطاقة / حفظ PDF</button><button class="secondary" id="clearBtn" type="button">مسح النص</button></div><div class="status" id="status"></div>
+    </section>
+  </main>
+  <footer class="foot">Ladies First · بطاقة 15 × 10 سم · الشعار الرسمي في مساحة مستقلة</footer>
+</div>
+<script>
+const cards=[
+ {file:'card-01.jpg',occasion:'birthday',title:'عيد ميلاد · نجمة ذهبية',side:'right'},
+ {file:'card-02.jpg',occasion:'birthday',title:'عيد ميلاد · كعكة فاخرة',side:'left'},
+ {file:'card-03.jpg',occasion:'birthday',title:'عيد ميلاد · بالونات',side:'right'},
+ {file:'card-04.jpg',occasion:'graduation',title:'تخرج · كأس ذهبي',side:'right'},
+ {file:'card-05.jpg',occasion:'graduation',title:'تخرج · طريق النجاح',side:'right'},
+ {file:'card-06.jpg',occasion:'graduation',title:'تخرج · قبعة وشهادة',side:'right'},
+ {file:'card-07.jpg',occasion:'mother',title:'الأم · لحظة حنان',side:'right'},
+ {file:'card-08.jpg',occasion:'mother',title:'الأم · حضن دافئ',side:'right'},
+ {file:'card-09.jpg',occasion:'mother',title:'الأم · حب وامتنان',side:'right'},
+ {file:'card-10.jpg',occasion:'thanks',title:'شكر وتقدير · هدية',side:'right'},
+ {file:'card-11.jpg',occasion:'thanks',title:'شكر وتقدير · تقديم هدية',side:'right'},
+ {file:'card-12.jpg',occasion:'thanks',title:'شكر وتقدير · صندوق فاخر',side:'right'},
+ {file:'card-13.jpg',occasion:'surprise',title:'مفاجأة · ظرف مخملي',side:'right'},
+ {file:'card-14.jpg',occasion:'surprise',title:'مفاجأة · صندوق أنيق',side:'right'},
+ {file:'card-15.jpg',occasion:'surprise',title:'مفاجأة · حرير عاجي',side:'right'},
+ {file:'card-16.jpg',occasion:'love',title:'محبة · قلوب ساتان',side:'right'},
+ {file:'card-17.jpg',occasion:'love',title:'محبة · قلبان ذهبيان',side:'right'},
+ {file:'card-18.jpg',occasion:'love',title:'محبة · لمسة مخملية',side:'right'},
+ {file:'card-19.jpg',occasion:'anniversary',title:'عيد زواج · يدان متشابكتان',side:'right'},
+ {file:'card-20.jpg',occasion:'anniversary',title:'عيد زواج · خاتمان ذهبيان',side:'right'},
+ {file:'card-21.jpg',occasion:'anniversary',title:'عيد زواج · وردة وشريط',side:'right'}
+];
+const occasionNames={birthday:'عيد ميلاد',graduation:'تخرج',mother:'عيد الأم',thanks:'شكر وتقدير',surprise:'مفاجأة جميلة',love:'محبة',anniversary:'عيد زواج'};
+const phrases={
+ birthday:{f:['كل عام وأنتِ بخير، وعسى أيامكِ كلها فرح','يا أجمل هدية، أتمنى لكِ سنة مليئة بالنجاح'],m:['كل عام وأنت بخير، وعسى أيامك كلها فرح','يا غالي، أتمنى لك سنة مليئة بالنجاح']},
+ graduation:{f:['مبارك تخرجكِ، فخورة بكل خطوة حققتِها','تستاهلي الفرح والنجاح، ومنها للأعلى دائمًا'],m:['مبارك تخرجك، فخورون بكل خطوة حققتها','تستاهل الفرح والنجاح، ومنها للأعلى دائمًا']},
+ mother:{f:['لأغلى أم، حبكِ أجمل هدية في حياتي','كل عام وأنتِ أحن قلب وأجمل نعمة'],m:['لأمي الغالية، حبك أجمل هدية في حياتي','كل عام وأنتِ أحن قلب وأجمل نعمة']},
+ thanks:{f:['شكرًا من القلب، وجودكِ يصنع فرقًا جميلًا','تقديرًا لكِ، تستحقين كل الأشياء الحلوة'],m:['شكرًا من القلب، وجودك يصنع فرقًا جميلًا','تقديرًا لك، تستحق كل الأشياء الجميلة']},
+ surprise:{f:['هدية صغيرة لقلبكِ الكبير، تستاهلي الفرح','لأنكِ مميزة، حبيت أفرحكِ من قلبي'],m:['هدية صغيرة لقلبك الكبير، تستاهل الفرح','لأنك مميز، حبيت أفرحك من قلبي']},
+ love:{f:['إلكِ محبة كبيرة وفرح قد الدنيا','وجودكِ بحياتي أجمل تفصيل'],m:['إلك محبة كبيرة وفرح قد الدنيا','وجودك بحياتي أجمل تفصيل']},
+ anniversary:{f:['كل عام وحبنا أقرب وأجمل','معكِ كل سنة بداية حلوة جديدة'],m:['كل عام وحبنا أقرب وأجمل','معك كل سنة بداية حلوة جديدة']}
+};
+let selectedOccasion='birthday',gender='f',selected=0;
+const byId=id=>document.getElementById(id);const imageUrl=f=>'assets/'+encodeURIComponent(f).replaceAll('%2F','/');
+function updateCards(){const wrap=byId('cards');wrap.innerHTML='';const filtered=cards.map((c,i)=>({c,i})).filter(x=>x.c.occasion===selectedOccasion);filtered.forEach(({c,i})=>{const b=document.createElement('button');b.type='button';b.className='card-choice'+(i===selected?' selected':'');b.innerHTML=`<span class="pill">${occasionNames[c.occasion]}</span><img src="${imageUrl(c.file)}" alt=""><span>${c.title}</span>`;b.onclick=()=>{selected=i;renderPreview();updateCards()};wrap.appendChild(b)});}
+function renderSuggestions(){const box=byId('suggestions');box.innerHTML='';(phrases[selectedOccasion]?.[gender]||[]).forEach((txt,i)=>{const b=document.createElement('button');b.type='button';b.className='suggest';b.innerHTML=`<em>اقتراح ${i+1} · ${gender==='f'?'مؤنث':'مذكر'}</em>${txt}`;b.onclick=()=>{byId('message').value=txt;sync()};box.appendChild(b)});}
+function sync(){const message=byId('message').value.trim();const words=message?message.split(/\s+/).filter(Boolean).length:0;byId('wordCount').textContent=`${words} / 12`;byId('wordCount').style.color=words>12?'#b3425d':'';byId('previewRecipient').textContent=byId('recipient').value.trim();byId('previewMessage').textContent=message;byId('previewFrom').textContent=byId('sender').value.trim()?`من ${byId('sender').value.trim()}`:'';byId('status').textContent=words>12?'اختصري الجملة إلى 12 كلمة حتى تبقى واضحة على البطاقة.':'';}
+function renderPreview(){const c=cards[selected];byId('previewBg').src=imageUrl(c.file);byId('previewBg').alt=c.title;byId('copyZone').classList.toggle('left',c.side==='left');byId('selectedName').textContent=c.title;sync();}
+const occasion=byId('occasion');Object.entries(occasionNames).forEach(([k,v])=>{const o=document.createElement('option');o.value=k;o.textContent=v;occasion.append(o)});occasion.value=selectedOccasion;
+occasion.onchange=()=>{selectedOccasion=occasion.value;selected=cards.findIndex(c=>c.occasion===selectedOccasion);filters.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x.textContent===occasionNames[selectedOccasion]));renderSuggestions();updateCards();renderPreview()};
+document.querySelectorAll('[data-gender]').forEach(b=>b.onclick=()=>{gender=b.dataset.gender;document.querySelectorAll('[data-gender]').forEach(x=>x.classList.toggle('active',x===b));renderSuggestions()});
+['message','recipient','sender'].forEach(id=>byId(id).addEventListener('input',sync));
+byId('printBtn').onclick=()=>{if(!byId('recipient').value.trim()){byId('status').textContent='أضيفي اسم المُهدى إليه قبل الطباعة.';byId('recipient').focus();return}if(byId('message').value.trim().split(/\s+/).filter(Boolean).length>12){byId('status').textContent='اختصري الجملة إلى 12 كلمة قبل الطباعة.';return}window.print()};
+byId('clearBtn').onclick=()=>{byId('message').value='';byId('recipient').value='';byId('sender').value='';sync()};
+const filters=byId('filters');Object.entries(occasionNames).forEach(([k,v])=>{const b=document.createElement('button');b.type='button';b.className='filter'+(k===selectedOccasion?' active':'');b.textContent=v;b.onclick=()=>{selectedOccasion=k;occasion.value=k;selected=cards.findIndex(c=>c.occasion===k);filters.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));renderSuggestions();updateCards();renderPreview()};filters.appendChild(b)});
+renderSuggestions();updateCards();renderPreview();
+</script>
+</body>
+</html>
