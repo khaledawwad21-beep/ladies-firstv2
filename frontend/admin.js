@@ -1232,18 +1232,43 @@ let adminGlobalSearchIndexCache={key:'',loadedAt:0,entries:[],promise:null};
 let adminGlobalSearchTimer=null;
 function adminGlobalSearchKey(){return [String(currentAdminUser?.role||''),...(Array.isArray(currentAdminUser?.permissions)?currentAdminUser.permissions:[])].sort().join('|')}
 function adminGlobalNormalize(value){return String(value??'').toLocaleLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/\s+/g,' ').trim()}
+function adminGlobalFieldLabel(key){
+  const name=String(key||'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[_-]+/g,' ').toLowerCase();
+  const groups=[[/shipping|deliver|freight|transport|area|region/,'التوصيل الشحن النقل المنطقة'],[/phone|mobile|contact/,'الهاتف التواصل'],[/customer|user|recipient|name/,'الزبون العميل الاسم'],[/price|amount|total|cost|fee|discount|sale/,'السعر الإجمالي التكلفة الرسوم الخصم'],[/product|variant|sku|barcode|brand|category/,'المنتج الخيار المخزون الباركود البراند الفئة'],[/status|state|payment|method/,'الحالة الدفع الطريقة'],[/address|city|country|postal/,'العنوان المدينة الدولة'],[/message|note|reason|description|content/,'الرسالة الملاحظة السبب الوصف'],[/date|time|created|updated|expiry|expires/,'التاريخ الوقت'],[/coupon|code|offer|campaign/,'الكوبون الكود العرض'],[/stock|quantity|qty|inventory/,'المخزون الكمية']];
+  return name+' '+groups.filter(([pattern])=>pattern.test(name)).map(([,label])=>label).join(' ');
+}
 function adminGlobalFlatten(value,key='',depth=0){
   if(depth>5||value==null)return '';
   if(/^(image|imageurl|image_url|avatar|video|media|password|password_hash|token|secret|credential|permissions)$/i.test(key))return '';
   if(typeof value==='string'||typeof value==='number'||typeof value==='boolean')return String(value);
   if(Array.isArray(value))return value.slice(0,100).map(item=>adminGlobalFlatten(item,'',depth+1)).filter(Boolean).join(' ');
-  if(typeof value==='object')return Object.entries(value).map(([childKey,childValue])=>adminGlobalFlatten(childValue,childKey,depth+1)).filter(Boolean).join(' ');
+  if(typeof value==='object')return Object.entries(value).map(([childKey,childValue])=>[adminGlobalFieldLabel(childKey),adminGlobalFlatten(childValue,childKey,depth+1)].filter(Boolean).join(' ')).filter(Boolean).join(' ');
   return '';
 }
 function adminGlobalEntry(section,type,id,title,record,detail=''){
   const flat=adminGlobalFlatten(record);
   return {section,type,id,title:String(title||'').trim()||'نتيجة',detail:String(detail||flat).replace(/\s+/g,' ').trim().slice(0,240),search:adminGlobalNormalize([title,flat].join(' '))};
 }
+const ADMIN_GLOBAL_SECTION_TERMS={
+dashboard:'الرئيسية لوحة التحكم ملخص الإحصائيات',
+users:'المستخدمون الزبائن العملاء الاسم الهاتف البريد الإلكتروني الحسابات',
+products:'المنتجات المنتج السعر الصورة الاسم البراند الفئة الباركود رقم المنتج الوصف العروض السريعة',
+inventory:'المخزون الكمية المنتج المورد التاجر اللون المقاس SKU حركات المخزون',
+orders:'الطلبات الطلبات والفواتير الطلب رقم الطلب العميل الزبون الهاتف العنوان الحالة الدفع التوصيل النقل الشحن رسوم التوصيل بطاقة هدية معايدة',
+returns:'الإرجاع الاستبدال طلب إرجاع تبديل استرداد استبدال المنتج الرسوم',
+waitlist:'قائمة التوفر انتظار التوفر المنتج الزبون الهاتف إشعار',
+finance:'الحسابات المالية المبيعات الربح التكلفة رسوم التوصيل خصم التوصيل النقل المصروفات',
+offers:'العروض الحملات خصم واتساب إرسال العرض منتج سعر العرض',
+catalog:'الفئات التصنيفات البراندات العلامات التجارية الفئة البراند',
+coupons:'أكواد الخصم كوبون كود خصم نسبة قيمة الحد الأدنى',
+reports:'التقارير تقرير المبيعات الأرباح الموظفين حركات الموظفين المخزون الطلبات',
+homepage:'الصفحة الرئيسية السلايدر البنرات الصور الرئيسية المحتوى',
+social:'مواقع التواصل واتساب إنستغرام فيسبوك تيك توك سناب شات الروابط',
+settings:'الإعدادات التوصيل الشحن النقل رسوم التوصيل خصم التوصيل البطاقة بطاقة المعايدة الطباعة واتساب نقاط الولاء التغليف الهدايا',
+staff:'الموظفون الموظفين الصلاحيات الموظف الحساب الدور البريد الهاتف',
+messages:'المحادثات الرسائل ملاحظات داخلية رسالة موظف محادثة الطلب المنتج'
+};
+function adminGlobalSectionEntries(){return Object.entries(ADMIN_GLOBAL_SECTION_TERMS).filter(([section])=>canAdminSection(section)).map(([section,terms])=>adminGlobalEntry(section,'section',section,titles[section]||section,{section,terms},terms))}
 async function loadAdminGlobalSearchIndex(){
   const key=adminGlobalSearchKey(),now=Date.now(),cache=adminGlobalSearchIndexCache;
   if(cache.key===key&&cache.entries.length&&now-cache.loadedAt<60000)return cache.entries;
@@ -1263,7 +1288,7 @@ async function loadAdminGlobalSearchIndex(){
   request('settings','/api/admin/settings',d=>Object.entries(d.settings||{}).map(([key,value])=>adminGlobalEntry('settings','setting',key,key,{key,value},adminGlobalFlatten(value))));
   request('dashboard','/api/admin/dashboard',d=>[adminGlobalEntry('dashboard','dashboard','dashboard','ملخص لوحة التحكم',d.dashboard||d)]);
   if(canAdminSection('messages'))jobs.push(api('/api/staff-conversations').then(d=>(d.conversations||[]).map(x=>adminGlobalEntry('messages','message',x.id,x.other_name||'محادثة داخلية',x,[x.context_label,x.last_message].filter(Boolean).join(' · ')))).catch(()=>[]));
-  cache.key=key;cache.promise=Promise.all(jobs).then(groups=>{cache.entries=groups.flat();cache.loadedAt=Date.now();cache.promise=null;return cache.entries}).catch(error=>{cache.promise=null;throw error});
+  cache.key=key;cache.promise=Promise.all(jobs).then(groups=>{cache.entries=groups.flat().concat(adminGlobalSectionEntries());cache.loadedAt=Date.now();cache.promise=null;return cache.entries}).catch(error=>{cache.promise=null;throw error});
   return cache.promise;
 }
 function renderAdminGlobalSearchResults(query,entries){
@@ -1288,7 +1313,7 @@ async function openAdminGlobalSearchResult(index){
   const input=document.getElementById('adminGlobalSearch');if(input)input.blur();
   if(!canAdminSection(item.section))return toast('ليس لديك صلاحية لهذا القسم');
   await openAdminSection(item.section);
-  if(item.type==='order'){return openOrderDetails(Number(item.id))}
+  if(item.type==='section')return;if(item.type==='order'){return openOrderDetails(Number(item.id))}
   if(item.type==='message'){return openStaffConversation(Number(item.id))}
   const target={products:'#pq',inventory:'#inventorySearch',users:'#uq',returns:'#returnSearch',waitlist:'#wlq',coupons:'#couponSearch',staff:'#staffSearch',category:'#categorySearch',brand:'#brandSearch',product:'#pq'}[item.type];
   const field=target?document.querySelector(target):null;
