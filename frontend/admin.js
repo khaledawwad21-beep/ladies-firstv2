@@ -1234,7 +1234,7 @@ function adminGlobalSearchKey(){return [String(currentAdminUser?.role||''),...(A
 function adminGlobalNormalize(value){return String(value??'').toLocaleLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/(^|\s)ال(?=[\u0600-\u06FF])/g,'$1').replace(/\s+/g,' ').trim()}
 function adminGlobalFieldLabel(key){
   const name=String(key||'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[_-]+/g,' ').toLowerCase();
-  const groups=[[/shipping|deliver|freight|transport|area|region/,'التوصيل الشحن النقل المنطقة'],[/phone|mobile|contact/,'الهاتف التواصل'],[/customer|user|recipient|name/,'الزبون العميل الاسم'],[/price|amount|total|cost|fee|discount|sale/,'السعر الإجمالي التكلفة الرسوم الخصم'],[/product|variant|sku|barcode|brand|category/,'المنتج الخيار المخزون الباركود البراند الفئة'],[/status|state|payment|method/,'الحالة الدفع الطريقة'],[/address|city|country|postal/,'العنوان المدينة الدولة'],[/message|note|reason|description|content/,'الرسالة الملاحظة السبب الوصف'],[/date|time|created|updated|expiry|expires/,'التاريخ الوقت'],[/coupon|code|offer|campaign/,'الكوبون الكود العرض'],[/stock|quantity|qty|inventory/,'المخزون الكمية']];
+  const groups=[[/shipping|deliver|freight|transport|area|region/,'التوصيل الشحن النقل المنطقة'],[/phone|mobile|contact/,'الهاتف التواصل'],[/customer|user|recipient|name/,'الزبون العميل الاسم'],[/price|amount|total|cost|fee|discount|sale/,'السعر الإجمالي التكلفة الرسوم الخصم'],[/product|variant|sku|barcode|brand|category/,'المنتج الخيار المخزون الباركود البراند الفئة'],[/status|state|payment|method/,'الحالة الدفع الطريقة'],[/address|city|country|postal/,'العنوان المدينة الدولة'],[/message|note|reason|description|content/,'الرسالة الملاحظة السبب الوصف'],[/date|time|created|updated|expiry|expires/,'التاريخ الوقت'],[/coupon|code|offer|campaign/,'الكوبون الكود العرض'],[/stock|quantity|qty|inventory/,'المخزون الكمية'],[/point|loyalty/,'النقاط نقاط الولاء']];
   return name+' '+groups.filter(([pattern])=>pattern.test(name)).map(([,label])=>label).join(' ');
 }
 function adminGlobalFlatten(value,key='',depth=0){
@@ -1247,7 +1247,7 @@ function adminGlobalFlatten(value,key='',depth=0){
 }
 function adminGlobalEntry(section,type,id,title,record,detail=''){
   const flat=adminGlobalFlatten(record);
-  return {section,type,id,title:String(title||'').trim()||'نتيجة',detail:String(detail||flat).replace(/\s+/g,' ').trim().slice(0,240),search:adminGlobalNormalize([title,flat].join(' '))};
+  return {section,type,id,title:String(title||'').trim()||'نتيجة',detail:String(detail||flat).replace(/\s+/g,' ').trim().slice(0,240),search:adminGlobalNormalize([title,flat].join(' ')),data:record};
 }
 const ADMIN_GLOBAL_SECTION_TERMS={
 dashboard:'الرئيسية لوحة التحكم ملخص الإحصائيات',
@@ -1307,18 +1307,49 @@ function adminGlobalSearchInput(){
   if(box){box.innerHTML='<div class="admin-global-search-empty">جاري البحث في أقسام لوحة التحكم…</div>';box.hidden=false;input?.setAttribute('aria-expanded','true')}
   adminGlobalSearchTimer=setTimeout(async()=>{try{const entries=await loadAdminGlobalSearchIndex();if(String(input?.value||'').trim()===query)renderAdminGlobalSearchResults(query,entries)}catch{if(box){box.innerHTML='<div class="admin-global-search-empty">تعذر تحميل نتائج البحث الآن.</div>';box.hidden=false;input?.setAttribute('aria-expanded','true')}}},250);
 }
+function focusAdminGlobalRecordRow(item){
+  const rows=[...document.querySelectorAll('#sections tbody tr')],record=item.data||{};
+  const values=[record.name,record.productName,record.product_name,record.code,record.customer_name,record.customer_phone,record.phone,record.email,record.variant,record.variant_name,record.order_id]
+    .filter(value=>value!==undefined&&value!==null&&String(value).trim())
+    .map(value=>adminGlobalNormalize(value));
+  let best=null,bestScore=0;
+  for(const row of rows){
+    const text=adminGlobalNormalize(row.innerText||row.textContent||'');
+    const score=values.reduce((sum,value)=>sum+(text.includes(value)?1:0),0);
+    if(score>bestScore){best=row;bestScore=score}
+  }
+  if(best){best.scrollIntoView({behavior:'smooth',block:'center'});best.classList.add('admin-global-row-focus');setTimeout(()=>best.classList.remove('admin-global-row-focus'),2200)}
+}
+function focusAdminGlobalSetting(item){
+  const key=String(item.id||''),normalizedKey=adminGlobalNormalize(key).replace(/\s/g,'');
+  const fields=[...document.querySelectorAll('#sections input,#sections select,#sections textarea, #sections button')];
+  const target=fields.find(field=>adminGlobalNormalize(field.id||'').replace(/\s/g,'')===normalizedKey||adminGlobalNormalize(field.dataset.settingKey||'').replace(/\s/g,'')===normalizedKey);
+  const anchor=target?.closest('label,.card,.formgrid,.grid')||target;
+  if(anchor){anchor.scrollIntoView({behavior:'smooth',block:'center'});if(/INPUT|SELECT|TEXTAREA/.test(target.tagName))target.focus({preventScroll:true});return}
+  focusAdminGlobalRecordRow(item);
+}
 async function openAdminGlobalSearchResult(index){
   const item=window.adminGlobalSearchVisibleResults?.[index];if(!item)return;
   const box=document.getElementById('adminGlobalSearchResults');if(box)box.hidden=true;
   const input=document.getElementById('adminGlobalSearch');if(input)input.blur();
   if(!canAdminSection(item.section))return toast('ليس لديك صلاحية لهذا القسم');
   await openAdminSection(item.section);
-  if(item.type==='section')return;if(item.type==='order'){return openOrderDetails(Number(item.id))}
-  if(item.type==='message'){return openStaffConversation(Number(item.id))}
-  const target={products:'#pq',inventory:'#inventorySearch',users:'#uq',returns:'#returnSearch',waitlist:'#wlq',coupons:'#couponSearch',staff:'#staffSearch',category:'#categorySearch',brand:'#brandSearch',product:'#pq'}[item.type];
-  const field=target?document.querySelector(target):null;
-  if(field){field.value=item.title.replace(/^(فئة · |براند · )/,'');field.dispatchEvent(new Event('input',{bubbles:true}))}
+  if(item.type==='section')return;
+  if(item.type==='order')return openOrderDetails(Number(item.id));
+  if(item.type==='message')return openStaffConversation(Number(item.id));
+  if(item.type==='product'){
+    const product=adminProductsCache.find(record=>Number(record.id)===Number(item.id))||item.data;
+    return productForm(product||{});
+  }
+  if(item.type==='user')return editUser(Number(item.id));
+  if(item.type==='inventory')return editInventoryProduct(Number(item.id));
+  if(item.type==='return')return editReturnRequestById(Number(item.id));
+  if(item.type==='coupon')return couponForm(Number(item.id));
+  if(item.type==='staff')return editStaff(item.data||{id:Number(item.id),name:item.title});
+  if(item.type==='setting')return focusAdminGlobalSetting(item);
+  focusAdminGlobalRecordRow(item);
 }
+
 function applyAdminGlobalSearch(){adminGlobalSearchInput()}
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){const box=document.getElementById('adminGlobalSearchResults');if(box){box.hidden=true;document.getElementById('adminGlobalSearch')?.setAttribute('aria-expanded','false')}}});
 document.addEventListener('click',event=>{const wrap=document.querySelector('.admin-global-search-wrap');const box=document.getElementById('adminGlobalSearchResults');if(box&&!wrap?.contains(event.target)){box.hidden=true;document.getElementById('adminGlobalSearch')?.setAttribute('aria-expanded','false')}});
