@@ -451,7 +451,7 @@ function orderItemGiftLabel(i){
 function renderOrderGiftCardPreview(orderId,card,cost){
   if(typeof card==='string'){try{card=JSON.parse(card)}catch{card=null}}
   if(!card||typeof card!=='object')return '';
-  const file=/^card-(?:0[1-9]|1[0-9]|2[01])\\.jpg$/.test(String(card.file||''))?card.file:'card-01.jpg';
+  const file=/^card-(?:0[1-9]|1[0-9]|2[01])\.jpg$/.test(String(card.file||''))?card.file:'card-01.jpg';
   const side=card.side==='left'?'left':'right';
   const encoded=encodeURIComponent(JSON.stringify(card)).replace(/'/g,'%27');
   return `<section class="full notice gift-card-order-summary" style="padding:14px">
