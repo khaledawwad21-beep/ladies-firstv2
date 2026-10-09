@@ -1328,14 +1328,32 @@ request('settings','/api/admin/settings',d=>Object.entries(d.settings||{}).map((
 function renderAdminGlobalSearchResults(query,entries){
   const box=document.getElementById('adminGlobalSearchResults');if(!box)return;
   const tokens=adminGlobalNormalize(query).split(' ').filter(Boolean);
-  const matches=entries.filter(item=>tokens.every(token=>item.search.includes(token))).sort((a,b)=>{const q=adminGlobalNormalize(query);return Number(b.search.startsWith(q))-Number(a.search.startsWith(q))}).slice(0,35);
-  box.innerHTML=matches.length?matches.map((item,index)=>`<button class="admin-global-result" type="button" onclick="openAdminGlobalSearchResult(${index})"><span class="admin-global-result-main"><b>${E(item.title)}</b><small>${E(item.detail||item.section)}</small></span><span class="admin-global-result-section">${E(titles[item.section]||item.section)}</span></button>`).join(''):'<div class="admin-global-search-empty">لا توجد نتائج مطابقة في الأقسام المتاحة لحسابك.</div>';
-  box.hidden=false;window.adminGlobalSearchVisibleResults=matches;
+  const matches=entries.filter(item=>tokens.every(token=>item.search.includes(token))).sort((a,b)=>{const q=adminGlobalNormalize(query);return Number(b.search.startsWith(q))-Number(a.search.startsWith(q))});
+  const visibleCount=Math.min(matches.length,Math.max(35,Number(window.adminGlobalSearchVisibleCount)||35));
+  window.adminGlobalSearchVisibleResults=matches;
+  window.adminGlobalSearchEntries=entries;
+  window.adminGlobalSearchVisibleCount=visibleCount;
+  const visible=matches.slice(0,visibleCount);
+  const resultList=visible.map((item,index)=>`<button class="admin-global-result" type="button" onclick="openAdminGlobalSearchResult(${index})"><span class="admin-global-result-main"><b>${E(item.title)}</b><small>${E(item.detail||item.section)}</small></span><span class="admin-global-result-section">${E(titles[item.section]||item.section)}</span></button>`).join('');
+  const count=matches.length?`<div class="admin-global-search-count">تم العثور على ${matches.length} نتيجة${matches.length>visible.length?' — يعرض '+visible.length+' الآن':''}</div>`:'';
+  const more=matches.length>visible.length?`<button class="admin-global-search-more" type="button" onclick="showMoreAdminGlobalSearchResults()">عرض المزيد (${matches.length-visible.length})</button>`:'';
+  box.innerHTML=matches.length?count+resultList+more:'<div class="admin-global-search-empty">لا توجد نتائج مطابقة في الأقسام المتاحة لحسابك.</div>';
+  box.hidden=false;
+}
+function showMoreAdminGlobalSearchResults(){
+  const matches=window.adminGlobalSearchVisibleResults||[];
+  if(!matches.length)return;
+  const box=document.getElementById('adminGlobalSearchResults');
+  const scrollTop=box?.scrollTop||0;
+  window.adminGlobalSearchVisibleCount=Math.min(matches.length,(Number(window.adminGlobalSearchVisibleCount)||35)+35);
+  renderAdminGlobalSearchResults(document.getElementById('adminGlobalSearch')?.value||'',window.adminGlobalSearchEntries||[]);
+  if(box)box.scrollTop=scrollTop;
 }
 function adminGlobalSearchInput(){
   clearTimeout(adminGlobalSearchTimer);
   const input=document.getElementById('adminGlobalSearch'),box=document.getElementById('adminGlobalSearchResults');
   const query=String(input?.value||'').trim();
+  window.adminGlobalSearchVisibleCount=35;
   if(!query){if(box)box.hidden=true;input?.setAttribute('aria-expanded','false');return}
   if(query.length<2){if(box){box.innerHTML='<div class="admin-global-search-empty">اكتب حرفين على الأقل للبحث في اللوحة.</div>';box.hidden=false;input?.setAttribute('aria-expanded','true')}return}
   if(box){box.innerHTML='<div class="admin-global-search-empty">جاري البحث في أقسام لوحة التحكم…</div>';box.hidden=false;input?.setAttribute('aria-expanded','true')}
