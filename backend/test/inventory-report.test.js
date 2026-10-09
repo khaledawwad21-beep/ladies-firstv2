@@ -62,7 +62,7 @@ test('PostgreSQL date filter includes the full final day, excludes surrounding d
 test('admin report waits for both dates, handles errors, escapes content and ignores stale responses', async () => {
   const nodes = {'#sections':{},'#movementRows':{},'#mf':{value:''},'#mtDate':{value:''}};
   const pending = [];
-  const context = vm.createContext({document:{querySelector:s=>nodes[s]||null,querySelectorAll:()=>[]}, localStorage:{getItem:()=>null},URLSearchParams,Date,console});
+  const context = vm.createContext({document:{querySelector:s=>nodes[s]||null,querySelectorAll:()=>[],addEventListener:()=>{}}, localStorage:{getItem:()=>null},URLSearchParams,Date,console});
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../../frontend/admin.js'),'utf8'),context);
   context.api = url => new Promise((resolve,reject)=>pending.push({url,resolve,reject}));
   context.inventoryMovements();
