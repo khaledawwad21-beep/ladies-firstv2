@@ -1231,7 +1231,7 @@ function staffActivityLabel(x){const suffix=String(x.action||'').split('/').pop(
 let adminGlobalSearchIndexCache={key:'',loadedAt:0,entries:[],promise:null};
 let adminGlobalSearchTimer=null;
 function adminGlobalSearchKey(){return [String(currentAdminUser?.role||''),...(Array.isArray(currentAdminUser?.permissions)?currentAdminUser.permissions:[])].sort().join('|')}
-function adminGlobalNormalize(value){return String(value??'').toLocaleLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/\s+/g,' ').trim()}
+function adminGlobalNormalize(value){return String(value??'').toLocaleLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/(^|\s)ال(?=[\u0600-\u06FF])/g,'$1').replace(/\s+/g,' ').trim()}
 function adminGlobalFieldLabel(key){
   const name=String(key||'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[_-]+/g,' ').toLowerCase();
   const groups=[[/shipping|deliver|freight|transport|area|region/,'التوصيل الشحن النقل المنطقة'],[/phone|mobile|contact/,'الهاتف التواصل'],[/customer|user|recipient|name/,'الزبون العميل الاسم'],[/price|amount|total|cost|fee|discount|sale/,'السعر الإجمالي التكلفة الرسوم الخصم'],[/product|variant|sku|barcode|brand|category/,'المنتج الخيار المخزون الباركود البراند الفئة'],[/status|state|payment|method/,'الحالة الدفع الطريقة'],[/address|city|country|postal/,'العنوان المدينة الدولة'],[/message|note|reason|description|content/,'الرسالة الملاحظة السبب الوصف'],[/date|time|created|updated|expiry|expires/,'التاريخ الوقت'],[/coupon|code|offer|campaign/,'الكوبون الكود العرض'],[/stock|quantity|qty|inventory/,'المخزون الكمية']];
