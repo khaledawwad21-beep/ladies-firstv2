@@ -1273,7 +1273,7 @@ async function loadAdminGlobalSearchIndex(){
   const key=adminGlobalSearchKey(),now=Date.now(),cache=adminGlobalSearchIndexCache;
   if(cache.key===key&&cache.entries.length&&now-cache.loadedAt<60000)return cache.entries;
   if(cache.key===key&&cache.promise)return cache.promise;
-  const jobs=[];
+  const jobs=[Promise.resolve(adminGlobalSectionEntries())];
   const request=(permission,url,read)=>{if(canAdminSection(permission))jobs.push(api(url).then(data=>read(data)||[]).catch(()=>[]))};
   request('products','/api/admin/products',d=>(d.products||[]).map(x=>adminGlobalEntry('products','product',x.id,x.name||('منتج #'+x.id),x,[x.brand,x.category,x.sku,x.barcode,x.productNumber||x.product_number].filter(Boolean).join(' · '))));
   request('orders','/api/admin/orders',d=>(d.orders||[]).map(x=>adminGlobalEntry('orders','order',x.id,'طلب #'+x.id+' · '+(x.customer_name||x.user_email||'عميل'),x,[x.customer_phone||x.user_phone,x.status,x.total?'الإجمالي '+x.total+' ₪':'',(x.items||[]).map(i=>i.productName||i.product_name||'').join('، ')].filter(Boolean).join(' · '))));
@@ -1329,7 +1329,9 @@ request('settings','/api/admin/settings',d=>Object.entries(d.settings||{}).map((
 function renderAdminGlobalSearchResults(query,entries){
   const box=document.getElementById('adminGlobalSearchResults');if(!box)return;
   const tokens=adminGlobalNormalize(query).split(' ').filter(Boolean);
-  const matches=entries.filter(item=>tokens.every(token=>item.search.includes(token))).sort((a,b)=>{const q=adminGlobalNormalize(query);return Number(b.search.startsWith(q))-Number(a.search.startsWith(q))});
+  const matchingEntries=entries.filter(item=>tokens.every(token=>item.search.includes(token)));
+  const exactMatches=matchingEntries.filter(item=>item.type!=='section');
+  const matches=(exactMatches.length?exactMatches:matchingEntries.filter(item=>item.type==='section')).sort((a,b)=>{const q=adminGlobalNormalize(query);return Number(b.search.startsWith(q))-Number(a.search.startsWith(q))});
   const visibleCount=Math.min(matches.length,Math.max(35,Number(window.adminGlobalSearchVisibleCount)||35));
   window.adminGlobalSearchVisibleResults=matches;
   window.adminGlobalSearchEntries=entries;
