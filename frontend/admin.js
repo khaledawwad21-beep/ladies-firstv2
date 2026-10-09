@@ -1247,7 +1247,7 @@ function adminGlobalFlatten(value,key='',depth=0){
 }
 function adminGlobalEntry(section,type,id,title,record,detail=''){
   const flat=adminGlobalFlatten(record);
-  return {section,type,id,title:String(title||'').trim()||'نتيجة',detail:String(detail||flat).replace(/\s+/g,' ').trim().slice(0,240),search:adminGlobalNormalize([title,flat].join(' ')),data:record};
+  return {section,type,id,title:String(title||'').trim()||'نتيجة',detail:String(detail||flat).replace(/\s+/g,' ').trim().slice(0,240),search:adminGlobalNormalize([titles[section]||section,title,flat].join(' ')),data:record};
 }
 const ADMIN_GLOBAL_SECTION_TERMS={
 dashboard:'الرئيسية لوحة التحكم ملخص الإحصائيات',
@@ -1285,10 +1285,44 @@ async function loadAdminGlobalSearchIndex(){
   request('staff','/api/admin/staff',d=>(d.staff||[]).map(x=>adminGlobalEntry('staff','staff',x.id,x.name||x.email||('موظف #'+x.id),x,[x.email,x.phone,x.role].filter(Boolean).join(' · '))));
   request('catalog','/api/categories',d=>(d.categories||[]).map(x=>adminGlobalEntry('catalog','category',x.id,'فئة · '+(x.name||''),x,x.name||'')));
   request('catalog','/api/brands',d=>(d.brands||[]).map(x=>adminGlobalEntry('catalog','brand',x.id,'براند · '+(x.name||''),x,x.name||'')));
-  request('settings','/api/admin/settings',d=>Object.entries(d.settings||{}).map(([key,value])=>adminGlobalEntry('settings','setting',key,key,{key,value},adminGlobalFlatten(value))));
+  const ADMIN_GLOBAL_SETTING_SEARCH_LABELS={
+  store_name:'اسم المتجر',
+  store_description:'وصف المتجر الكتابة أسفل اسم المتجر',
+  store_logo:'شعار المتجر الشعار الفاتورة',
+  phone:'هاتف المتجر الهاتف',
+  whatsapp:'واتساب رقم التواصل',
+  whatsapp_number:'واتساب رقم التواصل',
+  currency:'العملة',
+  return_policy:'سياسة الإرجاع الاستبدال',
+  shipping_fees:'رسوم التوصيل الشحن النقل الضفة القدس الداخل',
+  shipping_discount_percentages:'خصم التوصيل الشحن النقل الضفة القدس الداخل',
+  gift_card_price:'سعر بطاقة المعايدة بطاقة هدية',
+  gift_card_free_threshold:'مجانية البطاقة حد الطلب بطاقة المعايدة',
+  loyalty_enabled:'نقاط الولاء تفعيل برنامج الولاء',
+  loyalty_redeem_enabled:'نقاط الولاء استبدال النقاط',
+  loyalty_earning_mode:'نقاط الولاء طريقة كسب النقاط',
+  loyalty_points_per_currency:'نقاط الولاء النقاط لكل شيكل',
+  loyalty_points_per_order:'نقاط الولاء النقاط لكل طلب',
+  loyalty_point_value:'نقاط الولاء قيمة النقطة',
+  visa_discount_percent:'خصم فيزا Visa',
+  abandoned_cart_whatsapp_enabled:'واتساب السلة المتروكة',
+  low_stock_whatsapp_enabled:'واتساب المخزون المنخفض',
+  waitlist_whatsapp_auto_enabled:'واتساب قائمة التوفر',
+  storefront_general_message:'رسالة الزبائن الرسائل العامة',
+  maintenance_mode:'وضع الصيانة الطوارئ',
+  maintenance_message:'رسالة الصيانة',
+  customer_cancel_auto_block_enabled:'منع الطلب بعد الإلغاءات',
+  customer_cancel_auto_block_threshold:'حد الإلغاءات قبل المنع',
+  customer_cancel_auto_block_days:'مدة المنع بعد الإلغاءات'
+};
+request('settings','/api/admin/settings',d=>Object.entries(d.settings||{}).map(([key,value])=>{
+  const label=ADMIN_GLOBAL_SETTING_SEARCH_LABELS[key]||adminGlobalFieldLabel(key)||key;
+  const searchableLabel=ADMIN_GLOBAL_SETTING_SEARCH_LABELS[key]||key;
+  return adminGlobalEntry('settings','setting',key,label,{key,value,search_terms:searchableLabel},adminGlobalFlatten(value));
+}));
   request('dashboard','/api/admin/dashboard',d=>[adminGlobalEntry('dashboard','dashboard','dashboard','ملخص لوحة التحكم',d.dashboard||d)]);
   if(canAdminSection('messages'))jobs.push(api('/api/staff-conversations').then(d=>(d.conversations||[]).map(x=>adminGlobalEntry('messages','message',x.id,x.other_name||'محادثة داخلية',x,[x.context_label,x.last_message].filter(Boolean).join(' · ')))).catch(()=>[]));
-  cache.key=key;cache.promise=Promise.all(jobs).then(groups=>{cache.entries=groups.flat().concat(adminGlobalSectionEntries());cache.loadedAt=Date.now();cache.promise=null;return cache.entries}).catch(error=>{cache.promise=null;throw error});
+  cache.key=key;cache.promise=Promise.all(jobs).then(groups=>{cache.entries=groups.flat();cache.loadedAt=Date.now();cache.promise=null;return cache.entries}).catch(error=>{cache.promise=null;throw error});
   return cache.promise;
 }
 function renderAdminGlobalSearchResults(query,entries){
