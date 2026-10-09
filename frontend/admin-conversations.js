@@ -276,6 +276,7 @@ async function sendStaffConversationMessage() {
 }
 
 async function openStaffChatFor(contextType, contextId) {
+  closeModal();
   await openAdminSection("messages");
   const type = $("#staffChatContextType");
   if (!type) return;
@@ -294,5 +295,6 @@ async function openStaffChatFor(contextType, contextId) {
   searchStaffContext();
   const linked = $("#staffChatContextId");
   if (linked) linked.value = String(contextId);
+  window.scrollTo({ top: 0, behavior: "smooth" });
   $("#staffChatRecipient")?.focus();
 }
