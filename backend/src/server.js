@@ -756,6 +756,12 @@ async function initDatabase() {
 
   await db(`
     ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS gift_card JSONB,
+    ADD COLUMN IF NOT EXISTS gift_card_cost NUMERIC(12,2) NOT NULL DEFAULT 0
+  `);
+
+  await db(`
+    ALTER TABLE orders
       ADD COLUMN IF NOT EXISTS shipping_region TEXT,
       ADD COLUMN IF NOT EXISTS shipping_waived BOOLEAN NOT NULL DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS shipping_base_cost NUMERIC(12,2) NOT NULL DEFAULT 0,
@@ -3320,7 +3326,30 @@ app.post(
             loyaltyDiscount = Math.min(pointsRedeemed * pointValue, Math.max(0, subtotal - couponDiscount - visaDiscount));
           }
 
-          const total = Math.max(0, subtotal - couponDiscount - visaDiscount - loyaltyDiscount + shipping + packaging);
+          const giftCardInput=req.body.giftCard&&typeof req.body.giftCard==="object"?req.body.giftCard:null;
+          let giftCard=null;
+          if(giftCardInput){
+            const file=cleanText(giftCardInput.file||"",40);
+            const occasion=cleanText(giftCardInput.occasion||"",30);
+            const gender=cleanText(giftCardInput.gender||"",1);
+            const recipient=cleanText(giftCardInput.recipient||"",80);
+            const sender=cleanText(giftCardInput.sender||"",80);
+            const message=cleanText(giftCardInput.message||"",300);
+            const allowedOccasions=new Set(["birthday","graduation","mother","thanks","surprise","love","anniversary"]);
+            if(!/^card-(?:0[1-9]|1[0-9]|2[01])\\.jpg$/.test(file)||!allowedOccasions.has(occasion)||!["f","m"].includes(gender)||!recipient||!message||message.split(/\\s+/).filter(Boolean).length>12){
+              throw createHttpError(400,"INVALID_GIFT_CARD","بيانات بطاقة المعايدة غير صالحة");
+            }
+            giftCard={
+              occasion,occasionLabel:cleanText(giftCardInput.occasionLabel||"",60),
+              title:cleanText(giftCardInput.title||"بطاقة معايدة",100),file,side:giftCardInput.side==="left"?"left":"right",gender,
+              recipient,sender,message
+            };
+          }
+          const giftCardPrice=Math.max(0,money(await getSetting("gift_card_price",0,client)));
+          const giftCardFreeThreshold=Math.max(0,money(await getSetting("gift_card_free_threshold",0,client)));
+          const giftCardFree=!!giftCard&&giftCardFreeThreshold>0&&subtotal>=giftCardFreeThreshold;
+          const giftCardCost=giftCard?(giftCardFree?0:giftCardPrice):0;
+          const total = Math.max(0, subtotal - couponDiscount - visaDiscount - loyaltyDiscount + shipping + packaging + giftCardCost);
 
           const pointsRate = Math.max(0, Number(await getSetting("loyalty_points_per_currency", 1, client)) || 0);
           const earningModeRaw = String(await getSetting("loyalty_earning_mode", "amount", client) || "amount").toLowerCase();
@@ -3358,6 +3387,8 @@ app.post(
                 total,
                 payment_method,
                 visa_discount,
+                gift_card,
+                gift_card_cost,
                 loyalty_points_awarded,
                 loyalty_points_reversed,
                 status,
@@ -3385,6 +3416,8 @@ app.post(
                 $18,
                 $19,
                 $20,
+                $22,
+                $23,
                 $21,
                 FALSE,
                 'pending',
@@ -3414,7 +3447,9 @@ app.post(
                 total,
                 paymentMethod,
                 visaDiscount,
-                loyaltyPoints
+                loyaltyPoints,
+                giftCard ? JSON.stringify(giftCard) : null,
+                giftCardCost
               ]
             );
 
