@@ -66,7 +66,7 @@ test("storefront announcement has a separate publish action and refreshes active
 });
 
 test("changed message scripts use fresh cache versions",()=>{
-  assert.match(adminHtml,/admin\.js\?v=20261009-admin-search-fix13/);
+  assert.match(adminHtml,/admin\.js\?v=20261009-admin-search-fix14/);
   assert.match(adminHtml,/admin-conversations\.js\?v=20261009-close-order-modal1/);
   assert.match(adminHtml,/admin-product-upload\.js\?v=20261008-2/);
   assert.match(adminHtml,/data-s="messages"/);
@@ -77,6 +77,8 @@ test("changed message scripts use fresh cache versions",()=>{
 test("global admin search exposes all results and the biometric security control",()=>{
   assert.match(admin,/showMoreAdminGlobalSearchResults/);
   assert.ok(admin.includes("window.adminGlobalSearchVisibleResults=matches"));
+  assert.ok(admin.includes("Promise.resolve(adminGlobalSectionEntries())"));
+  assert.ok(admin.includes("exactMatches.length?exactMatches:matchingEntries.filter(item=>item.type==='section')"));
   assert.match(admin,/admin_passkey_access/);
   assert.match(admin,/id="adminPasskeyHeading"/);
   assert.match(admin,/الدخول بالبصمة \/ قفل الجهاز/);
