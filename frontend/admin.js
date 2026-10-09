@@ -1308,50 +1308,41 @@ function adminGlobalSearchInput(){
   adminGlobalSearchTimer=setTimeout(async()=>{try{const entries=await loadAdminGlobalSearchIndex();if(String(input?.value||'').trim()===query)renderAdminGlobalSearchResults(query,entries)}catch{if(box){box.innerHTML='<div class="admin-global-search-empty">تعذر تحميل نتائج البحث الآن.</div>';box.hidden=false;input?.setAttribute('aria-expanded','true')}}},250);
 }
 function focusAdminGlobalRecordRow(item){
-  const record=item.data||{};
-  const rows=[...document.querySelectorAll('#sections [data-admin-global-type][data-admin-global-id]')];
-  let target=rows.find(row=>row.dataset.adminGlobalType===String(item.type)&&row.dataset.adminGlobalId===String(item.id))||null;
+  const record=item.data||{},type=String(item.type||''),id=String(item.id??'').trim();
+  const allRows=[...document.querySelectorAll('#sections [data-admin-global-type][data-admin-global-id]')];
+  let target=allRows.find(row=>row.dataset.adminGlobalType===type&&row.dataset.adminGlobalId===id)||null;
+  if(!target&&id){
+    target=allRows.find(row=>row.dataset.adminGlobalId===id&&(!item.section||row.closest('#sections')===document.querySelector('#sections')))||null;
+  }
+  if(!target&&type==='order'&&id){
+    target=[...document.querySelectorAll('#orderRows tbody tr')].find(row=>{
+      const firstCell=String(row.cells?.[0]?.textContent||'').trim();
+      return firstCell==='#'+id||firstCell===id;
+    })||null;
+  }
   if(!target){
-    const candidates=[...document.querySelectorAll('#sections tbody tr')];
-    const values=[record.name,record.productName,record.product_name,record.code,record.customer_name,record.customer_phone,record.phone,record.email,record.variant,record.variant_name,record.order_id]
-      .filter(value=>value!==undefined&&value!==null&&String(value).trim())
+    const values=[
+      item.title,record.name,record.productName,record.product_name,record.code,
+      record.customer_name,record.customer_phone,record.phone,record.email,
+      record.variant,record.variant_name,record.order_id
+    ].filter(value=>value!==undefined&&value!==null&&String(value).trim().length>1)
       .map(value=>adminGlobalNormalize(value));
     let scoreBest=0;
-    for(const row of candidates){
+    for(const row of document.querySelectorAll('#sections tbody tr')){
       const text=adminGlobalNormalize(row.innerText||row.textContent||'');
-      const score=values.reduce((sum,value)=>sum+(text.includes(value)?1:0),0);
+      let score=values.reduce((sum,value)=>sum+(text.includes(value)?Math.min(value.length,40):0),0);
+      if(type==='order'&&id&&new RegExp('(^|\\s)#?'+id+'(\\s|$)').test(String(row.innerText||row.textContent||'')))score+=100;
       if(score>scoreBest){target=row;scoreBest=score}
     }
   }
-  if(!target){toast('لقيت النتيجة، لكن لم أتمكن من تحديد صفّها في القائمة.');return false}
-  document.querySelectorAll('#sections .admin-global-row-focus').forEach(row=>row.classList.remove('admin-global-row-focus'));
+  if(!target){toast('فتحت القسم، لكن لم أجد صفّ النتيجة. حدّث القائمة وحاول مرة ثانية.');return false}
+  document.querySelectorAll('#sections .admin-global-row-focus').forEach(row=>{row.classList.remove('admin-global-row-focus');row.removeAttribute('aria-current')});
   target.classList.add('admin-global-row-focus');
   target.setAttribute('aria-current','true');
   target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
   setTimeout(()=>{target.classList.remove('admin-global-row-focus');target.removeAttribute('aria-current')},5000);
   return true;
 }
-
-const ADMIN_GLOBAL_SETTING_FIELD_IDS={
-  store_name:'stn',store_description:'storeDescription',store_logo:'storeLogoUrl',phone:'stp',whatsapp:'stw',whatsapp_number:'stw',currency:'cur',return_policy:'rp',
-  shipping_fees_westbank:'shipWestbank',shipping_fees_jerusalem:'shipJerusalem',shipping_fees_inside:'shipInside',
-  shipping_discount_percentages_westbank:'shipDiscountWestbank',shipping_discount_percentages_jerusalem:'shipDiscountJerusalem',shipping_discount_percentages_inside:'shipDiscountInside',
-  gift_card_price:'giftCardPrice',gift_card_free_threshold:'giftCardFreeThreshold',
-  loyalty_enabled:'loyaltyEnabled',loyalty_redeem_enabled:'loyaltyRedeem',loyalty_earning_mode:'loyaltyMode',loyalty_points_per_currency:'loyaltyRate',loyalty_points_per_order:'loyaltyPerOrder',loyalty_point_value:'loyaltyPointValue',visa_discount_percent:'visaDiscount',
-  abandoned_cart_whatsapp_enabled:'abandonedWa',low_stock_whatsapp_enabled:'lowStockWa',waitlist_whatsapp_auto_enabled:'waitlistWaAuto',
-  storefront_general_message:'storefrontGeneralMessageText',maintenance_mode:'maintenanceMode',maintenance_message:'maintenanceMessage',
-  customer_cancel_auto_block_enabled:'cancelAutoBlockEnabled',customer_cancel_auto_block_threshold:'cancelAutoBlockThreshold',customer_cancel_auto_block_days:'cancelAutoBlockDays'
-};
-const ADMIN_GLOBAL_SETTING_CARD_HINTS=[
-  [/shipping|deliver|freight|transport|رسوم التوصيل|النقل|الشحن/,'رسوم التوصيل'],
-  [/gift.?card|greeting.?card|بطاقات المعايدة|بطاقة هدية/,'بطاقات المعايدة'],
-  [/loyalty|point|نقاط الولاء|النقاط/,'نقاط الولاء'],
-  [/abandoned|low.?stock|waitlist|whatsapp|automation|أتمتة|واتساب/,'أتمتة السلة وواتساب'],
-  [/storefront.?general.?message|رسالة الزبائن|الرسائل العامة/,'الرسائل العامة'],
-  [/maintenance|الصيانة|الطوارئ/,'وضع الطوارئ / الصيانة'],
-  [/cancel.?auto.?block|الإلغاءات|المنع التلقائي/,'منع الطلب بعد الإلغاءات'],
-  [/store.?name|description|logo|currency|return.?policy|phone|whatsapp|اسم المتجر|الإعدادات/,'الإعدادات']
-];
 function focusAdminGlobalSetting(item){
   const key=String(item.data?.key||item.id||'').trim();
   const normalizedKey=adminGlobalNormalize(key).replace(/[.\s-]/g,'_');
