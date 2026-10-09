@@ -426,8 +426,8 @@ async function movementRun(){
   }catch(e){if(request===movementRequest&&$('#movementRows')===target){adminMovementCache=[];target.textContent=e.message}}
 }
 let adminOrdersCache=[];
-function orderStatusLabel(status){return ({pending:'جديد',confirmed:'مؤكد',processing:'قيد التجهيز',shipped:'تم الشحن',delivered:'تم التسليم',completed:'مكتمل',cancelled:'ملغي'})[String(status||'').toLowerCase()]||String(status||'-')}
-function orderStatusOptions(selected){return [['pending','جديد'],['confirmed','مؤكد'],['processing','قيد التجهيز'],['shipped','تم الشحن'],['delivered','تم التسليم'],['completed','مكتمل'],['cancelled','ملغي']].map(([v,l])=>`<option value="${v}" ${String(selected||'')===v?'selected':''}>${l}</option>`).join('')}
+function orderStatusLabel(status){return ({pending:'جديد',confirmed:'مؤكد',processing:'قيد التجهيز',shipped:'تم الشحن',delivered:'تم التسليم',completed:'تم التجهيز',cancelled:'ملغي'})[String(status||'').toLowerCase()]||String(status||'-')}
+function orderStatusOptions(selected){return [['pending','جديد'],['confirmed','مؤكد'],['processing','قيد التجهيز'],['shipped','تم الشحن'],['delivered','تم التسليم'],['completed','تم التجهيز'],['cancelled','ملغي']].map(([v,l])=>`<option value="${v}" ${String(selected||'')===v?'selected':''}>${l}</option>`).join('')}
 function orderRegionLabel(region){return ({westbank:'الضفة',jerusalem:'القدس',inside:'الداخل'})[String(region||'').toLowerCase()]||region||'-'}
 function renderOrderRows(){
   const box=$('#orderRows');if(!box)return;
@@ -447,6 +447,31 @@ let adminGiftProducts=[];
 
 function orderItemGiftLabel(i){
   return i?.is_gift===true||i?.isGift===true?'🎁 هدية':'';
+}
+function renderOrderGiftCardPreview(orderId,card,cost){
+  if(typeof card==='string'){try{card=JSON.parse(card)}catch{card=null}}
+  if(!card||typeof card!=='object')return '';
+  const file=/^card-(?:0[1-9]|1[0-9]|2[01])\\.jpg$/.test(String(card.file||''))?card.file:'card-01.jpg';
+  const side=card.side==='left'?'left':'right';
+  const encoded=encodeURIComponent(JSON.stringify(card)).replace(/'/g,'%27');
+  return `<section class="full notice gift-card-order-summary" style="padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <b>🎁 بطاقة المعايدة — ${E(card.title||card.occasionLabel||'بطاقة هدية')}</b>
+      <button class="btn primary" type="button" onclick="printOrderGiftCard(${Number(orderId)},'${encoded}')">🖨️ طباعة البطاقة</button>
+    </div>
+    <div style="position:relative;width:min(100%,480px);aspect-ratio:3/2;margin:0 auto 10px;overflow:hidden;border-radius:12px;background:#fffdf8">
+      <img src="/gift-cards/assets/${file}" alt="معاينة بطاقة المعايدة" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+      <div style="position:absolute;top:14%;${side==='left'?'left:7%;':'right:7%;'}width:42%;min-height:45%;padding:5px;display:flex;flex-direction:column;justify-content:center;text-align:center;color:#54263f;text-shadow:0 1px 1px #fff9;overflow:hidden">
+        <strong style="font-size:clamp(11px,3.4vw,19px);margin-bottom:3px">${E(card.recipient||'')}</strong>
+        <span style="font:clamp(11px,3.1vw,17px)/1.45 Georgia,Tahoma,serif;overflow-wrap:anywhere">${E(card.message||'')}</span>
+        ${card.sender?`<small style="font-size:clamp(9px,2.3vw,13px);margin-top:4px;color:#76556a">من ${E(card.sender)}</small>`:''}
+      </div>
+      <div style="position:absolute;inset:auto 0 0;height:25%;display:flex;align-items:center;justify-content:flex-end;padding:0 3.2%;background:#fffdf8;border-top:1px solid #eadfe3">
+        <img src="/gift-cards/assets/official-logo.png" alt="Ladies First" style="width:26%;height:72%;object-fit:cover;object-position:center 50%">
+      </div>
+    </div>
+    <div>إلى: <b>${E(card.recipient||'-')}</b><br>الرسالة: ${E(card.message||'-')}${card.sender?'<br>من: '+E(card.sender):''}<br>رسوم البطاقة: <b>${M(cost||0)} ₪</b></div>
+  </section>`;
 }
 
 async function openOrderDetails(id){
@@ -482,15 +507,14 @@ async function openOrderDetails(id){
       ${autoPct>0?'<div class="small-note warn-note">يوجد خصم توصيل تلقائي على هذا الطلب. عند إضافة خصم يدوي سيظهر تأكيد قبل جمع الخصمين.</div>':''}
     </div>
 
-    <div class="full notice">${o.prepared_at?'جهّز الطلبية: <b>'+E(o.prepared_by_name||'غير مسجل')+'</b> — '+E(new Date(o.prepared_at).toLocaleString('ar-PS')):'لم يتم تسجيل الموظف الذي جهّز الطلبية بعد.'}${!o.prepared_at&&!['cancelled','delivered','completed'].includes(o.status)?`<button class="btn primary" type="button" onclick="markOrderPrepared(${Number(id)})">أنا جهّزت الطلبية</button>`:''}</div>
+    <div class="full notice">${String(o.status||'').toLowerCase()==='completed'?'✅ تم تجهيز الطلبية.':'عند تجهيز الطلبية، اضغطي الزر لتحديث حالتها.'}${!['cancelled','shipped','delivered','completed'].includes(String(o.status||'').toLowerCase())?` <button class="btn primary" type="button" onclick="markOrderPrepared(${Number(id)})">أنا جهّزت الطلب</button>`:''}</div>
     <div class="full actions">
       <button class="btn" type="button" onclick="toggleOrderShipping(${Number(id)},${o.shipping_waived?'false':'true'})" ${cancelled?'disabled':''}>${o.shipping_waived?'إلغاء إعفاء التوصيل':'إعفاء من التوصيل'}</button>
       <button class="btn" type="button" onclick="openGiftPicker(${Number(id)})" ${lockedGift?'disabled':''}>🎁 إضافة هدية</button>
-      ${o.gift_card?`<button class="btn" type="button" onclick="printOrderGiftCard(${Number(id)},'${encodeURIComponent(JSON.stringify(o.gift_card)).replace(/'/g,'%27')}')">🖨️ طباعة البطاقة</button>`:''}
       <button class="btn" type="button" onclick="invoice(${Number(id)})">🧾 طباعة الفاتورة</button><button class="btn" type="button" onclick="openStaffChatFor('order',${Number(id)})">💬 ملاحظة داخلية</button>
     </div>
     ${lockedGift&&!cancelled?'<div class="full small-note">إضافة أو حذف الهدايا متاحة قبل شحن الطلب فقط.</div>':''}
-    ${o.gift_card?'<div class="full notice gift-card-order-summary"><b>🎁 بطاقة المعايدة — '+E(o.gift_card.title||'بطاقة هدية')+'</b><br>إلى: '+E(o.gift_card.recipient||'-')+'<br>الرسالة: '+E(o.gift_card.message||'-')+(o.gift_card.sender?'<br>من: '+E(o.gift_card.sender):'')+'<br>رسوم البطاقة: '+M(o.gift_card_cost||0)+' ₪</div>':''}
+    ${o.gift_card?renderOrderGiftCardPreview(id,o.gift_card,o.gift_card_cost):''}
     ${cancelled?'<div class="full notice">الطلب ملغي نهائيًا: تم إرجاع المخزون وعكس نقاط الولاء، لذلك لا يمكن إعادته لحالة نشطة.</div>':''}
 
     <div class="full">${table(['الصورة','المنتج','الخيار','الكمية','السعر','الإجمالي',''],items.map(i=>`<tr class="${i.is_gift?'gift-order-row':''}">
@@ -667,7 +691,7 @@ async function saveOrderStatus(id){
     if(d.autoBlockedCustomer){
       alert('تم إلغاء الطلب، ووصل الزبون إلى حد الإلغاءات المحدد لذلك تم منعه تلقائيًا من الطلب.');
     }else{
-      toast(status==='delivered'?'تم تسجيل التسليم وإضافته إلى سجل تتبع الطلب':'تم تحديث الحالة وإضافتها إلى سجل تتبع الطلب');
+      toast(status==='delivered'?'تم تسجيل التسليم وإضافته إلى سجل تتبع الطلب':status==='completed'?'تم تحديث حالة الطلب إلى تم التجهيز':'تم تحديث الحالة وإضافتها إلى سجل تتبع الطلب');
     }
     closeModal();
     await orders();
@@ -1196,7 +1220,7 @@ function modal(t,b){$('#mt').textContent=adminGenderText(t);$('#mb').innerHTML=b
 (async()=>{const token=localStorage.getItem('lf_admin_token');if(token){await showApp()}else{showLogin()}})()
 
 
-async function markOrderPrepared(id){try{await api('/api/admin/orders/'+id+'/preparation',{method:'POST',body:'{}'});toast('تم تسجيل تجهيز الطلبية باسمك');await openOrderDetails(id)}catch(e){alert(e.message)}}
+async function markOrderPrepared(id){const select=$('#orderStatusEdit');if(select)select.value='completed';else return alert('تعذر فتح حالة الطلب');await saveOrderStatus(id)}
 let staffActivityPage=1;
 async function reports(){await salesReports();const today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jerusalem'});$('#sections').insertAdjacentHTML('beforeend',`<div class="card"><h2>تقرير حركات الموظفين</h2><p>يسجّل الإضافات والتعديلات والحذف وإجراءات الطلبات ابتداءً من تفعيل هذا التقرير.</p><div class="toolbar"><label>من<input id="activityFrom" type="date" class="field" value="${today}" onchange="staffActivityRun(1)"></label><label>إلى<input id="activityTo" type="date" class="field" value="${today}" onchange="staffActivityRun(1)"></label><select id="activityEmployee" class="field" onchange="staffActivityRun(1)"><option value="">كل الموظفين</option></select></div><div id="staffActivityResults"></div></div>`);await staffActivityRun(1)}
 async function staffActivityRun(page=1){const root=$('#staffActivityResults');if(!root)return;const selected=$('#activityEmployee').value;root.textContent='جاري تحميل الحركات…';try{const d=await api('/api/admin/reports/staff-activity?from='+encodeURIComponent($('#activityFrom').value)+'&to='+encodeURIComponent($('#activityTo').value)+'&employee='+encodeURIComponent(selected)+'&page='+page);if(!root.isConnected)return;staffActivityPage=d.page;$('#activityEmployee').innerHTML='<option value="">كل الموظفين</option>'+d.employees.map(x=>`<option value="${Number(x.id)}" ${String(x.id)===selected?'selected':''}>${E(x.name||'موظف #'+x.id)}</option>`).join('');const resources={orders:'الطلبات',products:'المنتجات',users:'العملاء',inventory:'المخزون',settings:'الإعدادات',coupons:'الكوبونات',waitlist:'قائمة التوفر',staff:'الموظفون',uploads:'رفع الصور',categories:'الفئات',brands:'البراندات',returns:'الإرجاع والاستبدال'};root.innerHTML='<p>عدد الحركات: '+Number(d.total)+'</p>'+table(['الوقت','الموظف','القسم','الحركة','رقم السجل','النتيجة'],d.rows.map(x=>`<tr><td>${E(new Date(x.created_at).toLocaleString('ar-PS'))}</td><td>${E(x.actor_name)}</td><td>${E(resources[x.resource]||x.resource)}</td><td>${E(staffActivityLabel(x))}</td><td>${x.target_id?Number(x.target_id):'—'}</td><td>${Number(x.status_code)<400?'تم بنجاح':'لم يكتمل'} (${Number(x.status_code)})</td></tr>`))+'<div class="actions"><button class="btn" onclick="staffActivityRun('+Math.max(1,d.page-1)+')" '+(d.page<=1?'disabled':'')+'>السابق</button><span>صفحة '+Number(d.page)+'</span><button class="btn" onclick="staffActivityRun('+(d.page+1)+')" '+(d.page*50>=d.total?'disabled':'')+'>التالي</button></div>'}catch(e){root.textContent=e.message}}
