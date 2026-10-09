@@ -1226,3 +1226,37 @@ async function reports(){await salesReports();const today=new Date().toLocaleDat
 async function staffActivityRun(page=1){const root=$('#staffActivityResults');if(!root)return;const selected=$('#activityEmployee').value;root.textContent='جاري تحميل الحركات…';try{const d=await api('/api/admin/reports/staff-activity?from='+encodeURIComponent($('#activityFrom').value)+'&to='+encodeURIComponent($('#activityTo').value)+'&employee='+encodeURIComponent(selected)+'&page='+page);if(!root.isConnected)return;staffActivityPage=d.page;$('#activityEmployee').innerHTML='<option value="">كل الموظفين</option>'+d.employees.map(x=>`<option value="${Number(x.id)}" ${String(x.id)===selected?'selected':''}>${E(x.name||'موظف #'+x.id)}</option>`).join('');const resources={orders:'الطلبات',products:'المنتجات',users:'العملاء',inventory:'المخزون',settings:'الإعدادات',coupons:'الكوبونات',waitlist:'قائمة التوفر',staff:'الموظفون',uploads:'رفع الصور',categories:'الفئات',brands:'البراندات',returns:'الإرجاع والاستبدال'};root.innerHTML='<p>عدد الحركات: '+Number(d.total)+'</p>'+table(['الوقت','الموظف','القسم','الحركة','رقم السجل','النتيجة'],d.rows.map(x=>`<tr><td>${E(new Date(x.created_at).toLocaleString('ar-PS'))}</td><td>${E(x.actor_name)}</td><td>${E(resources[x.resource]||x.resource)}</td><td>${E(staffActivityLabel(x))}</td><td>${x.target_id?Number(x.target_id):'—'}</td><td>${Number(x.status_code)<400?'تم بنجاح':'لم يكتمل'} (${Number(x.status_code)})</td></tr>`))+'<div class="actions"><button class="btn" onclick="staffActivityRun('+Math.max(1,d.page-1)+')" '+(d.page<=1?'disabled':'')+'>السابق</button><span>صفحة '+Number(d.page)+'</span><button class="btn" onclick="staffActivityRun('+(d.page+1)+')" '+(d.page*50>=d.total?'disabled':'')+'>التالي</button></div>'}catch(e){root.textContent=e.message}}
 
 function staffActivityLabel(x){const suffix=String(x.action||'').split('/').pop();const labels={preparation:'تجهيز الطلبية',status:'تغيير الحالة',gifts:x.method==='DELETE'?'حذف هدية':'إضافة هدية','shipping-discount':'تعديل خصم التوصيل','shipping-waiver':'تعديل إعفاء التوصيل','notify-whatsapp':'إرسال تذكير التوفر عبر واتساب',image:'رفع صورة',video:'رفع فيديو','ordering-block':'تعديل منع الطلبات','password':'تغيير كلمة المرور','read':'تسجيل قراءة رسالة'};return labels[suffix]||({POST:'إضافة / تنفيذ إجراء',PUT:'تعديل',PATCH:'تعديل',DELETE:'حذف'}[x.method]||'إجراء إداري')}
+
+// Search across the currently open admin section, including table rows and nested result lists.
+function applyAdminGlobalSearch(){
+  const query=String(document.getElementById('adminGlobalSearch')?.value||'').trim().toLocaleLowerCase();
+  const root=document.getElementById('sections');
+  if(!root)return;
+  root.querySelectorAll('.admin-global-search-hidden').forEach(node=>node.classList.remove('admin-global-search-hidden'));
+  if(!query)return;
+  const candidates=new Set();
+  root.querySelectorAll('tbody tr').forEach(node=>candidates.add(node));
+  root.querySelectorAll('[id]').forEach(container=>{
+    if(!/(rows|results|items|list)$/i.test(container.id))return;
+    [...container.children].forEach(node=>{if(node.textContent?.trim())candidates.add(node)});
+  });
+  [...root.children].forEach(node=>{if(node.textContent?.trim())candidates.add(node)});
+  candidates.forEach(node=>{
+    const value=[node.innerText||node.textContent||'',...Array.from(node.querySelectorAll('input,textarea,select')).map(input=>input.value||input.placeholder||'')].join(' ').toLocaleLowerCase();
+    if(!value.includes(query))node.classList.add('admin-global-search-hidden');
+  });
+}
+function initAdminGlobalSearch(){
+  const root=document.getElementById('sections');
+  if(!root||root.dataset.globalSearchReady)return;
+  root.dataset.globalSearchReady='true';
+  new MutationObserver(()=>applyAdminGlobalSearch()).observe(root,{childList:true,subtree:true,characterData:true});
+}
+document.addEventListener('DOMContentLoaded',initAdminGlobalSearch,{once:true});
+function adminScrollToEdge(edge){
+  const modal=document.getElementById('modal');
+  const panel=modal?.classList.contains('open')?modal.querySelector('.modal-card'):null;
+  if(panel){panel.scrollTo({top:edge==='top'?0:panel.scrollHeight,behavior:'smooth'});return}
+  const scroller=document.scrollingElement||document.documentElement;
+  window.scrollTo({top:edge==='top'?0:scroller.scrollHeight,behavior:'smooth'});
+}
