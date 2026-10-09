@@ -66,11 +66,21 @@ test("storefront announcement has a separate publish action and refreshes active
 });
 
 test("changed message scripts use fresh cache versions",()=>{
-  assert.match(adminHtml,/admin\.js\?v=20261009-admin-search-fix12/);
+  assert.match(adminHtml,/admin\.js\?v=20261009-admin-search-fix13/);
   assert.match(adminHtml,/admin-conversations\.js\?v=20261009-close-order-modal1/);
   assert.match(adminHtml,/admin-product-upload\.js\?v=20261008-2/);
   assert.match(adminHtml,/data-s="messages"/);
   assert.match(indexHtml,/app\.js\?v=20261009-duration2s/);
+});
+
+
+test("global admin search exposes all results and the biometric security control",()=>{
+  assert.match(admin,/showMoreAdminGlobalSearchResults/);
+  assert.match(admin,/window\\.adminGlobalSearchVisibleResults=matches/);
+  assert.match(admin,/admin_passkey_access/);
+  assert.match(admin,/id="adminPasskeyHeading"/);
+  assert.match(admin,/الدخول بالبصمة \/ قفل الجهاز/);
+  assert.doesNotMatch(admin,/\\.slice\\(0,35\\)/);
 });
 
 test("storefront public announcement is exposed through safe public settings",()=>{
