@@ -48,7 +48,7 @@ function createPersistentRateLimiter({ db, secret, now = Date.now } = {}) {
       VALUES ($1, $2, 1, $4, $3)
       ON CONFLICT (bucket_key, window_start)
       DO UPDATE SET
-        request_count = LEAST(rate_limit_counters.request_count + 1, EXCLUDED.max_count),
+        request_count = LEAST(rate_limit_counters.request_count + 1, EXCLUDED.max_count + 1),
         max_count = EXCLUDED.max_count,
         expires_at = EXCLUDED.expires_at
       RETURNING request_count
