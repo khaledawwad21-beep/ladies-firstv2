@@ -9,6 +9,7 @@ const PUBLIC_SETTINGS = new Set([
   'storefront_general_message','maintenance_mode','maintenance_message'
 ]);
 const PRIVATE_COST_FIELDS = new Set(['cost_price','costPrice','purchase_price','purchasePrice','returned_cost_value']);
+const { createPersistentRateLimiter } = require("./persistent-rate-limit");
 function publicResponse(value) {
   if(Array.isArray(value))return value.map(publicResponse);
   if(value && typeof value==='object' && !(value instanceof Date))return Object.fromEntries(Object.entries(value).filter(([key])=>!PRIVATE_COST_FIELDS.has(key)).map(([key,v])=>[key,publicResponse(v)]));
@@ -17,9 +18,10 @@ function publicResponse(value) {
 function safeImageUrl(value) {
   return typeof value==='string' && !/[<>"'\\\x00-\x20]/.test(value) && (/^https?:\/\//i.test(value)||/^\/(?!\/)/.test(value)||/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value));
 }
-function createSecurityPolicy({now=Date.now,limit=30,windowMs=15*60*1000}={}) {
-  const attempts=new Map();
-  return function securityPolicy(req,res,next) {
+function createSecurityPolicy({now=Date.now,limit=30,windowMs=15*60*1000,db,env=process.env}={}) {
+  const query=db||require("./db").db;
+  const checkRateLimit=createPersistentRateLimiter({db:query,secret:env.RATE_LIMIT_SECRET||env.JWT_SECRET,now});
+  return async function securityPolicy(req,res,next) {
     if(req.securityPolicyApplied)return next();
     req.securityPolicyApplied=true;
     res.set({'X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY',
@@ -44,17 +46,23 @@ function createSecurityPolicy({now=Date.now,limit=30,windowMs=15*60*1000}={}) {
       res.set('Access-Control-Allow-Headers','Content-Type,Authorization,X-Bootstrap-Token');
       return res.sendStatus(204);
     }
-    if(req.method==='POST' && (path.startsWith('/api/auth/')||path.startsWith('/api/passkeys/')||path==='/api/waitlist'||(path==='/api/orders'||path==='/api/orders/track'))) {
-      const timestamp=now();
-      if(attempts.size>10000)for(const [key,value] of attempts)if(value.until<=timestamp)attempts.delete(key);
-      const key=(req.ip||req.socket.remoteAddress||'unknown')+':'+path;
-      let counter=attempts.get(key);
-      if(!counter||counter.until<=timestamp){
-        if(attempts.size>=20000)return res.status(429).json({ok:false,message:'حاول لاحقاً'});
-        counter={n:0,until:timestamp+windowMs};attempts.set(key,counter);
+    if(req.method==='POST' && (path.startsWith('/api/auth/')||path.startsWith('/api/passkeys/')||path==='/api/waitlist'||path==='/api/orders'||path==='/api/orders/track')) {
+      let result;
+      try {
+        result=await checkRateLimit({
+          scope:'http:'+path,
+          clientId:req.ip||req.socket.remoteAddress||'unknown',
+          limit,
+          windowMs
+        });
+      } catch(error) {
+        console.error('[RATE LIMIT] Persistent counter unavailable:',error.message);
+        return res.status(503).json({ok:false,code:'RATE_LIMIT_UNAVAILABLE',message:'الخدمة غير متاحة مؤقتًا. جربي بعد قليل.'});
       }
-      counter.n++;
-      if(counter.n>limit){res.set('Retry-After',String(Math.ceil((counter.until-timestamp)/1000)));return res.status(429).json({ok:false,code:'RATE_LIMITED',message:'محاولات كثيرة، حاول لاحقاً'});}
+      if(!result.allowed){
+        res.set('Retry-After',String(result.retryAfterSeconds));
+        return res.status(429).json({ok:false,code:'RATE_LIMITED',message:'محاولات كثيرة، حاول لاحقاً'});
+      }
     }
     if(path==='/api/auth/bootstrap-owner'&&req.method==='POST'&&process.env.NODE_ENV==='production'){
       const expected=String(process.env.BOOTSTRAP_TOKEN||'');const supplied=String(req.get('x-bootstrap-token')||'');
