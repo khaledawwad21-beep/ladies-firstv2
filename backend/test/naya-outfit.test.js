@@ -1,11 +1,11 @@
 'use strict';
 const {test}=require('node:test');const assert=require('node:assert/strict');const express=require('express');const {PGlite}=require('@electric-sql/pglite');
-const {createOutfitRouter,selection,dayKey,readImage,measurements,measurementPrompt}=require('../src/naya-outfit');
+const {createOutfitRouter,selection,dayKey,readImage,measurements,measurementPrompt,productFocus,outfitPrompt}=require('../src/naya-outfit');
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWZkAAAAASUVORK5CYII=','base64');
 test('selection and Palestine day boundary',()=>{assert.throws(()=>selection([{productId:1},{productId:1}]));assert.throws(()=>selection([]));assert.equal(dayKey(new Date('2026-07-01T20:59:00Z')),'2026-07-01');assert.equal(dayKey(new Date('2026-07-01T21:00:00Z')),'2026-07-02')});
 test('remote images cannot make outbound requests',async()=>{await assert.rejects(readImage('https://example.com/x.png',{}),/ارفعي/)});
 test('durable daily quota, failures, concurrency, budget and private image',async t=>{
- const pg=new PGlite();await pg.exec(`CREATE TABLE products(id BIGINT PRIMARY KEY,name TEXT,image_url TEXT,image TEXT,is_active BOOLEAN);CREATE TABLE product_images(id BIGINT,product_id BIGINT,image_url TEXT,is_primary BOOLEAN,sort_order INT);CREATE TABLE uploaded_images(id TEXT,data BYTEA);CREATE TABLE naya_outfit_daily(user_id BIGINT,usage_day DATE,state TEXT,job_id UUID,selection JSONB,image BYTEA,error_message TEXT,updated_at TIMESTAMPTZ,PRIMARY KEY(user_id,usage_day));CREATE TABLE naya_outfit_budget(month TEXT PRIMARY KEY,attempts INT);INSERT INTO products VALUES(1,'Dress','/api/images/test',NULL,true);`);await pg.query('INSERT INTO uploaded_images VALUES($1,$2)',['test',png]);
+ const pg=new PGlite();await pg.exec(`CREATE TABLE categories(id BIGINT PRIMARY KEY,name TEXT);CREATE TABLE products(id BIGINT PRIMARY KEY,name TEXT,image_url TEXT,image TEXT,is_active BOOLEAN,category_id BIGINT);CREATE TABLE product_images(id BIGINT,product_id BIGINT,image_url TEXT,is_primary BOOLEAN,sort_order INT);CREATE TABLE uploaded_images(id TEXT,data BYTEA);CREATE TABLE naya_outfit_daily(user_id BIGINT,usage_day DATE,state TEXT,job_id UUID,selection JSONB,image BYTEA,error_message TEXT,updated_at TIMESTAMPTZ,PRIMARY KEY(user_id,usage_day));CREATE TABLE naya_outfit_budget(month TEXT PRIMARY KEY,attempts INT);INSERT INTO products VALUES(1,'Dress','/api/images/test',NULL,true,NULL);`);await pg.query('INSERT INTO uploaded_images VALUES($1,$2)',['test',png]);
  let calls=0,release,fail=false;const env={NAYA_OUTFIT_ENABLED:'true',OPENAI_API_KEY:'test',NAYA_OUTFIT_MONTHLY_LIMIT:'3'};
  const app=express();app.use(express.json());app.use('/api/ai/outfit',createOutfitRouter({db:(s,p)=>pg.query(s,p),transaction:fn=>pg.transaction(fn),requireAuth:(req,res,next)=>{const id=Number(req.headers['x-user']);if(!id)return res.sendStatus(401);req.user={id};next()},env,fetchImpl:async()=>{calls++;await new Promise(r=>release=r);return{ok:!fail,json:async()=>({data:[{b64_json:png.toString('base64')}]})}}}));app.use((e,req,res,next)=>(console.error(e),res.status(500).json({error:e.message})));
  const server=app.listen(0);await new Promise(r=>server.once('listening',r));t.after(async()=>{await new Promise(r=>server.close(r));await pg.close()});const base='http://127.0.0.1:'+server.address().port+'/api/ai/outfit';
@@ -18,3 +18,16 @@ test('durable daily quota, failures, concurrency, budget and private image',asyn
 });
 
 test('measurements require explicit consent, validate bounds and discard extra fields',()=>{assert.equal(measurements({}),null);assert.throws(()=>measurements({measurements:{height:165}}),/موافقتك/);assert.throws(()=>measurements({measurementsConsent:true,measurements:{height:300}}),/المقاسات/);const m=measurements({measurementsConsent:true,measurements:{height:165,weight:70,waist:80,secret:'ignore'}});assert.deepEqual(m,{height:165,weight:70,waist:80});assert.match(measurementPrompt(m),/165/);assert.equal(measurementPrompt(null),'')});
+
+test('selected products drive framing and unobstructed accessory poses',()=>{
+ assert.deepEqual(productFocus({name:'Pearl earring',category:'إكسسوارات'}),['earrings']);
+ assert.deepEqual(productFocus({name:'Luxury watch',category:'ساعات'}),['watch']);
+ const earrings=outfitPrompt([{name:'حلق ذهبي'}],null);
+ assert.match(earrings,/close product-focused portrait/);assert.match(earrings,/Sweep hair away/);assert.doesNotMatch(earrings,/head-to-toe fashion frame/);
+ const ensemble=outfitPrompt([{name:'فستان'},{name:'ساعة'},{name:'حقيبة'}],null);
+ assert.match(ensemble,/head-to-toe fashion frame/);assert.match(ensemble,/turn the watch dial/);assert.match(ensemble,/hardware or strap/);
+ assert.match(ensemble,/"referenceImage":2/);assert.match(ensemble,/"referenceImage":4/);
+ const shirt=outfitPrompt([{name:'بلوزة'}],{height:165,weight:70});
+ assert.match(shirt,/head-to-hip/);assert.match(shirt,/"weight":70/);
+ const unknown=outfitPrompt([{name:'قطعة خاصة'}],null);assert.match(unknown,/Inspect the reference products/);
+});

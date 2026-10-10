@@ -1128,7 +1128,7 @@ function clearNayaBodyProfile(){nayaBodyProfile=null;['height','weight','bust','
 function saveNayaBodyProfile(){const consent=document.getElementById('nayaBodyConsent')?.checked;if(!consent)return alert('لازم توافقِي أولًا على رسالة الخصوصية لاستخدام المقاسات مؤقتًا.');const height=Number(document.getElementById('nayaHeight')?.value||0),weight=Number(document.getElementById('nayaWeight')?.value||0),bust=Number(document.getElementById('nayaBust')?.value||0),waist=Number(document.getElementById('nayaWaist')?.value||0),hips=Number(document.getElementById('nayaHips')?.value||0);if(height<120||height>220||weight<30||weight>250)return alert('أدخلي الطول والوزن ضمن القيم الصحيحة.');nayaBodyProfile={height,weight,bust:bust||null,waist:waist||null,hips:hips||null,createdAt:Date.now()};renderNayaBodyPreview();nayaAddMessage('تمام 🌸 طبّقتُ المقاسات على شكل نايا كتقريب بصري. بياناتك بقيت في ذاكرة الصفحة فقط ولم تُحفظ في الحساب أو قاعدة البيانات.','naya');}
 window.addEventListener('beforeunload',()=>{nayaBodyProfile=null});
 let nayaScrollY=0;
-function openNaya(){const assistant=document.getElementById('nayaAssistant');if(!assistant)return;const portrait=new URL('/naya-boutique.png?v=20261011',window.location.origin).href;assistant.querySelectorAll('.naya-real-avatar,#nayaBodyImage').forEach(image=>{if(image.src!==portrait)image.src=portrait;image.style.setProperty('content','normal','important')});nayaScrollY=window.scrollY||0;document.body.style.top='-'+nayaScrollY+'px';assistant.classList.add('open');document.documentElement.classList.add('naya-locked');document.body.classList.add('naya-open')}
+function openNaya(){const assistant=document.getElementById('nayaAssistant');if(!assistant)return;const portrait=new URL('/naya-boutique.png?v=20261011',window.location.origin).href;assistant.querySelectorAll('.naya-real-avatar,#nayaBodyImage').forEach(image=>{if(!image.dataset.outfitResult&&image.src!==portrait)image.src=portrait;image.style.setProperty('content','normal','important')});nayaScrollY=window.scrollY||0;document.body.style.top='-'+nayaScrollY+'px';assistant.classList.add('open');document.documentElement.classList.add('naya-locked');document.body.classList.add('naya-open')}
 function closeNaya(){const assistant=document.getElementById('nayaAssistant');if(!assistant)return;assistant.classList.remove('open');document.documentElement.classList.remove('naya-locked');document.body.classList.remove('naya-open');document.body.style.top='';window.scrollTo(0,nayaScrollY||0)}
 let nayaCurrentAudio=null,nayaCurrentAudioUrl='',nayaCurrentSpeechButton=null;
 function stopNayaAudio(){if(nayaCurrentAudio){nayaCurrentAudio.pause();nayaCurrentAudio=null}if(nayaCurrentAudioUrl){URL.revokeObjectURL(nayaCurrentAudioUrl);nayaCurrentAudioUrl=''}if(nayaCurrentSpeechButton){nayaCurrentSpeechButton.disabled=false;nayaCurrentSpeechButton.textContent='🔊 استمعي للرد • صوت ذكاء اصطناعي';nayaCurrentSpeechButton=null}}
@@ -1212,7 +1212,7 @@ window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings()
     returnFocus=document.activeElement;image.src=src;image.alt=alt||'صورة المنتج';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','تكبير '+image.alt);reset();overlay.classList.add('open');document.documentElement.classList.add('lf-image-zoom-open');document.body.classList.add('lf-image-zoom-open');overlay.querySelector('.lfImageZoom__close').focus({preventScroll:true});
   }
   document.addEventListener('click',event=>{
-    const source=event.target.closest&&(event.target.closest('#modalBody img, .naya-real-avatar, #nayaBodyImage')||event.target.closest('[data-naya-image-zoom]')?.closest('.naya-stage')?.querySelector('.naya-real-avatar'));
+    const source=event.target.closest&&(event.target.closest('#modalBody img, .naya-real-avatar, #nayaBodyImage, #noResultImage')||event.target.closest('[data-naya-image-zoom]')?.closest('.naya-stage')?.querySelector('.naya-real-avatar'));
     if(source){
       event.preventDefault();event.stopPropagation();
       if(source.closest('.thumbs')&&typeof pickImg==='function')pickImg(source,source.currentSrc||source.src);
@@ -1223,7 +1223,7 @@ window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings()
   document.addEventListener('keydown',event=>{
     if(event.key==='Escape'&&overlay.classList.contains('open'))close();
     const target=event.target;
-    if((event.key==='Enter'||event.key===' ')&&target&&target.matches('#mainProductImg, .naya-real-avatar, #nayaBodyImage')){event.preventDefault();open(target.currentSrc||target.src,target.alt)}
+    if((event.key==='Enter'||event.key===' ')&&target&&target.matches('#mainProductImg, .naya-real-avatar, #nayaBodyImage, #noResultImage')){event.preventDefault();open(target.currentSrc||target.src,target.alt)}
   });
   toggle.addEventListener('click',()=>{if(scale>1.05){reset()}else{scale=2;moveX=0;moveY=0;paint()}});
   image.addEventListener('dblclick',event=>{event.preventDefault();if(scale>1.05)reset();else{scale=2;paint()}});
