@@ -118,6 +118,7 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
  });
  router.post("/store-chat",optionalAuth||((_req,_res,next)=>next()),async(req,res)=>{
   res.set("Cache-Control","no-store");
+  const t=now();
   if(!await checkLimit(req,res,{scope:"naya-chat",limit:LIMIT,code:"STORE_AI_RATE_LIMIT",message:"وصلنا لعدد كبير من الرسائل بسرعة. جرب بعد دقائق."}))return;
   const message=clean(req.body?.message);
   if(!message)return res.status(400).json({ok:false,code:"STORE_AI_MESSAGE_REQUIRED",message:"اكتب سؤالك عن منتجات المتجر."});
