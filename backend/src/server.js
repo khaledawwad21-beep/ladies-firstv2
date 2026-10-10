@@ -71,6 +71,7 @@ app.use(
 );
 
 require("./naya-ai").registerNayaAi(app, { db, optionalAuth: require("./auth").optionalAuth });
+app.use("/api/ai/outfit", require("./naya-outfit").createOutfitRouter({ db, transaction, requireAuth }));
 
 app.use(
   "/uploads",
