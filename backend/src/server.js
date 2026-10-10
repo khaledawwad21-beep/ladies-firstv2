@@ -6,6 +6,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const { resolveFrontendPath } = require("./safe-frontend-path");
 
 const {
   db,
@@ -9651,7 +9652,7 @@ app.get(
      * يتم تقديمها بواسطة express.static.
      */
     const requestedPath =
-      path.join(
+      resolveFrontendPath(
         frontendPath,
         req.path
       );
