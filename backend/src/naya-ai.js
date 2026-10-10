@@ -105,6 +105,26 @@ function buildStoreAssistantMessages({message,history:chatHistory,catalog,storeI
   {role:"user",content:clean(message)}
  ];
 }
+
+function chatRequest(model,messages,maxTokens){
+ const payload={model,messages,response_format:{type:"json_object"}};
+ if(/^gpt-[56](?:[.-])|^o[1-9](?:[.-]|$)/.test(model)){
+  payload.max_completion_tokens=maxTokens;
+  if(/^gpt-(?:5\.6|6)(?:\.\d+)?-luna(?:-|$)/.test(model))payload.reasoning_effort="none";
+ }else{payload.temperature=.35;payload.max_tokens=maxTokens}
+ return payload;
+}
+async function upstreamFailure(response){
+ let error;try{error=(await response.json())?.error}catch{}
+ const code=String(error?.code||"");
+ if(response.status===401||code==="invalid_api_key")return {code:"NAYA_KEY_INVALID",message:"مفتاح نايا غير صالح. يرجى مراجعة إعداد الربط."};
+ if(["insufficient_quota","credit_balance_exhausted","organization_usage_limit_exceeded","organization_spend_limit_exceeded","project_spend_limit_exceeded"].includes(code))return {code:"NAYA_CREDIT_UNAVAILABLE",message:"لا يوجد رصيد API متاح للمفتاح المرتبط بنايا، أو تم بلوغ حد الإنفاق."};
+ if(code==="model_not_found")return {code:"NAYA_MODEL_UNAVAILABLE",message:"موديل نايا غير متاح للحساب المرتبط."};
+ if(response.status===403)return {code:"NAYA_ACCESS_DENIED",message:"الحساب المرتبط لا يملك صلاحية تشغيل موديل نايا."};
+ if(["unsupported_parameter","unsupported_value","invalid_parameter"].includes(code))return {code:"NAYA_REQUEST_INVALID",message:"إعداد طلب نايا غير متوافق مع الموديل."};
+ return {code:response.status===429?"NAYA_AI_BUSY":"NAYA_AI_UPSTREAM",message:"نايا غير متاحة مؤقتًا. جربي بعد شوي."};
+}
+
 function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.now,optionalAuth,rateLimiter}={}){
  if(typeof db!=="function")throw Error("Naya AI requires db");
  const consumeRateLimit=rateLimiter||createPersistentRateLimiter({db,secret:env.RATE_LIMIT_SECRET||env.JWT_SECRET||env.OPENAI_API_KEY,now});
@@ -153,8 +173,8 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
    const catalog=(result.rows||[]).map(product);
    const modelCatalog=catalog.map(({id,name,category,brand,description,price,oldPrice,stock,available,variants})=>({id,name,category,brand,description,price,oldPrice,stock,available,variants}));
    const messages=buildNayaMessages({message,history:req.body?.history,catalog:modelCatalog,customerProfile:req.body?.customerProfile});
-   const r=await fetchImpl("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:clean(env.NAYA_OPENAI_MODEL||env.OPENAI_MODEL||"gpt-6-luna",100),messages,temperature:.35,max_tokens:500,response_format:{type:"json_object"}})});
-   if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_AI_BUSY":"NAYA_AI_UPSTREAM",message:"نايا غير متاحة مؤقتًا. جربي بعد شوي."});
+   const r=await fetchImpl("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify(chatRequest(clean(env.NAYA_OPENAI_MODEL||env.OPENAI_MODEL||"gpt-6-luna",100),messages,500))});
+   if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,...await upstreamFailure(r)});
    const responseContent=(await r.json())?.choices?.[0]?.message?.content;
    if(typeof responseContent!=="string")return res.status(502).json({ok:false,code:"NAYA_AI_EMPTY",message:"ما وصلنا رد من نايا."});
    const answer=parseReply(responseContent,catalog),byId=new Map(catalog.map(p=>[p.id,p]));
@@ -185,8 +205,8 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
     return res.json({ok:true,reply,recommendations:searchedProducts.filter(item=>item.available).slice(0,3).map(item=>({id:item.id,name:item.name,price:item.price,imageUrl:null}))});
    }
    const messages=buildStoreAssistantMessages({message,history:req.body?.history,catalog:modelCatalog,storeInfo});
-   const r=await fetchImpl("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:clean(env.STORE_AI_OPENAI_MODEL||env.OPENAI_MODEL||"gpt-6-luna",100),messages,temperature:.35,max_tokens:450,response_format:{type:"json_object"}})});
-   if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"STORE_AI_BUSY":"STORE_AI_UPSTREAM",message:"تعذر الاتصال بمساعد التسوق الآن. جرب بعد شوي."});
+   const r=await fetchImpl("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify(chatRequest(clean(env.STORE_AI_OPENAI_MODEL||env.OPENAI_MODEL||"gpt-6-luna",100),messages,450))});
+   if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,...await upstreamFailure(r)});
    const responseContent=(await r.json())?.choices?.[0]?.message?.content;
    if(typeof responseContent!=="string")return res.status(502).json({ok:false,code:"STORE_AI_EMPTY",message:"ما وصلنا رد من مساعد التسوق."});
    const answer=parseReply(responseContent,catalog),byId=new Map(catalog.map(p=>[p.id,p]));
@@ -196,5 +216,5 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
  return router;
 }
 function registerNayaAi(app,options){app.use("/api/ai",createNayaAiRouter(options))}
-module.exports={createNayaAiRouter,registerNayaAi,clean,history,product,parseReply,sanitizeCustomerProfile,buildNayaMessages,buildStoreAssistantMessages,catalogSearchTerms,offlineStoreReply};
+module.exports={chatRequest,upstreamFailure,createNayaAiRouter,registerNayaAi,clean,history,product,parseReply,sanitizeCustomerProfile,buildNayaMessages,buildStoreAssistantMessages,catalogSearchTerms,offlineStoreReply};
 
