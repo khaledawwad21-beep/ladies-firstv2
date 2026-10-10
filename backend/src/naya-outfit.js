@@ -75,7 +75,7 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
       const r=await db(`SELECT p.id,p.name,COALESCE((SELECT json_agg(image_url ORDER BY is_primary DESC,sort_order,id) FROM product_images WHERE product_id=p.id),'[]'::json) AS images,p.image_url,p.image FROM products p WHERE p.id=ANY($1::bigint[]) AND p.is_active=TRUE`,[chosen.map(x=>x.productId)]);
       const inputs=[];const names=[];
       // Reference is a fixed server-controlled asset, never a customer-supplied file path.
-      inputs.push(await readImage('/naya-fullbody-clean.png',{db,frontendRoot}));
+      inputs.push(await readImage('/naya-boutique.png',{db,frontendRoot}));
       for(const item of chosen){const p=r.rows.find(x=>Number(x.id)===item.productId);if(!p)throw new Error('إحدى القطع لم تعد متاحة.');const images=p.images?.length?p.images:[p.image_url||p.image].filter(Boolean);if(!images[item.imageIndex])throw new Error('صورة إحدى القطع غير متاحة.');inputs.push(await readImage(images[item.imageIndex],{db,frontendRoot}));names.push(p.name)}
       const day=dayKey(),month=day.slice(0,7),job=crypto.randomUUID();
       const cap=Math.max(1,Math.min(10000,Math.floor(Number(env.NAYA_OUTFIT_MONTHLY_LIMIT))||100));
@@ -93,7 +93,7 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
       (async()=>{
         try{
           const form=new FormData();form.set('model',env.NAYA_IMAGE_MODEL||'gpt-image-1.5');form.set('n','1');form.set('size','1024x1536');form.set('quality','medium');
-          form.set('prompt','Create one photorealistic full-body fashion try-on image. Image 1 is the adult Naya identity reference: preserve her face, hair and identity; keep reference body proportions unless measurements are provided. Subsequent images are the selected actual store products in this order: '+names.join(', ')+'. Combine the selected garments and accessories into ONE coherent wearable outfit. Preserve each product color, pattern, cut, proportions and visible details. Do not invent products, change logos, or present this as a measurement guarantee. Neutral elegant studio background, natural skin, realistic hair and hands. No captions, grids or multiple people.'+measurementPrompt(profile));
+          form.set('prompt','Create one photorealistic full-body fashion try-on image. Image 1 is the adult Naya identity reference: preserve her face, hair and identity; keep reference body proportions unless measurements are provided. Subsequent images are the selected actual store products in this order: '+names.join(', ')+'. Combine the selected garments and accessories into ONE coherent wearable outfit. Preserve each product color, pattern, cut, proportions and visible details. Do not invent products, change logos, or present this as a measurement guarantee. Preserve the elegant boutique interior and its cream, plum, dusty rose and brass palette from image 1, natural skin, realistic hair and hands. No captions, grids or multiple people.'+measurementPrompt(profile));
           inputs.forEach((input,i)=>form.append('image[]',new Blob([input.bytes],{type:input.mime}),'input-'+i+(input.mime==='image/png'?'.png':input.mime==='image/jpeg'?'.jpg':'.webp')));
           const response=await fetchImpl('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:'Bearer '+env.OPENAI_API_KEY},body:form,signal:AbortSignal.timeout(180000)});
           if(!response.ok)throw new Error('PROVIDER_FAILED');const output=await response.json();const b64=output.data?.[0]?.b64_json;
