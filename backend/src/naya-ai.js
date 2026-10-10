@@ -176,12 +176,13 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
    const quota=await db("INSERT INTO store_ai_daily_usage (customer_key,usage_day,message_count,updated_at) VALUES ($1,$2,1,NOW()) ON CONFLICT (customer_key,usage_day) DO UPDATE SET message_count=store_ai_daily_usage.message_count+1,updated_at=NOW() WHERE store_ai_daily_usage.message_count < $3 RETURNING message_count",[principal,usageDay,dailyLimit]);
    if(!quota.rows?.length)return res.status(429).json({ok:false,code:"STORE_AI_DAILY_LIMIT",message:"وصلت للحد اليومي لمساعد التسوق. ارجع جرّب بكرا."});
    const result=await db(`SELECT p.id,p.name,p.description,p.price,p.old_price AS "oldPrice",p.stock,c.name AS category,b.name AS brand,COALESCE((SELECT json_agg(json_build_object('color',v.color,'size',v.size,'price',v.price,'stock',v.stock) ORDER BY v.id) FROM product_variants v WHERE v.product_id=p.id AND v.is_active=TRUE),'[]'::json) AS variants FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE p.is_active=TRUE ORDER BY p.is_featured DESC,p.is_best_seller DESC,p.updated_at DESC,p.id DESC LIMIT $1`,[MAX_PRODUCTS]);
-   const catalog=mergeProducts((result.rows||[]).map(product),await searchCatalog(db,message));
+   const searchedProducts=await searchCatalog(db,message);
+   const catalog=mergeProducts((result.rows||[]).map(product),searchedProducts);
    const modelCatalog=catalog.map(({id,name,category,brand,description,price,oldPrice,stock,available,variants})=>({id,name,category,brand,description,price,oldPrice,stock,available,variants}));
    const storeInfo=await loadStoreAssistantInfo(db);
    if(!key){
-    const reply=offlineStoreReply(message,catalog,storeInfo);
-    return res.json({ok:true,reply,recommendations:catalog.filter(item=>item.available).slice(0,3).map(item=>({id:item.id,name:item.name,price:item.price,imageUrl:null}))});
+    const reply=offlineStoreReply(message,searchedProducts,storeInfo);
+    return res.json({ok:true,reply,recommendations:searchedProducts.filter(item=>item.available).slice(0,3).map(item=>({id:item.id,name:item.name,price:item.price,imageUrl:null}))});
    }
    const messages=buildStoreAssistantMessages({message,history:req.body?.history,catalog:modelCatalog,storeInfo});
    const r=await fetchImpl("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:clean(env.STORE_AI_OPENAI_MODEL||env.OPENAI_MODEL||"gpt-6-luna",100),messages,temperature:.35,max_tokens:450,response_format:{type:"json_object"}})});
