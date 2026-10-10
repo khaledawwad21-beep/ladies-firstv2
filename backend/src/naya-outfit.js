@@ -32,7 +32,7 @@ function measurements(body) {
 function measurementPrompt(profile){return profile?' Approximate the adult body proportions using these customer-provided measurements: '+JSON.stringify(profile)+' (height, bust, waist, hips in cm; weight in kg). Preserve Naya facial identity and hair while adjusting only body proportions. These are visual cues, not a precise body scan or garment-fit prediction. Avoid exaggerated proportions.':'';}
 
 function productFocus(product) {
-  const label=[product.name,product.category].filter(Boolean).join(' ').toLowerCase();
+  const label=[product.name,product.category].filter(Boolean).join(' ').toLowerCase().replace(/(?:اكسسوارات|إكسسوارات|اكسسوار|إكسسوار|accessories)/g,' ');
   const has=pattern=>pattern.test(label), kinds=[];
   if(has(/حلق|أقراط|اقراط|earring/)) kinds.push('earrings');
   if(has(/ساعة|ساعات|watch/)) kinds.push('watch');
