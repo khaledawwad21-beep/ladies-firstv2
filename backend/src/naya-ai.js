@@ -195,5 +195,5 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
  return router;
 }
 function registerNayaAi(app,options){app.use("/api/ai",createNayaAiRouter(options))}
-module.exports={createNayaAiRouter,registerNayaAi,clean,history,product,parseReply,sanitizeCustomerProfile,buildNayaMessages,buildStoreAssistantMessages};
+module.exports={createNayaAiRouter,registerNayaAi,clean,history,product,parseReply,sanitizeCustomerProfile,buildNayaMessages,buildStoreAssistantMessages,catalogSearchTerms,offlineStoreReply};
 
