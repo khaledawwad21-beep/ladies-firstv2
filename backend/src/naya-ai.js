@@ -1,12 +1,8 @@
 "use strict";
 const express=require("express"),crypto=require("crypto");
-const LIMIT=20,WINDOW=300000,MAX_PRODUCTS=80,MAX_TRACKED_IPS=5000;
+const {createPersistentRateLimiter}=require("./persistent-rate-limit");
+const LIMIT=20,WINDOW=300000,MAX_PRODUCTS=80;
 const clean=(v,n=1000)=>String(v??"").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,n);
-function rememberRateLimit(map,key,timestamps){
- map.delete(key);
- map.set(key,timestamps);
- while(map.size>MAX_TRACKED_IPS)map.delete(map.keys().next().value);
-}
 const history=v=>Array.isArray(v)?v.slice(-8).flatMap(x=>x&&["user","assistant"].includes(x.role)&&clean(x.content)?[{role:x.role,content:clean(x.content)}]:[]):[];
 function sanitizeCustomerProfile(value){
  if(!value||typeof value!=="object"||Array.isArray(value))return null;
@@ -64,14 +60,26 @@ function buildStoreAssistantMessages({message,history:chatHistory,catalog}={}) {
   {role:"user",content:clean(message)}
  ];
 }
-function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.now,optionalAuth}={}){
+function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.now,optionalAuth,rateLimiter}={}){
  if(typeof db!=="function")throw Error("Naya AI requires db");
- const router=express.Router(),limits=new Map(),speechLimits=new Map();
+ const consumeRateLimit=rateLimiter||createPersistentRateLimiter({db,secret:env.RATE_LIMIT_SECRET||env.JWT_SECRET||env.OPENAI_API_KEY,now});
+ const router=express.Router();
+ async function checkLimit(req,res,{scope,limit,code,message}){
+  try{
+   const result=await consumeRateLimit({scope,clientId:String(req.ip||"unknown"),limit,windowMs:WINDOW});
+   if(result.allowed)return true;
+   res.set("Retry-After",String(result.retryAfterSeconds));
+   res.status(429).json({ok:false,code,message});
+   return false;
+  }catch(error){
+   console.error("Naya rate limit unavailable:",error?.message||error);
+   res.status(503).json({ok:false,code:"RATE_LIMIT_UNAVAILABLE",message:"الخدمة غير متاحة مؤقتًا. جربي بعد شوي."});
+   return false;
+  }
+ }
  router.post("/tts",async(req,res)=>{
   res.set("Cache-Control","no-store");
-  const t=now(),ip=String(req.ip||"unknown"),recent=(speechLimits.get(ip)||[]).filter(x=>t-x<WINDOW);
-  if(recent.length>=10)return res.status(429).json({ok:false,code:"NAYA_TTS_RATE_LIMIT",message:"جربي الاستماع بعد دقائق."});
-  recent.push(t);rememberRateLimit(speechLimits,ip,recent);
+  if(!await checkLimit(req,res,{scope:"naya-tts",limit:10,code:"NAYA_TTS_RATE_LIMIT",message:"جربي الاستماع بعد دقائق."}))return;
   const input=clean(req.body?.text,1200);
   if(!input)return res.status(400).json({ok:false,code:"NAYA_TTS_TEXT_REQUIRED",message:"لا يوجد نص لتشغيله صوتيًا."});
   const key=clean(env.OPENAI_API_KEY,500);
@@ -90,9 +98,7 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
  });
  router.post("/chat",async(req,res)=>{
   res.set("Cache-Control","no-store");
-  const t=now(),ip=String(req.ip||"unknown"),recent=(limits.get(ip)||[]).filter(x=>t-x<WINDOW);
-  if(recent.length>=LIMIT)return res.status(429).json({ok:false,code:"NAYA_RATE_LIMIT",message:"وصلنا لعدد كبير من الرسائل بسرعة. جربي بعد دقائق."});
-  recent.push(t);rememberRateLimit(limits,ip,recent);
+  if(!await checkLimit(req,res,{scope:"naya-chat",limit:LIMIT,code:"NAYA_RATE_LIMIT",message:"وصلنا لعدد كبير من الرسائل بسرعة. جربي بعد دقائق."}))return;
   const message=clean(req.body?.message);
   if(!message)return res.status(400).json({ok:false,code:"NAYA_MESSAGE_REQUIRED",message:"اكتبي سؤالك لنايا."});
   const key=clean(env.OPENAI_API_KEY,500);
@@ -112,16 +118,14 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
  });
  router.post("/store-chat",optionalAuth||((_req,_res,next)=>next()),async(req,res)=>{
   res.set("Cache-Control","no-store");
-  const t=now(),ip=String(req.ip||"unknown"),recent=(limits.get(ip)||[]).filter(x=>t-x<WINDOW);
-  if(recent.length>=LIMIT)return res.status(429).json({ok:false,code:"STORE_AI_RATE_LIMIT",message:"وصلنا لعدد كبير من الرسائل بسرعة. جرب بعد دقائق."});
-  recent.push(t);limits.set(ip,recent);
+  if(!await checkLimit(req,res,{scope:"naya-chat",limit:LIMIT,code:"STORE_AI_RATE_LIMIT",message:"وصلنا لعدد كبير من الرسائل بسرعة. جرب بعد دقائق."}))return;
   const message=clean(req.body?.message);
   if(!message)return res.status(400).json({ok:false,code:"STORE_AI_MESSAGE_REQUIRED",message:"اكتب سؤالك عن منتجات المتجر."});
   const key=clean(env.OPENAI_API_KEY,500);
   if(!key)return res.status(503).json({ok:false,code:"STORE_AI_NOT_CONFIGURED",message:"مساعد التسوق الذكي غير متاح حاليًا."});
   const parsedLimit=Number.parseInt(env.STORE_AI_DAILY_LIMIT||"15",10);
   const dailyLimit=Number.isInteger(parsedLimit)&&parsedLimit>0?Math.min(parsedLimit,50):15;
-  const userId=Number(req.user?.id),principal=Number.isSafeInteger(userId)&&userId>0?"user:"+userId:"guest:"+crypto.createHmac("sha256",clean(env.STORE_AI_LIMIT_SECRET||env.JWT_SECRET||key,500)).update(clean(ip,120)).digest("hex");
+  const userId=Number(req.user?.id),principal=Number.isSafeInteger(userId)&&userId>0?"user:"+userId:"guest:"+crypto.createHmac("sha256",clean(env.STORE_AI_LIMIT_SECRET||env.RATE_LIMIT_SECRET||env.JWT_SECRET||key,500)).update(clean(String(req.ip||"unknown"),120)).digest("hex");
   const usageDay=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jerusalem",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(t));
   try{
    const quota=await db("INSERT INTO store_ai_daily_usage (customer_key,usage_day,message_count,updated_at) VALUES ($1,$2,1,NOW()) ON CONFLICT (customer_key,usage_day) DO UPDATE SET message_count=store_ai_daily_usage.message_count+1,updated_at=NOW() WHERE store_ai_daily_usage.message_count < $3 RETURNING message_count",[principal,usageDay,dailyLimit]);
@@ -141,5 +145,5 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
  return router;
 }
 function registerNayaAi(app,options){app.use("/api/ai",createNayaAiRouter(options))}
-module.exports={createNayaAiRouter,registerNayaAi,clean,history,product,parseReply,sanitizeCustomerProfile,buildNayaMessages,buildStoreAssistantMessages,rememberRateLimit};
+module.exports={createNayaAiRouter,registerNayaAi,clean,history,product,parseReply,sanitizeCustomerProfile,buildNayaMessages,buildStoreAssistantMessages};
 
