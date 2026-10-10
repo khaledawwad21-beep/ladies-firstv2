@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test');const assert=require('node:assert/strict');const express=require('express');const {PGlite}=require('@electric-sql/pglite');
-const {createOutfitRouter,selection,dayKey,readImage}=require('../src/naya-outfit');
+const {createOutfitRouter,selection,dayKey,readImage,measurements,measurementPrompt}=require('../src/naya-outfit');
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWZkAAAAASUVORK5CYII=','base64');
 test('selection and Palestine day boundary',()=>{assert.throws(()=>selection([{productId:1},{productId:1}]));assert.throws(()=>selection([]));assert.equal(dayKey(new Date('2026-07-01T20:59:00Z')),'2026-07-01');assert.equal(dayKey(new Date('2026-07-01T21:00:00Z')),'2026-07-02')});
 test('remote images cannot make outbound requests',async()=>{await assert.rejects(readImage('https://example.com/x.png',{}),/ارفعي/)});
@@ -12,7 +12,9 @@ test('durable daily quota, failures, concurrency, budget and private image',asyn
  const request=(route,user=1,body)=>fetch(base+route,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','x-user':String(user)},body:body?JSON.stringify(body):undefined});const generate=user=>request('/generate',user,{items:[{productId:1}]});
  async function waitState(user,state){for(let i=0;i<100;i++){const d=await(await request('/status',user)).json();if(d.state===state)return d;await new Promise(r=>setTimeout(r,10))}throw Error('state not reached: '+state)}
  assert.equal((await request('/status',0)).status,401);env.NAYA_OUTFIT_ENABLED='false';assert.equal((await generate(1)).status,503);assert.equal(calls,0);env.NAYA_OUTFIT_ENABLED='true';
- assert.equal((await request('/generate',1,{items:[{productId:1},{productId:1}]})).status,400);
+ assert.equal((await request('/generate',1,{items:[{productId:1},{productId:1}]})).status,400);assert.equal((await request('/generate',1,{items:[{productId:1}],measurements:{height:165}})).status,400);assert.equal(calls,0);
  const responses=await Promise.all([generate(1),generate(1)]);assert.deepEqual(responses.map(r=>r.status).sort(),[202,409]);assert.equal(calls,1);release();await waitState(1,'complete');assert.equal((await generate(1)).status,409);assert.equal((await request('/image')).status,200);assert.equal((await request('/image',2)).status,404);
  fail=true;assert.equal((await generate(2)).status,202);release();assert.equal((await waitState(2,'failed')).remaining,1);fail=false;assert.equal((await generate(2)).status,202);release();await waitState(2,'complete');assert.equal(calls,3);assert.equal((await generate(3)).status,400);assert.equal(calls,3);assert.equal((await request('/status',3).then(r=>r.json())).remaining,1);
 });
+
+test('measurements require explicit consent, validate bounds and discard extra fields',()=>{assert.equal(measurements({}),null);assert.throws(()=>measurements({measurements:{height:165}}),/موافقتك/);assert.throws(()=>measurements({measurementsConsent:true,measurements:{height:300}}),/المقاسات/);const m=measurements({measurementsConsent:true,measurements:{height:165,weight:70,waist:80,secret:'ignore'}});assert.deepEqual(m,{height:165,weight:70,waist:80});assert.match(measurementPrompt(m),/165/);assert.equal(measurementPrompt(null),'')});

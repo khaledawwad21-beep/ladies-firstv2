@@ -14,6 +14,22 @@ function selection(value) {
     seen.add(id); return { productId:id, imageIndex };
   });
 }
+function measurements(body) {
+  const value=body?.measurements;
+  if(value==null)return null;
+  if(body.measurementsConsent!==true)throw new Error('المقاسات تحتاج موافقتك قبل إرسالها لخدمة توليد الصور.');
+  if(typeof value!=='object'||Array.isArray(value))throw new Error('راجعي المقاسات المدخلة.');
+  const limits={height:[120,220],weight:[30,250],bust:[60,180],waist:[50,170],hips:[60,190]},result={};
+  for(const [key,[min,max]] of Object.entries(limits)){
+    if(value[key]==null||value[key]==='')continue;
+    const number=Number(value[key]);
+    if(!Number.isFinite(number)||number<min||number>max)throw new Error('راجعي المقاسات المدخلة.');
+    result[key]=Math.round(number*10)/10;
+  }
+  if(!Object.keys(result).length)throw new Error('أدخلي مقاسًا واحدًا على الأقل أو اتركي المقاسات فارغة.');
+  return result;
+}
+function measurementPrompt(profile){return profile?' Approximate the adult body proportions using these customer-provided measurements: '+JSON.stringify(profile)+' (height, bust, waist, hips in cm; weight in kg). Preserve Naya facial identity and hair while adjusting only body proportions. These are visual cues, not a precise body scan or garment-fit prediction. Avoid exaggerated proportions.':'';}
 function imageType(bytes) {
   if (bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) return 'image/png';
   if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) return 'image/jpeg';
@@ -54,7 +70,7 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
   }catch(e){next(e)}});
   router.post('/generate',requireAuth,async(req,res,next)=>{
     if(!enabled())return res.status(503).json({ok:false,message:'توليد الإطلالة لم يُفعّل بعد؛ يمكنك تجهيز اختياراتك.'});
-    let chosen;try{chosen=selection(req.body?.items)}catch(e){return res.status(400).json({ok:false,message:e.message})}
+    let chosen,profile;try{chosen=selection(req.body?.items);profile=measurements(req.body)}catch(e){return res.status(400).json({ok:false,message:e.message})}
     try{
       const r=await db(`SELECT p.id,p.name,COALESCE((SELECT json_agg(image_url ORDER BY is_primary DESC,sort_order,id) FROM product_images WHERE product_id=p.id),'[]'::json) AS images,p.image_url,p.image FROM products p WHERE p.id=ANY($1::bigint[]) AND p.is_active=TRUE`,[chosen.map(x=>x.productId)]);
       const inputs=[];const names=[];
@@ -77,7 +93,7 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
       (async()=>{
         try{
           const form=new FormData();form.set('model',env.NAYA_IMAGE_MODEL||'gpt-image-1.5');form.set('n','1');form.set('size','1024x1536');form.set('quality','medium');
-          form.set('prompt','Create one photorealistic full-body fashion try-on image. Image 1 is the adult Naya identity reference: preserve her face, hair, body proportions and identity. Subsequent images are the selected actual store products in this order: '+names.join(', ')+'. Combine the selected garments and accessories into ONE coherent wearable outfit. Preserve each product color, pattern, cut, proportions and visible details. Do not invent products, change logos, or present this as a measurement guarantee. Neutral elegant studio background, natural skin, realistic hair and hands. No captions, grids or multiple people.');
+          form.set('prompt','Create one photorealistic full-body fashion try-on image. Image 1 is the adult Naya identity reference: preserve her face, hair and identity; keep reference body proportions unless measurements are provided. Subsequent images are the selected actual store products in this order: '+names.join(', ')+'. Combine the selected garments and accessories into ONE coherent wearable outfit. Preserve each product color, pattern, cut, proportions and visible details. Do not invent products, change logos, or present this as a measurement guarantee. Neutral elegant studio background, natural skin, realistic hair and hands. No captions, grids or multiple people.'+measurementPrompt(profile));
           inputs.forEach((input,i)=>form.append('image[]',new Blob([input.bytes],{type:input.mime}),'input-'+i+(input.mime==='image/png'?'.png':input.mime==='image/jpeg'?'.jpg':'.webp')));
           const response=await fetchImpl('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:'Bearer '+env.OPENAI_API_KEY},body:form,signal:AbortSignal.timeout(180000)});
           if(!response.ok)throw new Error('PROVIDER_FAILED');const output=await response.json();const b64=output.data?.[0]?.b64_json;
@@ -88,4 +104,4 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
     }catch(e){if(/قطعة|القطع|صورة|الصورة|الإطلالة|تجارب|ارفعي|صيغة/.test(e.message))return res.status(400).json({ok:false,message:e.message});next(e)}
   });return router;
 }
-module.exports={createOutfitRouter,selection,dayKey,readImage,imageType};
+module.exports={createOutfitRouter,selection,dayKey,readImage,imageType,measurements,measurementPrompt};
