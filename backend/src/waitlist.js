@@ -78,8 +78,6 @@ function registerWaitlistRoutes(app, deps) {
         RETURNING
           id,
           product_id AS "productId",
-          customer_name AS "name",
-          phone,
           variant_name AS "variant",
           status,
           created_at AS "createdAt"
@@ -90,10 +88,32 @@ function registerWaitlistRoutes(app, deps) {
       let row = inserted.rows[0];
       const alreadyWaiting = !row;
 
+      if (alreadyWaiting) {
+        const existing = await db(
+          `
+          SELECT
+            id,
+            product_id AS "productId",
+            variant_name AS "variant",
+            status,
+            created_at AS "createdAt"
+          FROM waitlist_requests
+          WHERE product_id = $1
+            AND phone = $2
+            AND COALESCE(variant_name, '') = COALESCE($3, '')
+            AND status = 'waiting'
+          ORDER BY created_at DESC
+          LIMIT 1
+          `,
+          [productId, phone, variantName]
+        );
+        row = existing.rows[0] || null;
+      }
+
       return res.status(alreadyWaiting ? 200 : 201).json({
         ok: true,
         alreadyWaiting,
-        request: alreadyWaiting ? null : row,
+        request: row,
         product: {
           id: product.id,
           name: product.name,
