@@ -55,7 +55,7 @@ if (!fs.existsSync(UPLOADS_DIR)) {
    MIDDLEWARE
 ========================================================= */
 
-app.use(require("./security-policy").createSecurityPolicy());
+app.use(require("./security-policy").createSecurityPolicy({ db }));
 
 app.use(
   express.json({
