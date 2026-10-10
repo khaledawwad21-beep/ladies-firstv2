@@ -23,7 +23,7 @@ const { startWhatsAppAutomation } = require("./whatsapp-automation");
 const PORT = Number(process.env.PORT || 10000);
 const gateway = express();
 gateway.set("trust proxy", 1);
-gateway.use(require("./security-policy").createSecurityPolicy());
+gateway.use(require("./security-policy").createSecurityPolicy({ db }));
 const FRONTEND_DIR = path.resolve(__dirname, "../../frontend");
 
 /*
