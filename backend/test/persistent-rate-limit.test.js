@@ -1,6 +1,6 @@
 "use strict";
 
-const test = require("node:test");
+const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const { PGlite } = require("@electric-sql/pglite");
 const { createPersistentRateLimiter } = require("../src/persistent-rate-limit");
@@ -9,7 +9,7 @@ const database = new PGlite();
 const db = (sql, params) => database.query(sql, params);
 let nowMs;
 
-test.before(async () => {
+before(async () => {
   await database.exec(`
     CREATE TABLE rate_limit_counters (
       bucket_key TEXT NOT NULL,
@@ -24,7 +24,7 @@ test.before(async () => {
   nowMs = Date.now();
 });
 
-test.after(async () => {
+after(async () => {
   await database.close();
 });
 
