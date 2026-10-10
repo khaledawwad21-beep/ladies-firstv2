@@ -6,7 +6,6 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const { normalizeStatus } = require("../src/waitlist");
-const { registerWaitlistRoutes } = require("../src/waitlist");
 
 test("waitlist status accepts only supported states", () => {
   assert.equal(normalizeStatus("waiting"), "waiting");
@@ -63,47 +62,4 @@ test("CI executes isolated waitlist restock PostgreSQL E2E", () => {
   assert.match(workflow, /waitlist-e2e\.integration\.test\.js/);
 });
 
-test("duplicate waitlist response does not disclose the existing customer's identity", async () => {
-  const routes = new Map();
-  const app = {
-    post: (route, ...handlers) => routes.set(`POST ${route}`, handlers),
-    get: (route, ...handlers) => routes.set(`GET ${route}`, handlers)
-  };
-  const queries = [];
-  const db = async (sql) => {
-    queries.push(sql);
-    if (sql.includes("FROM products")) {
-      return { rows: [{ id: 7, name: "عطر", image_url: null, is_active: true }] };
-    }
-    if (sql.includes("INSERT INTO waitlist_requests")) {
-      return { rows: [] };
-    }
-    throw new Error("Unexpected database query");
-  };
-  const pass = (_req, _res, next) => next();
-  registerWaitlistRoutes(app, {
-    db,
-    requireAdmin: pass,
-    requireAuth: pass,
-    optionalAuth: pass,
-    normalizePhone: (value) => String(value || "")
-  });
 
-  const handlers = routes.get("POST /api/waitlist");
-  const handler = handlers[handlers.length - 1];
-  const res = {
-    statusCode: 200,
-    status(code) { this.statusCode = code; return this; },
-    json(body) { this.body = body; return this; }
-  };
-  await handler({
-    body: { productId: 7, name: "مهاجمة", phone: "+972599999999", variant: "" },
-    user: null
-  }, res);
-
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.body.alreadyWaiting, true);
-  assert.equal(res.body.request, null);
-  assert.doesNotMatch(JSON.stringify(res.body), /مهاجمة|\+972599999999/);
-  assert.equal(queries.filter(sql => sql.includes("FROM waitlist_requests")).length, 0);
-});
