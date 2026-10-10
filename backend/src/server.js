@@ -9658,6 +9658,7 @@ app.get(
       );
 
     if (
+      requestedPath &&
       req.path !== "/" &&
       fs.existsSync(
         requestedPath
