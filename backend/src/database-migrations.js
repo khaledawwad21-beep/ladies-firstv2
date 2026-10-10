@@ -25,6 +25,17 @@ async function migrateDatabase() {
     await client.query(`ALTER TABLE orders ALTER COLUMN loyalty_points_reversed SET NOT NULL`);
 
     await client.query(`CREATE TABLE IF NOT EXISTS store_ai_daily_usage (customer_key TEXT NOT NULL, usage_day DATE NOT NULL, message_count INTEGER NOT NULL DEFAULT 0 CHECK (message_count >= 0), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(customer_key,usage_day))`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS rate_limit_counters (
+        bucket_key TEXT NOT NULL,
+        window_start TIMESTAMPTZ NOT NULL,
+        request_count INTEGER NOT NULL CHECK (request_count >= 0),
+        max_count INTEGER NOT NULL CHECK (max_count > 0),
+        expires_at TIMESTAMPTZ NOT NULL,
+        PRIMARY KEY (bucket_key, window_start)
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS rate_limit_counters_expires_idx ON rate_limit_counters(expires_at)`);
 
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT`);
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_name TEXT`);
