@@ -8,7 +8,8 @@ test("duplicate waitlist response keeps request metadata but hides name and phon
   const routes = new Map();
   const app = {
     post: (route, ...handlers) => routes.set("POST " + route, handlers),
-    get: (route, ...handlers) => routes.set("GET " + route, handlers)
+    get: (route, ...handlers) => routes.set("GET " + route, handlers),
+    patch: (route, ...handlers) => routes.set("PATCH " + route, handlers)
   };
   const queries = [];
   const db = async (sql) => {
