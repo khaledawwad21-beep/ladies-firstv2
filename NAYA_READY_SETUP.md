@@ -11,7 +11,7 @@ Set `OPENAI_API_KEY` as a secret on the existing Render service `ladies-firstv2`
 - The TTS endpoint accepts up to 1,200 characters and limits repeated requests per IP.
 - The AI prompt keeps Naya focused on Ladies First products, gift suggestions, orders, account help, and store policies.
 
-## Voice acceptance check
+## Storefront chat, search and cost guard\n\n- The storefront assistant is branded as Naya and uses `/api/ai/store-chat`. It searches active catalog names, descriptions, categories and brands before sending matched products to the model. Only public store policies/settings are included.\n- The AI path is capped at 15 messages per customer per day and 450 output tokens per response. Guest counters use a hashed IP. If `OPENAI_API_KEY` is absent, the assistant falls back to database product search and public store settings without calling an AI provider.\n- No new provider or subscription is required for code changes or GLB hosting. OpenAI model replies still use the existing API key and its usage billing when configured; Naya voice remains opt-in.\n\n## Voice acceptance check
 
 Arabic is supported by the TTS API, but OpenAI's built-in voices are optimized for English. After API billing is enabled, listen to Palestinian Arabic samples on a phone before offering the voice to customers. If the dialect or voice quality is not natural enough, select a suitable Arabic voice provider before release.
 
