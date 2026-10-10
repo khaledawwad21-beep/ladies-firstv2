@@ -87,7 +87,16 @@
     const close = event.target.closest('[data-naya-close]');
     if (close) { event.preventDefault(); closeNaya(); return; }
     const trigger = event.target.closest('button,a,[role="button"]');
-    if (trigger && looksLikeTryOn(trigger)) { event.preventDefault(); openNaya(productFromElement(trigger)); }
+    if (trigger && looksLikeTryOn(trigger)) {
+      if (trigger.closest('#nayaOutfit,#lfStoreAiDialog,#lfStoreAiCard')) return;
+      if (window.LadiesFirstNayaOutfit) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        if (/جربيها|جرّبيها|جرّبيها على|try\s*on/i.test(trigger.textContent)) window.LadiesFirstNayaOutfit.open(productFromElement(trigger));
+        else window.openStoreAIAssistant?.();
+        return;
+      }
+      event.preventDefault(); openNaya(productFromElement(trigger));
+    }
   }, true);
 
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeNaya(); });

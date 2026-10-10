@@ -24,6 +24,15 @@ async function migrateDatabase() {
     await client.query(`ALTER TABLE orders ALTER COLUMN loyalty_points_reversed SET DEFAULT FALSE`);
     await client.query(`ALTER TABLE orders ALTER COLUMN loyalty_points_reversed SET NOT NULL`);
 
+    await client.query(`CREATE TABLE IF NOT EXISTS naya_outfit_daily (
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      usage_day DATE NOT NULL, state TEXT NOT NULL CHECK(state IN ('available','pending','complete','failed')),
+      job_id UUID, selection JSONB, image BYTEA, error_message TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(user_id,usage_day)
+    )`);
+    await client.query(`CREATE TABLE IF NOT EXISTS naya_outfit_budget (
+      month TEXT PRIMARY KEY, attempts INTEGER NOT NULL CHECK(attempts>=0)
+    )`);
     await client.query(`CREATE TABLE IF NOT EXISTS store_ai_daily_usage (customer_key TEXT NOT NULL, usage_day DATE NOT NULL, message_count INTEGER NOT NULL DEFAULT 0 CHECK (message_count >= 0), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(customer_key,usage_day))`);
     await client.query(`
       CREATE TABLE IF NOT EXISTS rate_limit_counters (
