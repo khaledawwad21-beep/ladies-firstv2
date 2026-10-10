@@ -1198,6 +1198,7 @@ window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings()
   document.body.appendChild(overlay);
   const image=overlay.querySelector('.lfImageZoom__image');
   const toggle=overlay.querySelector('.lfImageZoom__toggle');
+  let returnFocus=null;
   let scale=1,moveX=0,moveY=0,pointers=new Map(),pinchDistance=0,pinchScale=1,dragStart=null,lastTap=0;
   const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
   function paint(){
@@ -1206,12 +1207,12 @@ window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings()
     toggle.setAttribute('aria-label',scale>1.05?'تصغير الصورة':'تكبير الصورة');
   }
   function reset(){scale=1;moveX=0;moveY=0;pointers.clear();paint()}
-  function close(){overlay.classList.remove('open');document.documentElement.classList.remove('lf-image-zoom-open');document.body.classList.remove('lf-image-zoom-open');reset()}
+  function close(){overlay.classList.remove('open');document.documentElement.classList.remove('lf-image-zoom-open');document.body.classList.remove('lf-image-zoom-open');reset();returnFocus?.focus({preventScroll:true})}
   function open(src,alt){
-    image.src=src;image.alt=alt||'صورة المنتج';reset();overlay.classList.add('open');document.documentElement.classList.add('lf-image-zoom-open');document.body.classList.add('lf-image-zoom-open');
+    returnFocus=document.activeElement;image.src=src;image.alt=alt||'صورة المنتج';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','تكبير '+image.alt);reset();overlay.classList.add('open');document.documentElement.classList.add('lf-image-zoom-open');document.body.classList.add('lf-image-zoom-open');overlay.querySelector('.lfImageZoom__close').focus({preventScroll:true});
   }
   document.addEventListener('click',event=>{
-    const source=event.target.closest&&event.target.closest('#modalBody img');
+    const source=event.target.closest&&(event.target.closest('#modalBody img, .naya-real-avatar, #nayaBodyImage')||event.target.closest('[data-naya-image-zoom]')?.closest('.naya-stage')?.querySelector('.naya-real-avatar'));
     if(source){
       event.preventDefault();event.stopPropagation();
       if(source.closest('.thumbs')&&typeof pickImg==='function')pickImg(source,source.currentSrc||source.src);
@@ -1222,7 +1223,7 @@ window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings()
   document.addEventListener('keydown',event=>{
     if(event.key==='Escape'&&overlay.classList.contains('open'))close();
     const target=event.target;
-    if((event.key==='Enter'||event.key===' ')&&target&&target.id==='mainProductImg'){event.preventDefault();open(target.currentSrc||target.src,target.alt)}
+    if((event.key==='Enter'||event.key===' ')&&target&&target.matches('#mainProductImg, .naya-real-avatar, #nayaBodyImage')){event.preventDefault();open(target.currentSrc||target.src,target.alt)}
   });
   toggle.addEventListener('click',()=>{if(scale>1.05){reset()}else{scale=2;moveX=0;moveY=0;paint()}});
   image.addEventListener('dblclick',event=>{event.preventDefault();if(scale>1.05)reset();else{scale=2;paint()}});
