@@ -2,13 +2,14 @@
 const test=require("node:test"),assert=require("node:assert/strict"),express=require("express");
 const{createNayaAiRouter,buildStoreAssistantMessages}=require("../src/naya-ai");
 const allowRateLimit=async()=>({allowed:true,retryAfterSeconds:0,requestCount:1});
-test("store assistant is focused on shopping and separate from Naya",()=>{
+test("Naya assistant stays focused on store shopping",()=>{
  const messages=buildStoreAssistantMessages({message:"بدي هدية",catalog:[]});
  const prompt=messages.filter(x=>x.role==="system").map(x=>x.content).join(" ");
  assert.match(prompt,/مساعد تسوق ذكي داخل متجر Ladies First/);
+ assert.match(prompt,/أنتِ نايا/);
  assert.match(prompt,/هل هي للعميل نفسه أم هدية/);
  assert.match(prompt,/لا تخترع منتجات أو أسعارًا/);
- assert.doesNotMatch(prompt,/أنتِ نايا/);
+ assert.doesNotMatch(prompt,/ادّعي أنك موظفة بشرية/);
 });
 test("store AI uses authenticated customer quota and catalog-backed recommendations",async t=>{
  let captured,quotaArgs;
@@ -31,3 +32,21 @@ test("store AI blocks a customer after the configured daily message limit",async
  assert.equal(res.status,429);assert.equal((await res.json()).code,"STORE_AI_DAILY_LIMIT");assert.equal(upstreamCalled,false);
 });
 
+
+test("store AI performs catalog search and works without paid API calls",async t=>{
+ const sqlCalls=[];let upstreamCalled=false;
+ const app=express();app.use(express.json());
+ app.use("/api/ai",createNayaAiRouter({rateLimiter:allowRateLimit,db:async(q,p)=>{
+  sqlCalls.push({q,p});
+  if(/INSERT INTO store_ai_daily_usage/.test(q))return{rows:[{message_count:1}]};
+  if(/SELECT key,value FROM settings/.test(q))return{rows:[{key:"return_policy",value:"الإرجاع خلال 12 ساعة من الاستلام"}]};
+  if(/SELECT p.id/.test(q))return{rows:[{id:41,name:"عطر الورد",price:80,stock:3,variants:[]}]};
+  return{rows:[]};
+ },env:{},fetchImpl:async()=>{upstreamCalled=true;throw Error("AI API must not be called without a key")}}));
+ const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
+ const response=await fetch(`http://127.0.0.1:${server.address().port}/api/ai/store-chat`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"عطر الورد"})});
+ const result=await response.json();
+ assert.equal(response.status,200);assert.equal(result.ok,true);assert.match(result.reply,/عطر الورد/);
+ assert.deepEqual(result.recommendations.map(x=>x.id),[41]);assert.equal(upstreamCalled,false);
+ assert.ok(sqlCalls.some(x=>/ILIKE/.test(x.q)&&x.p?.includes("%عطر%")));
+});
