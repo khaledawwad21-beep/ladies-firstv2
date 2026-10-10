@@ -17,7 +17,7 @@ const tripoRouter = require("./tripo");
 const { app: storeApp, initDatabase } = require("./server");
 const { createRequestPolicyRouter } = require("./request-policy");
 const { migrateDatabase } = require("./database-migrations");
-const { db } = require("./db");
+const { db, getDatabaseStatus } = require("./db");
 const { startWhatsAppAutomation } = require("./whatsapp-automation");
 
 const PORT = Number(process.env.PORT || 10000);
@@ -46,15 +46,10 @@ gateway.get("/app.js", (req, res, next) => {
   }
 });
 
-gateway.get("/api/health", (req, res) => {
-  res.status(200).json({
-    ok: true,
-    service: "ladies-firstv2",
-    gitCommit: String(process.env.RENDER_GIT_COMMIT || "").trim() || null,
-    gitBranch: String(process.env.RENDER_GIT_BRANCH || "").trim() || null,
-    tripoConfigured: Boolean(String(process.env.TRIPO_API_KEY || "").trim())
-  });
-});
+gateway.get(
+  "/api/health",
+  require("./health-handler").createHealthHandler({ getDatabaseStatus })
+);
 
 gateway.use(
   "/api/tripo",

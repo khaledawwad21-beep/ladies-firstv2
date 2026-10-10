@@ -61,3 +61,5 @@ test("CI executes isolated waitlist restock PostgreSQL E2E", () => {
   assert.match(workflow, /Run isolated waitlist restock E2E/);
   assert.match(workflow, /waitlist-e2e\.integration\.test\.js/);
 });
+
+

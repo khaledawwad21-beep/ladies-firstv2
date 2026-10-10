@@ -1,7 +1,12 @@
 "use strict";
 const express=require("express"),crypto=require("crypto");
-const LIMIT=20,WINDOW=300000,MAX_PRODUCTS=80;
+const LIMIT=20,WINDOW=300000,MAX_PRODUCTS=80,MAX_TRACKED_IPS=5000;
 const clean=(v,n=1000)=>String(v??"").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,n);
+function rememberRateLimit(map,key,timestamps){
+ map.delete(key);
+ map.set(key,timestamps);
+ while(map.size>MAX_TRACKED_IPS)map.delete(map.keys().next().value);
+}
 const history=v=>Array.isArray(v)?v.slice(-8).flatMap(x=>x&&["user","assistant"].includes(x.role)&&clean(x.content)?[{role:x.role,content:clean(x.content)}]:[]):[];
 function sanitizeCustomerProfile(value){
  if(!value||typeof value!=="object"||Array.isArray(value))return null;
@@ -66,13 +71,13 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   res.set("Cache-Control","no-store");
   const t=now(),ip=String(req.ip||"unknown"),recent=(speechLimits.get(ip)||[]).filter(x=>t-x<WINDOW);
   if(recent.length>=10)return res.status(429).json({ok:false,code:"NAYA_TTS_RATE_LIMIT",message:"جربي الاستماع بعد دقائق."});
-  recent.push(t);speechLimits.set(ip,recent);
+  recent.push(t);rememberRateLimit(speechLimits,ip,recent);
   const input=clean(req.body?.text,1200);
   if(!input)return res.status(400).json({ok:false,code:"NAYA_TTS_TEXT_REQUIRED",message:"لا يوجد نص لتشغيله صوتيًا."});
   const key=clean(env.OPENAI_API_KEY,500);
   if(!key)return res.status(503).json({ok:false,code:"NAYA_AI_NOT_CONFIGURED",message:"الصوت غير متاح حاليًا."});
   const allowedVoices=new Set(["alloy","ash","ballad","coral","echo","fable","nova","onyx","sage","shimmer","verse","marin","cedar"]);
-  const configuredVoice=clean(env.NAYA_TTS_VOICE||"coral",20);
+  const configuredVoice=clean(env.NAYA_TTS_VOICE||env.OPENAI_TTS_VOICE||"coral",20);
   const voice=allowedVoices.has(configuredVoice)?configuredVoice:"coral";
   try{
    const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,instructions:"تحدثي بصوت أنثوي دافئ وواضح، بلهجة فلسطينية حضرية طبيعية، وبأسلوب مستشارة مبيعات لبقة. انطقي النص العربي كما هو، من دون إضافة كلمات."})});
@@ -87,7 +92,7 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   res.set("Cache-Control","no-store");
   const t=now(),ip=String(req.ip||"unknown"),recent=(limits.get(ip)||[]).filter(x=>t-x<WINDOW);
   if(recent.length>=LIMIT)return res.status(429).json({ok:false,code:"NAYA_RATE_LIMIT",message:"وصلنا لعدد كبير من الرسائل بسرعة. جربي بعد دقائق."});
-  recent.push(t);limits.set(ip,recent);
+  recent.push(t);rememberRateLimit(limits,ip,recent);
   const message=clean(req.body?.message);
   if(!message)return res.status(400).json({ok:false,code:"NAYA_MESSAGE_REQUIRED",message:"اكتبي سؤالك لنايا."});
   const key=clean(env.OPENAI_API_KEY,500);
@@ -136,5 +141,5 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
  return router;
 }
 function registerNayaAi(app,options){app.use("/api/ai",createNayaAiRouter(options))}
-module.exports={createNayaAiRouter,registerNayaAi,clean,history,product,parseReply,sanitizeCustomerProfile,buildNayaMessages,buildStoreAssistantMessages};
+module.exports={createNayaAiRouter,registerNayaAi,clean,history,product,parseReply,sanitizeCustomerProfile,buildNayaMessages,buildStoreAssistantMessages,rememberRateLimit};
 

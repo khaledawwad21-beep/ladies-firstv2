@@ -60,3 +60,19 @@ test("Naya voice endpoint refuses text without an API key",async t=>{
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"مرحبًا"})});
  assert.equal(res.status,503);assert.equal((await res.json()).code,"NAYA_AI_NOT_CONFIGURED");
 });
+
+test("Naya voice endpoint honors the Render OPENAI_TTS_VOICE setting",async t=>{
+ let captured;
+ const app=express();app.use(express.json());
+ app.use("/api/ai",createNayaAiRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret",OPENAI_TTS_VOICE:"marin"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}}}));
+ const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
+ const res=await fetch(`http://127.0.0.1:${server.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"مرحبًا"})});
+ assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).voice,"marin");
+});
+
+test("Naya rate-limit state has a fixed memory bound",()=>{
+ const {rememberRateLimit}=require("../src/naya-ai");
+ const map=new Map();
+ for(let i=0;i<5001;i++)rememberRateLimit(map,`ip-${i}`,[i]);
+ assert.equal(map.size,5000);assert.equal(map.has("ip-0"),false);assert.equal(map.has("ip-5000"),true);
+});

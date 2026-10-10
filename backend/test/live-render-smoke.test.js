@@ -5,12 +5,16 @@ const path=require("node:path");
 
 const root=path.join(__dirname,"..","..");
 const start=fs.readFileSync(path.join(root,"backend","src","start.js"),"utf8");
+const health=fs.readFileSync(path.join(root,"backend","src","health-handler.js"),"utf8");
 const workflow=fs.readFileSync(path.join(root,".github","workflows","production-regression.yml"),"utf8");
 
-test("health endpoint exposes the exact Render deploy commit",()=>{
-  assert.match(start,/RENDER_GIT_COMMIT/);
-  assert.match(start,/gitCommit:/);
-  assert.match(start,/RENDER_GIT_BRANCH/);
+test("health endpoint exposes the exact Render deploy commit and database health",()=>{
+  assert.match(start,/health-handler/);
+  assert.match(health,/RENDER_GIT_COMMIT/);
+  assert.match(health,/gitCommit:/);
+  assert.match(health,/RENDER_GIT_BRANCH/);
+  assert.match(health,/getDatabaseStatus/);
+  assert.match(health,/databaseConnected/);
 });
 
 test("main pushes verify the live Render service after regression passes",()=>{
