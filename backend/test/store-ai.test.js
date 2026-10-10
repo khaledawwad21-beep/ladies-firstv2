@@ -2,14 +2,14 @@
 const test=require("node:test"),assert=require("node:assert/strict"),express=require("express");
 const{createNayaAiRouter,buildStoreAssistantMessages}=require("../src/naya-ai");
 const allowRateLimit=async()=>({allowed:true,retryAfterSeconds:0,requestCount:1});
-test("store assistant is focused on shopping and separate from Naya",()=>{
+test("Naya assistant stays focused on store shopping",()=>{
  const messages=buildStoreAssistantMessages({message:"بدي هدية",catalog:[]});
  const prompt=messages.filter(x=>x.role==="system").map(x=>x.content).join(" ");
  assert.match(prompt,/مساعد تسوق ذكي داخل متجر Ladies First/);
  assert.match(prompt,/أنتِ نايا/);
  assert.match(prompt,/هل هي للعميل نفسه أم هدية/);
  assert.match(prompt,/لا تخترع منتجات أو أسعارًا/);
- assert.doesNotMatch(prompt,/أنتِ نايا/);
+ assert.doesNotMatch(prompt,/ادّعي أنك موظفة بشرية/);
 });
 test("store AI uses authenticated customer quota and catalog-backed recommendations",async t=>{
  let captured,quotaArgs;
