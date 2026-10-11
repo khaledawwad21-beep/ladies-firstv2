@@ -56,3 +56,41 @@ test('seasonal motifs use the active theme only and do not block controls',()=>{
  assert.match(css,/prefers-reduced-motion/);
  assert.doesNotMatch(source,/setInterval|localStorage|addEventListener\(['"]scroll/);
 });
+
+
+test('seasonal motifs alternate genuinely colored and hollow SVG icons',()=>{
+  for(const id of ['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year']){
+    const x=render(id);
+    assert.ok(x.header.children[0].classes.has('lf-seasonal-vector--filled'),id+' colored header');
+    assert.ok(x.header.children[1].classes.has('lf-seasonal-vector--outline'),id+' open-line header');
+    assert.ok(x.panels[0].children[0].classes.has('lf-seasonal-vector--filled'),id+' first panel');
+    assert.ok(x.panels[1].children[0].classes.has('lf-seasonal-vector--outline'),id+' second panel');
+    assert.ok(x.footer.children[0].classes.has('lf-seasonal-vector--filled'),id+' footer color');
+    assert.ok(x.footer.children[1].classes.has('lf-seasonal-vector--outline'),id+' footer outline');
+    assert.ok(x.headings[0].children[0].classes.has('lf-seasonal-vector--filled'));
+    assert.ok(x.headings[1].children[0].classes.has('lf-seasonal-vector--outline'));
+    assert.match(x.header.children[0].innerHTML,/lf-seasonal-painted/);
+    assert.doesNotMatch(x.header.children[1].innerHTML,/lf-seasonal-painted/);
+  }
+});
+test('Eid al-Adha emblem is an anatomically legible sheep rather than a wool cloud',()=>{
+  const x=render('eid-adha');
+  const colored=x.header.children[0].innerHTML;
+  const outline=x.header.children[1].innerHTML;
+  assert.match(colored,/M19 48h7v19h-7/); // separate legs before the wool
+  assert.match(colored,/M55 25c5-7/); // recognizable head
+  assert.match(colored,/lf-seasonal-eye/); // eye
+  assert.match(colored,/M17 64h10v6H17/); // feet/hooves
+  assert.match(outline,/M20 52v16h7V53/); // outline four legs
+  assert.match(outline,/<circle cx='66' cy='31' r='2'/); // face details
+  assert.notEqual(colored,outline);
+});
+test('filled icons use distinct color channels and outlined icons stay unfilled',()=>{
+  assert.match(css,/--season-icon-main:/);
+  assert.match(css,/--season-icon-secondary:/);
+  assert.match(css,/--season-icon-soft:/);
+  assert.match(css,/\.lf-seasonal-vector--outline path/);
+  assert.match(css,/fill:none!important/);
+  assert.match(css,/\.lf-seasonal-vector--filled \.lf-seasonal-painted-deep/);
+  assert.match(css,/pointer-events:none!important/);
+});
