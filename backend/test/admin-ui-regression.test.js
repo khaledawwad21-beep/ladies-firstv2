@@ -88,7 +88,7 @@ test("offers use live visual product search and can edit sale price",()=>{
 
 test("slider and product media support multi-file selection",()=>{
   assert.match(adminHome,/type="file" multiple/);
-  assert.match(adminHome,/adminUploadMany\(selected\)/);
+  assert.match(adminHome,/adminUploadMany\(selected,'hero-desktop'\)/);
   assert.match(productAdmin,/pMainFiles/);
   assert.match(productAdmin,/pSubFiles/);
   assert.match(productAdmin,/multiple accept="image\/png,image\/jpeg,image\/webp"/);
