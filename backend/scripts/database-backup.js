@@ -33,7 +33,14 @@ function postgresTool(tool, args, { connection, input } = {}) {
     "postgres:18", tool, ...args], {
     env, input, maxBuffer: 512 * 1024 * 1024, timeout: 10 * 60 * 1000
   });
-  if (result.error) {
+  // pg_restore --list may stop reading after it has parsed the archive TOC.
+  // Docker can then report EPIPE while the tool still exits successfully.
+  const successfulListAfterClosedInput = tool === "pg_restore"
+    && args.includes("--list")
+    && Boolean(input)
+    && result.error?.code === "EPIPE"
+    && result.status === 0;
+  if (result.error && !successfulListAfterClosedInput) {
     const code = result.error.code || "unknown";
     throw new Error(`${tool} could not start (runner error ${code}; credentials suppressed)`);
   }
