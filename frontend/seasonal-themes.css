@@ -208,3 +208,101 @@ html:not([data-theme="none"])[data-theme] body > footer {
   .lf-seasonal-divider__icon{width:31px!important;height:31px!important;}
   .lf-seasonal-title-icon{width:22px!important;height:22px!important;}
 }
+
+/* Seasonal ornaments v4: a deliberately balanced combination of colored enamel-like
+   motifs and open-line illustrations. No photographs, emoji, fonts or dependencies. */
+html[data-theme="ramadan"] {
+  --season-icon-main:#e5ba70;--season-icon-secondary:#e1b6c6;--season-icon-deep:#744666;
+  --season-icon-soft:#fff2d8;--season-icon-stroke:#65405b;--season-icon-halo:#fae4ae77;
+}
+html[data-theme="eid-fitr"] {
+  --season-icon-main:#d9a477;--season-icon-secondary:#d8aa76;--season-icon-deep:#985c64;
+  --season-icon-soft:#fff2dd;--season-icon-stroke:#794a5d;--season-icon-halo:#f5dbc180;
+}
+html[data-theme="eid-adha"] {
+  --season-icon-main:#ddad7b;--season-icon-secondary:#ba8c65;--season-icon-deep:#765449;
+  --season-icon-soft:#fff0d7;--season-icon-stroke:#63433a;--season-icon-halo:#f1dec382;
+}
+html[data-theme="halloween"] {
+  --season-icon-main:#d08b5a;--season-icon-secondary:#df9363;--season-icon-deep:#683f60;
+  --season-icon-soft:#fbe0bb;--season-icon-stroke:#59364f;--season-icon-halo:#dd9a7966;
+}
+html[data-theme="christmas"] {
+  --season-icon-main:#a7be98;--season-icon-secondary:#ccab77;--season-icon-deep:#476c57;
+  --season-icon-soft:#f5e9cb;--season-icon-stroke:#6b3b47;--season-icon-halo:#dfd4b87a;
+}
+html[data-theme="new-year"] {
+  --season-icon-main:#e3c88e;--season-icon-secondary:#c9a25f;--season-icon-deep:#6e4d75;
+  --season-icon-soft:#fff3dc;--season-icon-stroke:#61415a;--season-icon-halo:#e5cf9875;
+}
+.lf-seasonal-vector--filled {
+  color:var(--season-icon-stroke)!important;
+  stroke:var(--season-icon-stroke)!important;
+}
+.lf-seasonal-vector--outline {
+  color:var(--season-icon-stroke)!important;
+  fill:none!important;
+  stroke:var(--season-icon-stroke)!important;
+  stroke-width:2.35!important;
+}
+.lf-seasonal-vector--filled .lf-seasonal-halo {
+  fill:var(--season-icon-halo)!important;stroke:none!important;
+}
+.lf-seasonal-vector--filled .lf-seasonal-painted {
+  fill:var(--season-icon-main)!important;stroke:var(--season-icon-stroke)!important;stroke-width:1.55!important;
+}
+.lf-seasonal-vector--filled .lf-seasonal-painted-secondary {
+  fill:var(--season-icon-secondary)!important;stroke:var(--season-icon-stroke)!important;stroke-width:1.5!important;
+}
+.lf-seasonal-vector--filled .lf-seasonal-painted-deep {
+  fill:var(--season-icon-deep)!important;stroke:var(--season-icon-stroke)!important;stroke-width:1.6!important;
+}
+.lf-seasonal-vector--filled .lf-seasonal-painted-soft {
+  fill:var(--season-icon-soft)!important;stroke:var(--season-icon-stroke)!important;stroke-width:1.7!important;
+}
+.lf-seasonal-vector--filled .lf-seasonal-detail {
+  fill:none!important;stroke:var(--season-icon-stroke)!important;stroke-width:1.75!important;
+}
+.lf-seasonal-vector--filled .lf-seasonal-eye {
+  fill:#2f2424!important;stroke:none!important;
+}
+/* Open-line remains truly unfilled rather than a faded duplicate of the colored icon. */
+.lf-seasonal-vector--outline path,.lf-seasonal-vector--outline circle,
+.lf-seasonal-vector--outline ellipse {
+  fill:none!important;stroke:var(--season-icon-stroke)!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament.lf-seasonal-vector--filled {
+  opacity:1!important;filter:drop-shadow(0 3px 2px #54352116);
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament.lf-seasonal-vector--outline {
+  opacity:.78!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor.lf-seasonal-vector--filled {
+  opacity:.8!important;color:var(--season-icon-deep)!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor.lf-seasonal-vector--outline {
+  opacity:.56!important;color:var(--season-icon-stroke)!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon.lf-seasonal-vector--outline {
+  opacity:.83!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon.lf-seasonal-vector--filled {
+  opacity:.95!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon.lf-seasonal-vector--outline {
+  opacity:.7!important;
+}
+@media(max-width:760px){
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
+    width:47px!important;height:47px!important;
+  }
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--header {
+    width:31px!important;height:31px!important;
+  }
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--panel {
+    width:56px!important;height:56px!important;
+  }
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon {
+    width:22px!important;height:22px!important;
+  }
+}
