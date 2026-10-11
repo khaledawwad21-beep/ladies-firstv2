@@ -568,3 +568,22 @@ html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-s
   html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--start {inset-inline-start:6px;}
   html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--end {inset-inline-end:6px;}
 }
+
+/* v5: seasonal color art is anchored to the photo area and stays clear of labels. */
+.cat {position:relative;}
+.lf-seasonal-category-art {
+  position:absolute;top:7px;inset-inline-end:7px;z-index:4;
+  width:36px;height:36px;padding:3px;border-radius:50%;
+  background:color-mix(in srgb,#fff 86%,var(--season-icon-halo));
+  filter:drop-shadow(0 2px 4px #39223825);
+  pointer-events:none!important;user-select:none;
+}
+.lf-seasonal-category-art .lf-seasonal-painted,
+.lf-seasonal-category-art .lf-seasonal-painted-secondary,
+.lf-seasonal-category-art .lf-seasonal-painted-deep,
+.lf-seasonal-category-art .lf-seasonal-painted-soft,
+.lf-seasonal-category-art .lf-seasonal-detail {vector-effect:non-scaling-stroke;}
+html[data-theme="none"] .lf-seasonal-category-art {display:none!important;}
+@media(max-width:760px){
+  .lf-seasonal-category-art {width:31px;height:31px;top:5px;inset-inline-end:5px;}
+}
