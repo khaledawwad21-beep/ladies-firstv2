@@ -41,8 +41,8 @@ test('active seasons receive header, banner, multiple section and footer SVG mot
     assert.equal(x.header.children.length,2,id+' header');
     assert.equal(x.footer.children.length,2,id+' footer');
     assert.equal(x.root.children.length,1,id+' welcome');
-    assert.ok(x.hero.added?.classes.has('lf-seasonal-divider'),id+' hero separator');
-    assert.ok(x.cats.added?.classes.has('lf-seasonal-divider'),id+' category separator');
+    assert.ok(x.hero.added?.className==='lf-seasonal-divider',id+' hero separator');
+    assert.ok(x.cats.added?.className==='lf-seasonal-divider',id+' category separator');
     assert.ok(x.panels.every(y=>y.children.length===1),id+' promotions');
     assert.ok(x.headings.every(y=>y.children.length===1),id+' headings');
     assert.ok(x.discovery.children.length===2,id+' featured ideas');
