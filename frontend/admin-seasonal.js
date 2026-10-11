@@ -28,19 +28,19 @@ function seasonalRender() {
       <div id="seasonImportStatus" role="status" aria-live="polite"></div>
     </div>
     <p class="small-note">المقاسات المقترحة: كمبيوتر 1920×900، موبايل 1080×1350، بطاقة معايدة 3:2 بمقاس 15×10 سم. النصوص والأسماء داخل البطاقات تبقى قابلة للتعديل.</p>
-    ${[['desktop','بانر الكمبيوتر'],['mobile','بانر الموبايل'],['card','خلفية بطاقة المعايدة']].map(([kind,label])=>`<div style="padding:10px 0;border-bottom:1px solid #eadce3">
+    ${[['desktop','بانر الكمبيوتر'],['mobile','بانر الموبايل'],['card','بطاقة المعايدة الأولى'],['card2','بطاقة المعايدة الثانية'],['card3','بطاقة المعايدة الثالثة']].map(([kind,label])=>`<div style="padding:10px 0;border-bottom:1px solid #eadce3">
       <b>${label}</b><div style="margin:9px 0">${bannerPreview(current[kind],label)}</div>
       <div class="toolbar"><label class="btn">رفع صورة<input type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="seasonalUpload('${kind}',this)"></label>
       <button class="btn" type="button" onclick="seasonalClear('${kind}')">العودة للتصميم الافتراضي</button></div>
       <input class="field" aria-label="رابط ${label}" placeholder="رابط صورة مرفوعة أو رابط HTTPS" value="${E(current[kind]||'')}" onchange="seasonalSet('${kind}',this.value)" style="width:100%">
     </div>`).join('')}
-    <p class="small-note">عند ترك صورة البطاقة فارغة سيتم استخدام بانر المناسبة؛ ويمكن رفع نسخة خاصة بالطباعة. صورة رأس السنة يجب أن تكون بدون سنة مرسومة عليها حتى يظهر الرقم الآلي الصحيح فوقها.</p>
+    <p class="small-note">كل مناسبة فيها 3 بطاقات مستقلة، ويمكن تغيير أي واحدة دون التأثير على الأخرى. عند عدم رفع صور تبقى الخلفيات البسيطة الاحتياطية. حزمة الصور الجديدة تحتوي بنر رأس السنة بدون رقم ثابت، ويعرض الموقع السنة المطلوبة تلقائيًا.</p>
     <div class="actions"><button id="seasonSaveBtn" class="btn primary" type="button" onclick="seasonalSave()" ${seasonalBusy?'disabled':''}>تفعيل وحفظ التعديلات</button><a class="btn" href="/" target="_blank" rel="noopener">معاينة المتجر</a></div>
     <div id="seasonStatus" role="status"></div>
   </div>`;
 }
 window.seasonalPick=function(id){if(!seasonalLabels[id]||id==='none')return;seasonalEditing=id;seasonalRender()};
-window.seasonalSet=function(kind,url){if(!['desktop','mobile','card'].includes(kind))return;(seasonalDraft.banners[seasonalEditing]||={})[kind]=String(url||'').trim();};
+window.seasonalSet=function(kind,url){if(!['desktop','mobile','card','card2','card3'].includes(kind))return;(seasonalDraft.banners[seasonalEditing]||={})[kind]=String(url||'').trim();};
 window.seasonalClear=function(kind){seasonalSet(kind,'');seasonalRender()};
 window.seasonalUpload=async function(kind,input){
   const file=input.files?.[0];if(!file||seasonalBusy)return;
