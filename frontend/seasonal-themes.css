@@ -720,3 +720,30 @@ html[data-theme]:not([data-theme="none"]) #cats{padding-top:78px!important;}
  html[data-theme]:not([data-theme="none"]) #cats::before{width:51px;height:51px;top:3px;}
  html[data-theme]:not([data-theme="none"]) #cats{padding-top:62px!important;}
 }
+
+/* v11: no seasonal badges on category photos. More seasonal detail stays in the clear space above the grid. */
+.lf-seasonal-category-art {display:none!important;visibility:hidden!important;}
+html[data-theme]:not([data-theme="none"]) #cats {padding-top:88px!important;}
+html[data-theme]:not([data-theme="none"]) #cats::before {
+  width:76px!important;height:72px!important;top:8px!important;z-index:4!important;
+}
+html[data-theme]:not([data-theme="none"]) #cats::after {
+  content:"";position:absolute;top:13px;left:50%;transform:translateX(-50%);
+  width:min(78%,360px);height:47px;box-sizing:border-box;z-index:3;
+  border-bottom:2px solid color-mix(in srgb,var(--season-accent) 70%,transparent);
+  border-radius:0 0 50% 50%;pointer-events:none;opacity:.78;
+  background:
+    radial-gradient(circle at 8% 70%,var(--season-accent) 0 2px,transparent 3px),
+    radial-gradient(circle at 22% 86%,var(--season-edge) 0 2px,transparent 3px),
+    radial-gradient(circle at 36% 96%,var(--season-accent) 0 2px,transparent 3px),
+    radial-gradient(circle at 64% 96%,var(--season-accent) 0 2px,transparent 3px),
+    radial-gradient(circle at 78% 86%,var(--season-edge) 0 2px,transparent 3px),
+    radial-gradient(circle at 92% 70%,var(--season-accent) 0 2px,transparent 3px);
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:76px!important;height:76px!important;}
+@media(max-width:760px) {
+  html[data-theme]:not([data-theme="none"]) #cats {padding-top:82px!important;}
+  html[data-theme]:not([data-theme="none"]) #cats::before {width:68px!important;height:64px!important;top:7px!important;}
+  html[data-theme]:not([data-theme="none"]) #cats::after {top:12px;width:88%;height:39px;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:52px!important;height:52px!important;}
+}
