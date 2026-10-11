@@ -27,7 +27,7 @@ function seasonalRender() {
       <label class="btn" style="display:inline-block">اختيار حزمة التصاميم <input id="seasonalZipUpload" type="file" accept=".zip,application/zip" style="display:none" onchange="seasonalImportZip(this)"></label>
       <div id="seasonImportStatus" role="status" aria-live="polite"></div>
     </div>
-    <p class="small-note">المقاسات المقترحة: كمبيوتر 1920×900، موبايل 1080×1350، بطاقة معايدة 3:2 بمقاس 15×10 سم. النصوص والأسماء داخل البطاقات تبقى قابلة للتعديل.</p>
+    <p class="small-note">ترتيب الصور تلقائيًا: بنر 1920×900، جوال حتى 1080×1350، وبطاقات 1500×1000 (15×10 سم). نحافظ على النص داخل الصورة، ونملأ الأطراف الناقصة بخلفية من نفس ألوانها، بدون قص. النصوص والأسماء داخل البطاقات تبقى قابلة للتعديل.</p>
     ${[['desktop','بانر الكمبيوتر'],['mobile','بانر الموبايل'],['card','بطاقة المعايدة الأولى'],['card2','بطاقة المعايدة الثانية'],['card3','بطاقة المعايدة الثالثة']].map(([kind,label])=>`<div style="padding:10px 0;border-bottom:1px solid #eadce3">
       <b>${label}</b><div style="margin:9px 0">${bannerPreview(current[kind],label)}</div>
       <div class="toolbar"><label class="btn">رفع صورة<input type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="seasonalUpload('${kind}',this)"></label>
@@ -47,7 +47,8 @@ window.seasonalUpload=async function(kind,input){
   const id=seasonalEditing;seasonalBusy=true;
   const msg=$('#seasonStatus');if(msg)msg.textContent='جاري رفع الصورة…';
   try {
-    const url=(await adminUploadMany([file]))[0];
+    const slot=kind==='desktop'?'season-desktop':kind==='mobile'?'season-mobile':'greeting-card';
+    const url=(await adminUploadMany([file],slot))[0];
     (seasonalDraft.banners[id]||={})[kind]=url;
     seasonalRender();
     $('#seasonStatus').textContent='تم رفع الصورة؛ اضغط تفعيل وحفظ التعديلات لنشرها.';
@@ -113,7 +114,8 @@ window.seasonalImportZip=async function seasonalImportZip(input){
     let done=0;
     for(const [name,file] of files){
       const m=/^(ramadan|eid-fitr|eid-adha|halloween|christmas|new-year)-(desktop|card-[123])\.webp$/.exec(name);
-      const url=(await adminUploadMany([file]))[0];
+      const slot=m[2]==='desktop'?'season-desktop':'greeting-card';
+      const url=(await adminUploadMany([file],slot))[0];
       if(!url)throw Error('تعذر حفظ الصورة '+name);
       const field=m[2]==='desktop'?'desktop':m[2]==='card-1'?'card':m[2]==='card-2'?'card2':'card3';
       (updated.banners[m[1]]||={})[field]=url;
