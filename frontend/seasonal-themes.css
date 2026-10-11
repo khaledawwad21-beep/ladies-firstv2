@@ -545,15 +545,15 @@ html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {
 }
 html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--start {inset-inline-start:10px;}
 html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {inset-inline-end:10px;transform:translateY(-50%) scaleX(-1);}
-.lf-flourish-stem {fill:none;stroke:var(--season-icon-stroke);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
-.lf-flourish-leaf {stroke:var(--season-icon-stroke);stroke-width:1.8;stroke-linejoin:round;}
+.lf-flourish-stem {fill:none;stroke:var(--season-icon-stroke);stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round;}
+.lf-flourish-leaf {stroke:var(--season-icon-stroke);stroke-width:2.1;stroke-linejoin:round;}
 .lf-flourish-leaf--main {fill:var(--season-icon-main);}
 .lf-flourish-leaf--secondary {fill:var(--season-icon-secondary);}
 .lf-flourish-leaf--soft {fill:var(--season-icon-soft);}
 .lf-flourish-berry {fill:var(--season-icon-deep);stroke:#fff;stroke-width:1;}
 html[data-theme]:not([data-theme="none"]) #cats .cat {overflow:hidden!important;}
 html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card {
-  position:absolute;top:8px;width:48px;height:40px;z-index:2;
+  position:absolute;top:6px;width:66px;height:52px;z-index:2;
   opacity:.96;filter:drop-shadow(0 2px 3px #3a253222);
 }
 html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--start {inset-inline-start:8px;}
@@ -564,7 +564,7 @@ html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-s
   html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {width:68px;height:56px;}
   html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--start {inset-inline-start:3px;}
   html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {inset-inline-end:3px;}
-  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card {width:40px;height:34px;top:6px;}
+  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card {width:54px;height:42px;top:4px;}
   html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--start {inset-inline-start:6px;}
   html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--end {inset-inline-end:6px;}
 }
