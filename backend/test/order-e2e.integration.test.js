@@ -50,6 +50,23 @@ if (process.env.RUN_DB_E2E !== "1") {
     await closeDatabase();
   });
 
+  test("production Visa rejection happens before any order or stock mutation", async () => {
+    const previous = process.env.NODE_ENV;
+    const before = await db("SELECT COUNT(*)::int AS count FROM orders");
+    try {
+      process.env.NODE_ENV = "production";
+      await assert.rejects(api("/api/orders", {
+        method: "POST",
+        body: JSON.stringify({ paymentMethod: "visa", items: [{ productId: 1, quantity: 1 }] })
+      }), error => error.status === 503 && error.body.code === "ONLINE_PAYMENT_UNAVAILABLE");
+      const after = await db("SELECT COUNT(*)::int AS count FROM orders");
+      assert.deepEqual(after.rows, before.rows);
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previous;
+    }
+  });
+
   test("customer order completes the real HTTP + PostgreSQL + admin lifecycle", async () => {
     const owner = await api("/api/auth/bootstrap-owner", {
       method: "POST",

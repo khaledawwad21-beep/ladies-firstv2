@@ -93,6 +93,21 @@ jobs:
           JWT_SECRET: ci-e2e-secret-123456789012345678901234
         run: node --test test/admin-permissions.e2e.test.js
 
+      - name: Verify PostgreSQL backup and full restore in isolated CI
+        env:
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node scripts/database-fingerprint.js "$RUNNER_TEMP/before.json"
+          docker exec "$POSTGRES_CONTAINER" pg_dump -U ladies -d ladies_ci --format=custom --no-owner --no-acl > "$RUNNER_TEMP/restore-drill.dump"
+          docker exec "$POSTGRES_CONTAINER" createdb -U ladies ladies_restore
+          docker exec -i "$POSTGRES_CONTAINER" pg_restore -U ladies -d ladies_restore --exit-on-error --no-owner --no-acl < "$RUNNER_TEMP/restore-drill.dump"
+          DATABASE_URL=postgresql://ladies@127.0.0.1:5432/ladies_restore node scripts/database-fingerprint.js "$RUNNER_TEMP/after.json"
+          cmp "$RUNNER_TEMP/before.json" "$RUNNER_TEMP/after.json"
+          rm -f "$RUNNER_TEMP/restore-drill.dump" "$RUNNER_TEMP/before.json" "$RUNNER_TEMP/after.json"
+          echo "All table rows and sequence values survived PostgreSQL backup and restore."
+
 
   live-render-smoke:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -123,14 +138,12 @@ jobs:
           echo "Render did not expose the expected commit within the smoke-check window."
           exit 1
 
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - name: Verify live storefront and public APIs
         env:
           BASE_URL: https://ladies-firstv2.onrender.com
-        run: |
-          curl --fail --silent --show-error --max-time 20 "$BASE_URL/" | grep -qi "Ladies First"
-          curl --fail --silent --show-error --max-time 20 "$BASE_URL/admin.html" | grep -qi "Ladies First"
-          for endpoint in /api/products /api/settings /api/categories /api/brands; do
-            body="$(curl --fail --silent --show-error --max-time 20 "$BASE_URL$endpoint")"
-            printf '%s' "$body" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert isinstance(data, dict)'
-          done
-          echo "Live storefront, admin page and public APIs are responding correctly."
+          EXPECTED_SHA: ${{ github.sha }}
+        run: node backend/scripts/live-smoke.js

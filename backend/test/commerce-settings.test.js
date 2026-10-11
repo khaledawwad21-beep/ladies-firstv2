@@ -40,9 +40,10 @@ test("admin can configure loyalty, packaging and Visa discount", () => {
   assert.match(admin, /packaging_options:adminPackagingOptions/);
 });
 
-test("storefront uses authoritative global Visa discount", () => {
+test("storefront suppresses unavailable Visa while retaining discount arithmetic", () => {
   assert.match(app, /storeCommerceSettings=\{visaDiscountPercent:0/);
-  assert.match(app, /st\.visa_discount_percent/);
+  assert.match(app, /storeCommerceSettings\.visaDiscountPercent=0;/);
+  assert.match(app, /value="visa" disabled/);
   assert.match(app, /function calculateDiscountBreakdown\(/);
   assert.match(app, /const afterCoupon=Math\.max\(0,merchandise-couponDiscount\)/);
   assert.match(app, /const visaDiscount=afterCoupon\*\(visaRate\/100\)/);

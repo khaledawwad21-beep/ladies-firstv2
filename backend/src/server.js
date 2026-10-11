@@ -2592,6 +2592,14 @@ app.post(
       });
     }
 
+    if (require("./payment-availability").onlinePaymentUnavailable(paymentMethod)) {
+      return res.status(503).json({
+        ok: false,
+        code: "ONLINE_PAYMENT_UNAVAILABLE",
+        message: "الدفع الإلكتروني غير متاح حاليًا. اختاري الدفع عند الاستلام لإتمام الطلب."
+      });
+    }
+
     const customerName =
       cleanText(
         req.body.customer_name ||
