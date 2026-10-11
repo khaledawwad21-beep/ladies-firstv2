@@ -134,6 +134,7 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
  const consumeRateLimit=rateLimiter||createPersistentRateLimiter({db,secret:env.RATE_LIMIT_SECRET||env.JWT_SECRET||env.OPENAI_API_KEY,now});
  const router=express.Router();
  async function checkLimit(req,res,{scope,limit,code,message}){
+  if(req.user?.role==="owner")return true;
   try{
    const userId=Number(req.user?.id),customerId=Number.isSafeInteger(userId)&&userId>0?"customer:"+userId:"";
    const clientId=customerId||"ip:"+String(req.ip||"unknown");
@@ -148,7 +149,7 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
    return false;
   }
  }
- router.post("/tts",async(req,res)=>{
+ router.post("/tts",optionalAuth||((_req,_res,next)=>next()),async(req,res)=>{
   res.set("Cache-Control","no-store");
   if(!await checkLimit(req,res,{scope:"naya-tts",limit:10,code:"NAYA_TTS_RATE_LIMIT",message:"جربي الاستماع بعد دقائق."}))return;
   const input=clean(req.body?.text,1200);
@@ -203,8 +204,10 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   const userId=Number(req.user?.id),principal=Number.isSafeInteger(userId)&&userId>0?"user:"+userId:"guest:"+crypto.createHmac("sha256",clean(env.STORE_AI_LIMIT_SECRET||env.RATE_LIMIT_SECRET||env.JWT_SECRET||key,500)).update(clean(String(req.ip||"unknown"),120)).digest("hex");
   const usageDay=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jerusalem",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(t));
   try{
-   const quota=await db("INSERT INTO store_ai_daily_usage (customer_key,usage_day,message_count,updated_at) VALUES ($1,$2,1,NOW()) ON CONFLICT (customer_key,usage_day) DO UPDATE SET message_count=store_ai_daily_usage.message_count+1,updated_at=NOW() WHERE store_ai_daily_usage.message_count < $3 RETURNING message_count",[principal,usageDay,dailyLimit]);
-   if(!quota.rows?.length)return res.status(429).json({ok:false,code:"STORE_AI_DAILY_LIMIT",message:"وصلت للحد اليومي لمساعد التسوق. ارجع جرّب بكرا."});
+   if(req.user?.role!=="owner"){
+    const quota=await db("INSERT INTO store_ai_daily_usage (customer_key,usage_day,message_count,updated_at) VALUES ($1,$2,1,NOW()) ON CONFLICT (customer_key,usage_day) DO UPDATE SET message_count=store_ai_daily_usage.message_count+1,updated_at=NOW() WHERE store_ai_daily_usage.message_count < $3 RETURNING message_count",[principal,usageDay,dailyLimit]);
+    if(!quota.rows?.length)return res.status(429).json({ok:false,code:"STORE_AI_DAILY_LIMIT",message:"وصلت للحد اليومي لمساعد التسوق. ارجع جرّب بكرا."});
+   }
    const result=await db(`SELECT p.id,p.name,p.description,p.price,p.old_price AS "oldPrice",p.stock,c.name AS category,b.name AS brand,COALESCE((SELECT json_agg(json_build_object('color',v.color,'size',v.size,'price',v.price,'stock',v.stock) ORDER BY v.id) FROM product_variants v WHERE v.product_id=p.id AND v.is_active=TRUE),'[]'::json) AS variants,(SELECT value FROM settings WHERE key IN ($$whatsapp_number$$,$$whatsapp$$) ORDER BY CASE key WHEN $$whatsapp_number$$ THEN 0 ELSE 1 END LIMIT 1) AS whatsappnumber FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE p.is_active=TRUE ORDER BY p.is_featured DESC,p.is_best_seller DESC,p.updated_at DESC,p.id DESC LIMIT $1`,[MAX_PRODUCTS]);
    const searchedProducts=await searchCatalog(db,message);
    const catalog=mergeProducts((result.rows||[]).map(product),searchedProducts);
