@@ -531,3 +531,40 @@ html[data-theme]:not([data-theme="none"]) #cats .cat label::before {
   html[data-theme]:not([data-theme="none"]) #cats .cat label {padding:9px 5px 8px!important;border-radius:0 0 12px 12px;}
   html[data-theme]:not([data-theme="none"]) #cats .cat label::before {width:24px;height:2px;margin-bottom:5px;}
 }
+
+/* Visible botanical artwork lives beside welcome copy and inside category photo corners. */
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
+  min-height:112px!important;padding-inline:132px!important;z-index:2;
+}
+.lf-seasonal-flourish {display:block;pointer-events:none;user-select:none;}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--start,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {
+  position:absolute;top:50%;width:112px;height:76px;z-index:1;
+  transform:translateY(-50%);
+  filter:drop-shadow(0 3px 4px color-mix(in srgb,var(--season-icon-deep) 22%,transparent));
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--start {inset-inline-start:10px;}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {inset-inline-end:10px;transform:translateY(-50%) scaleX(-1);}
+.lf-flourish-stem {fill:none;stroke:var(--season-icon-stroke);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
+.lf-flourish-leaf {stroke:var(--season-icon-stroke);stroke-width:1.8;stroke-linejoin:round;}
+.lf-flourish-leaf--main {fill:var(--season-icon-main);}
+.lf-flourish-leaf--secondary {fill:var(--season-icon-secondary);}
+.lf-flourish-leaf--soft {fill:var(--season-icon-soft);}
+.lf-flourish-berry {fill:var(--season-icon-deep);stroke:#fff;stroke-width:1;}
+html[data-theme]:not([data-theme="none"]) #cats .cat {overflow:hidden!important;}
+html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card {
+  position:absolute;top:8px;width:48px;height:40px;z-index:2;
+  opacity:.96;filter:drop-shadow(0 2px 3px #3a253222);
+}
+html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--start {inset-inline-start:8px;}
+html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--end {inset-inline-end:8px;transform:scaleX(-1);}
+@media(max-width:760px) {
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {min-height:88px!important;padding-inline:76px!important;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--start,
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {width:68px;height:56px;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--start {inset-inline-start:3px;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {inset-inline-end:3px;}
+  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card {width:40px;height:34px;top:6px;}
+  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--start {inset-inline-start:6px;}
+  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--end {inset-inline-end:6px;}
+}
