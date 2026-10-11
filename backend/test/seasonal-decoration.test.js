@@ -11,6 +11,7 @@ class Element {
   constructor(){this.children=[];this.classes=new Set();this.attributes={};this.classList={add:(...names)=>names.forEach(x=>this.classes.add(x))};}
   setAttribute(name,value){this.attributes[name]=value;}
   appendChild(child){this.children.push(child);return child;}
+  append(...children){children.forEach(x=>this.appendChild(x));}
   insertAdjacentElement(where,child){if(where!=='afterend')throw Error('Unsupported');this.added=child;}
 }
 function render(active){
