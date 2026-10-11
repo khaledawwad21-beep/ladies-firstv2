@@ -131,7 +131,7 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
         }
         await client.query("UPDATE naya_outfit_daily SET state='pending',job_id=$3,selection=$4,error_message=NULL,updated_at=NOW() WHERE user_id=$1 AND usage_day=$2",[req.user.id,day,job,JSON.stringify(chosen)]);return true;
       });
-      if(!accepted)return res.status(409).json({ok:false,message:'صورتك قيد التجهيز أو استخدمتِ حصتك اليومية. افتحي الإطلالة لرؤية النتيجة.'});
+      if(!accepted)return res.status(409).json({ok:false,message:owner?'صورتك قيد التجهيز. افتحي الإطلالة لرؤية النتيجة.':'صورتك قيد التجهيز أو استخدمتِ حصتك اليومية. افتحي الإطلالة لرؤية النتيجة.'});
       res.status(202).json({ok:true,state:'pending',day});
       // No automatic provider retries: a duplicate request can incur another image charge.
       (async()=>{
