@@ -7,11 +7,22 @@ const { encryptBackup, decryptBackup } = require("./backup-crypto");
 
 function postgresTool(tool, args, { connection, input } = {}) {
   // URLs remain in environment variables; never print credentials or database content.
+  const parameters = connection ? new URL(connection) : null;
+  const env = {
+    ...process.env,
+    PGDATABASE: parameters ? decodeURIComponent(parameters.pathname.slice(1)) : "",
+    PGHOST: parameters ? parameters.hostname : "",
+    PGPORT: parameters ? (parameters.port || "5432") : "",
+    PGUSER: parameters ? decodeURIComponent(parameters.username) : "",
+    PGPASSWORD: parameters ? decodeURIComponent(parameters.password) : "",
+    PGSSLMODE: parameters ? "verify-full" : "",
+    PGSSLROOTCERT: "/etc/ssl/certs/ca-certificates.crt"
+  };
   const result = spawnSync("docker", ["run", "--rm", "-i", "--network", "host",
-    "-e", "PGDATABASE", "-e", "PGSSLMODE", "-e", "PGSSLROOTCERT", "postgres:18", tool, ...args], {
-    env: { ...process.env, PGDATABASE: connection || "", PGSSLMODE: connection ? "verify-full" : "",
-      PGSSLROOTCERT: "/etc/ssl/certs/ca-certificates.crt" },
-    input, maxBuffer: 512 * 1024 * 1024, timeout: 10 * 60 * 1000
+    "-e", "PGDATABASE", "-e", "PGHOST", "-e", "PGPORT", "-e", "PGUSER",
+    "-e", "PGPASSWORD", "-e", "PGSSLMODE", "-e", "PGSSLROOTCERT",
+    "postgres:18", tool, ...args], {
+    env, input, maxBuffer: 512 * 1024 * 1024, timeout: 10 * 60 * 1000
   });
   if (result.error || result.status !== 0) throw new Error(`${tool} failed; inspect connectivity and PostgreSQL version (credentials suppressed)`);
   return result.stdout;
