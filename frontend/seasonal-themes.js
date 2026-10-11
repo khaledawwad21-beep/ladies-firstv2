@@ -9,10 +9,27 @@
   function flourish(className) {
     const svg=document.createElementNS(svgNs,'svg');
     svg.setAttribute('viewBox','0 0 160 90');
+    svg.setAttribute('width','112');
+    svg.setAttribute('height','76');
     svg.setAttribute('aria-hidden','true');
     svg.setAttribute('focusable','false');
     svg.classList.add('lf-seasonal-flourish',className);
-    svg.innerHTML=[
+    const isCard=className==='lf-seasonal-flourish--card';
+    const isEnd=className==='lf-seasonal-flourish--end' || (isCard && false);
+    svg.style.position='absolute';
+    svg.style.pointerEvents='none';
+    svg.style.zIndex=isCard?'2':'1';
+    if(isCard){
+      svg.style.top='8px';svg.style.width='48px';svg.style.height='40px';
+      svg.style.insetInlineEnd='8px';
+    }else{
+      svg.style.top='50%';svg.style.width='clamp(68px,8vw,112px)';svg.style.height='clamp(56px,5.5vw,76px)';
+      svg.style.insetInlineStart='10px';svg.style.transform='translateY(-50%)';
+    }
+    const artStyle=document.createElementNS(svgNs,'style');
+    artStyle.textContent='.lf-flourish-stem{fill:none;stroke:var(--season-icon-stroke,#63345e);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.lf-flourish-leaf{stroke:var(--season-icon-stroke,#63345e);stroke-width:1.8;stroke-linejoin:round}.lf-flourish-leaf--main{fill:var(--season-icon-main,#91aabd)}.lf-flourish-leaf--secondary{fill:var(--season-icon-secondary,#c2a5c7)}.lf-flourish-leaf--soft{fill:var(--season-icon-soft,#f7f5fb)}.lf-flourish-berry{fill:var(--season-icon-deep,#617c96);stroke:#fff;stroke-width:1}';
+    svg.appendChild(artStyle);
+    svg.innerHTML+= [
       "<path class='lf-flourish-stem' d='M6 82C37 73 47 56 68 42S111 27 151 8'/>",
       "<path class='lf-flourish-stem' d='M39 65C31 53 27 44 28 31M68 43C64 30 66 19 73 9M101 29c-1-12 3-20 11-26M121 22c8 3 15 9 19 17'/>",
       "<path class='lf-flourish-leaf lf-flourish-leaf--main' d='M28 47C14 41 10 28 13 17c15 1 25 11 25 24-3 4-6 6-10 6Z'/>",
@@ -37,13 +54,20 @@
       const year=document.createElement('span');year.className='lf-seasonal__year';
       year.textContent=String(settings.year||'');layout.appendChild(year);
     }
-    root.append(flourish('lf-seasonal-flourish--start'),layout,flourish('lf-seasonal-flourish--end'));
+    const left=flourish('lf-seasonal-flourish--start');
+    const right=flourish('lf-seasonal-flourish--end');
+    left.style.insetInlineStart='10px';left.style.insetInlineEnd='auto';
+    right.style.insetInlineStart='auto';right.style.insetInlineEnd='10px';right.style.transform='translateY(-50%) scaleX(-1)';
+    layout.style.position='relative';layout.style.zIndex='2';
+    root.append(left,layout,right);
   }
   const cards=document.querySelectorAll('#cats .cat');
   cards.forEach((card,index)=>{
     if(card.querySelector('.lf-seasonal-flourish--card'))return;
     const art=flourish('lf-seasonal-flourish--card');
-    art.classList.add(index%2?'lf-seasonal-flourish--start':'lf-seasonal-flourish--end');
+    const mirror=index%2===1;
+    art.classList.add(mirror?'lf-seasonal-flourish--start':'lf-seasonal-flourish--end');
+    if(mirror){art.style.insetInlineEnd='auto';art.style.insetInlineStart='8px';art.style.transform='scaleX(-1)';}
     const image=card.querySelector('img');
     if(image)image.insertAdjacentElement('afterend',art);
   });
