@@ -1,11 +1,16 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {normalize,renderHomeHTML,targetNewYear,safeState}=require('../src/seasonal-themes');
+const {normalize,renderHomeHTML,targetNewYear,safeState,THEME_IDS,GREETINGS}=require('../src/seasonal-themes');
 
 test('stores only supported seasonal themes and banner fields',()=>{
  const result=normalize({active:'eid-fitr',banners:{'eid-fitr':{desktop:'/api/images/abc',mobile:'',card:'https://example.com/card.webp'}}});
  assert.equal(result.active,'eid-fitr');
+ for(const id of ['spring','summer','autumn','winter']){
+  assert.equal(normalize({active:id}).active,id);
+  assert.ok(GREETINGS[id]);
+  assert.ok(THEME_IDS.includes(id));
+ }
  assert.equal(result.banners['eid-fitr'].card,'https://example.com/card.webp');
  assert.deepEqual(safeState({active:'invalid'}),{active:'none',banners:{}});
  assert.throws(()=>normalize({active:'unknown'}));
@@ -14,8 +19,9 @@ test('stores only supported seasonal themes and banner fields',()=>{
 });
 
 test('renders selected season into first HTML response without client-side storage',()=>{
- const html=renderHomeHTML('<!doctype html><html lang="ar" dir="rtl"><head></head><body>متجر</body></html>',{active:'ramadan',banners:{}});
- assert.match(html,/data-theme="ramadan"/);
+ const html=renderHomeHTML('<!doctype html><html lang="ar" dir="rtl"><head></head><body>متجر</body></html>',{active:'spring',banners:{}});
+ assert.match(html,/data-theme="spring"/);
+ assert.match(html,/أزهار الربيع/);
  assert.match(html,/window\.__LF_SEASONAL__/);
  assert.match(html,/رمضان كريم/);
  assert.doesNotMatch(html,/localStorage\.(getItem|setItem)/);
