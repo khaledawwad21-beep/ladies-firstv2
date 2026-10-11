@@ -36,18 +36,19 @@ test('no decorative DOM is created while the default theme is active',()=>{
   for(const node of [x.header,x.footer,x.root,x.hero,x.cats,x.products,x.discovery,...x.panels,...x.headings])
     assert.equal(node.children.length,0);
 });
-test('active seasons receive header, banner, multiple section and footer SVG motifs',()=>{
+test('active seasons receive clear seasonal accents across the page',()=>{
   for(const id of ['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year','spring','summer','autumn','winter']){
     const x=render(id);
-    assert.equal(x.header.children.length,2,id+' header');
-    assert.equal(x.footer.children.length,2,id+' footer');
+    assert.equal(x.header.children.length,0,id+' avoids repeated header symbols');
+    assert.equal(x.footer.children.length,1,id+' footer accent');
     assert.equal(x.root.children.length,1,id+' welcome');
     assert.ok(x.hero.added?.className==='lf-seasonal-divider',id+' hero separator');
     assert.ok(x.cats.added?.className==='lf-seasonal-divider',id+' category separator');
-    assert.ok(x.panels.every(y=>y.children.length===1),id+' promotions');
-    assert.ok(x.headings.every(y=>y.children.length===1),id+' headings');
-    assert.ok(x.discovery.children.length===2,id+' featured ideas');
-    assert.equal(x.header.children[0].attributes['aria-hidden'],'true');
+    assert.ok(x.panels.every(y=>y.children.length===0),id+' promotion panels stay uncluttered');
+    assert.ok(x.headings.every(y=>y.children.length===0),id+' headings avoid repeated icons');
+    assert.equal(x.discovery.children.length,1,id+' featured ideas accent');
+    assert.equal(x.cats.children.length,1,id+' category accent');
+    assert.equal(x.products.children.length,1,id+' product accent');
   }
 });
 test('seasonal motifs use the active theme only and do not block controls',()=>{
@@ -59,25 +60,22 @@ test('seasonal motifs use the active theme only and do not block controls',()=>{
 });
 
 
-test('seasonal motifs alternate genuinely colored and hollow SVG icons',()=>{
+test('seasonal accents use a restrained mix of filled and outline drawings',()=>{
   for(const id of ['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year','spring','summer','autumn','winter']){
-    const x=render(id);
-    assert.ok(x.header.children[0].classes.has('lf-seasonal-vector--filled'),id+' colored header');
-    assert.ok(x.header.children[1].classes.has('lf-seasonal-vector--outline'),id+' open-line header');
-    assert.ok(x.panels[0].children[0].classes.has('lf-seasonal-vector--filled'),id+' first panel');
-    assert.ok(x.panels[1].children[0].classes.has('lf-seasonal-vector--outline'),id+' second panel');
-    assert.ok(x.footer.children[0].classes.has('lf-seasonal-vector--filled'),id+' footer color');
-    assert.ok(x.footer.children[1].classes.has('lf-seasonal-vector--outline'),id+' footer outline');
-    assert.ok(x.headings[0].children[0].classes.has('lf-seasonal-vector--filled'));
-    assert.ok(x.headings[1].children[0].classes.has('lf-seasonal-vector--outline'));
-    assert.match(x.header.children[0].innerHTML,/lf-seasonal-painted/);
-    assert.doesNotMatch(x.header.children[1].innerHTML,/lf-seasonal-painted/);
+    const x=render(id),layout=x.root.children[0];
+    assert.ok(layout.children[0].classes.has('lf-seasonal-vector--filled'),id+' primary seasonal drawing');
+    assert.ok(layout.children[2].classes.has('lf-seasonal-vector--outline'),id+' secondary seasonal drawing');
+    assert.ok(x.cats.children[0].classes.has('lf-seasonal-vector--filled'),id+' category accent');
+    assert.ok(x.products.children[0].classes.has('lf-seasonal-vector--outline'),id+' product accent');
+    assert.ok(x.footer.children[0].classes.has('lf-seasonal-vector--filled'),id+' footer accent');
+    assert.match(layout.children[0].innerHTML,/lf-seasonal-painted/);
+    assert.doesNotMatch(layout.children[2].innerHTML,/lf-seasonal-painted/);
   }
 });
 test('Eid al-Adha emblem is an anatomically legible sheep rather than a wool cloud',()=>{
   const x=render('eid-adha');
-  const colored=x.header.children[0].innerHTML;
-  const outline=x.header.children[1].innerHTML;
+  const colored=x.cats.children[0].innerHTML;
+  const outline=x.products.children[0].innerHTML;
   assert.match(colored,/M19 48h7v19h-7/); // separate legs before the wool
   assert.match(colored,/M55 25c5-7/); // recognizable head
   assert.match(colored,/lf-seasonal-eye/); // eye
