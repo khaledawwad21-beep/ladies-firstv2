@@ -46,6 +46,7 @@ function adminCanvasBlob(canvas, type, quality) {
  */
 const ADMIN_IMAGE_PLACEMENTS=Object.freeze({
   product:{width:1800,height:1800,fit:'natural'},
+  logo:{width:800,height:800,fit:'natural'},
   category:{width:1200,height:1200,fit:'framed'},
   'hero-desktop':{width:1920,height:900,fit:'framed'},
   'hero-mobile':{width:1080,height:1350,fit:'natural'},
@@ -76,6 +77,15 @@ async function adminPreparePlacementImage(file,slot='product'){
   const width=Number(original.naturalWidth||original.width||0);
   const height=Number(original.naturalHeight||original.height||0);
   if(!width||!height)throw Error('أبعاد الصورة غير صالحة');
+  const preset=ADMIN_IMAGE_PLACEMENTS[slot];
+  if(!preset)throw Error('موضع الصورة غير معروف');
+  // Avoid needless recompression of an already optimized, correctly framed WebP.
+  const sourceRatio=width/height,targetRatio=preset.width/preset.height;
+  if(file.type==='image/webp'&&file.size<=ADMIN_IMAGE_TARGET_BYTES&&
+     width<=preset.width&&height<=preset.height&&
+     (preset.fit==='natural'||Math.abs(sourceRatio-targetRatio)<.015)) {
+    return adminImageDataUrl(file);
+  }
   let factor=1,quality=.9,blob=null;
   for(let attempt=0;attempt<10;attempt++){
     const g=adminPlacementGeometry(width,height,slot,factor);
