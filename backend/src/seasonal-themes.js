@@ -50,9 +50,15 @@ async function readState() {
   const data=await db("SELECT value FROM settings WHERE key = $1 LIMIT 1",['seasonal_theme_config']);
   return safeState(data.rows[0]?.value);
 }
+function targetNewYear(date=new Date()) {
+  const parts=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Hebron',year:'numeric',month:'numeric'}).formatToParts(date);
+  const year=Number(parts.find(p=>p.type==='year')?.value)||date.getUTCFullYear();
+  const month=Number(parts.find(p=>p.type==='month')?.value)||date.getUTCMonth()+1;
+  return month>=7?year+1:year;
+}
 function publicState(state) {
   const s=safeState(state);
-  return {...s,labels:LABELS,greetings:GREETINGS,year:new Date().getUTCFullYear()+1};
+  return {...s,labels:LABELS,greetings:GREETINGS,year:targetNewYear()};
 }
 // Inject on the server before the browser receives the first HTML byte; never use localStorage for active theme.
 function renderHomeHTML(source,state) {
@@ -65,6 +71,10 @@ function registerSeasonalThemeRoutes(app) {
   app.get('/api/seasonal-theme',async(req,res)=>{
     try { res.set('Cache-Control','no-store');res.json({ok:true,...publicState(await readState())}); }
     catch(err){res.status(503).json({ok:false,message:'تعذر قراءة الثيم النشط'});}
+  });
+  app.get('/api/admin/seasonal-theme',requireAdmin,async(req,res)=>{
+    try { res.set('Cache-Control','no-store');res.json({ok:true,...publicState(await readState())}); }
+    catch(err){res.status(503).json({ok:false,message:'تعذر تحميل الثيمات'});} 
   });
   app.put('/api/admin/seasonal-theme',requireAdmin,async(req,res)=>{
     try {
@@ -86,4 +96,4 @@ function registerSeasonalThemeRoutes(app) {
     }catch(error){next(error);}
   });
 }
-module.exports={THEME_IDS,LABELS,GREETINGS,normalize,safeState,publicState,renderHomeHTML,registerSeasonalThemeRoutes};
+module.exports={THEME_IDS,LABELS,GREETINGS,normalize,safeState,publicState,targetNewYear,renderHomeHTML,registerSeasonalThemeRoutes};
