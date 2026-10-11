@@ -49,3 +49,25 @@ test('store absolute image URLs resolve to the uploaded bytes without outbound f
  }
  assert.equal(queries.length,4);
 });
+
+
+test('occasion-aware styling uses visual products and varies poses without changing identity or measurements',()=>{
+ const bag=[{name:'شنطة',category:'حقائب'}];
+ const first=outfitPrompt(bag,null,0),second=outfitPrompt(bag,null,1),third=outfitPrompt(bag,null,2);
+ assert.match(first,/visually analyze EACH selected product reference/);
+ assert.match(first,/wedding guest, evening party, smart casual, everyday casual, university, work/);
+ assert.match(first,/Do not classify from the generic product name alone/);
+ assert.match(first,/styling suggestions only, never claimed to be store inventory/);
+ assert.match(first,/Do not default to the same white top and black trousers/);
+ assert.match(first,/Preserve each selected product color, pattern, cut, material/);
+ assert.match(first,/preserve her face, hair, adult identity/);
+ assert.match(first,/relaxed asymmetrical standing pose/);
+ assert.match(second,/natural mid-step fashion pose/);
+ assert.match(third,/poised editorial stance/);
+ assert.notEqual(first,second);
+ const measured=outfitPrompt(bag,{height:170,weight:75},1);
+ assert.match(measured,/"height":170/);
+ const bodyOnly=outfitPrompt([],{height:170},1);
+ assert.match(bodyOnly,/pink suit/);
+ assert.doesNotMatch(bodyOnly,/occasion|mid-step/);
+});
