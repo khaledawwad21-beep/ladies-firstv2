@@ -15,6 +15,7 @@ class Element {
 }
 function render(active){
   const header=new Element(),footer=new Element(),root=new Element(),hero=new Element(),cats=new Element(),discovery=new Element();
+  hero.parentNode={};cats.parentNode={};
   const panels=Array.from({length:3},()=>new Element());
   const headings=Array.from({length:4},()=>new Element());
   const doc={
