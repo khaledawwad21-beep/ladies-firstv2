@@ -117,7 +117,6 @@ test('four seasonal themes always add their own illustrated hero slide when no b
     assert.match(artwork,/<(?:path|circle|g)/,id+' has drawn scenery');
     assert.match(artwork,/LADIES FIRST · SEASONAL EDITION/,id+' carries the store identity');
     assert.match(app,new RegExp("'"+id+"':"),id+' fallback title is mapped');
-    assert.match(app,new RegExp("image:'/seasonal-"+id+"\\.svg'"),id+' is loaded as a safe local image URL');
   }
   assert.match(app,/else if\(\['spring','summer','autumn','winter'\]\.includes\(seasonal\.active\)\)/,'generated scenes are the fallback when no uploaded banner is configured');
   assert.match(app,/image:'\/seasonal-'\+seasonal\.active\+'\.svg'/,'the active seasonal SVG is loaded from a local URL');
