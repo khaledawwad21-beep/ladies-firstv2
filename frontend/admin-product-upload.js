@@ -91,7 +91,7 @@ async function adminPreparePlacementImage(file,slot='product'){
     const g=adminPlacementGeometry(width,height,slot,factor);
     const canvas=document.createElement('canvas');
     canvas.width=g.width;canvas.height=g.height;
-    const ctx=canvas.getContext('2d',{alpha:false});
+    const ctx=canvas.getContext('2d',{alpha:g.fit==='natural'});
     if(!ctx)throw Error('تعذر تجهيز الصورة لهذا القسم');
     if(g.fit==='framed'){
       ctx.fillStyle='#fbf4ec';ctx.fillRect(0,0,g.width,g.height);
