@@ -587,3 +587,51 @@ html[data-theme="none"] .lf-seasonal-category-art {display:none!important;}
 @media(max-width:760px){
   .lf-seasonal-category-art {width:31px;height:31px;top:5px;inset-inline-end:5px;}
 }
+
+/* v5 visibility repair: earlier hide rules disabled all seasonal illustrations. */
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {
+  display:block!important;visibility:visible!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  min-height:104px!important;padding-inline:112px!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
+  width:70px!important;height:70px!important;opacity:1!important;
+  top:50%!important;bottom:auto!important;
+  inset-inline-start:16px!important;inset-inline-end:auto!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament--right {
+  inset-inline-start:auto!important;inset-inline-end:16px!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section {
+  position:absolute;top:4px;inset-inline-end:5px;z-index:3;
+  width:46px!important;height:46px!important;opacity:.92!important;
+}
+html[data-theme]:not([data-theme="none"]) #products .lf-seasonal-decor--section {
+  top:8px;inset-inline-end:8px;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--discovery,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--footer {
+  position:absolute;inset-inline-end:12px;z-index:1;
+  width:58px!important;height:58px!important;opacity:.75!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {
+  display:block!important;opacity:.88!important;
+}
+@media(max-width:760px){
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
+    min-height:84px!important;padding-inline:62px!important;gap:6px;
+  }
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
+    width:48px!important;height:48px!important;inset-inline-start:6px!important;
+  }
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament--right {
+    inset-inline-start:auto!important;inset-inline-end:6px!important;
+  }
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section {
+    top:3px;inset-inline-end:3px;width:36px!important;height:36px!important;
+  }
+}
