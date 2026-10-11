@@ -836,7 +836,15 @@ function renderHeroSlider(fade=true){
   if(!slides.length)return;
   if(heroIndex>=slides.length)heroIndex=0;
   const s=slides[heroIndex];
-  document.querySelector('.heroSlider .heroCard')?.classList.toggle('lf-seasonal-slide',!!s.seasonal);
+  const heroFrame=document.querySelector('.heroSlider .heroCard');
+  if(heroFrame){
+    heroFrame.classList.toggle('lf-seasonal-slide',!!s.seasonal);
+    // Prevent stale dimensions when switching between text slides and image-only banners.
+    heroFrame.classList.toggle('lf-adaptive-slide',!!(s.seasonal||s.hideText));
+    if(heroFrame.style?.setProperty){
+      heroFrame.style.setProperty('--lf-banner-ratio','2.133333');
+    }
+  }
   const title=document.getElementById('heroTitle'),desc=document.getElementById('heroDesc'),cta=document.getElementById('heroCta');
   if(title)title.textContent=s.title;if(desc)desc.textContent=s.desc;if(cta)cta.textContent=currentLang==='en'?'Shop now':'تسوقي الآن';
   const heroCard=document.querySelector('.heroSlider .heroCard');if(heroCard)heroCard.classList.toggle('logo-only',!!s.hideText);const textPanel=document.querySelector('.heroSlider .heroText');if(textPanel)textPanel.hidden=!!s.hideText;
@@ -846,8 +854,15 @@ function renderHeroSlider(fade=true){
   const active=previous===layerA?layerB:layerA;
   const mobile=typeof window!=='undefined'&&window.matchMedia&&window.matchMedia('(max-width: 700px)').matches;
   const image=safeImg((mobile?heroMobileImageFor(s):'')||s.image,LOGO);
-  const reveal=src=>{
+  const reveal=(src,naturalWidth=0,naturalHeight=0)=>{
     if(request!==heroRenderRequest||!active)return;
+    // Use the REAL file dimensions, not a hard-coded 500px mobile slide height.
+    // A 1920×900 banner now occupies 360×169px on a 360px phone,
+    // without cropping its wording or creating 300px of empty space.
+    const ratio=Number(naturalWidth)/Number(naturalHeight);
+    if(heroFrame?.style?.setProperty && Number.isFinite(ratio) && ratio>0){
+      heroFrame.style.setProperty('--lf-banner-ratio',String(Math.max(.35,Math.min(7,ratio))));
+    }
     active.classList.remove('active');void active.offsetWidth;
     active.src=src;active.style.zIndex='2';if(previous)previous.style.zIndex='1';
     active.classList.add('active');
@@ -860,7 +875,7 @@ function renderHeroSlider(fade=true){
   if(typeof Image==='undefined')reveal(image);
   else{
     const preload=new Image();let fallbackUsed=false;
-    preload.onload=()=>{const ready=typeof preload.decode==='function'?preload.decode().catch(()=>{}):Promise.resolve();ready.then(()=>reveal(preload.src))};
+    preload.onload=()=>{const ready=typeof preload.decode==='function'?preload.decode().catch(()=>{}):Promise.resolve();ready.then(()=>reveal(preload.src,preload.naturalWidth,preload.naturalHeight))};
     preload.onerror=()=>{if(fallbackUsed)return;fallbackUsed=true;preload.src=safeImg(s.image,LOGO)};
     preload.src=image;
     // Warm the next slide while the current one is on screen.
