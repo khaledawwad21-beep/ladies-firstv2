@@ -106,3 +106,24 @@ test("Naya guest rate limit ignores resettable browser IDs and uses IP; accounts
  const signed=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer customer-token"},body:JSON.stringify({message:"مرحبا",clientId:"another-browser-id"})});assert.equal(signed.status,200);
  assert.equal(identities[0],identities[1]);assert.match(identities[0],/^ip:/);assert.equal(identities[2],"customer:42");assert.doesNotMatch(identities[0],/browser-customer|new-id/);
 });
+
+test("owner account bypasses Naya AI quotas while customer role stays rate limited",async t=>{
+ let rateCalls=0,dailyCalls=0;
+ const app=express();app.use(express.json());
+ app.use("/api/ai",createRouter({
+  optionalAuth:(req,res,next)=>{req.user=req.headers.authorization==="Bearer owner-token"?{id:1,role:"owner"}:{id:2,role:"customer"};next()},
+  rateLimiter:async()=>{rateCalls++;return{allowed:false,retryAfterSeconds:60}},
+  db:async query=>{if(/INSERT INTO store_ai_daily_usage/.test(query))dailyCalls++;return{rows:[]}},
+  env:{OPENAI_API_KEY:"secret"},
+  fetchImpl:async url=>url.includes("/audio/speech")?{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}:{ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:"أهلًا",recommendationIds:[]})}}]})}
+ }));
+ const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
+ const base="http://127.0.0.1:"+server.address().port+"/api/ai";
+ for(const [path,body] of [["/chat",{message:"مرحبا"}],["/store-chat",{message:"مرحبا"}],["/tts",{text:"مرحبا"}]]){
+  const response=await fetch(base+path,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer owner-token"},body:JSON.stringify(body)});
+  assert.equal(response.status,200,path);
+ }
+ assert.equal(rateCalls,0);assert.equal(dailyCalls,0);
+ const customer=await fetch(base+"/chat",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer customer-token"},body:JSON.stringify({message:"مرحبا",role:"owner"})});
+ assert.equal(customer.status,429);assert.equal(rateCalls,1);assert.equal(dailyCalls,0);
+});
