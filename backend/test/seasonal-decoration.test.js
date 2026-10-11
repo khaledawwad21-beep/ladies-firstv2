@@ -108,10 +108,8 @@ test('four season themes have expressive slide artwork and restrained section ac
 });
 test('four seasonal themes always add their own illustrated hero slide when no banner was uploaded',()=>{
   for(const id of ['spring','summer','autumn','winter']){
-    const artwork=fs.readFileSync(path.resolve(__dirname,'../../frontend/seasonal-'+id+'.svg'),'utf8');
-    assert.match(artwork,/<svg[^>]+viewBox="0 0 1200 560"/,id+' full-width SVG scene exists');
-    assert.match(artwork,/<(?:path|circle|g)/,id+' has drawn scenery');
-    assert.match(artwork,/LADIES FIRST · SEASONAL EDITION/,id+' carries the store identity');
+    const artwork=fs.statSync(path.resolve(__dirname,'../../frontend/seasonal-'+id+'.webp')).size;
+    assert.ok(artwork>50000,id+' full-width editorial seasonal image exists');
     assert.match(app,new RegExp(id+':'),id+' fallback title is mapped');
   }
   assert.match(app,/else if\(\['spring','summer','autumn','winter'\]\.includes\(seasonal\.active\)\)/,'generated scenes are the fallback when no uploaded banner is configured');
