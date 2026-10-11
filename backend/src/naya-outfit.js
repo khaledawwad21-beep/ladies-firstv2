@@ -56,6 +56,8 @@ function outfitPrompt(selectedProducts, profile, variation = crypto.randomInt(3)
     ? 'Use a tightly composed head-to-toe fashion frame. Keep the entire selected garment hems and footwear visible; Naya fills 85-95 percent of image height. Avoid distant wide shots.'
     : detailOnly
       ? 'Use a close product-focused portrait cropped to the selected accessory area, keeping enough of Naya face for identity. If several accessories are selected, frame face, neckline and raised hands together so EVERY selected piece is visible.'
+      : kinds.has('bag')&&kinds.has('watch')
+        ? 'Use a close face-to-hip composition for the watch and bag together. Bring the watch wrist near the face at chest height, dial nearly parallel to the camera, and hold the entire bag alongside the torso with the other hand. Keep both products in the same sharp focus plane. Do not widen the frame merely to show unselected trousers or shoes; choose a pose that gives the small watch enough image area without enlarging its physical size.'
       : kinds.has('upper-body')&&!kinds.has('bag')
         ? 'Use a close head-to-hip fashion frame that makes the selected upper garment large and shows its neckline, sleeves, seams and fabric.'
         : kinds.has('bag')
@@ -68,6 +70,7 @@ function outfitPrompt(selectedProducts, profile, variation = crypto.randomInt(3)
   if(kinds.has('necklace'))posing.push('Keep hair and clothing away from the selected necklace; show its pendant and chain clearly against a simple neckline.');
   if(kinds.has('glasses'))posing.push('Show the selected glasses front and frame clearly, with minimal reflections hiding the design.');
   if(kinds.has('bag'))posing.push('Hold the selected bag without covering its front, hardware or strap; do not place it across another selected garment detail.');
+  if(kinds.has('watch'))posing.push('Copy the selected watch construction from its own reference, not from the identity image: preserve the exact bracelet link geometry and number of rows, bezel layers and stone arrangement, dial emblem, hour-marker layout, case shape and crown. Do not replace it with a generic same-color watch or invent subdials. Product identity takes priority over styling and pose variation. Remove any original watch from image 1.');
   const styling = 'Before composing the photograph, visually analyze EACH selected product reference: actual item type, silhouette, apparent size, color palette, texture, structure, ornamentation, hardware and degree of formality. Infer the most plausible occasion for the COMBINATION: wedding guest, evening party, smart casual, everyday casual, university, work or another visually supported setting. Do not classify from the generic product name alone; a bag is not automatically casual and a shiny detail does not automatically mean a wedding. When evidence is ambiguous choose a versatile, balanced look; do not force incompatible selected pieces into a formal occasion. Build a deliberate stylist-coordinated complete outfit around these actual products: choose complementary garment silhouettes, fabrics, harmonious colors and footwear appropriate to that occasion. For example, a practical everyday tote can suit polished university or work separates, while an ornate evening clutch can suit an elegant wedding-guest or party outfit; these are conditional examples, not fixed templates. Unselected supporting garments are styling suggestions only, never claimed to be store inventory. Do not default to the same white top and black trousers or copy the pink reference suit. Replace ALL unselected reference clothing as needed to create the occasion-appropriate look. Do not add conspicuous unselected bags, jewelry or accessories that compete with selected products. Image 1 supplies identity, not the outfit, pose or camera composition. ';
   const directions = [
     'Prefer a relaxed asymmetrical standing pose, gentle three-quarter body turn and naturally offset arms, if compatible with product visibility.',
@@ -153,6 +156,8 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
       (async()=>{
         try{
           const form=new FormData();form.set('model',env.NAYA_IMAGE_MODEL||'gpt-image-1.5');form.set('n','1');form.set('size','1024x1536');form.set('quality','medium');
+          // Newer models process inputs at high fidelity without this legacy parameter.
+          if(/^gpt-image-1(?:\.5|-mini)?(?:$|-)/.test(form.get('model')))form.set('input_fidelity','high');
           form.set('prompt',outfitPrompt(selectedProducts,profile));
           inputs.forEach((input,i)=>form.append('image[]',new Blob([input.bytes],{type:input.mime}),'input-'+i+(input.mime==='image/png'?'.png':input.mime==='image/jpeg'?'.jpg':'.webp')));
           const response=await fetchImpl('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:'Bearer '+env.OPENAI_API_KEY},body:form,signal:AbortSignal.timeout(180000)});
