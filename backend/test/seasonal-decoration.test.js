@@ -7,6 +7,7 @@ const path=require('node:path');
 
 const source=fs.readFileSync(path.resolve(__dirname,'../../frontend/seasonal-themes.js'),'utf8');
 const css=fs.readFileSync(path.resolve(__dirname,'../../frontend/seasonal-themes.css'),'utf8');
+const app=fs.readFileSync(path.resolve(__dirname,'../../frontend/app.js'),'utf8');
 class Element {
   constructor(){this.children=[];this.classes=new Set();this.attributes={};this.classList={add:(...names)=>names.forEach(x=>this.classes.add(x))};}
   setAttribute(name,value){this.attributes[name]=value;}
@@ -15,24 +16,24 @@ class Element {
   insertAdjacentElement(where,child){if(where!=='afterend')throw Error('Unsupported');this.added=child;}
 }
 function render(active){
-  const header=new Element(),footer=new Element(),root=new Element(),hero=new Element(),cats=new Element(),discovery=new Element();
+  const header=new Element(),footer=new Element(),root=new Element(),hero=new Element(),cats=new Element(),products=new Element(),discovery=new Element();
   hero.parentNode={};cats.parentNode={};
   const panels=Array.from({length:3},()=>new Element());
   const headings=Array.from({length:4},()=>new Element());
   const doc={
     createElementNS:()=>new Element(),
     createElement:()=>new Element(),
-    getElementById:id=>({lfSeasonalWelcome:root,cats,storeDiscoveryIdeas:discovery}[id]||null),
+    getElementById:id=>({lfSeasonalWelcome:root,cats,products,storeDiscoveryIdeas:discovery}[id]||null),
     querySelector:selector=>({'body > header':header,'body > footer':footer,'.heroSlider':hero}[selector]||null),
     querySelectorAll:selector=>selector==='.featureBlock'?panels:selector.startsWith('.sectionTitle')?headings:[]
   };
   const window={__LF_SEASONAL__:{active,greetings:{ramadan:'رمضان كريم','eid-fitr':'عيد سعيد'},labels:{ramadan:'رمضان','eid-fitr':'عيد الفطر'},year:2027}};
   vm.runInNewContext(source,{window,document:doc});
-  return {header,footer,root,hero,cats,discovery,panels,headings};
+  return {header,footer,root,hero,cats,products,discovery,panels,headings};
 }
 test('no decorative DOM is created while the default theme is active',()=>{
   const x=render('none');
-  for(const node of [x.header,x.footer,x.root,x.hero,x.cats,x.discovery,...x.panels,...x.headings])
+  for(const node of [x.header,x.footer,x.root,x.hero,x.cats,x.products,x.discovery,...x.panels,...x.headings])
     assert.equal(node.children.length,0);
 });
 test('active seasons receive header, banner, multiple section and footer SVG motifs',()=>{
@@ -107,4 +108,24 @@ test('four season themes have their own drawn motifs and color palettes',()=>{
     assert.match(css,new RegExp('html\\[data-theme="'+id+'"\\]'));
     assert.match(x.header.children[0].innerHTML,/lf-seasonal-painted/);
   }
+});
+
+test('four seasonal themes always add their own illustrated hero slide when no banner was uploaded',()=>{
+  for(const id of ['spring','summer','autumn','winter']){
+    const artwork=fs.readFileSync(path.resolve(__dirname,'../../frontend/seasonal-'+id+'.svg'),'utf8');
+    assert.match(artwork,/<svg[^>]+viewBox="0 0 1200 560"/,id+' full-width SVG scene exists');
+    assert.match(artwork,/<(?:path|circle|g)/,id+' has drawn scenery');
+    assert.match(artwork,/LADIES FIRST · SEASONAL EDITION/,id+' carries the store identity');
+    assert.match(app,new RegExp(id+':'),id+' fallback title is mapped');
+  }
+  assert.match(app,/else if\(\['spring','summer','autumn','winter'\]\.includes\(seasonal\.active\)\)/,'generated scenes are the fallback when no uploaded banner is configured');
+  assert.match(app,/image:'\/seasonal-'\+seasonal\.active\+'\.svg'/,'the active seasonal SVG is loaded from a local URL');
+  assert.match(app,/image:desktop\|\|mobile/,'uploaded seasonal banners stay first when configured');
+});
+test('season decoration reaches both category and featured product areas',()=>{
+  for(const target of ["getElementById('cats')","getElementById('products')"])
+    assert.ok(source.includes(target),target+' receives seasonal ornaments');
+  assert.match(css,/\.lf-seasonal-decor--section/);
+  assert.match(css,/#products/);
+  assert.match(css,/repeating-linear-gradient\(118deg/);
 });

@@ -330,3 +330,41 @@ html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon.lf-seasonal-ve
     width:22px!important;height:22px!important;
   }
 }
+
+/* Editorial season coverage across the storefront, including the complete category and product areas. */
+html[data-theme]:not([data-theme="none"]) body {
+  background-image:
+    radial-gradient(ellipse 540px 360px at 0% 12%,var(--season-tint),transparent 86%),
+    radial-gradient(ellipse 480px 520px at 100% 56%,var(--season-shadow),transparent 84%),
+    repeating-linear-gradient(118deg,transparent 0 86px,color-mix(in srgb,var(--season-tint) 23%,transparent) 87px 89px,transparent 90px 174px)!important;
+  background-attachment:scroll!important;
+}
+html[data-theme]:not([data-theme="none"]) #cats,
+html[data-theme]:not([data-theme="none"]) #products,
+html[data-theme]:not([data-theme="none"]) .featureSections,
+html[data-theme]:not([data-theme="none"]) #quickOffers {
+  position:relative;
+  isolation:isolate;
+}
+html[data-theme]:not([data-theme="none"]) #cats,
+html[data-theme]:not([data-theme="none"]) #products {
+  border-radius:22px;
+  background:linear-gradient(100deg,var(--season-tint),transparent 23%,transparent 77%,var(--season-tint));
+}
+.lf-seasonal-decor--section {
+  position:absolute!important;
+  width:88px!important;height:88px!important;
+  top:10px!important;bottom:auto!important;
+  opacity:.25!important;
+}
+.lf-seasonal-decor--section.lf-seasonal-decor--start {inset-inline-start:4px!important;}
+.lf-seasonal-decor--section.lf-seasonal-decor--end {inset-inline-end:4px!important;transform:scaleX(-1);}
+html[data-theme]:not([data-theme="none"]) .featureCard,
+html[data-theme]:not([data-theme="none"]) .quickOfferCard {
+  border-color:color-mix(in srgb,var(--season-edge) 68%,#eadce3)!important;
+}
+@media(max-width:760px){
+  .lf-seasonal-decor--section{width:48px!important;height:48px!important;opacity:.19!important;top:4px!important;}
+  html[data-theme]:not([data-theme="none"]) #cats,
+  html[data-theme]:not([data-theme="none"]) #products{border-radius:14px;}
+}
