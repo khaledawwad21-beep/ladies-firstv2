@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 100" fill="none">
+<defs>
+ <linearGradient id="a" x1="38" y1="45" x2="83" y2="96" gradientUnits="userSpaceOnUse"><stop stop-color="#4E8C7A"/><stop offset="1" stop-color="#315B65"/></linearGradient>
+ <linearGradient id="b" x1="155" y1="48" x2="201" y2="97" gradientUnits="userSpaceOnUse"><stop stop-color="#BD6C83"/><stop offset="1" stop-color="#75445F"/></linearGradient>
+</defs>
+<path d="M115 13a23 23 0 1 0 22 37 26 26 0 1 1-22-37Z" fill="#E8BD70"/>
+<path d="m141 22 2 5 6 .6-4.5 4 1.3 5.8-4.8-3-5 3 1.3-5.8-4.4-4 5.9-.6 2.2-5Z" fill="#D49B62"/>
+<!-- character with festive turban -->
+<path d="M31 62c3-12 12-17 28-17 15 0 25 7 27 18l5 25H26l5-26Z" fill="url(#a)" stroke="#3F5B58" stroke-width="2"/>
+<path d="M44 52h30v10H44z" fill="#E7C273"/>
+<ellipse cx="59" cy="36" rx="20" ry="21" fill="#C98261"/>
+<path d="M39 30c0-13 9-22 21-22 13 0 22 9 21 22-8 6-33 7-42 0Z" fill="#C86863" stroke="#673F56" stroke-width="2"/>
+<path d="M42 21c11 7 24 8 36 1m-33 6c10 7 23 8 33 2" stroke="#F4D28A" stroke-width="3" stroke-linecap="round"/>
+<path d="M52 37h2m13 0h2" stroke="#382A40" stroke-width="3" stroke-linecap="round"/>
+<path d="M54 44c3 2 7 2 10 0" stroke="#7A3F4E" stroke-width="2" stroke-linecap="round"/>
+<path d="M33 65c-7 2-11 7-12 13m64-12c8 2 10 7 10 13" stroke="#C98261" stroke-width="7" stroke-linecap="round"/>
+<!-- companion carrying a gift -->
+<path d="M155 63c3-12 12-17 26-17 14 0 23 7 25 18l3 24h-61l7-25Z" fill="url(#b)" stroke="#633C58" stroke-width="2"/>
+<path d="M164 51h32v10h-32z" fill="#E7C273"/>
+<ellipse cx="180" cy="36" rx="18" ry="19" fill="#D79A75"/>
+<path d="M162 29c0-12 8-19 19-19 12 0 20 8 18 20-11 5-26 5-37-1Z" fill="#5D859A" stroke="#43566B" stroke-width="2"/>
+<path d="M164 20c10 5 23 6 32 1" stroke="#F4D28A" stroke-width="3" stroke-linecap="round"/>
+<path d="M174 36h2m11 0h2" stroke="#382A40" stroke-width="3" stroke-linecap="round"/>
+<path d="M175 43c3 2 7 2 10 0" stroke="#7A3F4E" stroke-width="2" stroke-linecap="round"/>
+<path d="M158 67c-7 2-10 7-11 13m60-12c7 2 9 6 9 12" stroke="#D79A75" stroke-width="6" stroke-linecap="round"/>
+<path d="M102 62h27v24h-27z" fill="#E4B65D" stroke="#8B5A55" stroke-width="2"/><path d="M115 62v24m-13-16h27" stroke="#FFF0CD" stroke-width="3"/>
+<path d="M115 62c-11-1-10-10-4-10 3 0 4 5 4 10Zm0 0c11-1 10-10 4-10-3 0-4 5-4 10Z" fill="#C66C7A" stroke="#8B5A55" stroke-width="1.5"/>
+<path d="m131 27 2.5 5.5 6 .6-4.5 4 1.2 5.8-5.2-2.8-4.8 2.8 1.3-5.8-4.5-4 6-.6 2-5.5Z" fill="#E6BC6B"/>
+</svg>
