@@ -30,10 +30,11 @@ test("main pushes verify the live Render service after regression passes",()=>{
 
 test("live smoke covers storefront admin and public catalog APIs",()=>{
   assert.match(workflow,/Verify live storefront and public APIs/);
-  assert.match(workflow,/\/admin\.html/);
-  assert.match(workflow,/\/api\/products/);
-  assert.match(workflow,/\/api\/settings/);
-  assert.match(workflow,/\/api\/categories/);
-  assert.match(workflow,/\/api\/brands/);
-  assert.match(workflow,/Live storefront, admin page and public APIs are responding correctly/);
+  const smoke=fs.readFileSync(path.join(root,"backend","scripts","live-smoke.js"),"utf8");
+  assert.match(smoke,/\/admin\.html/);
+  assert.match(smoke,/\/api\/products/);
+  assert.match(smoke,/\/api\/settings/);
+  assert.match(smoke,/\/api\/categories/);
+  assert.match(smoke,/\/api\/brands/);
+  assert.match(smoke,/Live storefront, admin page and public APIs are responding correctly/);
 });
