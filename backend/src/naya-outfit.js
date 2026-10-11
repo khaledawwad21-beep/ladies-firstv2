@@ -5,8 +5,8 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { resolveFrontendPath } = require('./safe-frontend-path');
 function dayKey(now = new Date()) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year:'numeric', month:'2-digit', day:'2-digit' }).format(now); }
-function selection(value) {
-  if (!Array.isArray(value) || !value.length || value.length > 5) throw new Error('اختاري من قطعة إلى خمس قطع متناسقة للإطلالة.');
+function selection(value, { allowEmpty = false } = {}) {
+  if (!Array.isArray(value) || (!allowEmpty && !value.length) || value.length > 5) throw new Error('اختاري من قطعة إلى خمس قطع متناسقة للإطلالة.');
   const seen = new Set();
   return value.map(v => {
     const id = Number(v.productId), imageIndex = Number(v.imageIndex ?? 0);
@@ -48,6 +48,7 @@ function productFocus(product) {
 }
 function outfitPrompt(selectedProducts, profile) {
   const entries=selectedProducts.map((p,i)=>({referenceImage:i+2,name:String(p.name||'').slice(0,180),category:String(p.category||'').slice(0,100),focus:productFocus(p)}));
+  if(!entries.length) return 'Create ONE photorealistic full-body fashion photograph of adult Naya based only on identity reference image 1. Preserve her exact recognizable face, hair, age, pink suit, white top, belt, shoes, pose, and elegant boutique background. Do not stretch, warp, or simply resize the input image. Generate a new natural-looking photograph with realistic anatomy, adapting only approximate body proportions to the customer-provided measurements. Keep the original outfit design and identity consistent; do not add products, text, labels, panels, or watermarks. This is an illustrative body-shape preview, not a precise body scan or garment-fit prediction.'+measurementPrompt(profile);
   const kinds=new Set(entries.flatMap(p=>p.focus));
   const fullBody=kinds.has('lower-body')||kinds.has('shoes');
   const detailOnly=entries.length>0&&entries.every(p=>p.focus.length&&p.focus.every(k=>['earrings','watch','ring','bracelet','necklace','glasses'].includes(k)));
@@ -110,7 +111,7 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
   }catch(e){next(e)}});
   router.post('/generate',requireAuth,async(req,res,next)=>{
     if(!enabled())return res.status(503).json({ok:false,message:'توليد الإطلالة لم يُفعّل بعد؛ يمكنك تجهيز اختياراتك.'});
-    let chosen,profile;try{chosen=selection(req.body?.items);profile=measurements(req.body)}catch(e){return res.status(400).json({ok:false,message:e.message})}
+    let chosen,profile;try{profile=measurements(req.body);chosen=selection(req.body?.items,{allowEmpty:!!profile});if(!chosen.length&&!profile)throw new Error('اختاري قطعة أو أدخلي المقاسات لتوليد صورة.')}catch(e){return res.status(400).json({ok:false,message:e.message})}
     try{
       const r=await db(`SELECT p.id,p.name,(SELECT c.name FROM categories c WHERE c.id=p.category_id) AS category,COALESCE((SELECT json_agg(image_url ORDER BY is_primary DESC,sort_order,id) FROM product_images WHERE product_id=p.id),'[]'::json) AS images,p.image_url,p.image FROM products p WHERE p.id=ANY($1::bigint[]) AND p.is_active=TRUE`,[chosen.map(x=>x.productId)]);
       const inputs=[];const selectedProducts=[];
