@@ -20,3 +20,16 @@ test("storefront WhatsApp links use settings-aware helper",()=>{
   assert.match(app,/st\.whatsapp_number\|\|st\.whatsapp/);
   assert.match(app,/updateStoreWhatsAppLinks\(\);renderSocialLinks\(\)/);
 });
+
+test("WhatsApp links use the configured phone and an encoded greeting",()=>{
+  assert.ok(app.includes("function storeWhatsAppDigits("));
+  assert.ok(app.includes("digits=digits.replace(/^00+"));
+  assert.ok(app.includes("function storeWhatsAppHref(message='مرحباً"));
+  assert.ok(app.includes("storeWhatsAppHref(msg)"));
+  assert.ok(app.includes("encodeURIComponent(message)"));
+  assert.ok(!app.includes("wa.me/?text="));
+});
+test("important storefront images have product and category alt text",()=>{
+  assert.ok(app.includes('safeImg(c.image,LOGO)" alt="${esc('));
+  assert.ok(app.includes('alt="${esc(currentLang==='));
+});
