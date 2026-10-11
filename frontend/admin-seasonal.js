@@ -15,6 +15,7 @@ window.seasons=async function seasons(){
 function seasonalRender() {
   const current=seasonalDraft.banners[seasonalEditing]||{};
   const seasonalFields=[['desktop','بانر الكمبيوتر'],['mobile','بانر الموبايل']];
+  const seasonalThemeNote=seasonalNonCardThemes.has(seasonalEditing)?'<p class="small-note">هذا ثيم فصلي للمتجر فقط، بلا بطاقات معايدة.</p>':'';
   if(!seasonalNonCardThemes.has(seasonalEditing))seasonalFields.push(['card','بطاقة المعايدة الأولى'],['card2','بطاقة المعايدة الثانية'],['card3','بطاقة المعايدة الثالثة']);
   const bannerPreview=(image,label)=>image?'<img loading="lazy" src="'+E(safeMediaUrl(image))+'" alt="'+E(label)+'" style="display:block;max-width:100%;max-height:220px;object-fit:contain;border-radius:10px;background:#fbf4ec">':'<small>لا توجد صورة مخصصة؛ ستُستخدم الزخارف الموسمية الخفيفة.</small>';
   $('#sections').innerHTML=`<div class="card" id="lfSeasonsAdmin">
@@ -24,6 +25,7 @@ function seasonalRender() {
       <label>الثيم النشط<select id="seasonActive" class="field" onchange="seasonalDraft.active=this.value">${Object.entries(seasonalLabels).map(([key,label])=>'<option value="'+key+'" '+(seasonalDraft.active===key?'selected':'')+'>'+label+'</option>').join('')}</select></label>
       <label>تعديل بنرات مناسبة<select id="seasonEditor" class="field" onchange="seasonalPick(this.value)">${Object.entries(seasonalLabels).filter(([key])=>key!=='none').map(([key,label])=>'<option value="'+key+'" '+(seasonalEditing===key?'selected':'')+'>'+label+'</option>').join('')}</select></label>
     </div>
+    ${seasonalThemeNote}
     <div style="background:#fbf4ec;padding:14px;border:1px solid #eadce3;border-radius:14px;margin:12px 0">
       <b>استيراد التصاميم الفخمة المعتمدة دفعة واحدة</b>
       <p class="small-note">ارفَع ملف Ladies_First_Official_Seasonal_Designs.zip المحضّر لك: 6 بنرات أصلية + 18 بطاقة معايدة (3 لكل مناسبة). تحفظ الصور في قاعدة بيانات المتجر، وتبقى متاحة بعد إعادة النشر.</p>
