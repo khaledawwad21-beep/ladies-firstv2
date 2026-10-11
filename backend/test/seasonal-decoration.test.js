@@ -64,12 +64,12 @@ test('seasonal accents use a restrained mix of filled and outline drawings',()=>
   for(const id of ['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year','spring','summer','autumn','winter']){
     const x=render(id),layout=x.root.children[0];
     assert.ok(layout.children[0].classes.has('lf-seasonal-vector--filled'),id+' primary seasonal drawing');
-    assert.ok(layout.children[2].classes.has('lf-seasonal-vector--outline'),id+' secondary seasonal drawing');
+    assert.ok(layout.children.at(-1).classes.has('lf-seasonal-vector--outline'),id+' secondary seasonal drawing');
     assert.ok(x.cats.children[0].classes.has('lf-seasonal-vector--filled'),id+' category accent');
     assert.ok(x.products.children[0].classes.has('lf-seasonal-vector--outline'),id+' product accent');
     assert.ok(x.footer.children[0].classes.has('lf-seasonal-vector--filled'),id+' footer accent');
     assert.match(layout.children[0].innerHTML,/lf-seasonal-painted/);
-    assert.doesNotMatch(layout.children[2].innerHTML,/lf-seasonal-painted/);
+    assert.doesNotMatch(layout.children.at(-1).innerHTML,/lf-seasonal-painted/);
   }
 });
 test('Eid al-Adha emblem is an anatomically legible sheep rather than a wool cloud',()=>{
@@ -102,7 +102,7 @@ test('four season themes have expressive slide artwork and restrained section ac
     assert.equal(x.cats.children.length,1,id+' category accent');
     assert.equal(x.products.children.length,1,id+' product accent');
     assert.equal(x.footer.children.length,1,id+' footer accent');
-    assert.match(css,new RegExp('html\\\\[data-theme="'+id+'"\\\\]'));
+    assert.ok(css.includes('html[data-theme="'+id+'"]'),id+' theme palette exists');
     assert.ok(x.root.children[0].children[0].classes.has('lf-seasonal-vector--filled'),id+' main seasonal drawing');
   }
 });
