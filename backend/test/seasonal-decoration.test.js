@@ -23,7 +23,7 @@ function render(active){
   const doc={
     createElementNS:()=>new Element(),
     createElement:()=>new Element(),
-    getElementById:id=>({lfSeasonalWelcome:root,cats,storeDiscoveryIdeas:discovery}[id]||null),
+    getElementById:id=>({lfSeasonalWelcome:root,cats,products,storeDiscoveryIdeas:discovery}[id]||null),
     querySelector:selector=>({'body > header':header,'body > footer':footer,'.heroSlider':hero}[selector]||null),
     querySelectorAll:selector=>selector==='.featureBlock'?panels:selector.startsWith('.sectionTitle')?headings:[]
   };
@@ -114,7 +114,7 @@ test('four seasonal themes always add an illustrated hero slide when no banner w
   const start=app.indexOf('const seasonalScenes={');
   const end=app.indexOf('\n    };',start);
   assert.ok(start>=0&&end>start,'season scene definitions exist');
-  const scenes=vm.runInNewContext('('+app.slice(start+'const seasonalScenes='.length,end+5)+')');
+  const scenes=vm.runInNewContext('('+app.slice(start+'const seasonalScenes='.length,end+7)+')');
   for(const id of ['spring','summer','autumn','winter']){
     assert.ok(scenes[id],id+' scene exists');
     assert.ok(scenes[id].title.length>0,id+' title exists');
