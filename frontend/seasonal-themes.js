@@ -20,7 +20,7 @@
     svg.style.pointerEvents='none';
     svg.style.zIndex=isCard?'2':'1';
     if(isCard){
-      svg.style.top='8px';svg.style.width='48px';svg.style.height='40px';
+      svg.style.top='6px';svg.style.width='66px';svg.style.height='52px';
       svg.style.insetInlineEnd='8px';
     }else{
       svg.style.top='50%';svg.style.width='clamp(68px,8vw,112px)';svg.style.height='clamp(56px,5.5vw,76px)';
