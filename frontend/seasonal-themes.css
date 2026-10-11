@@ -6,6 +6,12 @@ html[data-theme="eid-adha"] { --season-accent:#b99b76;--season-shadow:#b99b7622;
 html[data-theme="halloween"] { --season-accent:#b28271;--season-shadow:#b2827133;--season-tint:#ece4f044;--season-edge:#ad8ba8;--season-dark:#422742; }
 html[data-theme="christmas"] { --season-accent:#b99967;--season-shadow:#9b6b5c22;--season-tint:#f6eee944;--season-edge:#a98f70;--season-dark:#5c344b; }
 html[data-theme="new-year"] { --season-accent:#c5a77a;--season-shadow:#c5a77a25;--season-tint:#f7efdf44;--season-edge:#c5a77a;--season-dark:#4f3658; }
+
+html[data-theme="spring"] { --season-accent:#9dba82;--season-shadow:#91b8792b;--season-tint:#f5f1d866;--season-edge:#b6c994;--season-dark:#536b4b; }
+html[data-theme="summer"] { --season-accent:#d5a763;--season-shadow:#73b4b122;--season-tint:#dff5f166;--season-edge:#9bcac1;--season-dark:#3f6968; }
+html[data-theme="autumn"] { --season-accent:#c78251;--season-shadow:#bd78402b;--season-tint:#f7e8cb77;--season-edge:#d39a66;--season-dark:#704632; }
+html[data-theme="winter"] { --season-accent:#91aabd;--season-shadow:#9ab9d229;--season-tint:#e9f1f877;--season-edge:#aebfcc;--season-dark:#4c5f76; }
+
 html:not([data-theme="none"])[data-theme] body {
   background-image:radial-gradient(ellipse at 0 4%,var(--season-tint),transparent 35%),radial-gradient(ellipse at 100% 70%,var(--season-shadow),transparent 40%);
 }
@@ -235,6 +241,24 @@ html[data-theme="new-year"] {
   --season-icon-main:#e3c88e;--season-icon-secondary:#c9a25f;--season-icon-deep:#6e4d75;
   --season-icon-soft:#fff3dc;--season-icon-stroke:#61415a;--season-icon-halo:#e5cf9875;
 }
+
+html[data-theme="spring"] {
+  --season-icon-main:#e8a9ba;--season-icon-secondary:#abc98d;--season-icon-deep:#688653;
+  --season-icon-soft:#fff0d8;--season-icon-stroke:#586b4b;--season-icon-halo:#f8dfd578;
+}
+html[data-theme="summer"] {
+  --season-icon-main:#f0c574;--season-icon-secondary:#70bcb6;--season-icon-deep:#43818b;
+  --season-icon-soft:#fff1d4;--season-icon-stroke:#426c72;--season-icon-halo:#d7f0ed8a;
+}
+html[data-theme="autumn"] {
+  --season-icon-main:#dc9657;--season-icon-secondary:#d6b05e;--season-icon-deep:#945334;
+  --season-icon-soft:#fae2b9;--season-icon-stroke:#704638;--season-icon-halo:#f0d3a177;
+}
+html[data-theme="winter"] {
+  --season-icon-main:#9cb9cf;--season-icon-secondary:#c2a5c7;--season-icon-deep:#617c96;
+  --season-icon-soft:#f7f5fb;--season-icon-stroke:#586b7e;--season-icon-halo:#dce9f399;
+}
+
 .lf-seasonal-vector--filled {
   color:var(--season-icon-stroke)!important;
   stroke:var(--season-icon-stroke)!important;
