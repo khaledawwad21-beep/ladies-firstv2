@@ -7,6 +7,7 @@ const path=require('node:path');
 
 const source=fs.readFileSync(path.resolve(__dirname,'../../frontend/seasonal-themes.js'),'utf8');
 const css=fs.readFileSync(path.resolve(__dirname,'../../frontend/seasonal-themes.css'),'utf8');
+const app=fs.readFileSync(path.resolve(__dirname,'../../frontend/app.js'),'utf8');
 class Element {
   constructor(){this.children=[];this.classes=new Set();this.attributes={};this.classList={add:(...names)=>names.forEach(x=>this.classes.add(x))};}
   setAttribute(name,value){this.attributes[name]=value;}
@@ -15,7 +16,7 @@ class Element {
   insertAdjacentElement(where,child){if(where!=='afterend')throw Error('Unsupported');this.added=child;}
 }
 function render(active){
-  const header=new Element(),footer=new Element(),root=new Element(),hero=new Element(),cats=new Element(),discovery=new Element();
+  const header=new Element(),footer=new Element(),root=new Element(),hero=new Element(),cats=new Element(),products=new Element(),discovery=new Element();
   hero.parentNode={};cats.parentNode={};
   const panels=Array.from({length:3},()=>new Element());
   const headings=Array.from({length:4},()=>new Element());
@@ -28,11 +29,11 @@ function render(active){
   };
   const window={__LF_SEASONAL__:{active,greetings:{ramadan:'رمضان كريم','eid-fitr':'عيد سعيد'},labels:{ramadan:'رمضان','eid-fitr':'عيد الفطر'},year:2027}};
   vm.runInNewContext(source,{window,document:doc});
-  return {header,footer,root,hero,cats,discovery,panels,headings};
+  return {header,footer,root,hero,cats,products,discovery,panels,headings};
 }
 test('no decorative DOM is created while the default theme is active',()=>{
   const x=render('none');
-  for(const node of [x.header,x.footer,x.root,x.hero,x.cats,x.discovery,...x.panels,...x.headings])
+  for(const node of [x.header,x.footer,x.root,x.hero,x.cats,x.products,x.discovery,...x.panels,...x.headings])
     assert.equal(node.children.length,0);
 });
 test('active seasons receive header, banner, multiple section and footer SVG motifs',()=>{
@@ -107,4 +108,26 @@ test('four season themes have their own drawn motifs and color palettes',()=>{
     assert.match(css,new RegExp('html\\[data-theme="'+id+'"\\]'));
     assert.match(x.header.children[0].innerHTML,/lf-seasonal-painted/);
   }
+});
+
+test('four seasonal themes always add an illustrated hero slide when no banner was uploaded',()=>{
+  const start=app.indexOf('const seasonalScenes={');
+  const end=app.indexOf('\n    };',start);
+  assert.ok(start>=0&&end>start,'season scene definitions exist');
+  const scenes=vm.runInNewContext('('+app.slice(start+'const seasonalScenes='.length,end+5)+')');
+  for(const id of ['spring','summer','autumn','winter']){
+    assert.ok(scenes[id],id+' scene exists');
+    assert.ok(scenes[id].title.length>0,id+' title exists');
+    assert.match(scenes[id].scene,/<(?:path|circle|g)/,id+' has drawn scenery');
+  }
+  assert.match(app,/else if\(seasonalScenes\[seasonal\.active\]\)/,'generated scene is the fallback when no uploaded banner is configured');
+  assert.match(app,/data:image\/svg\+xml;base64,/,'artwork passes through the existing safe image handling');
+  assert.match(app,/arr\.unshift\(\{image:artwork/,'seasonal slide is first without replacing regular slides');
+});
+test('season decoration reaches both category and featured product areas',()=>{
+  for(const target of ["getElementById('cats')","getElementById('products')"])
+    assert.ok(source.includes(target),target+' receives seasonal ornaments');
+  assert.match(css,/\.lf-seasonal-decor--section/);
+  assert.match(css,/#products/);
+  assert.match(css,/repeating-linear-gradient\(118deg/);
 });
