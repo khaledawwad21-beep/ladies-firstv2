@@ -232,6 +232,7 @@
     if(/عطر|عطور|perfume|fragrance/.test(value))return "<path class='lf-seasonal-painted' d='M32 24h16v7h-4v8l10 7v23H26V46l10-7v-8h-4z'/><path class='lf-seasonal-detail' d='M36 24v-8h8v8m-10 7h20M32 47h16m-13 8h10'/><circle class='lf-seasonal-painted-secondary' cx='40' cy='51' r='4'/>";
     if(/ساع|watch/.test(value))return "<circle class='lf-seasonal-painted' cx='40' cy='40' r='21'/><path class='lf-seasonal-detail' d='M33 12h14l3 7v7H30v-7zm-3 43h20v7l-3 7H33l-3-7zM40 27v14l9 6'/><circle class='lf-seasonal-painted-soft' cx='40' cy='40' r='2'/>";
     if(/مكياج|makeup|cosmetic/.test(value))return "<path class='lf-seasonal-painted-deep' d='m31 34 9-9 11 11-9 9z'/><path class='lf-seasonal-painted' d='m28 48 18-18 9 9-18 18z'/><path class='lf-seasonal-detail' d='m34 54 14-14m-8-17 8-8 7 7-8 8M26 60l5-5'/><path class='lf-seasonal-painted-secondary' d='m49 15 6-6 9 9-6 6z'/>";
+    if(/شنط|حقيبة|bag|handbag/.test(value))return "<path class='lf-seasonal-painted-deep' d='M24 32h32l4 33H20z'/><path class='lf-seasonal-detail' d='M31 34v-8a9 9 0 0 1 18 0v8m-18 0a9 9 0 0 0 18 0M28 43h24'/><path class='lf-seasonal-painted' d='M34 48h12v9H34z'/><circle class='lf-seasonal-painted-soft' cx='40' cy='52' r='2'/>";
     if(/اكسسوار|مجوهر|حلي|accessor|jewel/.test(value))return "<path class='lf-seasonal-detail' d='M25 29 40 17l15 12-4 28H29z'/><path class='lf-seasonal-painted' d='m40 31 12 12-12 15-12-15z'/><path class='lf-seasonal-painted-secondary' d='M40 35 47 43l-7 9-7-9z'/><circle class='lf-seasonal-painted-soft' cx='40' cy='43' r='3'/>";
     return '';
   }
