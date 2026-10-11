@@ -659,7 +659,7 @@ function setGiftCardDraft(card){currentGiftCard=card||null;try{if(currentGiftCar
 function renderGiftCardCheckoutSummary(){const box=document.getElementById('giftCardSummary');if(!box)return;const c=currentGiftCard||loadGiftCardDraft();const subtotal=cart.reduce((sum,i)=>{const p=products.find(x=>x.id===i.id);return sum+(Number(p?.price)||0)*Math.max(1,Number(i.qty)||1)},0);const price=Math.max(0,Number(storeCommerceSettings.giftCardPrice)||0),threshold=Math.max(0,Number(storeCommerceSettings.giftCardFreeThreshold)||0),isFree=!!c&&threshold>0&&subtotal>=threshold,fee=c?(isFree?0:price):null;const feeText=fee===null?(price===0?'مجانية':price.toFixed(2)+' ₪'):(fee===0?'مجانية':fee.toFixed(2)+' ₪');const thresholdText=threshold>0?`<br><span class="small">تصبح مجانية عندما يبلغ مجموع المنتجات ${threshold.toFixed(2)} ₪.</span>`:'';box.innerHTML=(c?'<div class="notice"><b>'+esc(c.title||'بطاقة معايدة')+'</b><br>إلى '+esc(c.recipient||'')+'<br>'+esc(c.message||'')+(c.sender?'<br>من '+esc(c.sender):'')+'</div>':'<div class="small">اختيار البطاقة اختياري ومرفق بالطلب.</div>')+'<div class="small" style="margin-top:6px">'+(c?'رسوم البطاقة: ':'سعر البطاقة: ')+feeText+(isFree?' — مجانية لهذا الطلب':'')+thresholdText+'</div>'+(c?'<button type="button" class="danger" style="margin-top:8px" onclick="setGiftCardDraft(null)">إزالة البطاقة</button>':'')}
 let giftCardWindow=null;function openGiftCardModal(){giftCardWindow=window.open('/gift-cards/?mode=checkout&v=20261009-2','_blank');if(!giftCardWindow){alert('اسمحي بفتح التبويب لاختيار بطاقة المعايدة.');return}giftCardWindow.focus()}
 function closeGiftCardModal(){const modal=document.getElementById('giftCardCheckoutModal');if(modal)modal.style.display='none';document.body.style.overflow=''}
-window.addEventListener('message',event=>{if(event.origin!==location.origin||event.source!==giftCardWindow||!event.data||event.data.type!=='lf-gift-card-selected')return;const g=event.data.giftCard;if(!g||!/^card-(?:0[1-9]|1[0-9]|2[01])\.jpg$/.test(String(g.file||''))||!['birthday','graduation','mother','thanks','surprise','love','anniversary'].includes(g.occasion)||!['f','m'].includes(g.gender)||!String(g.recipient||'').trim()||!String(g.message||'').trim()||String(g.message).trim().split(/\s+/).filter(Boolean).length>12)return;setGiftCardDraft({occasion:g.occasion,occasionLabel:String(g.occasionLabel||''),title:String(g.title||''),file:g.file,side:g.side==='left'?'left':'right',gender:g.gender,recipient:String(g.recipient).trim().slice(0,32),sender:String(g.sender||'').trim().slice(0,32),message:String(g.message).trim().slice(0,180)});giftCardWindow=null});
+window.addEventListener('message',event=>{if(event.origin!==location.origin||event.source!==giftCardWindow||!event.data||event.data.type!=='lf-gift-card-selected')return;const g=event.data.giftCard;if(!g||!/^(?:card-(?:0[1-9]|1[0-9]|2[01])\.jpg|season-(?:ramadan|eid-fitr|eid-adha|halloween|christmas|new-year)\.svg)$/.test(String(g.file||''))||!['birthday','graduation','mother','thanks','surprise','love','anniversary','ramadan','eid-fitr','eid-adha','halloween','christmas','new-year'].includes(g.occasion)||!['f','m'].includes(g.gender)||!String(g.recipient||'').trim()||!String(g.message||'').trim()||String(g.message).trim().split(/\s+/).filter(Boolean).length>12)return;setGiftCardDraft({occasion:g.occasion,occasionLabel:String(g.occasionLabel||''),title:String(g.title||''),file:g.file,side:g.side==='left'?'left':'right',gender:g.gender,recipient:String(g.recipient).trim().slice(0,32),sender:String(g.sender||'').trim().slice(0,32),message:String(g.message).trim().slice(0,180)});giftCardWindow=null});
 function getCheckoutDraft(){
   const f=document.getElementById('checkoutForm');
   if(!f)return null;
@@ -808,6 +808,18 @@ function heroSlides(){
     if(!key)return;
     arr.push({image:key,mobileImage:x.mobileImage||'',title:currentLang==='en'?(x.titleEn||x.titleAr||'Ladies First'):(x.titleAr||x.titleEn||'Ladies First'),desc:currentLang==='en'?(x.descEn||x.descAr||''):(x.descAr||x.descEn||''),id:x.id,hideText:x.hideText===true});
   });
+  // Put the selected seasonal artwork first, without overwriting stored slider slides.
+  const seasonal=typeof window!=='undefined' ? window.__LF_SEASONAL__ : null;
+  if(seasonal?.active&&seasonal.active!=='none'){
+    const chosen=seasonal.banners?.[seasonal.active]||{};
+    const valid=u=>typeof u==='string'&&(/^(https?:\/\/|\/(?!\/))/.test(u))?u:'';
+    const desktop=valid(chosen.desktop),mobile=valid(chosen.mobile);
+    if(desktop||mobile)arr.unshift({
+      image:desktop||mobile,mobileImage:mobile||'',
+      title:seasonal.active==='new-year'?'سنة '+seasonal.year+' بإطلالات أجمل':(seasonal.greetings?.[seasonal.active]||'Ladies First'),
+      desc:'',id:'seasonal-'+seasonal.active,hideText:true,seasonal:true
+    });
+  }
   return arr;
 }
 function heroMobileImageFor(slide){
@@ -824,6 +836,7 @@ function renderHeroSlider(fade=true){
   if(!slides.length)return;
   if(heroIndex>=slides.length)heroIndex=0;
   const s=slides[heroIndex];
+  document.querySelector('.heroSlider .heroCard')?.classList.toggle('lf-seasonal-slide',!!s.seasonal);
   const title=document.getElementById('heroTitle'),desc=document.getElementById('heroDesc'),cta=document.getElementById('heroCta');
   if(title)title.textContent=s.title;if(desc)desc.textContent=s.desc;if(cta)cta.textContent=currentLang==='en'?'Shop now':'تسوقي الآن';
   const heroCard=document.querySelector('.heroSlider .heroCard');if(heroCard)heroCard.classList.toggle('logo-only',!!s.hideText);const textPanel=document.querySelector('.heroSlider .heroText');if(textPanel)textPanel.hidden=!!s.hideText;

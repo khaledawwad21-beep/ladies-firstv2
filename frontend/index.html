@@ -398,11 +398,12 @@ body.naya-open{position:fixed!important;width:100%!important;left:0!important;ri
 .quickSearchResult i{font-size:22px!important;color:var(--plum)!important;font-style:normal!important}
 @media(max-width:760px){.quickSearchOverlay{padding:12px!important}.quickSearchDialog{width:100%!important;max-height:calc(100dvh - 24px)!important;margin:14px auto 0!important;padding:14px!important}}
 .quick-search-open{overflow:hidden!important}
-</style><link rel="stylesheet" href="store-premium.css?v=20261007-4"><link rel="stylesheet" href="storefront-luxury.css?v=20261009-1"><meta name="theme-color" content="#5b3154"><script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script></head>
+</style><link rel="stylesheet" href="store-premium.css?v=20261007-4"><link rel="stylesheet" href="storefront-luxury.css?v=20261009-1"><meta name="theme-color" content="#5b3154"><script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script><link rel="stylesheet" href="/seasonal-themes.css?v=20261011-1"></head>
 <body>
 <div class="top" id="topBar"></div>
 <header><div class="nav"><button class="iconbtn menuBtn" type="button" onclick="toggleSideMenu()" aria-label="فتح القائمة">☰</button><div class="brandLockup"><button class="logoZoomTrigger" id="logoZoomTrigger" type="button" aria-label="تكبير شعار المتجر" onclick="openStoreLogoPreview()"><img class="logo" id="logo" alt="شعار Ladies First"></button><div class="brand"><b>Ladies First</b><small id="brandTagline">ONLINE STORE</small></div></div><div class="actions"><button class="iconbtn" id="accountBtn" type="button" onclick="openAccount()" aria-label="حسابي">👤</button><button class="iconbtn" id="lang" aria-label="تغيير اللغة">EN</button><button class="iconbtn" id="cartBtn" type="button" onclick="openCart()" aria-label="سلة التسوق">🛍️<i class="badge" id="count">0</i></button></div></div><div class="headerSearch"><button class="searchBtn" type="button" onclick="openQuickSearch('header')"><span id="headerSearchText">ابحثي عن قطعة مميزة</span><b aria-hidden="true">⌕</b></button></div></header>
 <div class="storeLogoZoom" id="storeLogoZoom" onclick="if(event.target===this)closeStoreLogoPreview()"><section class="storeLogoZoom__dialog" role="dialog" aria-modal="true" aria-label="شعار المتجر"><button class="storeLogoZoom__close" id="storeLogoZoomClose" type="button" aria-label="إغلاق تكبير الشعار" onclick="closeStoreLogoPreview()">×</button><img id="storeLogoZoomImage" alt="شعار Ladies First"></section></div>
+<div id="lfSeasonalWelcome" role="region"></div>
 <section class="hero heroSlider"><div class="heroCard heroSlide active"><div class="heroText"><h1 id="heroTitle"></h1><p id="heroDesc"></p><button class="cta" id="heroCta" onclick="document.getElementById('products').scrollIntoView({behavior:'smooth'})"></button></div><div class="heroVisual"><img class="heroLogo heroLogoLayer heroLogoA" id="heroLogoA" alt="Ladies First"><img class="heroLogo heroLogoLayer heroLogoB" id="heroLogoB" alt="Ladies First"></div><button class="heroArrow heroPrev" type="button" onclick="heroMove(-1)">‹</button><button class="heroArrow heroNext" type="button" onclick="heroMove(1)">›</button><div class="heroDots" id="heroDots"></div></div></section>
 <section class="featureSections" id="weeklyFeatures">
   <div class="featureBlock miniCarouselBlock">
@@ -450,7 +451,7 @@ body.naya-open{position:fixed!important;width:100%!important;left:0!important;ri
 #nayaAssistant .naya-stage{height:34dvh!important;flex:0 0 34dvh!important}
 #nayaAssistant .naya-conversation{min-height:40px!important}
 }</style>
-</body>
+<script src="/seasonal-themes.js?v=20261011-1"></script></body>
 
 
 

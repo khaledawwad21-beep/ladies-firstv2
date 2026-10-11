@@ -59,6 +59,9 @@ gateway.use(
 );
 
 gateway.use(createRequestPolicyRouter());
+// The active theme is persisted in PostgreSQL and embedded into the first HTML response.
+gateway.use(express.json({ limit: "5mb" }));
+require("./seasonal-themes").registerSeasonalThemeRoutes(gateway);
 gateway.use(storeApp);
 
 gateway.use((error, req, res, next) => {
