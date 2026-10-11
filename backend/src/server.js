@@ -3346,7 +3346,7 @@ app.post(
             const sender=cleanText(giftCardInput.sender||"",80);
             const message=cleanText(giftCardInput.message||"",300);
             const allowedOccasions=new Set(["birthday","graduation","mother","thanks","surprise","love","anniversary","ramadan","eid-fitr","eid-adha","halloween","christmas","new-year"]);
-            if(!/^(?:card-(?:0[1-9]|1[0-9]|2[01])\.jpg|season-(?:ramadan|eid-fitr|eid-adha|halloween|christmas|new-year)\.svg)$/.test(file)||!allowedOccasions.has(occasion)||!["f","m"].includes(gender)||!recipient||!message||message.split(/\s+/).filter(Boolean).length>12){
+            if(!/^(?:card-(?:0[1-9]|1[0-9]|2[01])\.jpg|season-(?:ramadan|eid-fitr|eid-adha|halloween|christmas|new-year)-[123]\.webp)$/.test(file)||!allowedOccasions.has(occasion)||!["f","m"].includes(gender)||!recipient||!message||message.split(/\s+/).filter(Boolean).length>12){
               throw createHttpError(400,"INVALID_GIFT_CARD","بيانات بطاقة المعايدة غير صالحة");
             }
             giftCard={
