@@ -101,8 +101,8 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
   const router=express.Router();
   const enabled=()=>env.NAYA_OUTFIT_ENABLED==='true' && !!env.OPENAI_API_KEY;
   router.get('/status', requireAuth, async(req,res,next)=>{try{
-    const day=dayKey(); const r=await db('SELECT state,error_message FROM naya_outfit_daily WHERE user_id=$1 AND usage_day=$2',[req.user.id,day]);
-    const row=r.rows[0]; res.json({ok:true,enabled:enabled(),day,state:row?.state||'available',message:row?.error_message||'',remaining:row?.state==='complete'||row?.state==='pending'?0:1,imageUrl:row?.state==='complete'?'/api/ai/outfit/image?day='+day:null});
+    const day=dayKey(),owner=req.user?.role==='owner'; const r=await db('SELECT state,error_message FROM naya_outfit_daily WHERE user_id=$1 AND usage_day=$2',[req.user.id,day]);
+    const row=r.rows[0]; res.json({ok:true,owner,unlimited:owner,enabled:enabled(),day,state:row?.state||'available',message:row?.error_message||'',remaining:owner?null:row?.state==='complete'||row?.state==='pending'?0:1,imageUrl:row?.state==='complete'?'/api/ai/outfit/image?day='+day:null});
   }catch(e){next(e)}});
   router.get('/image',requireAuth,async(req,res,next)=>{try{
     const day=String(req.query.day||dayKey());if(!/^\d{4}-\d{2}-\d{2}$/.test(day))return res.sendStatus(400);
@@ -120,15 +120,18 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
       for(const item of chosen){const p=r.rows.find(x=>Number(x.id)===item.productId);if(!p)throw new Error('إحدى القطع لم تعد متاحة.');const images=p.images?.length?p.images:[p.image_url||p.image].filter(Boolean);if(!images[item.imageIndex])throw new Error('صورة إحدى القطع غير متاحة.');inputs.push(await readImage(images[item.imageIndex],{db,frontendRoot}));selectedProducts.push({name:p.name,category:p.category})}
       const day=dayKey(),month=day.slice(0,7),job=crypto.randomUUID();
       const cap=Math.max(1,Math.min(10000,Math.floor(Number(env.NAYA_OUTFIT_MONTHLY_LIMIT))||100));
+      const owner=req.user?.role==='owner';
       const accepted=await transaction(async client=>{
         await client.query("INSERT INTO naya_outfit_daily(user_id,usage_day,state) VALUES($1,$2,'available') ON CONFLICT DO NOTHING",[req.user.id,day]);
         const current=await client.query('SELECT state FROM naya_outfit_daily WHERE user_id=$1 AND usage_day=$2 FOR UPDATE',[req.user.id,day]);
-        if(['pending','complete'].includes(current.rows[0].state))return false;
-        const budget=await client.query(`INSERT INTO naya_outfit_budget(month,attempts) VALUES($1,1) ON CONFLICT(month) DO UPDATE SET attempts=naya_outfit_budget.attempts+1 WHERE naya_outfit_budget.attempts<$2 RETURNING attempts`,[month,cap]);
-        if(!budget.rows.length)throw new Error('وصلنا لحد التجارب الشهري؛ جربي لاحقًا.');
+        if(current.rows[0].state==='pending'||(!owner&&current.rows[0].state==='complete'))return false;
+        if(!owner){
+          const budget=await client.query(`INSERT INTO naya_outfit_budget(month,attempts) VALUES($1,1) ON CONFLICT(month) DO UPDATE SET attempts=naya_outfit_budget.attempts+1 WHERE naya_outfit_budget.attempts<$2 RETURNING attempts`,[month,cap]);
+          if(!budget.rows.length)throw new Error('وصلنا لحد التجارب الشهري؛ جربي لاحقًا.');
+        }
         await client.query("UPDATE naya_outfit_daily SET state='pending',job_id=$3,selection=$4,error_message=NULL,updated_at=NOW() WHERE user_id=$1 AND usage_day=$2",[req.user.id,day,job,JSON.stringify(chosen)]);return true;
       });
-      if(!accepted)return res.status(409).json({ok:false,message:'صورتك قيد التجهيز أو استخدمتِ صورتك المجانية اليوم. افتحي الإطلالة لرؤية النتيجة.'});
+      if(!accepted)return res.status(409).json({ok:false,message:'صورتك قيد التجهيز أو استخدمتِ حصتك اليومية. افتحي الإطلالة لرؤية النتيجة.'});
       res.status(202).json({ok:true,state:'pending',day});
       // No automatic provider retries: a duplicate request can incur another image charge.
       (async()=>{
@@ -140,7 +143,7 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
           if(!response.ok)throw new Error('PROVIDER_FAILED');const output=await response.json();const b64=output.data?.[0]?.b64_json;
           if(!b64||b64.length>30*1024*1024)throw new Error('INVALID_OUTPUT');const bytes=Buffer.from(b64,'base64');if(imageType(bytes)!=='image/png')throw new Error('INVALID_OUTPUT');
           await db("UPDATE naya_outfit_daily SET state='complete',image=$4,updated_at=NOW() WHERE user_id=$1 AND usage_day=$2 AND job_id=$3 AND state='pending'",[req.user.id,day,job,bytes]);
-        }catch(error){console.error('[NAYA OUTFIT] generation failed',error.name);await db("UPDATE naya_outfit_daily SET state='failed',error_message=$4,updated_at=NOW() WHERE user_id=$1 AND usage_day=$2 AND job_id=$3 AND state='pending'",[req.user.id,day,job,'تعذر تجهيز الصورة. لم تُحتسب حصتك اليومية؛ يمكنك المحاولة مجددًا.']).catch(()=>{});}
+        }catch(error){console.error('[NAYA OUTFIT] generation failed',error.name);await db("UPDATE naya_outfit_daily SET state='failed',error_message=$4,updated_at=NOW() WHERE user_id=$1 AND usage_day=$2 AND job_id=$3 AND state='pending'",[req.user.id,day,job,'تعذر تجهيز الصورة؛ يمكنك المحاولة مجددًا.']).catch(()=>{});}
       })();
     }catch(e){if(/قطعة|القطع|صورة|الصورة|الإطلالة|تجارب|ارفعي|صيغة/.test(e.message))return res.status(400).json({ok:false,message:e.message});next(e)}
   });return router;
