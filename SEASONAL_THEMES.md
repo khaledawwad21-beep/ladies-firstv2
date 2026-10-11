@@ -37,3 +37,8 @@ Since GitHub's code-text integration cannot attach the generated binary photos i
 Each of the six seasonal occasions now has **ten suggestions for feminine recipients and ten for masculine recipients**, in addition to the twenty-one original nonseasonal card designs. The 12-word check remains. A gift card's message remains customizable.
 
 To avoid dropping or clipping the full seasonal scene on mobile, the responsive hero retains object-fit contain; separate mobile images may be added from Admin at any time.
+
+
+## Four additional seasonal storefront themes
+
+The active-theme selector also includes **spring, summer, autumn, and winter**. Each uses its own CSS color variables, Arabic welcome line, and small colored/open-line SVG ornaments. Their admin editor supports desktop and mobile banners; it intentionally does not offer greeting-card designs for these four storefront-only themes. The six celebration themes and their existing greeting-card tools remain separate.

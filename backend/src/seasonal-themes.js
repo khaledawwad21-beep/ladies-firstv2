@@ -5,10 +5,11 @@ const path = require('node:path');
 const { db } = require('./db');
 const { requireAdmin } = require('./auth');
 
-const THEME_IDS = Object.freeze(['none','ramadan','eid-fitr','eid-adha','halloween','christmas','new-year']);
+const THEME_IDS = Object.freeze(['none','ramadan','eid-fitr','eid-adha','halloween','christmas','new-year','spring','summer','autumn','winter']);
 const LABELS = Object.freeze({
   none:'بدون ثيم',ramadan:'رمضان','eid-fitr':'عيد الفطر','eid-adha':'عيد الأضحى',
-  halloween:'هالوين',christmas:'كريسماس','new-year':'رأس السنة'
+  halloween:'هالوين',christmas:'كريسماس','new-year':'رأس السنة',
+  spring:'الربيع',summer:'الصيف',autumn:'الخريف',winter:'الشتاء'
 });
 const GREETINGS = Object.freeze({
   ramadan:'رمضان كريم، نورتينا في Ladies First',
@@ -16,7 +17,11 @@ const GREETINGS = Object.freeze({
   'eid-adha':'عيد أضحى مبارك، أعاده الله عليكم بالخير',
   halloween:'إطلالة مميزة بأجواء موسمية أنيقة',
   christmas:'أجواء احتفالية أنيقة مع Ladies First',
-  'new-year':'سنة جديدة بإطلالات أجمل'
+  'new-year':'سنة جديدة بإطلالات أجمل',
+  spring:'أزهار الربيع تنثر أناقتها في Ladies First',
+  summer:'صيفك أجمل بإطلالات منعشة من Ladies First',
+  autumn:'أناقة الخريف تبدأ بلمسة دافئة',
+  winter:'دفء وأناقة لكل تفاصيل الشتاء'
 });
 const empty = () => ({active:'none',banners:{}});
 const validTheme = id => THEME_IDS.includes(id);

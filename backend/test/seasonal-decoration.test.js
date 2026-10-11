@@ -36,7 +36,7 @@ test('no decorative DOM is created while the default theme is active',()=>{
     assert.equal(node.children.length,0);
 });
 test('active seasons receive header, banner, multiple section and footer SVG motifs',()=>{
-  for(const id of ['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year']){
+  for(const id of ['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year','spring','summer','autumn','winter']){
     const x=render(id);
     assert.equal(x.header.children.length,2,id+' header');
     assert.equal(x.footer.children.length,2,id+' footer');
@@ -59,7 +59,7 @@ test('seasonal motifs use the active theme only and do not block controls',()=>{
 
 
 test('seasonal motifs alternate genuinely colored and hollow SVG icons',()=>{
-  for(const id of ['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year']){
+  for(const id of ['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year','spring','summer','autumn','winter']){
     const x=render(id);
     assert.ok(x.header.children[0].classes.has('lf-seasonal-vector--filled'),id+' colored header');
     assert.ok(x.header.children[1].classes.has('lf-seasonal-vector--outline'),id+' open-line header');
@@ -93,4 +93,18 @@ test('filled icons use distinct color channels and outlined icons stay unfilled'
   assert.match(css,/fill:none!important/);
   assert.match(css,/\.lf-seasonal-vector--filled \.lf-seasonal-painted-deep/);
   assert.match(css,/pointer-events:none!important/);
+});
+
+test('four season themes have their own drawn motifs and color palettes',()=>{
+  for(const id of ['spring','summer','autumn','winter']){
+    const x=render(id);
+    assert.equal(x.root.children.length,1,id+' greeting');
+    assert.equal(x.header.children.length,2,id+' header motifs');
+    assert.ok(x.header.children[0].classes.has('lf-seasonal-vector--filled'),id+' colored icon');
+    assert.ok(x.header.children[1].classes.has('lf-seasonal-vector--outline'),id+' open-line icon');
+    assert.ok(x.panels.every(node=>node.children.length===1),id+' panels');
+    assert.ok(x.footer.children.length===2,id+' footer motifs');
+    assert.match(css,new RegExp('html\\[data-theme="'+id+'"\\]'));
+    assert.match(x.header.children[0].innerHTML,/lf-seasonal-painted/);
+  }
 });

@@ -60,6 +60,64 @@
         "<path d='m73 44-3 1-2-1M18 29c4 4 11 4 15-1m3 2c4 3 10 3 12-1M17 44c5 2 11 0 13-4m4 6c5-5 11-4 15 0M14 28l-7-4'/>"
       ].join('')
     },
+    spring:{
+      filled:[
+        "<circle class='lf-seasonal-halo' cx='40' cy='40' r='36'/>",
+        "<path class='lf-seasonal-painted' d='M40 11c5 0 7 8 7 15 6-5 13-8 16-4 4 4 0 11-5 16 7 0 15 2 15 7s-8 7-15 7c5 6 9 12 5 16-4 4-11 0-16-5 0 8-2 15-7 15s-7-7-7-15c-5 5-12 9-16 5-4-4 0-10 5-16-7 0-15-2-15-7s8-7 15-7c-5-5-9-12-5-16 4-4 11-1 16 4 0-7 2-15 7-15Z' transform='translate(0 -5) scale(1 .9)'/>",
+        "<circle class='lf-seasonal-painted-soft' cx='40' cy='36' r='8'/>",
+        "<path class='lf-seasonal-painted-secondary' d='M40 48c-2 10-8 18-17 24m16-15c6 0 10-3 13-8m-25 10c-7-1-10-4-13-9'/>",
+        "<path class='lf-seasonal-detail' d='M40 51v22m0-12 10-8m-10 13-9-7'/>"
+      ].join(''),
+      outline:[
+        "<path d='M40 14c4 0 6 8 5 14 5-5 12-8 15-5 4 4 0 10-5 15 7-1 14 1 14 5s-7 6-14 5c5 5 9 11 5 15-3 3-10-1-15-6 1 7-1 14-5 14s-6-7-5-14c-5 5-12 9-15 6-4-4 0-10 5-15-7 1-14-1-14-5s7-6 14-5c-5-5-9-11-5-15 3-3 10 0 15 5-1-6 1-14 5-14Z'/>",
+        "<circle cx='40' cy='39' r='6'/>",
+        "<path d='M40 52v20m0-11 9-7m-9 13-8-6'/>"
+      ].join('')
+    },
+    summer:{
+      filled:[
+        "<circle class='lf-seasonal-halo' cx='40' cy='39' r='35'/>",
+        "<circle class='lf-seasonal-painted' cx='40' cy='32' r='14'/>",
+        "<path class='lf-seasonal-detail' d='M40 7v7m0 36v7M15 32h7m36 0h7M22 14l5 6m26 24 5 6m0-36-5 6M27 44l-5 6'/>",
+        "<path class='lf-seasonal-painted-secondary' d='M9 57c8-7 15 7 23 0s15 7 23 0 12 2 16 4v10H9Z'/>",
+        "<path class='lf-seasonal-painted-soft' d='M9 67c8-7 15 7 23 0s15 7 23 0 12 2 16 4v5H9Z'/>",
+        "<path class='lf-seasonal-detail' d='M10 57c8-7 15 7 23 0s15 7 23 0 12 2 15 4'/>"
+      ].join(''),
+      outline:[
+        "<circle cx='40' cy='31' r='13'/>",
+        "<path d='M40 6v7m0 36v7M15 31h7m36 0h7M22 13l5 6m26 25 5 6m0-37-5 6M27 44l-5 6'/>",
+        "<path d='M8 58c9-8 16 8 25 0s16 8 25 0 12 2 14 4M8 69c9-8 16 8 25 0s16 8 25 0 12 2 14 4'/>"
+      ].join('')
+    },
+    autumn:{
+      filled:[
+        "<circle class='lf-seasonal-halo' cx='40' cy='40' r='36'/>",
+        "<path class='lf-seasonal-painted' d='M40 12c4 10 11 8 18 6-3 8-1 14 9 18-10 4-11 10-8 18-9-3-14-1-19 12-5-11-11-15-20-12 3-9 1-15-9-19 10-4 13-10 9-18 9 3 15 1 20-5Z'/>",
+        "<path class='lf-seasonal-painted-secondary' d='M40 15v49M40 35 23 24m17 21 19-14M40 51 25 46m15 1 15 4'/>",
+        "<path class='lf-seasonal-detail' d='M40 19v43M38 37 25 28m15 16 14-11M38 51l-11-4m15-1 11 4'/>",
+        "<path class='lf-seasonal-painted-deep' d='M43 63c9 4 15 3 21-1-3 8-12 11-21 7Z'/>"
+      ].join(''),
+      outline:[
+        "<path d='M40 12c4 10 11 8 18 6-3 8-1 14 9 18-10 4-11 10-8 18-9-3-14-1-19 12-5-11-11-15-20-12 3-9 1-15-9-19 10-4 13-10 9-18 9 3 15 1 20-5Z'/>",
+        "<path d='M40 17v45M38 37 25 28m15 16 14-11M38 51l-11-4m15-1 11 4'/>",
+        "<path d='M43 62c9 4 15 3 21-1-3 8-12 11-21 7Z'/>"
+      ].join('')
+    },
+    winter:{
+      filled:[
+        "<circle class='lf-seasonal-halo' cx='40' cy='40' r='36'/>",
+        "<path class='lf-seasonal-painted' d='M40 10v60M14 25l52 30M14 55l52-30'/>",
+        "<path class='lf-seasonal-painted-secondary' d='m40 10 6 8m-6-8-6 8m6 42 6-8m-6 8-6-8M14 25l10 1m-10-1 4 9m38 21 4-9m-4 9 10-1M14 55l10-1m-10 1 4-9m38-21 4 9m-4-9 10 1'/>",
+        "<circle class='lf-seasonal-painted-soft' cx='40' cy='40' r='7'/>",
+        "<path class='lf-seasonal-detail' d='M40 4v72M9 22l62 36M9 58l62-36'/>",
+        "<circle class='lf-seasonal-painted-deep' cx='65' cy='13' r='3'/><circle class='lf-seasonal-painted-deep' cx='15' cy='66' r='2'/>"
+      ].join(''),
+      outline:[
+        "<path d='M40 8v64m-8-54 8 8 8-8m-16 46 8-8 8 8M12 24l56 32m-45-1 2-11 11 2m18 20-2-11 11 2M12 56l56-32m-45 1 2 11 11-2m18-20-2 11 11-2'/>",
+        "<circle cx='40' cy='40' r='5'/>",
+        "<path d='M8 13h10m-5-5v10m49 54h10m-5-5v10'/>"
+      ].join('')
+    },
     halloween:{
       filled:[
         "<circle class='lf-seasonal-halo' cx='40' cy='40' r='36'/>",
