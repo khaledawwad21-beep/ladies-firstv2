@@ -16,13 +16,6 @@
   root.className='lf-seasonal';
   root.setAttribute('aria-label',labels[id]||'مناسبة موسمية');
   const picUrl=safeUrl(banner.desktop),mobileUrl=safeUrl(banner.mobile);
-  if(picUrl||mobileUrl){
-    const picture=document.createElement('picture');
-    picture.className='lf-seasonal__picture';
-    if(mobileUrl){const source=document.createElement('source');source.media='(max-width: 760px)';source.srcset=mobileUrl;picture.append(source)}
-    const image=document.createElement('img');image.src=picUrl||mobileUrl;image.alt=(labels[id]||'')+' — Ladies First';image.decoding='async';image.loading='eager';
-    picture.append(image);root.append(picture);
-  }
   const layout=document.createElement('div');layout.className='lf-seasonal__layout';
   const title=document.createElement('strong');
   title.textContent=greetings[id]||labels[id]||'';
