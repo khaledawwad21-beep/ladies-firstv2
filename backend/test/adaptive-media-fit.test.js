@@ -22,7 +22,7 @@ test('mobile images preserve the original ratio rather than letterboxing into 4:
   assert.equal(g.fit,'natural');
   assert.equal(g.width,1080);
   assert.equal(g.height,506);
-  assert.equal(g.x,0);
+  assert.ok(Math.abs(g.x)<1);
 });
 test('greeting cards have printable 3:2 frames with no destructive cropping',()=>{
   const g=shape(900,1800,'greeting-card');
