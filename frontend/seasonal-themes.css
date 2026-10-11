@@ -399,17 +399,29 @@ html[data-theme]:not([data-theme="none"]) .featureTitle::after {
 }
 
 
-/* Keep seasonal mood in the landscape and page palette, not repeated stand-alone symbols. */
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {
-  display:none!important;
+/* Restore visible seasonal motifs: colored welcome art, open-line accents, and section markers. */
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:48px!important;height:48px!important;}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section {
+  width:54px!important;height:54px!important;opacity:.32!important;
 }
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--discovery,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--footer {
+  width:58px!important;height:58px!important;opacity:.31!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider {height:40px!important;}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {width:29px!important;height:29px!important;opacity:.7!important;}
 html[data-theme]:not([data-theme="none"]) body {
   background-image:
     radial-gradient(ellipse 78vw 62vh at 0% 18%,color-mix(in srgb,var(--season-accent) 9%,transparent),transparent 84%),
     radial-gradient(ellipse 78vw 60vh at 100% 58%,color-mix(in srgb,var(--season-accent) 7%,transparent),transparent 84%),
     linear-gradient(180deg,color-mix(in srgb,var(--season-accent) 4%,transparent),transparent 16%,transparent 82%,color-mix(in srgb,var(--season-accent) 4%,transparent)),
     repeating-linear-gradient(118deg,transparent 0 114px,color-mix(in srgb,var(--season-accent) 2%,transparent) 115px 117px,transparent 118px 230px)!important;
+}
+@media(max-width:760px) {
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:40px!important;height:40px!important;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section {width:38px!important;height:38px!important;opacity:.29!important;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--discovery,
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--footer {width:46px!important;height:46px!important;opacity:.28!important;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider {height:32px!important;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {width:23px!important;height:23px!important;opacity:.64!important;}
 }
