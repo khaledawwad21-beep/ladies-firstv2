@@ -136,8 +136,7 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
  async function checkLimit(req,res,{scope,limit,code,message}){
   try{
    const userId=Number(req.user?.id),customerId=Number.isSafeInteger(userId)&&userId>0?"customer:"+userId:"";
-   const browserId=clean(req.body?.clientId,100);
-   const clientId=customerId||(/^[A-Za-z0-9_-]{16,100}$/.test(browserId)?"guest:"+browserId:"ip:"+String(req.ip||"unknown"));
+   const clientId=customerId||"ip:"+String(req.ip||"unknown");
    const result=await consumeRateLimit({scope,clientId,limit,windowMs:WINDOW});
    if(result.allowed)return true;
    res.set("Retry-After",String(result.retryAfterSeconds));
