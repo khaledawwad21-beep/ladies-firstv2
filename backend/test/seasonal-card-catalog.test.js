@@ -35,6 +35,6 @@ test('admin importer supports all three greeting layouts and persistent uploaded
  const js=fs.readFileSync(path.join(frontend,'admin-seasonal.js'),'utf8');
  assert.match(js,/function seasonalReadStoredZip/);
  assert.match(js,/seasonalImportZip/);
- assert.match(js,/await adminUploadMany\(\[file\]\)/);
+ assert.match(js,/await adminUploadMany\(\[file\],slot\)/);
  assert.match(js,/await api\('\/api\/admin\/seasonal-theme'/);
 });
