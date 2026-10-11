@@ -113,7 +113,7 @@ test('four seasonal themes always add their own illustrated hero slide when no b
     assert.match(app,new RegExp(id+':'),id+' fallback title is mapped');
   }
   assert.match(app,/else if\(\['spring','summer','autumn','winter'\]\.includes\(seasonal\.active\)\)/,'generated scenes are the fallback when no uploaded banner is configured');
-  assert.match(app,/image:'\/seasonal-'\+seasonal\.active\+'\.svg\?v=20261011-art-polish1'/,'the active seasonal SVG is loaded from a local URL');
+  assert.match(app,/image:'\/seasonal-'\\+seasonal\\.active\\+'\\.webp\\?v=20261011-season-art-polish2'/,'the active seasonal image is loaded from a local URL');
 });
 test('season decoration reaches both category and featured product areas',()=>{
   for(const target of ["getElementById('cats')","getElementById('products')"])
