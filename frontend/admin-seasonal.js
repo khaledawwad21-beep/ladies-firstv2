@@ -21,6 +21,12 @@ function seasonalRender() {
       <label>الثيم النشط<select id="seasonActive" class="field" onchange="seasonalDraft.active=this.value">${Object.entries(seasonalLabels).map(([key,label])=>'<option value="'+key+'" '+(seasonalDraft.active===key?'selected':'')+'>'+label+'</option>').join('')}</select></label>
       <label>تعديل بنرات مناسبة<select id="seasonEditor" class="field" onchange="seasonalPick(this.value)">${Object.entries(seasonalLabels).filter(([key])=>key!=='none').map(([key,label])=>'<option value="'+key+'" '+(seasonalEditing===key?'selected':'')+'>'+label+'</option>').join('')}</select></label>
     </div>
+    <div style="background:#fbf4ec;padding:14px;border:1px solid #eadce3;border-radius:14px;margin:12px 0">
+      <b>استيراد التصاميم الفخمة المعتمدة دفعة واحدة</b>
+      <p class="small-note">ارفَع ملف Ladies_First_Official_Seasonal_Designs.zip المحضّر لك: 6 بنرات أصلية + 18 بطاقة معايدة (3 لكل مناسبة). تحفظ الصور في قاعدة بيانات المتجر، وتبقى متاحة بعد إعادة النشر.</p>
+      <label class="btn" style="display:inline-block">اختيار حزمة التصاميم <input id="seasonalZipUpload" type="file" accept=".zip,application/zip" style="display:none" onchange="seasonalImportZip(this)"></label>
+      <div id="seasonImportStatus" role="status" aria-live="polite"></div>
+    </div>
     <p class="small-note">المقاسات المقترحة: كمبيوتر 1920×900، موبايل 1080×1350، بطاقة معايدة 3:2 بمقاس 15×10 سم. النصوص والأسماء داخل البطاقات تبقى قابلة للتعديل.</p>
     ${[['desktop','بانر الكمبيوتر'],['mobile','بانر الموبايل'],['card','خلفية بطاقة المعايدة']].map(([kind,label])=>`<div style="padding:10px 0;border-bottom:1px solid #eadce3">
       <b>${label}</b><div style="margin:9px 0">${bannerPreview(current[kind],label)}</div>
@@ -60,4 +66,66 @@ window.seasonalSave=async function(){
     toast('تم تفعيل وحفظ الثيم');
   }catch(error){if(status)status.textContent=error.message||'تعذر الحفظ'}
   finally{seasonalBusy=false;if(btn)btn.disabled=false}
+};
+
+// The official ZIP is ZIP_STORED, so the native browser can import it without any
+// third-party decompression dependency. The server still validates every uploaded image.
+function seasonalReadStoredZip(buffer) {
+  const view=new DataView(buffer),bytes=new Uint8Array(buffer),files=new Map();
+  const readText=new TextDecoder('utf-8',{fatal:true});
+  let offset=0;
+  while(offset+4<=bytes.length && view.getUint32(offset,true)===0x04034b50){
+    if(offset+30>bytes.length)throw Error('ملف الصور غير مكتمل');
+    const flags=view.getUint16(offset+6,true);
+    const method=view.getUint16(offset+8,true);
+    const size=view.getUint32(offset+18,true);
+    const nameSize=view.getUint16(offset+26,true),extraSize=view.getUint16(offset+28,true);
+    const nameStart=offset+30,dataStart=nameStart+nameSize+extraSize;
+    if(flags&8 || method!==0 || dataStart+size>bytes.length)throw Error('استخدمي حزمة الصور الرسمية غير المضغوطة داخليًا');
+    const name=readText.decode(bytes.subarray(nameStart,nameStart+nameSize));
+    if(name==='manifest.json'){
+      // Informational only. Never use untrusted manifest paths or URLs for uploads.
+    } else if(/^(?:ramadan|eid-fitr|eid-adha|halloween|christmas|new-year)-(?:desktop|card-[123])\.webp$/.test(name)){
+      if(files.has(name)||size>3*1024*1024)throw Error('ملف مكرر أو كبير: '+name);
+      const data=bytes.slice(dataStart,dataStart+size);
+      if(data.length<12||String.fromCharCode(...data.slice(0,4))!=='RIFF'||String.fromCharCode(...data.slice(8,12))!=='WEBP')throw Error('صيغة الصورة غير صالحة: '+name);
+      files.set(name,new File([data],name,{type:'image/webp'}));
+    } else if(!name.endsWith('/')) throw Error('ملف غير متوقع في الحزمة: '+name);
+    offset=dataStart+size;
+  }
+  const ids=['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year'];
+  for(const id of ids)for(const suffix of ['desktop','card-1','card-2','card-3']){
+    if(!files.has(id+'-'+suffix+'.webp'))throw Error('الحزمة ناقصة: '+id+'-'+suffix);
+  }
+  if(files.size!==24)throw Error('عدد تصاميم الحزمة غير صحيح');
+  return files;
+}
+window.seasonalImportZip=async function seasonalImportZip(input){
+  if(seasonalBusy||!input.files?.length)return;
+  const zip=input.files[0];if(zip.size>15*1024*1024){alert('حجم الحزمة كبير جدًا');input.value='';return}
+  seasonalBusy=true;
+  const status=$('#seasonImportStatus');
+  const update=s=>{if(status?.isConnected)status.textContent=s};
+  try{
+    update('جاري فحص الحزمة…');
+    const files=seasonalReadStoredZip(await zip.arrayBuffer());
+    const updated=JSON.parse(JSON.stringify(seasonalDraft));
+    let done=0;
+    for(const [name,file] of files){
+      const m=/^(ramadan|eid-fitr|eid-adha|halloween|christmas|new-year)-(desktop|card-[123])\.webp$/.exec(name);
+      const url=(await adminUploadMany([file]))[0];
+      if(!url)throw Error('تعذر حفظ الصورة '+name);
+      const field=m[2]==='desktop'?'desktop':m[2]==='card-1'?'card':m[2]==='card-2'?'card2':'card3';
+      (updated.banners[m[1]]||={})[field]=url;
+      update('تم رفع '+(++done)+' من 24 صورة…');
+    }
+    update('جاري ربط جميع الصور ببطاقات المعايدة والثيمات…');
+    const saved=await api('/api/admin/seasonal-theme',{method:'PUT',body:JSON.stringify(updated)});
+    seasonalDraft={active:saved.active,banners:saved.banners||{}};
+    seasonalRender();
+    const doneStatus=$('#seasonImportStatus');
+    if(doneStatus)doneStatus.textContent='تم حفظ البنرات الستة والبطاقات الـ18 وربطها بالموقع.';
+    toast('تم استيراد 24 تصميمًا بنجاح');
+  }catch(error){update('تعذر استيراد الحزمة: '+(error.message||'خطأ غير متوقع'))}
+  finally{seasonalBusy=false;input.value=''}
 };
