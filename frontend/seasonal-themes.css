@@ -474,3 +474,60 @@ html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {
   html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider {height:37px!important;}
   html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {width:27px!important;height:27px!important;}
 }
+/* Keep every seasonal symbol away from text and images. Seasonal character lives in category cards. */
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {
+  display:none!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
+  min-height:92px!important;padding:18px 24px!important;
+}
+html[data-theme]:not([data-theme="none"]) #cats {
+  padding:12px 10px 18px!important;
+  border:1px solid color-mix(in srgb,var(--season-icon-main) 42%,var(--season-edge))!important;
+  border-radius:24px!important;
+  background:
+    radial-gradient(ellipse at 0% 0%,color-mix(in srgb,var(--season-icon-secondary) 16%,transparent),transparent 48%),
+    radial-gradient(ellipse at 100% 100%,color-mix(in srgb,var(--season-icon-main) 17%,transparent),transparent 48%),
+    linear-gradient(135deg,color-mix(in srgb,var(--season-icon-soft) 55%,#fff),#fff 48%,color-mix(in srgb,var(--season-icon-soft) 65%,#fff))!important;
+  box-shadow:inset 0 0 0 4px #ffffffa8,0 10px 26px color-mix(in srgb,var(--season-icon-deep) 13%,transparent)!important;
+}
+html[data-theme]:not([data-theme="none"]) #cats .cat {
+  position:relative!important;isolation:isolate;
+  padding:3px!important;
+  border:1px solid color-mix(in srgb,var(--season-icon-secondary) 45%,var(--season-edge))!important;
+  border-radius:20px!important;
+  background:linear-gradient(145deg,#fff,color-mix(in srgb,var(--season-icon-soft) 65%,#fff) 58%,#fff)!important;
+  box-shadow:0 7px 20px color-mix(in srgb,var(--season-icon-deep) 15%,transparent),inset 0 0 0 2px #ffffffb8!important;
+  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+}
+html[data-theme]:not([data-theme="none"]) #cats .cat img {
+  display:block;border-radius:16px 16px 8px 8px;
+}
+html[data-theme]:not([data-theme="none"]) #cats .cat label {
+  position:relative;margin-top:2px;padding:12px 8px 10px!important;
+  border-top:2px solid color-mix(in srgb,var(--season-icon-main) 45%,var(--season-icon-secondary));
+  border-radius:0 0 15px 15px;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--season-icon-secondary) 12%,#fff),#fff 50%,color-mix(in srgb,var(--season-icon-main) 13%,#fff));
+}
+html[data-theme]:not([data-theme="none"]) #cats .cat label::before {
+  content:"";display:block;width:32px;height:3px;margin:0 auto 7px;border-radius:999px;
+  background:linear-gradient(90deg,var(--season-icon-secondary),var(--season-icon-main));
+}
+@media(hover:hover) {
+  html[data-theme]:not([data-theme="none"]) #cats .cat:hover {
+    transform:translateY(-3px);
+    border-color:var(--season-icon-main)!important;
+    box-shadow:0 12px 26px color-mix(in srgb,var(--season-icon-deep) 20%,transparent),inset 0 0 0 2px #ffffffc8!important;
+  }
+}
+@media(max-width:760px) {
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {min-height:78px!important;padding:14px 18px!important;}
+  html[data-theme]:not([data-theme="none"]) #cats {padding:8px 6px 12px!important;border-radius:17px!important;}
+  html[data-theme]:not([data-theme="none"]) #cats .cat {padding:2px!important;border-radius:15px!important;}
+  html[data-theme]:not([data-theme="none"]) #cats .cat img {border-radius:12px 12px 7px 7px;}
+  html[data-theme]:not([data-theme="none"]) #cats .cat label {padding:9px 5px 8px!important;border-radius:0 0 12px 12px;}
+  html[data-theme]:not([data-theme="none"]) #cats .cat label::before {width:24px;height:2px;margin-bottom:5px;}
+}
