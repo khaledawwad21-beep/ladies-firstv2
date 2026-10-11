@@ -808,6 +808,18 @@ function heroSlides(){
     if(!key)return;
     arr.push({image:key,mobileImage:x.mobileImage||'',title:currentLang==='en'?(x.titleEn||x.titleAr||'Ladies First'):(x.titleAr||x.titleEn||'Ladies First'),desc:currentLang==='en'?(x.descEn||x.descAr||''):(x.descAr||x.descEn||''),id:x.id,hideText:x.hideText===true});
   });
+  // Put the selected seasonal artwork first, without overwriting stored slider slides.
+  const seasonal=window.__LF_SEASONAL__;
+  if(seasonal?.active&&seasonal.active!=='none'){
+    const chosen=seasonal.banners?.[seasonal.active]||{};
+    const valid=u=>typeof u==='string'&&(/^(https?:\/\/|\/(?!\/))/.test(u))?u:'';
+    const desktop=valid(chosen.desktop),mobile=valid(chosen.mobile);
+    if(desktop||mobile)arr.unshift({
+      image:desktop||mobile,mobileImage:mobile||'',
+      title:seasonal.active==='new-year'?'سنة '+seasonal.year+' بإطلالات أجمل':(seasonal.greetings?.[seasonal.active]||'Ladies First'),
+      desc:'',id:'seasonal-'+seasonal.active,hideText:true,seasonal:true
+    });
+  }
   return arr;
 }
 function heroMobileImageFor(slide){
@@ -824,6 +836,7 @@ function renderHeroSlider(fade=true){
   if(!slides.length)return;
   if(heroIndex>=slides.length)heroIndex=0;
   const s=slides[heroIndex];
+  document.querySelector('.heroSlider .heroCard')?.classList.toggle('lf-seasonal-slide',!!s.seasonal);
   const title=document.getElementById('heroTitle'),desc=document.getElementById('heroDesc'),cta=document.getElementById('heroCta');
   if(title)title.textContent=s.title;if(desc)desc.textContent=s.desc;if(cta)cta.textContent=currentLang==='en'?'Shop now':'تسوقي الآن';
   const heroCard=document.querySelector('.heroSlider .heroCard');if(heroCard)heroCard.classList.toggle('logo-only',!!s.hideText);const textPanel=document.querySelector('.heroSlider .heroText');if(textPanel)textPanel.hidden=!!s.hideText;
