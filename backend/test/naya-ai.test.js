@@ -97,10 +97,12 @@ test("Naya rejects messages over 1000 characters before calling OpenAI",async t=
  const res=await fetch("http://127.0.0.1:"+server.address().port+"/api/ai/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"ا".repeat(1001)})});
  assert.equal(res.status,413);assert.equal((await res.json()).code,"NAYA_MESSAGE_TOO_LONG");assert.equal(upstreamCalled,false);
 });
-test("Naya rate limit uses a stable anonymous customer ID when supplied",async t=>{
- let identity;const app=express();app.use(express.json());
- app.use("/api/ai",createRouter({rateLimiter:async input=>{identity=input.clientId;return{allowed:true,retryAfterSeconds:0,requestCount:1}},db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async()=>({ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:"أهلًا",recommendationIds:[]})}}]})})}));
+test("Naya guest rate limit ignores resettable browser IDs and uses IP; accounts use customer ID",async t=>{
+ const identities=[];const app=express();app.use(express.json());
+ app.use("/api/ai",createRouter({optionalAuth:(req,res,next)=>{if(req.headers.authorization==="Bearer customer-token")req.user={id:42};next()},rateLimiter:async input=>{identities.push(input.clientId);return{allowed:true,retryAfterSeconds:0,requestCount:1}},db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async()=>({ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:"أهلًا",recommendationIds:[]})}}]})})}));
  const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
- const res=await fetch("http://127.0.0.1:"+server.address().port+"/api/ai/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"مرحبا",clientId:"browser-customer-123456"})});
- assert.equal(res.status,200);assert.equal(identity,"guest:browser-customer-123456");
+ const url="http://127.0.0.1:"+server.address().port+"/api/ai/chat";
+ for(const clientId of ["browser-customer-123456","new-id-after-clearing-storage"]){const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"مرحبا",clientId})});assert.equal(res.status,200)}
+ const signed=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer customer-token"},body:JSON.stringify({message:"مرحبا",clientId:"another-browser-id"})});assert.equal(signed.status,200);
+ assert.equal(identities[0],identities[1]);assert.match(identities[0],/^ip:/);assert.equal(identities[2],"customer:42");assert.doesNotMatch(identities[0],/browser-customer|new-id/);
 });
