@@ -1,0 +1,34 @@
+/* Seasonal visuals are additive: core Ladies First palette, layout and flows remain unchanged. */
+html[data-theme] { --season-accent:#c393a7; --season-shadow:transparent; --season-tint:transparent; --season-edge:transparent; --season-dark:#63345e; }
+html[data-theme="ramadan"] { --season-accent:#cda96d;--season-shadow:#cda96d21;--season-tint:#fcf6e944;--season-edge:#d3b475;--season-dark:#50315b; }
+html[data-theme="eid-fitr"] { --season-accent:#d19f9f;--season-shadow:#d49eab22;--season-tint:#fff1ec66;--season-edge:#e0b1b3;--season-dark:#704562; }
+html[data-theme="eid-adha"] { --season-accent:#b99b76;--season-shadow:#b99b7622;--season-tint:#f9f2e666;--season-edge:#c7a982;--season-dark:#654357; }
+html[data-theme="halloween"] { --season-accent:#b28271;--season-shadow:#b2827133;--season-tint:#ece4f044;--season-edge:#ad8ba8;--season-dark:#422742; }
+html[data-theme="christmas"] { --season-accent:#b99967;--season-shadow:#9b6b5c22;--season-tint:#f6eee944;--season-edge:#a98f70;--season-dark:#5c344b; }
+html[data-theme="new-year"] { --season-accent:#c5a77a;--season-shadow:#c5a77a25;--season-tint:#f7efdf44;--season-edge:#c5a77a;--season-dark:#4f3658; }
+html:not([data-theme="none"])[data-theme] body {
+  background-image:radial-gradient(ellipse at 0 4%,var(--season-tint),transparent 35%),radial-gradient(ellipse at 100% 70%,var(--season-shadow),transparent 40%);
+}
+html:not([data-theme="none"])[data-theme] header:not(.top) { border-bottom:2px solid var(--season-edge);box-shadow:0 3px 14px var(--season-shadow); }
+html:not([data-theme="none"])[data-theme] .heroSlider { box-shadow:0 7px 24px var(--season-shadow); }
+html:not([data-theme="none"])[data-theme] .sectionTitle h2::after,html:not([data-theme="none"])[data-theme] .featureTitle::after {content:" ✧";color:var(--season-accent);font-size:.75em}
+html:not([data-theme="none"])[data-theme] .cat { box-shadow:0 5px 22px var(--season-shadow); }
+html:not([data-theme="none"])[data-theme] footer { border-top:2px solid var(--season-edge); }
+.lf-seasonal {display:none;position:relative;isolation:isolate;overflow:hidden;max-width:1180px;margin:8px auto 0;border-radius:16px;color:var(--season-dark);border:1px solid var(--season-edge);background:linear-gradient(100deg,#fffaf5ee,#fff3f7ee);box-shadow:0 8px 20px var(--season-shadow)}
+html:not([data-theme="none"])[data-theme] .lf-seasonal {display:block}
+.lf-seasonal__ornament {position:absolute;inset-block-start:-18px;inset-inline-start:4%;font-size:64px;line-height:1;opacity:.12;pointer-events:none;user-select:none}
+.lf-seasonal__ornament--right {inset-inline-start:auto;inset-inline-end:3%;top:auto;bottom:-15px;font-size:54px}
+.lf-seasonal__layout {position:relative;display:flex;align-items:center;justify-content:center;gap:10px;padding:13px 22px;min-height:75px;text-align:center}
+.lf-seasonal__layout strong {font:700 clamp(16px,2vw,23px) Georgia,Tahoma,Arial,sans-serif;line-height:1.5}
+.lf-seasonal__layout small {display:block;font-size:12px;margin-top:3px;color:var(--season-dark);opacity:.75}
+.lf-seasonal__picture {display:block;width:100%;margin:0}
+.lf-seasonal__picture img {display:block;width:100%;height:auto;max-height:none;object-fit:contain;object-position:center}
+.lf-seasonal__year {font:700 1.4em Georgia,serif;white-space:nowrap;color:var(--season-dark)}
+.lf-seasonal__picture+.lf-seasonal__layout {min-height:52px;background:#fffdf9df}
+@media(max-width:760px) {
+  .lf-seasonal {margin:6px 9px;border-radius:11px}
+  .lf-seasonal__layout {min-height:67px;padding:11px 24px}
+  .lf-seasonal__ornament {font-size:46px;opacity:.09}
+  .lf-seasonal__layout strong {font-size:16px}
+}
+@media(prefers-reduced-motion:reduce) {.lf-seasonal * {animation:none!important;transition:none!important}}
