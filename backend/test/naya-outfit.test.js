@@ -5,7 +5,7 @@ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42
 test('selection and Palestine day boundary',()=>{assert.throws(()=>selection([{productId:1},{productId:1}]));assert.throws(()=>selection([]));assert.deepEqual(selection([],{allowEmpty:true}),[]);assert.equal(dayKey(new Date('2026-07-01T20:59:00Z')),'2026-07-01');assert.equal(dayKey(new Date('2026-07-01T21:00:00Z')),'2026-07-02')});
 test('remote images cannot make outbound requests',async()=>{await assert.rejects(readImage('https://example.com/x.png',{}),/ارفعي/)});
 test('durable daily quota, failures, concurrency, budget and private image',async t=>{
- const pg=new PGlite();await pg.exec(`CREATE TABLE categories(id BIGINT PRIMARY KEY,name TEXT);CREATE TABLE products(id BIGINT PRIMARY KEY,name TEXT,image_url TEXT,image TEXT,is_active BOOLEAN,category_id BIGINT);CREATE TABLE product_images(id BIGINT,product_id BIGINT,image_url TEXT,is_primary BOOLEAN,sort_order INT);CREATE TABLE uploaded_images(id TEXT,data BYTEA);CREATE TABLE naya_outfit_daily(user_id BIGINT,usage_day DATE,state TEXT,job_id UUID,selection JSONB,image BYTEA,error_message TEXT,updated_at TIMESTAMPTZ,PRIMARY KEY(user_id,usage_day));CREATE TABLE naya_outfit_budget(month TEXT PRIMARY KEY,attempts INT);INSERT INTO products VALUES(1,'Dress','/api/images/test',NULL,true,NULL);`);await pg.query('INSERT INTO uploaded_images VALUES($1,$2)',['test',png]);
+ const pg=new PGlite();await pg.exec(`CREATE TABLE categories(id BIGINT PRIMARY KEY,name TEXT);CREATE TABLE products(id BIGINT PRIMARY KEY,name TEXT,image_url TEXT,image TEXT,is_active BOOLEAN,category_id BIGINT);CREATE TABLE product_images(id BIGINT,product_id BIGINT,image_url TEXT,is_primary BOOLEAN,sort_order INT);CREATE TABLE uploaded_images(id TEXT,data BYTEA);CREATE TABLE naya_outfit_daily(user_id BIGINT,usage_day DATE,state TEXT,job_id UUID,selection JSONB,image BYTEA,error_message TEXT,updated_at TIMESTAMPTZ,PRIMARY KEY(user_id,usage_day));CREATE TABLE naya_outfit_budget(month TEXT PRIMARY KEY,attempts INT);INSERT INTO products VALUES(1,'Dress','https://ladies-firstv2.onrender.com/api/images/test',NULL,true,NULL);`);await pg.query('INSERT INTO uploaded_images VALUES($1,$2)',['test',png]);
  let calls=0,release,fail=false;const env={NAYA_OUTFIT_ENABLED:'true',OPENAI_API_KEY:'test',NAYA_OUTFIT_MONTHLY_LIMIT:'4'};
  const app=express();app.use(express.json());app.use('/api/ai/outfit',createOutfitRouter({db:(s,p)=>pg.query(s,p),transaction:fn=>pg.transaction(fn),requireAuth:(req,res,next)=>{const id=Number(req.headers['x-user']);if(!id)return res.sendStatus(401);req.user={id,role:req.headers.authorization==='Bearer owner-token'?'owner':'customer'};next()},env,fetchImpl:async()=>{calls++;await new Promise(r=>release=r);return{ok:!fail,json:async()=>({data:[{b64_json:png.toString('base64')}]})}}}));app.use((e,req,res,next)=>(console.error(e),res.status(500).json({error:e.message})));
  const server=app.listen(0);await new Promise(r=>server.once('listening',r));t.after(async()=>{await new Promise(r=>server.close(r));await pg.close()});const base='http://127.0.0.1:'+server.address().port+'/api/ai/outfit';
@@ -31,4 +31,21 @@ test('selected products drive framing and unobstructed accessory poses',()=>{
  assert.match(shirt,/head-to-hip/);assert.match(shirt,/"weight":70/);
  const unknown=outfitPrompt([{name:'قطعة خاصة'}],null);assert.match(unknown,/Inspect the reference products/);
  const bodyOnly=outfitPrompt([],{height:170,weight:75});assert.match(bodyOnly,/Do not stretch, warp, or simply resize/);assert.match(bodyOnly,/\"weight\":75/);
+});
+
+test('store absolute image URLs resolve to the uploaded bytes without outbound fetches',async()=>{
+ const queries=[];
+ const db=async(sql,params)=>{queries.push({sql,params});return{rows:[{data:png}]}};
+ for(const url of ['/api/images/abc123','https://ladies-firstv2.onrender.com/api/images/abc123','https://ladies-firstv2.onrender.com/api/images/abc123?v=2']){
+  const image=await readImage(url,{db,env:{}});
+  assert.deepEqual(image.bytes,png);assert.equal(image.mime,'image/png');
+ }
+ assert.equal(queries.length,3);
+ assert.ok(queries.every(q=>q.params[0]==='abc123'&&q.sql.includes('uploaded_images')));
+ const configured=await readImage('https://shop.example/api/images/abc123',{db,env:{RENDER_EXTERNAL_URL:'https://shop.example'}});
+ assert.deepEqual(configured.bytes,png);
+ for(const url of ['https://evil.example/api/images/abc123','https://ladies-firstv2.onrender.com.evil.example/api/images/abc123','https://user:secret@ladies-firstv2.onrender.com/api/images/abc123']){
+  await assert.rejects(readImage(url,{db,env:{}}),/ارفعي/);
+ }
+ assert.equal(queries.length,4);
 });
