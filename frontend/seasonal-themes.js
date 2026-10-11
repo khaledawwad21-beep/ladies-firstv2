@@ -208,24 +208,14 @@
     layout.appendChild(secondary);root.appendChild(layout);
   }
   // Visual-only icons: do not intercept taps, gestures, or keyboard navigation.
-  const header=document.querySelector('body > header');
-  decorate(header,'lf-seasonal-decor--header lf-seasonal-decor--start','filled');
-  decorate(header,'lf-seasonal-decor--header lf-seasonal-decor--end','outline');
   const categories=document.getElementById('cats');
-  decorate(categories,'lf-seasonal-decor--section lf-seasonal-decor--start','filled');
-  decorate(categories,'lf-seasonal-decor--section lf-seasonal-decor--end','outline');
+  decorate(categories,'lf-seasonal-decor--section lf-seasonal-decor--end','filled');
   const products=document.getElementById('products');
   decorate(products,'lf-seasonal-decor--section lf-seasonal-decor--start','outline');
-  decorate(products,'lf-seasonal-decor--section lf-seasonal-decor--end','filled');
-  [...document.querySelectorAll('.featureBlock')].forEach((panel,i)=>{
-    decorate(panel,'lf-seasonal-decor--panel',i%2===0?'filled':'outline');
-  });
   const discovery=document.getElementById('storeDiscoveryIdeas');
   decorate(discovery,'lf-seasonal-decor--discovery lf-seasonal-decor--start','filled');
-  decorate(discovery,'lf-seasonal-decor--discovery lf-seasonal-decor--end','outline');
   const footer=document.querySelector('body > footer');
   decorate(footer,'lf-seasonal-decor--footer lf-seasonal-decor--start','filled');
-  decorate(footer,'lf-seasonal-decor--footer lf-seasonal-decor--end','outline');
   function divider(after){
     if(!after || !after.parentNode)return;
     const el=document.createElement('div');el.className='lf-seasonal-divider';
@@ -235,7 +225,4 @@
   }
   divider(document.querySelector('.heroSlider'));
   divider(document.getElementById('cats'));
-  [...document.querySelectorAll('.sectionTitle h2,.featureTitle,.lf-store-ideas-head h2')].forEach((heading,i)=>{
-    heading.appendChild(icon('lf-seasonal-title-icon',i%2===0?'filled':'outline'));
-  });
 })();
