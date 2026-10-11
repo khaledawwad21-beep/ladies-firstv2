@@ -77,9 +77,18 @@ function imageType(bytes) {
   if (bytes.toString('ascii',0,4)==='RIFF' && bytes.toString('ascii',8,12)==='WEBP') return 'image/webp';
   throw new Error('صيغة الصورة غير مدعومة.');
 }
-async function readImage(url, { db, frontendRoot }) {
+async function readImage(url, { db, frontendRoot, env = process.env }) {
   let bytes;
   if (typeof url !== 'string') throw new Error('صورة المنتج غير متاحة.');
+  // Store-owned absolute URLs identify local assets; never make a network request.
+  if (/^https?:\/\//i.test(url)) {
+    const source = new URL(url);
+    const origins = ['https://ladies-firstv2.onrender.com', env.RENDER_EXTERNAL_URL, env.PUBLIC_BASE_URL, env.SITE_URL]
+      .filter(Boolean).flatMap(value => { try { return [new URL(value).origin]; } catch { return []; } });
+    if (source.username || source.password || !origins.includes(source.origin))
+      throw new Error('ارفعي صورة المنتج إلى المتجر قبل تجربة الإطلالة.');
+    url = source.pathname;
+  }
   const match = /^data:image\/(?:png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(url);
   if (match) { if(match[1].length>12*1024*1024) throw new Error('الصورة كبيرة جدًا.'); bytes = Buffer.from(match[1], 'base64'); }
   else if (/^\/api\/images\/[a-zA-Z0-9-]+$/.test(url)) {
@@ -116,8 +125,8 @@ function createOutfitRouter({ db, transaction, requireAuth, env=process.env, fet
       const r=await db(`SELECT p.id,p.name,(SELECT c.name FROM categories c WHERE c.id=p.category_id) AS category,COALESCE((SELECT json_agg(image_url ORDER BY is_primary DESC,sort_order,id) FROM product_images WHERE product_id=p.id),'[]'::json) AS images,p.image_url,p.image FROM products p WHERE p.id=ANY($1::bigint[]) AND p.is_active=TRUE`,[chosen.map(x=>x.productId)]);
       const inputs=[];const selectedProducts=[];
       // Reference is a fixed server-controlled asset, never a customer-supplied file path.
-      inputs.push(await readImage('/naya-boutique.png',{db,frontendRoot}));
-      for(const item of chosen){const p=r.rows.find(x=>Number(x.id)===item.productId);if(!p)throw new Error('إحدى القطع لم تعد متاحة.');const images=p.images?.length?p.images:[p.image_url||p.image].filter(Boolean);if(!images[item.imageIndex])throw new Error('صورة إحدى القطع غير متاحة.');inputs.push(await readImage(images[item.imageIndex],{db,frontendRoot}));selectedProducts.push({name:p.name,category:p.category})}
+      inputs.push(await readImage('/naya-boutique.png',{db,frontendRoot,env}));
+      for(const item of chosen){const p=r.rows.find(x=>Number(x.id)===item.productId);if(!p)throw new Error('إحدى القطع لم تعد متاحة.');const images=p.images?.length?p.images:[p.image_url||p.image].filter(Boolean);if(!images[item.imageIndex])throw new Error('صورة إحدى القطع غير متاحة.');inputs.push(await readImage(images[item.imageIndex],{db,frontendRoot,env}));selectedProducts.push({name:p.name,category:p.category})}
       const day=dayKey(),month=day.slice(0,7),job=crypto.randomUUID();
       const cap=Math.max(1,Math.min(10000,Math.floor(Number(env.NAYA_OUTFIT_MONTHLY_LIMIT))||100));
       const owner=req.user?.role==='owner';
