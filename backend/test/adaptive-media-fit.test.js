@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const read=p=>fs.readFileSync(path.resolve(__dirname,'../../frontend/',p),'utf8');
-const ctx=vm.createContext({});
+const ctx=vm.createContext({window:{}});
 vm.runInContext(read('admin-product-upload.js'),ctx);
 const shape=(w,h,slot)=>vm.runInContext('adminPlacementGeometry('+w+','+h+','+JSON.stringify(slot)+')',ctx);
 
