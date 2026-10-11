@@ -564,7 +564,7 @@ html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-s
   html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {width:68px;height:56px;}
   html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--start {inset-inline-start:3px;}
   html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {inset-inline-end:3px;}
-  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card {width:54px;height:42px;top:4px;}
+  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card {width:54px!important;height:42px!important;top:4px!important;}
   html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--start {inset-inline-start:6px;}
   html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--end {inset-inline-end:6px;}
 }
