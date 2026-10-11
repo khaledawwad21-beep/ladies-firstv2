@@ -1,6 +1,7 @@
 'use strict';
 let seasonalDraft={active:'none',banners:{}};
-const seasonalLabels={'none':'بدون ثيم','ramadan':'رمضان','eid-fitr':'عيد الفطر','eid-adha':'عيد الأضحى','halloween':'هالوين','christmas':'كريسماس','new-year':'رأس السنة'};
+const seasonalLabels={'none':'بدون ثيم','ramadan':'رمضان','eid-fitr':'عيد الفطر','eid-adha':'عيد الأضحى','halloween':'هالوين','christmas':'كريسماس','new-year':'رأس السنة','spring':'الربيع','summer':'الصيف','autumn':'الخريف','winter':'الشتاء'};
+const seasonalNonCardThemes=new Set(['spring','summer','autumn','winter']);
 let seasonalEditing='ramadan',seasonalBusy=false;
 window.seasons=async function seasons(){
   $('#sections').innerHTML='<div class="card">جاري تحميل الثيمات الموسمية…</div>';
@@ -13,6 +14,8 @@ window.seasons=async function seasons(){
 };
 function seasonalRender() {
   const current=seasonalDraft.banners[seasonalEditing]||{};
+  const seasonalFields=[['desktop','بانر الكمبيوتر'],['mobile','بانر الموبايل']];
+  if(!seasonalNonCardThemes.has(seasonalEditing))seasonalFields.push(['card','بطاقة المعايدة الأولى'],['card2','بطاقة المعايدة الثانية'],['card3','بطاقة المعايدة الثالثة']);
   const bannerPreview=(image,label)=>image?'<img loading="lazy" src="'+E(safeMediaUrl(image))+'" alt="'+E(label)+'" style="display:block;max-width:100%;max-height:220px;object-fit:contain;border-radius:10px;background:#fbf4ec">':'<small>لا توجد صورة مخصصة؛ ستُستخدم الزخارف الموسمية الخفيفة.</small>';
   $('#sections').innerHTML=`<div class="card" id="lfSeasonsAdmin">
     <h2>الثيمات الموسمية · Ladies First</h2>
@@ -28,7 +31,7 @@ function seasonalRender() {
       <div id="seasonImportStatus" role="status" aria-live="polite"></div>
     </div>
     <p class="small-note">ترتيب الصور تلقائيًا: بنر 1920×900، جوال حتى 1080×1350، وبطاقات 1500×1000 (15×10 سم). نحافظ على النص داخل الصورة، ونملأ الأطراف الناقصة بخلفية من نفس ألوانها، بدون قص. النصوص والأسماء داخل البطاقات تبقى قابلة للتعديل.</p>
-    ${[['desktop','بانر الكمبيوتر'],['mobile','بانر الموبايل'],['card','بطاقة المعايدة الأولى'],['card2','بطاقة المعايدة الثانية'],['card3','بطاقة المعايدة الثالثة']].map(([kind,label])=>`<div style="padding:10px 0;border-bottom:1px solid #eadce3">
+    ${seasonalFields.map(([kind,label])=>`<div style="padding:10px 0;border-bottom:1px solid #eadce3">
       <b>${label}</b><div style="margin:9px 0">${bannerPreview(current[kind],label)}</div>
       <div class="toolbar"><label class="btn">رفع صورة<input type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="seasonalUpload('${kind}',this)"></label>
       <button class="btn" type="button" onclick="seasonalClear('${kind}')">العودة للتصميم الافتراضي</button></div>
@@ -40,7 +43,7 @@ function seasonalRender() {
   </div>`;
 }
 window.seasonalPick=function(id){if(!seasonalLabels[id]||id==='none')return;seasonalEditing=id;seasonalRender()};
-window.seasonalSet=function(kind,url){if(!['desktop','mobile','card','card2','card3'].includes(kind))return;(seasonalDraft.banners[seasonalEditing]||={})[kind]=String(url||'').trim();};
+window.seasonalSet=function(kind,url){if(!['desktop','mobile','card','card2','card3'].includes(kind)||(seasonalNonCardThemes.has(seasonalEditing)&&!['desktop','mobile'].includes(kind)))return;(seasonalDraft.banners[seasonalEditing]||={})[kind]=String(url||'').trim();};
 window.seasonalClear=function(kind){seasonalSet(kind,'');seasonalRender()};
 window.seasonalUpload=async function(kind,input){
   const file=input.files?.[0];if(!file||seasonalBusy)return;
