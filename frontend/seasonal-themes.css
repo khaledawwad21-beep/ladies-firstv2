@@ -757,3 +757,76 @@ html[data-theme="eid-adha"] #cats::before {
 @media(max-width:760px) {
   html[data-theme="eid-adha"] #cats::before {width:138px!important;height:66px!important;top:6px!important;}
 }
+
+/* v14: vivid, theme-specific festive band in the clear space above category cards. */
+html[data-theme]:not([data-theme="none"]) #cats {
+  position:relative!important;padding-top:118px!important;
+  background:
+    radial-gradient(ellipse at 8% 4%,color-mix(in srgb,var(--season-icon-secondary) 17%,transparent),transparent 38%),
+    radial-gradient(ellipse at 92% 4%,color-mix(in srgb,var(--season-icon-main) 16%,transparent),transparent 38%),
+    linear-gradient(100deg,var(--season-tint),transparent 25%,transparent 75%,var(--season-tint))!important;
+}
+html[data-theme]:not([data-theme="none"]) #cats::before {
+  width:min(94%,390px)!important;height:96px!important;top:3px!important;
+  background-size:contain!important;filter:drop-shadow(0 5px 8px color-mix(in srgb,var(--season-dark) 25%,transparent))!important;
+}
+html[data-theme]:not([data-theme="none"]) #cats::after {
+  top:8px!important;width:min(96%,420px)!important;height:76px!important;
+  border:0!important;border-bottom:3px solid color-mix(in srgb,var(--season-accent) 76%,transparent)!important;
+  border-radius:0 0 50% 50%!important;opacity:.9!important;
+  background:
+    radial-gradient(circle,#fff4d7 0 2px,transparent 2.5px) 4% 43%/9px 9px no-repeat,
+    radial-gradient(circle,#e7a1b5 0 4px,#fff5e3 4.5px,transparent 6px) 13% 66%/13px 13px no-repeat,
+    radial-gradient(circle,#f1ce79 0 4px,#fff7e9 4.5px,transparent 6px) 23% 84%/13px 13px no-repeat,
+    radial-gradient(circle,#a7c9ad 0 4px,#fff7e9 4.5px,transparent 6px) 34% 95%/13px 13px no-repeat,
+    radial-gradient(circle,#c49acb 0 4px,#fff7e9 4.5px,transparent 6px) 44% 100%/13px 13px no-repeat,
+    radial-gradient(circle,#f1ce79 0 4px,#fff7e9 4.5px,transparent 6px) 56% 100%/13px 13px no-repeat,
+    radial-gradient(circle,#e7a1b5 0 4px,#fff5e3 4.5px,transparent 6px) 67% 95%/13px 13px no-repeat,
+    radial-gradient(circle,#a7c9ad 0 4px,#fff7e9 4.5px,transparent 6px) 77% 84%/13px 13px no-repeat,
+    radial-gradient(circle,#c49acb 0 4px,#fff7e9 4.5px,transparent 6px) 87% 66%/13px 13px no-repeat,
+    radial-gradient(circle,#fff4d7 0 2px,transparent 2.5px) 96% 43%/9px 9px no-repeat!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
+  min-height:116px!important;padding-inline:92px!important;
+  background:
+    radial-gradient(circle at 4% 50%,color-mix(in srgb,var(--season-icon-main) 18%,transparent),transparent 28%),
+    radial-gradient(circle at 96% 50%,color-mix(in srgb,var(--season-icon-secondary) 18%,transparent),transparent 28%);
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
+  display:block!important;visibility:visible!important;opacity:1!important;
+  width:70px!important;height:70px!important;
+  filter:drop-shadow(0 4px 7px color-mix(in srgb,var(--season-dark) 22%,transparent));
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider {
+  display:flex!important;visibility:visible!important;height:54px!important;gap:16px!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider::before,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider::after {
+  height:2px!important;background:linear-gradient(90deg,transparent,var(--season-edge),var(--season-accent),var(--season-edge),transparent)!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {
+  display:block!important;visibility:visible!important;width:38px!important;height:38px!important;
+  color:var(--season-icon-deep)!important;filter:drop-shadow(0 3px 5px color-mix(in srgb,var(--season-dark) 22%,transparent));
+}
+html[data-theme]:not([data-theme="none"]) .sectionTitle h2::after,
+html[data-theme]:not([data-theme="none"]) .featureTitle::after,
+html[data-theme]:not([data-theme="none"]) .lf-store-ideas-head h2::after {
+  content:none!important;display:none!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section,
+html[data-theme]:not([data-theme="none"]) #storeDiscoveryIdeas .lf-seasonal-decor,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon {
+  display:none!important;visibility:hidden!important;
+}
+@media(max-width:760px) {
+  html[data-theme]:not([data-theme="none"]) #cats {padding-top:106px!important;}
+  html[data-theme]:not([data-theme="none"]) #cats::before {width:96%!important;height:80px!important;top:3px!important;}
+  html[data-theme]:not([data-theme="none"]) #cats::after {top:5px!important;width:98%!important;height:64px!important;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {min-height:94px!important;padding-inline:58px!important;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:48px!important;height:48px!important;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider {height:48px!important;gap:10px!important;}
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {width:32px!important;height:32px!important;}
+}
+@media(prefers-reduced-motion:reduce) {
+  html[data-theme]:not([data-theme="none"]) * {scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important;}
+}
