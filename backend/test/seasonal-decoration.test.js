@@ -94,20 +94,18 @@ test('filled icons use distinct color channels and outlined icons stay unfilled'
   assert.match(css,/pointer-events:none!important/);
 });
 
-test('four season themes have their own drawn motifs and color palettes',()=>{
+test('four season themes have expressive slide artwork and restrained section accents',()=>{
   for(const id of ['spring','summer','autumn','winter']){
     const x=render(id);
     assert.equal(x.root.children.length,1,id+' greeting');
-    assert.equal(x.header.children.length,2,id+' header motifs');
-    assert.ok(x.header.children[0].classes.has('lf-seasonal-vector--filled'),id+' colored icon');
-    assert.ok(x.header.children[1].classes.has('lf-seasonal-vector--outline'),id+' open-line icon');
-    assert.ok(x.panels.every(node=>node.children.length===1),id+' panels');
-    assert.ok(x.footer.children.length===2,id+' footer motifs');
-    assert.match(css,new RegExp('html\\[data-theme="'+id+'"\\]'));
-    assert.match(x.header.children[0].innerHTML,/lf-seasonal-painted/);
+    assert.equal(x.header.children.length,0,id+' avoids repeating the same symbol in the header');
+    assert.equal(x.cats.children.length,1,id+' category accent');
+    assert.equal(x.products.children.length,1,id+' product accent');
+    assert.equal(x.footer.children.length,1,id+' footer accent');
+    assert.match(css,new RegExp('html\\\\[data-theme="'+id+'"\\\\]'));
+    assert.ok(x.root.children[0].children[0].classes.has('lf-seasonal-vector--filled'),id+' main seasonal drawing');
   }
 });
-
 test('four seasonal themes always add their own illustrated hero slide when no banner was uploaded',()=>{
   for(const id of ['spring','summer','autumn','winter']){
     const artwork=fs.readFileSync(path.resolve(__dirname,'../../frontend/seasonal-'+id+'.svg'),'utf8');
