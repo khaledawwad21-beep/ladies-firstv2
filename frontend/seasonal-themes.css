@@ -32,3 +32,8 @@ html:not([data-theme="none"])[data-theme] .lf-seasonal {display:block}
   .lf-seasonal__layout strong {font-size:16px}
 }
 @media(prefers-reduced-motion:reduce) {.lf-seasonal * {animation:none!important;transition:none!important}}
+
+/* Seasonal hero is fitted fully; regular promotional slides keep their existing behavior. */
+.heroSlider .heroCard.lf-seasonal-slide .heroVisual img {object-fit:contain!important;object-position:center!important}
+.heroSlider .heroCard.lf-seasonal-slide .heroVisual {background:linear-gradient(125deg,#f8f0f2,#efe1e8)}
+@media(max-width:760px) {.heroSlider .heroCard.lf-seasonal-slide .heroVisual img {object-fit:contain!important}}
