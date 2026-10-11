@@ -27,3 +27,13 @@ This change includes lightweight SVG fallback greeting-card backgrounds but does
 
 ## Testing
 `cd backend && npm test` runs season validation, SSR output, and New Year rollover tests, alongside the existing regression tests.
+
+## Approved photograph restoration and greeting catalog (October 11 fix)
+
+The placeholder SVGs from the first release were not the approved designs. A separate optimized photo bundle now contains **the original six season banners** (the New Year image was revised to avoid a baked-in year), plus **18 bespoke, text-free greeting cards** derived from the original seasonal artwork: three for each of the six celebrations. Cards reserve space for a custom greeting, the recipient and sender, and the official logo within the existing 15 × 10 cm RTL layout.
+
+Since GitHub's code-text integration cannot attach the generated binary photos in this run, they are provided as `Ladies_First_Official_Seasonal_Designs.zip` alongside the implementation. To install them in production, download that file from the accompanying ChatGPT message, open **Admin → الثيمات → استيراد التصاميم الفخمة المعتمدة دفعة واحدة**, and select the ZIP. The browser reads 24 WebP images without extra libraries, uploads them via the existing authenticated image endpoint, then atomically records all their URLs in PostgreSQL. The admin can change the three card images separately afterward. **The photo bundle is not installed on production until this one-time import is completed.**
+
+Each of the six seasonal occasions now has **ten suggestions for feminine recipients and ten for masculine recipients**, in addition to the twenty-one original nonseasonal card designs. The 12-word check remains. A gift card's message remains customizable.
+
+To avoid dropping or clipping the full seasonal scene on mobile, the responsive hero retains object-fit contain; separate mobile images may be added from Admin at any time.

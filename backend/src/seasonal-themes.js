@@ -38,7 +38,7 @@ function normalize(input) {
   if(input.banners != null && (typeof input.banners !== 'object' || Array.isArray(input.banners))) throw Object.assign(new Error('بيانات البنرات غير صالحة'), {status:400});
   for(const [id,images] of Object.entries(input.banners || {})) {
     if(!validTheme(id) || id==='none' || !images || typeof images !== 'object' || Array.isArray(images)) throw Object.assign(new Error('مناسبة غير معروفة'), {status:400});
-    banners[id] = {desktop: validImage(images.desktop),mobile:validImage(images.mobile),card:validImage(images.card)};
+    banners[id] = {desktop: validImage(images.desktop),mobile:validImage(images.mobile),card:validImage(images.card),card2:validImage(images.card2),card3:validImage(images.card3)};
   }
   return {active:input.active,banners};
 }
