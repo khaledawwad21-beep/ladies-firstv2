@@ -122,3 +122,11 @@ test('season decoration reaches both category and featured product areas',()=>{
   assert.match(css,/#products/);
   assert.match(css,/repeating-linear-gradient\(118deg/);
 });
+
+test('seasonal mood uses full-page color washes and no repeated standalone symbols',()=>{
+  assert.match(css,/\.lf-seasonal__ornament,[\s\S]*display:none!important/);
+  assert.match(css,/\.lf-seasonal-divider__icon/);
+  assert.match(css,/radial-gradient\(ellipse 78vw 62vh/);
+  assert.match(css,/linear-gradient\(180deg,color-mix/);
+  assert.match(css,/repeating-linear-gradient\(118deg/);
+});
