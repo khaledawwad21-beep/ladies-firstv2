@@ -651,3 +651,49 @@ html[data-theme]:not([data-theme="none"]) .featureTitle::after,
 html[data-theme]:not([data-theme="none"]) .lf-store-ideas-head h2::after {
   content:none!important;display:none!important;
 }
+
+
+/* v8: bring seasonal artwork back in reserved spaces, clear of all headings and labels. */
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
+  display:block!important;visibility:visible!important;
+  width:66px!important;height:66px!important;opacity:1!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
+  min-height:116px!important;padding-inline:94px!important;
+}
+html[data-theme]:not([data-theme="none"]) #cats {
+  position:relative!important;
+  padding-top:54px!important;
+}
+html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-decor--section {
+  display:block!important;visibility:visible!important;
+  position:absolute!important;left:50%!important;right:auto!important;top:5px!important;
+  bottom:auto!important;width:42px!important;height:42px!important;
+  opacity:1!important;z-index:2!important;transform:translateX(-50%)!important;
+}
+html[data-theme]:not([data-theme="none"]) #products .lf-seasonal-decor--section,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon,
+html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon,
+html[data-theme]:not([data-theme="none"]) #storeDiscoveryIdeas .lf-seasonal-decor {
+  display:none!important;visibility:hidden!important;
+}
+html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament--right {
+  inset-inline-start:auto!important;inset-inline-end:10px!important;
+}
+@media(max-width:760px) {
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
+    min-height:94px!important;padding-inline:58px!important;
+  }
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
+    width:45px!important;height:45px!important;
+  }
+  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament--right {
+    inset-inline-end:4px!important;
+  }
+  html[data-theme]:not([data-theme="none"]) #cats {
+    padding-top:43px!important;
+  }
+  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-decor--section {
+    width:34px!important;height:34px!important;top:4px!important;
+  }
+}
