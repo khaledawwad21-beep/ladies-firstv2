@@ -8,6 +8,15 @@ const { encryptBackup, decryptBackup } = require("./backup-crypto");
 function postgresTool(tool, args, { connection, input } = {}) {
   // URLs remain in environment variables; never print credentials or database content.
   const parameters = connection ? new URL(connection) : null;
+  // The slim PostgreSQL image does not guarantee a CA bundle. Supply the
+  // runner's maintained trust store read-only while retaining verify-full TLS.
+  const caFile = "/etc/ssl/certs/ca-certificates.crt";
+  if (parameters && !fs.existsSync(caFile)) {
+    throw new Error("Runner TLS CA bundle is missing");
+  }
+  const mounts = parameters
+    ? ["--mount", `type=bind,source=${caFile},target=${caFile},readonly`]
+    : [];
   const env = {
     ...process.env,
     PGDATABASE: parameters ? decodeURIComponent(parameters.pathname.slice(1)) : "",
@@ -18,20 +27,29 @@ function postgresTool(tool, args, { connection, input } = {}) {
     PGSSLMODE: parameters ? "verify-full" : "",
     PGSSLROOTCERT: "/etc/ssl/certs/ca-certificates.crt"
   };
-  const result = spawnSync("docker", ["run", "--rm", "-i", "--network", "host",
+  const result = spawnSync("docker", ["run", "--rm", "-i", "--network", "host", ...mounts,
     "-e", "PGDATABASE", "-e", "PGHOST", "-e", "PGPORT", "-e", "PGUSER",
     "-e", "PGPASSWORD", "-e", "PGSSLMODE", "-e", "PGSSLROOTCERT",
     "postgres:18", tool, ...args], {
     env, input, maxBuffer: 512 * 1024 * 1024, timeout: 10 * 60 * 1000
   });
-  if (result.error) {
+  // pg_restore --list may stop reading after it has parsed the archive TOC.
+  // Docker can then report EPIPE while the tool still exits successfully.
+  const successfulListAfterClosedInput = tool === "pg_restore"
+    && args.includes("--list")
+    && Boolean(input)
+    && result.error?.code === "EPIPE"
+    && result.status === 0;
+  if (result.error && !successfulListAfterClosedInput) {
     const code = result.error.code || "unknown";
     throw new Error(`${tool} could not start (runner error ${code}; credentials suppressed)`);
   }
   if (result.status !== 0) {
     const stderr = (result.stderr || Buffer.alloc(0)).toString("utf8").toLowerCase();
     let reason = "database connection failed (details suppressed)";
-    if (/password authentication failed|authentication failed/.test(stderr)) reason = "database rejected the configured username/password";
+    if ([125, 126, 127].includes(result.status)) reason = "PostgreSQL container could not run";
+    else if (/root certificate file.*does not exist|could not read root certificate/.test(stderr)) reason = "PostgreSQL TLS CA bundle is missing or unreadable";
+    else if (/password authentication failed|authentication failed/.test(stderr)) reason = "database rejected the configured username/password";
     else if (/certificate verify|certificate validation|self.signed certificate|unable to get local issuer/.test(stderr)) reason = "TLS certificate validation failed";
     else if (/could not translate host name|name or service not known|temporary failure in name resolution/.test(stderr)) reason = "database hostname could not be resolved";
     else if (/timeout expired|timed out|connection timeout/.test(stderr)) reason = "database connection timed out";

@@ -19,7 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          # Scheduled runs use main; manual runs use the selected branch.
+          ref: ${{ github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
