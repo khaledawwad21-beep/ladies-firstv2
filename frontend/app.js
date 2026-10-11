@@ -821,7 +821,7 @@ function heroSlides(){
     });
     else if(['spring','summer','autumn','winter'].includes(seasonal.active)){
       const sceneTitles={spring:'ربيع يزهر بإطلالتك',summer:'صيف مليء بالحيوية',autumn:'ألوان الخريف وأناقتك',winter:'دفء وأناقة في الشتاء'};
-      arr.unshift({image:'/seasonal-'+seasonal.active+'.svg',title:sceneTitles[seasonal.active],desc:'',id:'seasonal-'+seasonal.active,hideText:true,seasonal:true});
+      arr.unshift({image:'/seasonal-'+seasonal.active+'.webp?v=20261011-season-art-polish2',title:sceneTitles[seasonal.active],desc:'',id:'seasonal-'+seasonal.active,hideText:true,seasonal:true});
     }
   }
   return arr;

@@ -368,3 +368,32 @@ html[data-theme]:not([data-theme="none"]) .quickOfferCard {
   html[data-theme]:not([data-theme="none"]) #cats,
   html[data-theme]:not([data-theme="none"]) #products{border-radius:14px;}
 }
+
+/* Keep the seasonal signature clear and editorial on small screens. */
+.lf-seasonal-decor--header,
+.lf-seasonal-decor--panel,
+.lf-seasonal-title-icon {display:none!important;}
+.lf-seasonal__ornament {width:39px!important;height:39px!important;opacity:.62!important;}
+.lf-seasonal-divider {height:35px!important;gap:14px!important;}
+.lf-seasonal-divider__icon {width:24px!important;height:24px!important;opacity:.48!important;}
+.lf-seasonal-decor--section {
+  width:42px!important;height:42px!important;
+  opacity:.17!important;
+}
+.lf-seasonal-decor--discovery,
+.lf-seasonal-decor--footer {opacity:.2!important;}
+html[data-theme]:not([data-theme="none"]) .featureBlock {
+  border-top:1px solid color-mix(in srgb,var(--season-edge) 70%,#ffffff)!important;
+  box-shadow:0 8px 28px color-mix(in srgb,var(--season-shadow) 60%,transparent)!important;
+}
+html[data-theme]:not([data-theme="none"]) .sectionTitle h2::after,
+html[data-theme]:not([data-theme="none"]) .featureTitle::after {
+  font-size:.55em;
+  opacity:.58;
+}
+@media(max-width:760px){
+  .lf-seasonal__ornament {width:34px!important;height:34px!important;opacity:.55!important;}
+  .lf-seasonal-divider {height:29px!important;}
+  .lf-seasonal-divider__icon {width:20px!important;height:20px!important;}
+  .lf-seasonal-decor--section {width:32px!important;height:32px!important;opacity:.14!important;}
+}
