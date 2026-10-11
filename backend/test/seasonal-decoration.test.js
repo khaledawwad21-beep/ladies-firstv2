@@ -120,6 +120,7 @@ test('four seasonal themes always add their own illustrated hero slide when no b
     assert.match(app,new RegExp("image:'/seasonal-"+id+"\\.svg'"),id+' is loaded as a safe local image URL');
   }
   assert.match(app,/else if\(\['spring','summer','autumn','winter'\]\.includes\(seasonal\.active\)\)/,'generated scenes are the fallback when no uploaded banner is configured');
+  assert.match(app,/image:'\/seasonal-'\+seasonal\.active\+'\.svg'/,'the active seasonal SVG is loaded from a local URL');
   assert.match(app,/arr\.unshift\(\{image:desktop\|\|mobile/,'uploaded seasonal banners stay first when configured');
 });
 test('season decoration reaches both category and featured product areas',()=>{
