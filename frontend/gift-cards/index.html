@@ -125,10 +125,10 @@ let selectedOccasion='birthday',gender='f',selected=0;
 const byId=id=>document.getElementById(id);
 let seasonalMedia={};
 const imageUrl=f=>{
-  const id=/^season-(.+)\\.svg$/.exec(String(f||''))?.[1];
+  const id=/^season-(.+)\.svg$/.exec(String(f||''))?.[1];
   const media=id&&seasonalMedia[id];
   const custom=media&&(media.card||media.desktop);
-  if(custom && (/^\\/(?!\\/)[A-Za-z0-9._~/%-]+/.test(custom)||/^https?:\\/\\//i.test(custom)))return custom;
+  if(custom && (/^\/(?!\/)[A-Za-z0-9._~/%-]+/.test(custom)||/^https?:\/\//i.test(custom)))return custom;
   return 'assets/'+encodeURIComponent(f).replaceAll('%2F','/');
 };
 fetch('/api/seasonal-theme',{cache:'no-store'}).then(r=>r.ok?r.json():null)
