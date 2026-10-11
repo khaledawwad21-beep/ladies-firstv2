@@ -110,19 +110,17 @@ test('four season themes have their own drawn motifs and color palettes',()=>{
   }
 });
 
-test('four seasonal themes always add an illustrated hero slide when no banner was uploaded',()=>{
-  const start=app.indexOf('const seasonalScenes={');
-  const end=app.indexOf('\n    };',start);
-  assert.ok(start>=0&&end>start,'season scene definitions exist');
-  const scenes=vm.runInNewContext('('+app.slice(start+'const seasonalScenes='.length,end+7)+')');
+test('four seasonal themes always add their own illustrated hero slide when no banner was uploaded',()=>{
   for(const id of ['spring','summer','autumn','winter']){
-    assert.ok(scenes[id],id+' scene exists');
-    assert.ok(scenes[id].title.length>0,id+' title exists');
-    assert.match(scenes[id].scene,/<(?:path|circle|g)/,id+' has drawn scenery');
+    const artwork=fs.readFileSync(path.resolve(__dirname,'../../frontend/seasonal-'+id+'.svg'),'utf8');
+    assert.match(artwork,/<svg[^>]+viewBox="0 0 1200 560"/,id+' full-width SVG scene exists');
+    assert.match(artwork,/<(?:path|circle|g)/,id+' has drawn scenery');
+    assert.match(artwork,/LADIES FIRST · SEASONAL EDITION/,id+' carries the store identity');
+    assert.match(app,new RegExp("'"+id+"':"),id+' fallback title is mapped');
+    assert.match(app,new RegExp("image:'/seasonal-"+id+"\\.svg'"),id+' is loaded as a safe local image URL');
   }
-  assert.match(app,/else if\(seasonalScenes\[seasonal\.active\]\)/,'generated scene is the fallback when no uploaded banner is configured');
-  assert.match(app,/data:image\/svg\+xml;base64,/,'artwork passes through the existing safe image handling');
-  assert.match(app,/arr\.unshift\(\{image:artwork/,'seasonal slide is first without replacing regular slides');
+  assert.match(app,/else if\(\['spring','summer','autumn','winter'\]\.includes\(seasonal\.active\)\)/,'generated scenes are the fallback when no uploaded banner is configured');
+  assert.match(app,/arr\.unshift\(\{image:desktop\|\|mobile/,'uploaded seasonal banners stay first when configured');
 });
 test('season decoration reaches both category and featured product areas',()=>{
   for(const target of ["getElementById('cats')","getElementById('products')"])
