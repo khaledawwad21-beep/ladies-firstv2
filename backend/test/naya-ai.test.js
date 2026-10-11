@@ -84,3 +84,23 @@ test("Naya chat endpoints share a persistent rate-limit scope and TTS has its ow
  assert.deepEqual(calls.map(x=>x.scope),["naya-chat","naya-chat","naya-tts"]);
  assert.deepEqual(calls.map(x=>x.limit),[20,20,10]);
 });
+
+test("Naya prompt identifies a friendly sales employee and includes the live WhatsApp contact",()=>{
+ const{buildNayaMessages}=require("../src/naya-ai");
+ const prompt=buildNayaMessages({message:"أريد عطرًا",catalog:[],whatsappNumber:"+972 (56) 249-9924"}).find(x=>x.role==="system").content;
+ assert.ok(prompt.includes("موظفة مبيعات ودودة"));assert.ok(prompt.includes("سأسأل الفريق"));assert.ok(prompt.includes("972562499924"));assert.ok(prompt.includes("https://wa.me/972562499924?text="));
+});
+test("Naya rejects messages over 1000 characters before calling OpenAI",async t=>{
+ let upstreamCalled=false;const app=express();app.use(express.json());
+ app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async()=>{upstreamCalled=true;throw Error("must not call upstream")}}));
+ const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
+ const res=await fetch("http://127.0.0.1:"+server.address().port+"/api/ai/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"ا".repeat(1001)})});
+ assert.equal(res.status,413);assert.equal((await res.json()).code,"NAYA_MESSAGE_TOO_LONG");assert.equal(upstreamCalled,false);
+});
+test("Naya rate limit uses a stable anonymous customer ID when supplied",async t=>{
+ let identity;const app=express();app.use(express.json());
+ app.use("/api/ai",createRouter({rateLimiter:async input=>{identity=input.clientId;return{allowed:true,retryAfterSeconds:0,requestCount:1}},db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async()=>({ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:"أهلًا",recommendationIds:[]})}}]})})}));
+ const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
+ const res=await fetch("http://127.0.0.1:"+server.address().port+"/api/ai/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"مرحبا",clientId:"browser-customer-123456"})});
+ assert.equal(res.status,200);assert.equal(identity,"guest:browser-customer-123456");
+});
