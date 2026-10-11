@@ -39,7 +39,7 @@ function hpPreviewUrl(value) {
   return /^https?:\/\//i.test(url)||/^\/(?!\/)[^\\]+$/.test(url)?url:'';
 }
 function hpRender() {
-  $('#sections').innerHTML=`<div id="hpEditor" class="card"><h2>صور السلايدر والنصوص</h2><p>تظهر الصور بهذا الترتيب وتتبدل حسب المدة والأسلوب المختارين. أفضل مقاس للكمبيوتر 1920×900 (2.13:1)، وللجوال 1080×1350 (4:5). ارفعي نسختين لتظهر الصورة كاملة بالمقاس المناسب لكل جهاز.</p><fieldset id="hpFields" style="border:0;padding:0;min-width:0" ${hpBusy?'disabled':''}>
+  $('#sections').innerHTML=`<div id="hpEditor" class="card"><h2>صور السلايدر والنصوص</h2><p>تظهر الصور بهذا الترتيب وتتبدل حسب المدة والأسلوب المختارين. الصور تتجهز تلقائيًا عند الرفع: السلايدر 1920×900، وصورة الجوال حتى 1080×1350، بدون قص النص والشعار. وإذا ما رفعتي نسخة للجوال رح يتكيف ارتفاع البنر المصوّر تلقائيًا مع حجمه على الشاشة.</p><fieldset id="hpFields" style="border:0;padding:0;min-width:0" ${hpBusy?'disabled':''}>
     <div class="toolbar"><button class="btn" type="button" onclick="hpUseLogoSlide()">استخدام سلايد الشعار الجديد</button><button class="btn" type="button" onclick="hpUseWarmCampaign()">تحميل سلايدات الحملة الدافئة</button><button class="btn" type="button" onclick="hpAdd()">+ شريحة يدوية</button><label class="btn" for="hpFile">اختيار صور للسلايدر</label><input id="hpFile" type="file" multiple accept="image/png,image/jpeg,image/webp" onchange="hpUpload(this)" style="display:none"></div>
     <small class="small-note">بعد الرفع تظهر الصورة ضمن الشرائح تلقائيًا. اضغطي «حفظ السلايدر» لاعتمادها.</small><p id="hpMessage" role="status">${hpBusy?'جاري الرفع أو الحفظ…':''}</p>
     <h3>حركة السلايدر</h3><div class="formgrid"><label>مدة عرض الشريحة بالثواني<input id="hpInterval" class="field" type="number" min="2" max="30" value="${hpStyle.intervalSeconds}" onchange="hpStartPreview()"></label><label>أسلوب الانتقال<select id="hpTransition" class="field" onchange="hpStartPreview()">${[['smooth','انتقال حريري ناعم'],['fade','اندماج ناعم'],['slide','انزلاق أفقي'],['zoom','تكبير ناعم'],['instant','انتقال بسيط']].map(([v,t])=>`<option value="${v}" ${hpStyle.transition===v?'selected':''}>${t}</option>`).join('')}</select></label></div><button class="btn" type="button" onclick="hpStartPreview()">تشغيل المعاينة</button><div id="hpMotionPreview" class="hp-motion-preview heroCard" aria-label="معاينة حركة السلايدات"><img class="heroLogoLayer"><img class="heroLogoLayer"></div>
@@ -121,9 +121,9 @@ async function hpUpload(input) {
   $('#hpFields').disabled=true;
   $('#hpMessage').textContent=`جاري رفع ${selected.length} صورة…`;
   try {
-    const urls=await adminUploadMany(selected);
+    const urls=await adminUploadMany(selected,'hero-desktop');
     if($('#hpEditor')!==editor)return;
-    urls.forEach(url=>hpSlides.push({image:url,mobileImage:'',titleAr:'',titleEn:'',descAr:'',descEn:''}));
+    urls.forEach(url=>hpSlides.push({image:url,mobileImage:'',titleAr:'',titleEn:'',descAr:'',descEn:'',hideText:true}));
     hpBusy=false;
     hpRender();
     $('#hpMessage').textContent=files.length>selected.length
@@ -147,7 +147,7 @@ async function hpUploadMobile(index,input) {
   $('#hpFields').disabled=true;
   $('#hpMessage').textContent='جاري رفع صورة الجوال…';
   try {
-    const urls=await adminUploadMany([file]);
+    const urls=await adminUploadMany([file],'hero-mobile');
     if($('#hpEditor')!==editor)return;
     hpSlides[index].mobileImage=urls[0]||'';
     hpBusy=false;

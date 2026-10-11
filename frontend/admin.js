@@ -1054,7 +1054,7 @@ async function uploadStoreLogo(input){
   const file=input?.files?.[0];
   if(!file)return;
   try{
-    const url=await adminUploadProductImage(file);
+    const url=await adminUploadProductImage(file,'logo');
     const field=$('#storeLogoUrl'),preview=$('#storeLogoPreview');
     if(field)field.value=url;
     if(preview){preview.src=url;preview.hidden=false}

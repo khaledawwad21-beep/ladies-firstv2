@@ -38,7 +38,82 @@ function adminCanvasBlob(canvas, type, quality) {
   });
 }
 
-async function adminPrepareProductImage(file) {
+
+/*
+ * Placement-aware image processing. All new uploads use the existing authenticated,
+ * persistent PostgreSQL-backed image endpoint. Embedded wording and logos are never cropped.
+ * We generate a tasteful blurred backdrop only when an exact print/tile ratio is needed.
+ */
+const ADMIN_IMAGE_PLACEMENTS=Object.freeze({
+  product:{width:1800,height:1800,fit:'natural'},
+  logo:{width:800,height:800,fit:'natural'},
+  category:{width:1200,height:1200,fit:'framed'},
+  'hero-desktop':{width:1920,height:900,fit:'framed'},
+  'hero-mobile':{width:1080,height:1350,fit:'natural'},
+  'season-desktop':{width:1920,height:900,fit:'framed'},
+  'season-mobile':{width:1080,height:1350,fit:'natural'},
+  'greeting-card':{width:1500,height:1000,fit:'framed'}
+});
+function adminPlacementGeometry(sourceWidth,sourceHeight,slot='product',factor=1) {
+  const width=Number(sourceWidth),height=Number(sourceHeight);
+  const p=ADMIN_IMAGE_PLACEMENTS[slot];
+  if(!p||!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0||
+      width>100000||height>100000)throw Error('أبعاد الصورة أو موضعها غير صالح');
+  const scale=Math.max(.15,Math.min(1,Number(factor)||1));
+  const outerScale=p.fit==='framed'?scale:Math.min(1,p.width/width,p.height/height)*scale;
+  const outWidth=Math.max(1,Math.round((p.fit==='framed'?p.width:width)*outerScale));
+  const outHeight=Math.max(1,Math.round((p.fit==='framed'?p.height:height)*outerScale));
+  const contain=Math.min(outWidth/width,outHeight/height);
+  return {
+    width:outWidth,height:outHeight,fit:p.fit,
+    drawWidth:width*contain,drawHeight:height*contain,
+    x:(outWidth-width*contain)/2,y:(outHeight-height*contain)/2
+  };
+}
+async function adminPreparePlacementImage(file,slot='product'){
+  if(!ADMIN_IMAGE_TYPES.has(String(file?.type||'').toLowerCase()))
+    throw Error('استخدمي صورة PNG أو JPG أو WebP');
+  const original=await adminLoadImage(file);
+  const width=Number(original.naturalWidth||original.width||0);
+  const height=Number(original.naturalHeight||original.height||0);
+  if(!width||!height)throw Error('أبعاد الصورة غير صالحة');
+  const preset=ADMIN_IMAGE_PLACEMENTS[slot];
+  if(!preset)throw Error('موضع الصورة غير معروف');
+  // Avoid needless recompression of an already optimized, correctly framed WebP.
+  const sourceRatio=width/height,targetRatio=preset.width/preset.height;
+  if(file.type==='image/webp'&&file.size<=ADMIN_IMAGE_TARGET_BYTES&&
+     width<=preset.width&&height<=preset.height&&
+     (preset.fit==='natural'||Math.abs(sourceRatio-targetRatio)<.015)) {
+    return adminImageDataUrl(file);
+  }
+  let factor=1,quality=.9,blob=null;
+  for(let attempt=0;attempt<10;attempt++){
+    const g=adminPlacementGeometry(width,height,slot,factor);
+    const canvas=document.createElement('canvas');
+    canvas.width=g.width;canvas.height=g.height;
+    const ctx=canvas.getContext('2d',{alpha:g.fit==='natural'});
+    if(!ctx)throw Error('تعذر تجهيز الصورة لهذا القسم');
+    if(g.fit==='framed'){
+      ctx.fillStyle='#fbf4ec';ctx.fillRect(0,0,g.width,g.height);
+      const cover=Math.max(g.width/width,g.height/height);
+      const cw=width*cover,ch=height*cover;
+      ctx.save();
+      ctx.filter='blur(28px) brightness(.91)';
+      ctx.drawImage(original,(g.width-cw)/2,(g.height-ch)/2,cw,ch);
+      ctx.restore();
+      ctx.fillStyle='rgba(251,244,236,.22)';ctx.fillRect(0,0,g.width,g.height);
+    }
+    ctx.drawImage(original,g.x,g.y,g.drawWidth,g.drawHeight);
+    blob=await adminCanvasBlob(canvas,'image/webp',quality);
+    if(blob.size<=ADMIN_IMAGE_TARGET_BYTES)return adminImageDataUrl(blob);
+    if(quality>.65)quality=Math.max(.65,quality-.09);
+    else {factor=Math.max(.15,factor*.81);quality=.82;}
+  }
+  throw Error('الصورة كبيرة بعد المعالجة؛ جرّبي صورة أخرى');
+}
+
+async function adminPrepareProductImage(file,slot='product') {
+  if(slot!=='product')return adminPreparePlacementImage(file,slot);
   if (!ADMIN_IMAGE_TYPES.has(String(file?.type || "").toLowerCase())) {
     throw new Error("صيغة الصورة غير مدعومة. استخدمي PNG أو JPG أو WebP.");
   }
@@ -88,11 +163,11 @@ async function adminPrepareProductImage(file) {
   return adminImageDataUrl(blob);
 }
 
-async function adminUploadProductImage(file) {
+async function adminUploadProductImage(file,slot='product') {
   if (!file) return "";
   const token = localStorage.getItem("lf_admin_token") || "";
   if (!token) throw new Error("يجب تسجيل الدخول أولاً");
-  const data = await adminPrepareProductImage(file);
+  const data = await adminPrepareProductImage(file,slot);
   const response = await fetch("/api/admin/uploads/image", {
     method: "POST",
     headers: {"Content-Type":"application/json", Authorization:"Bearer "+token},
@@ -399,9 +474,9 @@ window.productForm = async function productForm(p={}) {
   adminToggleTaxonomyNew('pbrand','pbrandNewWrap');
 };
 
-async function adminUploadMany(files) {
+async function adminUploadMany(files,slot='product') {
   const result=[];
-  for(const file of [...(files||[])]) result.push(await adminUploadProductImage(file));
+  for(const file of [...(files||[])]) result.push(await adminUploadProductImage(file,slot));
   return result;
 }
 

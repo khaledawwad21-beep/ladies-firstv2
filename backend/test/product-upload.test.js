@@ -196,6 +196,6 @@ test('large product images are compressed client-side before upload', () => {
   assert.match(js,/async function adminPrepareProductImage\(/);
   assert.match(js,/canvas\.toBlob/);
   assert.match(js,/"image\/webp"/);
-  assert.match(js,/const data = await adminPrepareProductImage\(file\)/);
+  assert.match(js,/const data = await adminPrepareProductImage\(file,slot\)/);
   assert.doesNotMatch(js,/const data = await adminImageDataUrl\(file\);\s*const response = await fetch\("\/api\/admin\/uploads\/image"/);
 });
