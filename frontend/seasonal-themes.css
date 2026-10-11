@@ -747,3 +747,21 @@ html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:76px!imp
   html[data-theme]:not([data-theme="none"]) #cats::after {top:12px;width:88%;height:39px;}
   html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:52px!important;height:52px!important;}
 }
+
+
+/* v12: replace the sheep with a festive Eid scene and add original character scenes for Ramadan and Eid al-Fitr. */
+html[data-theme="ramadan"] #cats::before {background-image:url("/seasonal-ramadan-characters.svg")!important;}
+html[data-theme="eid-fitr"] #cats::before {background-image:url("/seasonal-eid-fitr-characters.svg")!important;}
+html[data-theme="eid-adha"] #cats::before {background-image:url("/seasonal-eid-adha-gifts.svg")!important;}
+html[data-theme="ramadan"] #cats::before,
+html[data-theme="eid-fitr"] #cats::before,
+html[data-theme="eid-adha"] #cats::before {
+  width:148px!important;height:72px!important;top:6px!important;background-size:contain!important;
+}
+@media(max-width:760px) {
+  html[data-theme="ramadan"] #cats::before,
+  html[data-theme="eid-fitr"] #cats::before,
+  html[data-theme="eid-adha"] #cats::before {
+    width:138px!important;height:66px!important;top:6px!important;
+  }
+}
