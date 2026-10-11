@@ -61,14 +61,22 @@
     layout.style.position='relative';layout.style.zIndex='2';
     root.append(left,layout,right);
   }
-  const cards=document.querySelectorAll('#cats .cat');
-  cards.forEach((card,index)=>{
-    if(card.querySelector('.lf-seasonal-flourish--card'))return;
-    const art=flourish('lf-seasonal-flourish--card');
-    const mirror=index%2===1;
-    art.classList.add(mirror?'lf-seasonal-flourish--start':'lf-seasonal-flourish--end');
-    if(mirror){art.style.insetInlineEnd='auto';art.style.insetInlineStart='8px';art.style.transform='scaleX(-1)';}
-    const image=card.querySelector('img');
-    if(image)image.insertAdjacentElement('afterend',art);
-  });
+  function decorateCategoryCards(){
+    const cards=document.querySelectorAll('#cats .cat');
+    cards.forEach((card,index)=>{
+      if(card.querySelector('.lf-seasonal-flourish--card'))return;
+      const art=flourish('lf-seasonal-flourish--card');
+      const mirror=index%2===1;
+      art.classList.add(mirror?'lf-seasonal-flourish--start':'lf-seasonal-flourish--end');
+      if(mirror){art.style.insetInlineEnd='auto';art.style.insetInlineStart='8px';art.style.transform='scaleX(-1)';}
+      const image=card.querySelector('img');
+      if(image)image.insertAdjacentElement('afterend',art);
+    });
+  }
+  decorateCategoryCards();
+  const cats=document.getElementById('cats');
+  if(cats){
+    const observer=new MutationObserver(decorateCategoryCards);
+    observer.observe(cats,{childList:true});
+  }
 })();
