@@ -211,6 +211,12 @@
   const header=document.querySelector('body > header');
   decorate(header,'lf-seasonal-decor--header lf-seasonal-decor--start','filled');
   decorate(header,'lf-seasonal-decor--header lf-seasonal-decor--end','outline');
+  const categories=document.getElementById('cats');
+  decorate(categories,'lf-seasonal-decor--section lf-seasonal-decor--start','filled');
+  decorate(categories,'lf-seasonal-decor--section lf-seasonal-decor--end','outline');
+  const products=document.getElementById('products');
+  decorate(products,'lf-seasonal-decor--section lf-seasonal-decor--start','outline');
+  decorate(products,'lf-seasonal-decor--section lf-seasonal-decor--end','filled');
   [...document.querySelectorAll('.featureBlock')].forEach((panel,i)=>{
     decorate(panel,'lf-seasonal-decor--panel',i%2===0?'filled':'outline');
   });
