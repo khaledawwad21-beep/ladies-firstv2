@@ -30,6 +30,6 @@ test("WhatsApp links use the configured phone and an encoded greeting",()=>{
   assert.ok(!app.includes("wa.me/?text="));
 });
 test("important storefront images have product and category alt text",()=>{
-  assert.ok(app.includes('safeImg(c.image,LOGO)" alt="${esc('));
+  assert.ok(app.includes('safeImg(c.image,LOGO)}" alt="${esc('));
   assert.ok(app.includes('alt="${esc(currentLang==='));
 });
