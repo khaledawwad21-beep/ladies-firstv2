@@ -809,7 +809,7 @@ function heroSlides(){
     arr.push({image:key,mobileImage:x.mobileImage||'',title:currentLang==='en'?(x.titleEn||x.titleAr||'Ladies First'):(x.titleAr||x.titleEn||'Ladies First'),desc:currentLang==='en'?(x.descEn||x.descAr||''):(x.descAr||x.descEn||''),id:x.id,hideText:x.hideText===true});
   });
   // Put the selected seasonal artwork first, without overwriting stored slider slides.
-  const seasonal=window.__LF_SEASONAL__;
+  const seasonal=typeof window!=='undefined' ? window.__LF_SEASONAL__ : null;
   if(seasonal?.active&&seasonal.active!=='none'){
     const chosen=seasonal.banners?.[seasonal.active]||{};
     const valid=u=>typeof u==='string'&&(/^(https?:\/\/|\/(?!\/))/.test(u))?u:'';
