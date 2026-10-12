@@ -70,13 +70,13 @@ test("Naya voice endpoint uses the server key and returns uncached audio",async 
  let captured;
  const bytes=Buffer.from([1,2,3,4]);
  const app=express();app.use(express.json());
- app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async(url,o)=>{captured={url,o};return{ok:true,arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)}}}));
+ app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async(url,o)=>{captured={url,o};return{ok:true,body:new ReadableStream({start(controller){controller.enqueue(new Uint8Array([1,2]));setTimeout(()=>{controller.enqueue(new Uint8Array([3,4]));controller.close()},35)}})}}}));
  const s=app.listen(0);t.after(()=>s.close());await new Promise(r=>s.once("listening",r));
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا وسهلًا سيدتي"})});
  assert.equal(res.status,200);assert.equal(res.headers.get("content-type"),"audio/mpeg");assert.equal(res.headers.get("cache-control"),"no-store");
  assert.equal(captured.url,"https://api.openai.com/v1/audio/speech");assert.equal(captured.o.headers.Authorization,"Bearer secret");
- const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"sage");assert.match(payload.instructions,/صوت امرأة ناعم ودافئ وfriendly/);assert.match(payload.instructions,/بعفوية وود/);assert.match(payload.instructions,/لهجة لبنانية محكية طبيعية/);assert.match(payload.instructions,/الحركات القصيرة بوضوح/);assert.match(payload.instructions,/الفتحة والضمة والكسرة/);assert.match(payload.instructions,/الإلقاء الروائي/);
- assert.deepEqual(Buffer.from(await res.arrayBuffer()),bytes);
+ const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"sage");assert.match(payload.instructions,/صوت امرأة واضح ودافئ وحيوي/);assert.match(payload.instructions,/النبرة ودودة ومحادثة مباشرة/);assert.match(payload.instructions,/لهجة لبنانية محكية طبيعية/);assert.match(payload.instructions,/صوت حاضر/);assert.match(payload.instructions,/من دون همس أو خفوت/);assert.match(payload.instructions,/الإلقاء الروائي/);
+ const reader=res.body.getReader(),chunks=[];while(true){const part=await reader.read();if(part.done)break;chunks.push(Buffer.from(part.value))}assert.deepEqual(Buffer.concat(chunks),bytes);
 });
 
 test("Naya voice endpoint refuses text without an API key",async t=>{

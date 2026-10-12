@@ -1,5 +1,7 @@
 "use strict";
 const express=require("express"),crypto=require("crypto");
+const {Readable}=require("node:stream");
+const {pipeline}=require("node:stream/promises");
 const {createPersistentRateLimiter}=require("./persistent-rate-limit");
 const LIMIT=20,WINDOW=300000,MAX_PRODUCTS=80,MAX_MESSAGE_LENGTH=1000;
 const clean=(v,n=1000)=>String(v??"").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,n);
@@ -182,13 +184,15 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   const configuredVoice=clean(env.NAYA_TTS_VOICE||"sage",20);
   const voice=allowedVoices.has(configuredVoice)?configuredVoice:"sage";
   try{
-   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,instructions:"تحدثي بصوت امرأة ناعم ودافئ وfriendly، بلهجة لبنانية محكية طبيعية. خليها تحكي مع الزبونة بعفوية وود، كأنها بمحادثة مباشرة، وبسرعة كلام طبيعية ونبرة هادئة وواضحة. انطقي الحركات القصيرة بوضوح، وميّزي بين الفتحة والضمة والكسرة والسكون والشدة، ولفظي نهايات الكلمات من دون إسقاط مقاطع أو مبالغة، مع الحفاظ على النطق اللبناني الطبيعي. تجنبي الإلقاء الروائي أو نبرة المذيعة والغنج المبالغ فيه. التزمي بالنص العربي كما هو ولا تضيفي كلمات."})});
+   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,instructions:"تحدثي بصوت امرأة واضح ودافئ وحيوي، بلهجة لبنانية محكية طبيعية. خلي النبرة ودودة ومحادثة مباشرة، بسرعة متوسطة طبيعية وصوت حاضر، من دون همس أو خفوت أو إطالة. انطقي الكلمات والحركات الأساسية بوضوح مع الحفاظ على اللفظ اللبناني الطبيعي. تجنبي الإلقاء الروائي أو نبرة المذيعة والغنج المبالغ فيه. التزمي بالنص العربي كما هو ولا تضيفي كلمات."})});
    if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_TTS_BUSY":"NAYA_TTS_UPSTREAM",message:"تعذر تشغيل صوت نايا الآن."});
-   const audio=await r.arrayBuffer();
    res.set("Content-Type","audio/mpeg");
+   res.set("Cache-Control","no-store");
+   if(r.body){await pipeline(Readable.fromWeb(r.body),res);return}
+   const audio=await r.arrayBuffer();
    res.set("Content-Length",String(audio.byteLength));
    return res.status(200).send(Buffer.from(audio));
-  }catch{return res.status(502).json({ok:false,code:"NAYA_TTS_UNAVAILABLE",message:"تعذر تشغيل صوت نايا الآن."})}
+  }catch{if(res.headersSent){res.destroy();return}return res.status(502).json({ok:false,code:"NAYA_TTS_UNAVAILABLE",message:"تعذر تشغيل صوت نايا الآن."})}
  });
  router.post("/chat",optionalAuth||((_req,_res,next)=>next()),async(req,res)=>{
   res.set("Cache-Control","no-store");
