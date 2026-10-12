@@ -1270,6 +1270,7 @@ let nayaAiHistory=[];
 function nayaAppendRecommendations(items,node){if(!Array.isArray(items)||!items.length||!node)return;const box=document.createElement('div');box.className='naya-recommendations';items.slice(0,3).forEach(item=>{const btn=document.createElement('button');btn.type='button';btn.dataset.nayaProductId=String(item.id);btn.textContent=`${item.name} — ${Number(item.price)||0} ₪`;box.appendChild(btn)});node.appendChild(box);box.addEventListener('click',e=>{const button=e.target.closest('[data-naya-product-id]');if(button&&Number.isSafeInteger(Number(button.dataset.nayaProductId))&&typeof openProduct==='function')openProduct(Number(button.dataset.nayaProductId))})}
 
 function nayaOfferDiscount(p){const old=Number(p?.old)||0,price=Number(p?.price)||0;return old>price?Math.round((old-price)*100/old):0}
+function nayaOfferCategory(p){const explicit=String(p?.cat||p?.category||'').trim();if(explicit)return explicit;const text=[p?.name,p?.en,p?.desc,p?.brand].map(v=>String(v||'')).join(' ').toLocaleLowerCase();if(/شنطة|شنط|حقيبة|\bbag\b|\bpurse\b|handbag/.test(text))return 'شنط';if(/ساعات?/.test(text)||/\bwatch(?:es)?\b/.test(text))return /رجالي|رجال|\bmen'?s\b|\bmale\b/.test(text)?'ساعات رجالي':'ساعات ستاتي';if(/عطر|عطور|\bperfume\b|fragrance/.test(text))return 'عطور';if(/مكياج|روج|\bmakeup\b|cosmetic|lipstick/.test(text))return 'مكياج';if(/اكسسوار|إكسسوار|accessor/.test(text))return 'اكسسوارات';return 'غير مصنف'}
 function nayaAppendOfferBrowser(node,query=''){
  const items=products.filter(p=>isOfferActive(p)&&totalStock(p)>0);
  const panel=document.createElement('section');panel.className='naya-offer-browser';panel.setAttribute('aria-label','تصفية عروض المتجر');
@@ -1278,7 +1279,7 @@ function nayaAppendOfferBrowser(node,query=''){
  const search=document.createElement('input');search.type='search';search.className='naya-offer-search';search.placeholder='اكتبي اسم المنتج أو البراند';search.setAttribute('aria-label','بحث في العروض');
  const category=document.createElement('select');category.className='naya-offer-category';category.setAttribute('aria-label','فلترة حسب الفئة');
  const allCategory=document.createElement('option');allCategory.value='';allCategory.textContent='كل الفئات';category.appendChild(allCategory);
- [...new Set(items.map(p=>String(p.cat||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')).forEach(name=>{const option=document.createElement('option');option.value=name;option.textContent=cats?.[name]?.[currentLang]||cats?.[name]?.ar||name;category.appendChild(option)});
+ [...new Set(items.map(nayaOfferCategory).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')).forEach(name=>{const option=document.createElement('option');option.value=name;option.textContent=cats?.[name]?.[currentLang]||cats?.[name]?.ar||name;category.appendChild(option)});
  const minDiscount=document.createElement('select');minDiscount.className='naya-offer-discount';minDiscount.setAttribute('aria-label','فلترة حسب نسبة الخصم');
  [['0','أي نسبة خصم'],['10','خصم 10٪ أو أكثر'],['25','خصم 25٪ أو أكثر'],['50','خصم 50٪ أو أكثر']].forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;minDiscount.appendChild(option)});
  const sort=document.createElement('select');sort.className='naya-offer-sort';sort.setAttribute('aria-label','ترتيب العروض');
@@ -1288,12 +1289,12 @@ function nayaAppendOfferBrowser(node,query=''){
  const list=document.createElement('div');list.className='naya-offer-results';
  const more=document.createElement('button');more.type='button';more.className='naya-offer-more';more.textContent='عرض 3 عروض أخرى';
  panel.append(status,list,more);node.appendChild(panel);
- const requestedCategory=items.find(p=>String(query).toLowerCase().includes(String(p.cat||'').toLowerCase())&&String(p.cat||'').length>2);
+ const requestedCategory=items.find(p=>String(query).toLowerCase().includes(nayaOfferCategory(p).toLowerCase())&&nayaOfferCategory(p).length>2);
  if(requestedCategory)category.value=String(requestedCategory.cat);
  let shown=3;
  const renderResults=()=>{
   const term=search.value.trim().toLocaleLowerCase();
-  const filtered=items.filter(p=>(!category.value||String(p.cat||'')===category.value)&&nayaOfferDiscount(p)>=Number(minDiscount.value)&&(!term||[p.name,p.en,p.brand,cats?.[p.cat]?.ar].some(v=>String(v||'').toLocaleLowerCase().includes(term))));
+  const filtered=items.filter(p=>(!category.value||nayaOfferCategory(p)===category.value)&&nayaOfferDiscount(p)>=Number(minDiscount.value)&&(!term||[p.name,p.en,p.brand,cats?.[nayaOfferCategory(p)]?.ar,nayaOfferCategory(p)].some(v=>String(v||'').toLocaleLowerCase().includes(term))));
   if(sort.value==='low')filtered.sort((a,b)=>(Number(a.price)||0)-(Number(b.price)||0));
   else if(sort.value==='high')filtered.sort((a,b)=>(Number(b.price)||0)-(Number(a.price)||0));
   else filtered.sort((a,b)=>nayaOfferDiscount(b)-nayaOfferDiscount(a));
