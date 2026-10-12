@@ -182,7 +182,7 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   const configuredVoice=clean(env.NAYA_TTS_VOICE||"sage",20);
   const voice=allowedVoices.has(configuredVoice)?configuredVoice:"sage";
   try{
-   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,instructions:"تحدثي بصوت امرأة ناعم ودافئ وfriendly، بلهجة لبنانية محكية طبيعية. خليها تحكي مع الزبونة بعفوية وود، كأنها بمحادثة مباشرة، وبسرعة كلام طبيعية ونبرة هادئة وواضحة. تجنبي الإلقاء الروائي أو نبرة المذيعة والغنج المبالغ فيه. التزمي بالنص العربي كما هو ولا تضيفي كلمات."})});
+   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,instructions:"تحدثي بصوت امرأة ناعم ودافئ وfriendly، بلهجة لبنانية محكية طبيعية. خليها تحكي مع الزبونة بعفوية وود، كأنها بمحادثة مباشرة، وبسرعة كلام طبيعية ونبرة هادئة وواضحة. انطقي الحركات القصيرة بوضوح، وميّزي بين الفتحة والضمة والكسرة والسكون والشدة، ولفظي نهايات الكلمات من دون إسقاط مقاطع أو مبالغة، مع الحفاظ على النطق اللبناني الطبيعي. تجنبي الإلقاء الروائي أو نبرة المذيعة والغنج المبالغ فيه. التزمي بالنص العربي كما هو ولا تضيفي كلمات."})});
    if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_TTS_BUSY":"NAYA_TTS_UPSTREAM",message:"تعذر تشغيل صوت نايا الآن."});
    const audio=await r.arrayBuffer();
    res.set("Content-Type","audio/mpeg");
