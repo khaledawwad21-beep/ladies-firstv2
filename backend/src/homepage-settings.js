@@ -23,6 +23,27 @@ function socialUrl(value) {
 
 function validateHomepageSettings(incoming) {
   const result = {...incoming};
+  if (Object.hasOwn(incoming, 'welcome_offer')) {
+    const offer = incoming.welcome_offer;
+    if (!offer || typeof offer !== 'object' || Array.isArray(offer)) invalid('إعدادات نافذة الترحيب غير صالحة');
+    if (typeof offer.enabled !== 'boolean') invalid('حددي حالة نافذة الترحيب');
+    if (!Array.isArray(offer.productIds) || offer.productIds.length > 12) invalid('اختاري حتى 12 صنفًا للنافذة');
+    const productIds = [...new Set(offer.productIds.map(id => Number(id)))];
+    if (productIds.some(id => !Number.isInteger(id) || id < 1)) invalid('الأصناف المحددة غير صالحة');
+    const dateValue = (value, label) => {
+      if (!value) return '';
+      if (typeof value !== 'string' || value.length > 40 || !Number.isFinite(Date.parse(value))) invalid(label + ' غير صالح');
+      return new Date(value).toISOString();
+    };
+    const startAt = dateValue(offer.startAt, 'تاريخ بداية الحملة');
+    const endAt = dateValue(offer.endAt, 'تاريخ نهاية الحملة');
+    if (offer.enabled && (!productIds.length || !startAt || !endAt)) invalid('حددي أصناف الحملة وتاريخ بدايتها ونهايتها');
+    if (startAt && endAt && Date.parse(startAt) >= Date.parse(endAt)) invalid('تاريخ بداية الحملة يجب أن يسبق تاريخ النهاية');
+    const couponCode = String(offer.couponCode || '').trim().toUpperCase();
+    const headline = String(offer.headline || '').trim();
+    if (couponCode.length > 50 || headline.length > 100) invalid('بيانات نافذة الترحيب طويلة');
+    result.welcome_offer = {enabled: offer.enabled, productIds, startAt, endAt, couponCode, headline};
+  }
   if (Object.hasOwn(incoming, 'feature_carousels')) {
     const settings=incoming.feature_carousels;
     if (!settings || typeof settings!=='object' || Array.isArray(settings)) invalid('إعدادات شرائح المنتجات غير صالحة');
