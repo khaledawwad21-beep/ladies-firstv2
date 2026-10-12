@@ -2353,6 +2353,20 @@ app.get(
 ========================================================= */
 
 app.get(
+  "/api/store/welcome-offer",
+  async (req, res) => {
+    try {
+      const result = await db('SELECT value FROM settings WHERE key = $1 LIMIT 1', ['welcome_offer']);
+      const value = result.rows[0]?.value;
+      res.json({ok:true, offer:value && typeof value === 'object' ? value : null});
+    } catch (error) {
+      console.error("[WELCOME OFFER]", error);
+      res.status(500).json({ok:false, message:"تعذر تحميل العرض"});
+    }
+  }
+);
+
+app.get(
   "/api/settings",
   async (req, res) => {
     try {
