@@ -72,15 +72,21 @@ test('seasonal motifs use the active theme only and do not block controls',()=>{
 
 
 test('seasonal accents use a restrained mix of filled and outline drawings',()=>{
+  const imageHeroThemes=new Set(['ramadan','eid-fitr','halloween','christmas','new-year']);
   for(const id of ['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year','spring','summer','autumn','winter']){
-    const x=render(id),layout=x.root.children[0];
-    assert.ok(layout.children[0].classes.has('lf-seasonal-vector--filled'),id+' primary seasonal drawing');
-    assert.ok(layout.children.at(-1).classes.has('lf-seasonal-vector--outline'),id+' secondary seasonal drawing');
+    const x=render(id),hero=x.root.children[0];
+    if(imageHeroThemes.has(id)){
+      assert.equal(hero.className,'lf-seasonal__hero-link',id+' uses its seasonal hero image');
+      assert.equal(hero.children[0].className,'lf-seasonal__hero-image',id+' hero artwork');
+    }else{
+      assert.ok(hero.children[0].classes.has('lf-seasonal-vector--filled'),id+' primary seasonal drawing');
+      assert.ok(hero.children.at(-1).classes.has('lf-seasonal-vector--outline'),id+' secondary seasonal drawing');
+      assert.match(hero.children[0].innerHTML,/lf-seasonal-painted/);
+      assert.doesNotMatch(hero.children.at(-1).innerHTML,/lf-seasonal-painted/);
+    }
     assert.ok(x.cats.children[0].classes.has('lf-seasonal-vector--filled'),id+' category accent');
     assert.ok(x.products.children[0].classes.has('lf-seasonal-vector--outline'),id+' product accent');
     assert.ok(x.footer.children[0].classes.has('lf-seasonal-vector--filled'),id+' footer accent');
-    assert.match(layout.children[0].innerHTML,/lf-seasonal-painted/);
-    assert.doesNotMatch(layout.children.at(-1).innerHTML,/lf-seasonal-painted/);
   }
 });
 test('Eid al-Adha emblem is an anatomically legible sheep rather than a wool cloud',()=>{
