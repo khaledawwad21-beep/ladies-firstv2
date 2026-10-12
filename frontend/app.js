@@ -95,12 +95,13 @@ function openPolicy(type){const en=currentLang==='en';const text=type==='about'?
 function closePolicy(){document.getElementById('policyModal').style.display='none'}
 function shippingInfo(region){const fees=storeCommerceSettings.shippingFees||{westbank:20,jerusalem:35,inside:70},discounts=storeCommerceSettings.shippingDiscountPercentages||{westbank:0,jerusalem:0,inside:0};const info={westbank:{ar:'الضفة الغربية',en:'West Bank'},jerusalem:{ar:'القدس',en:'Jerusalem'},inside:{ar:'الداخل',en:'Inside 1948'}}[region]||{ar:'الضفة الغربية',en:'West Bank'};const key=['westbank','jerusalem','inside'].includes(region)?region:'westbank',baseFee=Math.max(0,Number(fees[key]??20)||0),discountPercent=Math.min(100,Math.max(0,Number(discounts[key])||0)),discountAmount=baseFee*discountPercent/100;return {...info,baseFee,discountPercent,discountAmount,fee:Math.max(0,baseFee-discountAmount)}}
 function currentShipping(){const r=document.getElementById('shippingRegion')?.value||'westbank';return shippingInfo(r)}
-function isOfferActive(p){return !!p.onSale&&Number(p.old)>Number(p.price)&&(!p.offerExpiry||new Date(p.offerExpiry+'T23:59:59').getTime()>=Date.now())}
+function offerExpiryEnd(p){const raw=p?.offerExpiry;if(!raw)return Infinity;const value=String(raw).trim();const dateOnly=/^\d{4}-\d{2}-\d{2}$/.test(value);const time=new Date(dateOnly?value+'T23:59:59':value).getTime();return Number.isFinite(time)?time:Infinity}
+function isOfferActive(p){return Number(p?.old)>Number(p?.price)&&offerExpiryEnd(p)>=Date.now()}
 function weeklyOrderDate(o){const raw=o?.createdAt||o?.timestamp||o?.date;const d=raw instanceof Date?raw:new Date(raw);return Number.isNaN(d.getTime())?null:d}
 function isThisWeekOrder(o){const d=weeklyOrderDate(o);return !!d&&d.getTime()>=Date.now()-7*24*60*60*1000}
 function salesMap(orders){const m={};(orders||[]).forEach(o=>(o.items||[]).forEach(it=>{const id=it.productId??it.id;if(id==null)return;m[String(id)]=(m[String(id)]||0)+(Number(it.qty)||0)}));return m}
 function getTop5(){
-  const eligible=products.filter(p=>totalStock(p)>0&&(!p.offerExpiry||new Date(p.offerExpiry+'T23:59:59').getTime()>=Date.now()));
+  const eligible=products.filter(p=>totalStock(p)>0&&offerExpiryEnd(p)>=Date.now());
   const selected=eligible.filter(p=>p.top5);
   const offers=eligible.filter(p=>isOfferActive(p));
   const pool=selected.length?selected:offers;
