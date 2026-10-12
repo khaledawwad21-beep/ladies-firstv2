@@ -15,7 +15,8 @@ test('catalog names stay inert inside rendered event attributes',()=>{
  const payload="');globalThis.probe=1;//";
  const elements=Object.fromEntries(['cats','filter','brandFilter','sideCats','sideBrands'].map(k=>[k,{innerHTML:''}]));
  const ctx=vm.createContext({LOGO:'/safe.png',cats:{[payload]:{ar:payload}},brands:{},products:[],currentLang:'ar',document:{getElementById:id=>elements[id]},setCat:value=>{assert.equal(value,payload)},toggleSideMenu:()=>{}});
- vm.runInContext(['esc','safeImg','jsAttr','renderCats'].map(fn).join('\n'),ctx);vm.runInContext('renderCats()',ctx);
+ const categoryMap=app.slice(app.indexOf('const CATEGORY_IMAGE_FALLBACKS='),app.indexOf('\nfunction categoryFallbackImage('));
+ vm.runInContext([fn('esc'),fn('safeImg'),categoryMap,fn('categoryFallbackImage'),fn('categoryImage'),fn('jsAttr'),fn('renderCats')].join('\n'),ctx);vm.runInContext('renderCats()',ctx);
  for(const id of ['cats','sideCats']){
   const event=elements[id].innerHTML.match(/onclick="([^"]*)"/)[1];vm.runInContext(decode(event),ctx);assert.equal(ctx.probe,undefined);
  }
