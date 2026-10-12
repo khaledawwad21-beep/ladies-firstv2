@@ -1175,6 +1175,45 @@ function nayaFinishAudio(audio,playButton,stopButton){
  playButton.disabled=false;playButton.dataset.loading='false';playButton.textContent='إعادة الاستماع';
  stopButton.disabled=true;
 }
+async function nayaCreateAudio(response){
+ if(window.MediaSource&&MediaSource.isTypeSupported('audio/mpeg')&&response.body?.getReader){
+  const mediaSource=new MediaSource(),url=URL.createObjectURL(mediaSource),audio=new Audio(url);
+  try{
+   await new Promise((resolve,reject)=>{
+    if(mediaSource.readyState==='open')return resolve();
+    mediaSource.addEventListener('sourceopen',resolve,{once:true});
+    mediaSource.addEventListener('error',()=>reject(new Error('تعذر تجهيز الصوت.')),{once:true});
+   });
+   const sourceBuffer=mediaSource.addSourceBuffer('audio/mpeg'),reader=response.body.getReader();
+   let firstChunk=false;
+   const firstReady=new Promise((resolve,reject)=>{
+    (async()=>{
+     try{
+      while(true){
+       const {done,value}=await reader.read();
+       if(done)break;
+       await new Promise((res,rej)=>{
+        const onUpdate=()=>{sourceBuffer.removeEventListener('error',onError);res()};
+        const onError=()=>{sourceBuffer.removeEventListener('updateend',onUpdate);rej(new Error('تعذر تحميل الصوت.'))};
+        sourceBuffer.addEventListener('updateend',onUpdate,{once:true});
+        sourceBuffer.addEventListener('error',onError,{once:true});
+        try{sourceBuffer.appendBuffer(value)}catch(error){sourceBuffer.removeEventListener('updateend',onUpdate);sourceBuffer.removeEventListener('error',onError);rej(error)}
+       });
+       if(!firstChunk){firstChunk=true;resolve()}
+      }
+      if(!firstChunk)throw new Error('وصل رد صوتي فارغ.');
+      if(mediaSource.readyState==='open')mediaSource.endOfStream();
+     }catch(error){if(!firstChunk)reject(error);else audio.dispatchEvent(new Event('error'))}
+    })();
+   });
+   await firstReady;
+   await audio.play();
+   return {audio,url};
+  }catch(error){URL.revokeObjectURL(url);throw error}
+ }
+ const url=URL.createObjectURL(await response.blob());
+ return {audio:new Audio(url),url};
+}
 async function nayaSpeak(text,button,stopButton){
  if(!button||button.dataset.loading==='true')return;
  stopNayaAudio();button.dataset.loading='true';button.disabled=true;button.textContent='جارٍ تجهيز الصوت…';
@@ -1182,7 +1221,7 @@ async function nayaSpeak(text,button,stopButton){
   const spoken=String(text||'').replace(/https?:\/\/(?:www\.)?wa\.me\/[^\s]+/gi,'تواصلي مع المتجر عبر واتساب.');
   const response=await fetch('/api/ai/tts',{method:'POST',headers:await window.lfAiHeaders(),cache:'no-store',body:JSON.stringify({text:spoken.slice(0,1200)})});
   if(!response.ok){const detail=await response.json().catch(()=>({}));throw new Error(detail.message||'تعذر تشغيل صوت نايا الآن.')}
-  const url=URL.createObjectURL(await response.blob()),audio=new Audio(url);
+  const {audio,url}=await nayaCreateAudio(response);
   nayaCurrentAudio=audio;nayaCurrentAudioUrl=url;nayaCurrentSpeechButton=button;nayaCurrentStopButton=stopButton;
   button.disabled=false;button.textContent='نايا تتحدث…';stopButton.disabled=false;
   await new Promise((resolve,reject)=>{
@@ -1263,13 +1302,22 @@ function nayaClientId(){try{let id=localStorage.getItem('lf_naya_client_id');if(
 async function nayaAnswer(q){const local=nayaLocalAnswer(q);if(local)return{...local,_local:true};const customerProfile=nayaCustomerProfileForAi(q);const response=await fetch('/api/ai/chat',{method:'POST',headers:await window.lfAiHeaders(),cache:'no-store',body:JSON.stringify({message:q,clientId:nayaClientId(),history:nayaAiHistory.slice(-8),...(customerProfile?{customerProfile}:{})})});const result=await response.json().catch(()=>({}));if(!response.ok||!result.ok)throw new Error(result.message||'نايا الذكية غير متاحة الآن. جربي بعد شوي.');return{reply:String(result.reply||'كيف أقدر أساعدكِ؟'),recommendations:Array.isArray(result.recommendations)?result.recommendations:[]}}
 async function sendNaya(){const input=document.getElementById('nayaInput');if(!input||input.dataset.sending==='true')return;const q=input.value.trim();if(!q)return;input.value='';input.dataset.sending='true';nayaAddMessage(q,true);try{const result=await nayaAnswer(q),node=nayaAddMessage(result.reply,false);if(!result._local){nayaAiHistory.push({role:'user',content:q},{role:'assistant',content:result.reply});nayaAiHistory=nayaAiHistory.slice(-8)}nayaAppendRecommendations(result.recommendations,node)}catch(error){nayaAddMessage(error.message||'تعذر الاتصال بنايا الآن. جربي بعد شوي.',false)}finally{input.dataset.sending='false';input.focus()}}
 let nayaRecorder=null,nayaMicStream=null,nayaVoiceChunks=[],nayaVoiceTimer=null,nayaCancelVoice=false;
+const nayaMicIcon='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V21h2v-3.07A7 7 0 0 0 19 11h-2Z"/></svg>';
+const nayaStopIcon='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+function setNayaVoiceButton(button,recording=false){
+ if(!button)return;
+ button.innerHTML=recording?nayaStopIcon:nayaMicIcon;
+ button.setAttribute('aria-label',recording?'إيقاف التسجيل وإرسال الصوت':'تسجيل وإرسال سؤال صوتي');
+ button.title=recording?'إيقاف التسجيل وإرسال الصوت':'تسجيل سؤال صوتي';
+ if(recording)button.dataset.recording='true';else button.removeAttribute('data-recording');
+}
 function nayaVoiceStatus(message){const status=document.getElementById('nayaVoiceStatus');if(status)status.textContent=message}
 function nayaVoiceButton(){return document.getElementById('nayaVoiceButton')}
 function nayaReleaseMic(){if(nayaVoiceTimer)clearTimeout(nayaVoiceTimer);nayaVoiceTimer=null;if(nayaMicStream)nayaMicStream.getTracks().forEach(track=>track.stop());nayaMicStream=null}
 function cancelNayaRecording(){nayaCancelVoice=true;if(nayaRecorder&&nayaRecorder.state==='recording')nayaRecorder.stop()}
 async function startNayaRecording(){
  const button=nayaVoiceButton(),input=document.getElementById('nayaInput'),sendButton=document.querySelector('#nayaAssistant .naya-send');
- if(nayaRecorder&&nayaRecorder.state==='recording'){nayaVoiceStatus('جارٍ إرسال رسالتك الصوتية…');button.textContent='جارٍ الإرسال…';nayaRecorder.stop();return}
+ if(nayaRecorder&&nayaRecorder.state==='recording'){nayaVoiceStatus('جارٍ إرسال رسالتك الصوتية…');setNayaVoiceButton(button,true);nayaRecorder.stop();return}
  if(input?.dataset.sending==='true'){nayaVoiceStatus('انتظري حتى ينتهي الرد الحالي ثم سجّلي سؤالك.');return}
  if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined'){nayaVoiceStatus('التسجيل الصوتي غير مدعوم في هذا المتصفح.');return}
  try{
@@ -1282,13 +1330,13 @@ async function startNayaRecording(){
   recorder.onstop=()=>{
    const blob=new Blob(nayaVoiceChunks,{type:recorder.mimeType||preferred||'audio/webm'});nayaVoiceChunks=[];
    nayaReleaseMic();nayaRecorder=null;
-   if(button){button.disabled=false;button.textContent='إرسال صوتي';button.setAttribute('aria-label','تسجيل وإرسال سؤال صوتي');button.removeAttribute('data-recording')}
+   if(button){button.disabled=false;setNayaVoiceButton(button,false)}
    if(nayaCancelVoice){nayaCancelVoice=false;if(input)input.disabled=false;if(sendButton)sendButton.disabled=false;nayaVoiceStatus('');return}
    if(!blob.size){if(input)input.disabled=false;if(sendButton)sendButton.disabled=false;nayaVoiceStatus('ما وصل تسجيل واضح. جرّبي مرة ثانية.');return}
    transcribeNayaVoice(blob);
   };
-  recorder.start();button.textContent='إيقاف وإرسال';button.setAttribute('aria-label','إيقاف التسجيل وإرسال الصوت');button.dataset.recording='true';
-  nayaVoiceStatus('جاري التسجيل… اضغطي «إيقاف وإرسال» عند الانتهاء.');
+  recorder.start();setNayaVoiceButton(button,true);
+  nayaVoiceStatus('جاري التسجيل… اضغطي رمز الإيقاف عند الانتهاء.');
   nayaVoiceTimer=setTimeout(()=>{if(nayaRecorder===recorder){nayaVoiceStatus('انتهت مدة التسجيل؛ جارٍ إرسال رسالتك الصوتية…');recorder.stop()}},45000);
  }catch(error){
   nayaReleaseMic();if(input)input.disabled=false;if(sendButton)sendButton.disabled=false;

@@ -81,7 +81,10 @@ html body #nayaAssistant #nayaBodyPanel.open{display:block!important}
 #nayaAssistant .naya-input{gap:6px!important;align-items:center!important}
 #nayaAssistant .naya-input input{flex:1 1 auto!important;min-width:0!important}
 #nayaAssistant .naya-input .naya-send,#nayaAssistant .naya-input .naya-voice-input{flex:0 0 auto!important;width:auto!important;min-width:62px!important;height:42px!important;padding:8px 11px!important;border:0!important;border-radius:12px!important;background:#63345e!important;color:#fff!important;font-size:13px!important;font-weight:800!important;white-space:nowrap!important}
-#nayaAssistant .naya-input .naya-voice-input{min-width:104px!important;background:#63345e!important}
+#nayaAssistant .naya-input .naya-voice-input{display:inline-grid!important;place-items:center!important;flex:0 0 46px!important;width:46px!important;min-width:46px!important;height:42px!important;padding:0!important;background:#63345e!important}
+#nayaAssistant .naya-input .naya-voice-input svg{display:block;width:21px;height:21px;fill:currentColor}
+#nayaAssistant .naya-input .naya-voice-input[data-recording="true"] svg{width:18px;height:18px}
+#nayaAssistant .naya-input .naya-voice-input:focus-visible{outline:3px solid #d9b4d0;outline-offset:2px}
 #nayaAssistant .naya-input .naya-voice-input[data-recording="true"]{background:#b84c5c!important}
 #nayaAssistant .naya-input button:disabled{opacity:.6!important;cursor:not-allowed!important}
 #nayaAssistant .naya-voice-status{flex:0 0 auto;padding:0 14px;color:#63345e;font-size:12px;line-height:1.45}
@@ -91,4 +94,4 @@ html body #nayaAssistant #nayaBodyPanel.open{display:block!important}
 #nayaAssistant .naya-voice-controls .naya-stop-speak{background:#63345e;color:#fff;border-color:#63345e}
 #nayaAssistant .naya-voice-controls button:disabled{opacity:.55;cursor:not-allowed}
 #nayaAssistant .naya-whatsapp-link{display:inline-flex;margin-top:7px;padding:6px 10px;border:1px solid #d8c4d2;border-radius:999px;background:#fff;color:#63345e;font-weight:800;text-decoration:none}
-@media(max-width:420px){#nayaAssistant .naya-input{gap:5px!important;padding:8px!important}#nayaAssistant .naya-input .naya-send{min-width:54px!important;padding-inline:8px!important}#nayaAssistant .naya-input .naya-voice-input{min-width:96px!important;padding-inline:8px!important}#nayaAssistant .naya-voice-status{font-size:11px}}
+@media(max-width:420px){#nayaAssistant .naya-input{gap:5px!important;padding:8px!important}#nayaAssistant .naya-input .naya-send{min-width:54px!important;padding-inline:8px!important}#nayaAssistant .naya-input .naya-voice-input{flex-basis:44px!important;width:44px!important;min-width:44px!important;padding:0!important}#nayaAssistant .naya-voice-status{font-size:11px}}

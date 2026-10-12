@@ -5,4 +5,4 @@
    stability layer without changing the large legacy index.html document. */
 @import url("./index-legacy.css");
 @import url("./store-stability.css");
-@import url("./account-naya-stability.css?v=20261012-naya-core-voice");
+@import url("./account-naya-stability.css?v=20261012-naya-mic-stream");
