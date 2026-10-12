@@ -1161,12 +1161,14 @@ window.addEventListener('storage',event=>{
     heroIndex=0;renderHero();renderHeroSlider();restartHeroTimer();
   }catch(error){console.warn('Unable to refresh hero slides',error)}
 });
+const DEFAULT_CATEGORY_NAMES=['ساعات ستاتي','ساعات رجالي','مكياج','اكسسوارات','شنط','عطور'];
+function defaultStoreCategories(){const next={};DEFAULT_CATEGORY_NAMES.forEach(name=>next[name]={ar:name,en:name,icon:'🛍️',image:categoryFallbackImage(name)});return next;}
 async function lfSyncCatalog(){
   try{
     const [cd,bd]=await Promise.all([lfFetch('/api/categories'),lfFetch('/api/brands')]);
     if(Array.isArray(cd.categories)){
-      const next={};
-      cd.categories.forEach(c=>{const name=String(c.name||'').trim();if(name)next[name]={ar:name,en:name,icon:'🛍️',image:c.imageUrl||c.image_url||''};});
+      const next=defaultStoreCategories();
+      cd.categories.forEach(c=>{const name=String(c.name||'').trim();if(name)next[name]={...(next[name]||{}),ar:name,en:name,icon:'🛍️',image:c.imageUrl||c.image_url||categoryFallbackImage(name)};});
       cats=next; save('lf_cats',cats);
     }
     if(Array.isArray(bd.brands)){
@@ -1177,8 +1179,8 @@ async function lfSyncCatalog(){
     renderCats();renderProducts();renderFeatureSections();
   }catch(e){
     console.warn('API catalog unavailable',e.message);
-    const nextCats={}; const nextBrands={};
-    (products||[]).forEach(p=>{const c=String(p.cat||'').trim();if(c&&!nextCats[c])nextCats[c]={ar:c,en:c,icon:p.icon||'🛍️',image:''};const b=String(p.brand||'').trim();if(b&&!nextBrands[b])nextBrands[b]={ar:b,en:b,logo:''};});
+    const nextCats=defaultStoreCategories(); const nextBrands={};
+    (products||[]).forEach(p=>{const c=String(p.cat||'').trim();if(c&&!nextCats[c])nextCats[c]={ar:c,en:c,icon:p.icon||'🛍️',image:categoryFallbackImage(c)};const b=String(p.brand||'').trim();if(b&&!nextBrands[b])nextBrands[b]={ar:b,en:b,logo:''};});
     cats=nextCats;brands=nextBrands;save('lf_cats',cats);save('lf_brands',brands);renderCats();renderProducts();
   }
 }
