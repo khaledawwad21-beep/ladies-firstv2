@@ -75,7 +75,7 @@ test("Naya voice endpoint uses the server key and returns uncached audio",async 
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا وسهلًا سيدتي"})});
  assert.equal(res.status,200);assert.equal(res.headers.get("content-type"),"audio/mpeg");assert.equal(res.headers.get("cache-control"),"no-store");
  assert.equal(captured.url,"https://api.openai.com/v1/audio/speech");assert.equal(captured.o.headers.Authorization,"Bearer secret");
- const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"marin");assert.equal(payload.speed,0.96);assert.match(payload.instructions,/gentle, soft, clearly feminine voice/);assert.match(payload.instructions,/natural urban Lebanese Arabic/);assert.match(payload.instructions,/glottal stop \/ʔ\//);assert.match(payload.instructions,/قولنا \(ʔūlna\)/);assert.doesNotMatch(payload.instructions,/roughness|announcer-like delivery/);
+ const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"marin");assert.equal(payload.speed,0.96);assert.match(payload.instructions,/gentle, soft, clearly feminine voice/);assert.match(payload.instructions,/natural urban Damascene Syrian Arabic/);assert.match(payload.instructions,/Damascene glottal stop \/ʔ\//);assert.doesNotMatch(payload.instructions,/roughness|announcer-like delivery/);
  const reader=res.body.getReader(),chunks=[];while(true){const part=await reader.read();if(part.done)break;chunks.push(Buffer.from(part.value))}assert.deepEqual(Buffer.concat(chunks),bytes);
 });
 
@@ -116,19 +116,19 @@ test("Naya chat endpoints share a persistent rate-limit scope and TTS has its ow
  assert.deepEqual(calls.map(x=>x.limit),[20,20,10]);
 });
 
-test("Naya prompts keep Lebanese dialect consistent after conversation history",()=>{
+test("Naya prompts keep Syrian dialect consistent after conversation history",()=>{
  const{buildNayaMessages,buildStoreAssistantMessages}=require("../src/naya-ai");
  const messages=buildNayaMessages({message:"أريد عطرًا",catalog:[],history:[{role:"assistant",content:"مرحبا"}],whatsappNumber:"+972 (56) 249-9924"});
  const prompt=messages.find(x=>x.role==="system").content;
  const reminder=messages.at(-2).content;
- for(const phrase of ["موظفة مبيعات ودودة","بالعربية المحكية اللبنانية المدينية","أهلين، كيفك؟ شو عم تدوري عليه؟","إذا بتحبي، فيني ساعدك","هيدي القطعة كتير حلوة وبتلبقلك","هلّق بشوفلك شو متوفر","بتأكدلك من فريق المتجر وبرجعلك","972562499924","https://wa.me/972562499924?text="])assert.ok(prompt.includes(phrase),phrase);
- assert.match(reminder,/لهجة لبنانية مدينية محكية/);
+ for(const phrase of ["موظفة مبيعات ودودة","بلهجة سورية مدينية محكية","أهلين، كيفك؟ شو عم تدوري عليه؟","إذا بتحبي، فيني ساعدك","هاي القطعة كتير حلوة وبتليقلك","هلأ بشوفلك شو متوفر","بتأكدلك من فريق المتجر وبرجعلك","972562499924","https://wa.me/972562499924?text="])assert.ok(prompt.includes(phrase),phrase);
+ assert.match(reminder,/لهجة سورية مدينية محكية/);
  assert.match(reminder,/حتى لو كانت صياغة الردود السابقة مختلفة/);
  assert.doesNotMatch(prompt,/سأسأل الفريق|سأبحث لك|هل ترغبين/);
  const storeMessages=buildStoreAssistantMessages({message:"أريد عطرًا",catalog:[],history:[{role:"assistant",content:"مرحبا"}]});
  const storePrompt=storeMessages[0].content;
- for(const phrase of ["لهجة لبنانية مدينية محكية","طبيعية ومتّسقة وبنحو سليم","أهلين، كيفك؟ شو عم تدوري عليه؟","إذا بتحبي، فيني ساعدك","هيدي القطعة كتير حلوة وبتلبقلك","هلّق بشوفلك شو متوفر"])assert.ok(storePrompt.includes(phrase),phrase);
- assert.match(storeMessages.at(-2).content,/لهجة لبنانية مدينية محكية/);
+ for(const phrase of ["لهجة سورية مدينية محكية","طبيعية ومتّسقة وبنحو سليم","أهلين، كيفك؟ شو عم تدوري عليه؟","إذا بتحبي، فيني ساعدك","هاي القطعة كتير حلوة وبتليقلك","هلأ بشوفلك شو متوفر"])assert.ok(storePrompt.includes(phrase),phrase);
+ assert.match(storeMessages.at(-2).content,/لهجة سورية مدينية محكية/);
  assert.doesNotMatch(storePrompt,/سأسأل الفريق|سأبحث لك|هل ترغبين/);
 });
 test("Naya rejects messages over 1000 characters before calling OpenAI",async t=>{
