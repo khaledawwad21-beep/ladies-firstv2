@@ -1242,7 +1242,6 @@ async function nayaCreateAudio(response){
     })();
    });
    await firstReady;
-   await audio.play();
    return {audio,url};
   }catch(error){URL.revokeObjectURL(url);throw error}
  }
