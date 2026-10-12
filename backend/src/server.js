@@ -605,7 +605,7 @@ async function initDatabase() {
     );
     if (existing.rows.length) {
       await db(
-        `UPDATE categories SET name = $1, slug = $2, image_url = $3, is_active = TRUE, updated_at = NOW() WHERE id = $4`,
+        `UPDATE categories SET name = $1, slug = $2, image_url = COALESCE(NULLIF(BTRIM(image_url), ''), $3), is_active = TRUE, updated_at = NOW() WHERE id = $4`,
         [category.name, category.slug, category.image, existing.rows[0].id]
       );
     } else {
