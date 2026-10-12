@@ -95,3 +95,23 @@ html body #nayaAssistant #nayaBodyPanel.open{display:block!important}
 #nayaAssistant .naya-voice-controls button:disabled{opacity:.55;cursor:not-allowed}
 #nayaAssistant .naya-whatsapp-link{display:inline-flex;margin-top:7px;padding:6px 10px;border:1px solid #d8c4d2;border-radius:999px;background:#fff;color:#63345e;font-weight:800;text-decoration:none}
 @media(max-width:420px){#nayaAssistant .naya-input{gap:5px!important;padding:8px!important}#nayaAssistant .naya-input .naya-send{min-width:54px!important;padding-inline:8px!important}#nayaAssistant .naya-input .naya-voice-input{flex-basis:44px!important;width:44px!important;min-width:44px!important;padding:0!important}#nayaAssistant .naya-voice-status{font-size:11px}}
+
+/* Let shoppers narrow a large sale catalog inside Naya instead of hearing a long list. */
+#nayaAssistant .naya-offer-browser{display:grid;gap:9px;margin-top:10px;padding:10px;border:1px solid #e9d8e3;border-radius:14px;background:#fffafd;color:#4d3b4b}
+#nayaAssistant .naya-offer-title{font-size:14px;color:#63345e}
+#nayaAssistant .naya-offer-filters{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+#nayaAssistant .naya-offer-filters input,#nayaAssistant .naya-offer-filters select{min-width:0;width:100%;height:38px;padding:6px 8px;border:1px solid #dfcad8;border-radius:10px;background:#fff;color:#4d3b4b;font:inherit;font-size:12px}
+#nayaAssistant .naya-offer-search{grid-column:1/-1}
+#nayaAssistant .naya-offer-count{font-size:11px;color:#765c70}
+#nayaAssistant .naya-offer-results{display:grid;gap:7px}
+#nayaAssistant .naya-offer-product{display:flex;align-items:center;gap:9px;width:100%;padding:7px;border:1px solid #eee3ea;border-radius:12px;background:#fff;text-align:start;color:#443643;cursor:pointer}
+#nayaAssistant .naya-offer-product img{flex:0 0 54px;width:54px;height:54px;object-fit:cover;border-radius:9px;background:#f8eef3}
+#nayaAssistant .naya-offer-info{display:grid;gap:5px;min-width:0}
+#nayaAssistant .naya-offer-name{font-size:12px;font-weight:800;line-height:1.4}
+#nayaAssistant .naya-offer-prices{display:flex;align-items:center;gap:7px;font-size:11px}
+#nayaAssistant .naya-offer-prices b{color:#63345e}
+#nayaAssistant .naya-offer-prices s{color:#847682}
+#nayaAssistant .naya-offer-prices small{margin-inline-start:auto;padding:3px 6px;border-radius:999px;background:#f6e5ee;color:#963f69;font-weight:800}
+#nayaAssistant .naya-offer-empty{margin:0;padding:10px;border-radius:10px;background:#f8f1f5;font-size:12px}
+#nayaAssistant .naya-offer-more{justify-self:center;padding:8px 13px;border:1px solid #d9c2d2;border-radius:999px;background:#fff;color:#63345e;font:inherit;font-size:12px;font-weight:800}
+#nayaAssistant .naya-offer-more[hidden]{display:none!important}

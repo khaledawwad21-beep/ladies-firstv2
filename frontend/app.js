@@ -1268,7 +1268,54 @@ function nayaAddMessage(text,user=false){
 }
 let nayaAiHistory=[];
 function nayaAppendRecommendations(items,node){if(!Array.isArray(items)||!items.length||!node)return;const box=document.createElement('div');box.className='naya-recommendations';items.slice(0,3).forEach(item=>{const btn=document.createElement('button');btn.type='button';btn.dataset.nayaProductId=String(item.id);btn.textContent=`${item.name} — ${Number(item.price)||0} ₪`;box.appendChild(btn)});node.appendChild(box);box.addEventListener('click',e=>{const button=e.target.closest('[data-naya-product-id]');if(button&&Number.isSafeInteger(Number(button.dataset.nayaProductId))&&typeof openProduct==='function')openProduct(Number(button.dataset.nayaProductId))})}
-function nayaLocalAnswer(q){const t=String(q||'').trim().toLowerCase();if(/(?:طولي|وزني|خصري|صدري|أردافي|مقاساتي|قياساتي|\\b(?:height|weight|waist|bust|hips)\\b).{0,12}\\d+/i.test(t))return{reply:'خلّينا نحافظ على خصوصية قياساتك 🌸 أدخليها فقط في لوحة المقاسات بعد الموافقة؛ لن أرسلها للمساعد الذكي.',recommendations:[]};if(/\\b(cart|basket)\\b|سلة/.test(t))return{reply:`عندكِ حاليًا ${cart.reduce((n,i)=>n+(Number(i.qty)||0),0)} قطعة في السلة 🛍️`+(cart.length?' ويمكنكِ فتحها من زر السلة.':'، والسلة فارغة حاليًا.'),recommendations:[]};if(/مفضلة|المفضلة|favorite/.test(t))return{reply:`عندكِ ${getFavorites().length} منتج في المفضلة ❤️`,recommendations:[]};if(/مقاساتي|مقاسات|قياسات|جرّبيها على نايا|جربيها على نايا/.test(t)){openNayaBodyProfile();return{reply:'أكيد 🌸 افتحي لوحة المقاسات ووافقي على رسالة الخصوصية، وبعدها أعطيكِ معاينة تقريبية على نايا.',recommendations:[]}}return null}
+
+function nayaOfferDiscount(p){const old=Number(p?.old)||0,price=Number(p?.price)||0;return old>price?Math.round((old-price)*100/old):0}
+function nayaAppendOfferBrowser(node,query=''){
+ const items=products.filter(p=>isOfferActive(p)&&totalStock(p)>0);
+ const panel=document.createElement('section');panel.className='naya-offer-browser';panel.setAttribute('aria-label','تصفية عروض المتجر');
+ const title=document.createElement('strong');title.className='naya-offer-title';title.textContent='خلّينا نفلتر العروض سوا 🌸';panel.appendChild(title);
+ const filters=document.createElement('div');filters.className='naya-offer-filters';
+ const search=document.createElement('input');search.type='search';search.className='naya-offer-search';search.placeholder='اكتبي اسم المنتج أو البراند';search.setAttribute('aria-label','بحث في العروض');
+ const category=document.createElement('select');category.className='naya-offer-category';category.setAttribute('aria-label','فلترة حسب الفئة');
+ const allCategory=document.createElement('option');allCategory.value='';allCategory.textContent='كل الفئات';category.appendChild(allCategory);
+ [...new Set(items.map(p=>String(p.cat||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')).forEach(name=>{const option=document.createElement('option');option.value=name;option.textContent=cats?.[name]?.[currentLang]||cats?.[name]?.ar||name;category.appendChild(option)});
+ const minDiscount=document.createElement('select');minDiscount.className='naya-offer-discount';minDiscount.setAttribute('aria-label','فلترة حسب نسبة الخصم');
+ [['0','أي نسبة خصم'],['10','خصم 10٪ أو أكثر'],['25','خصم 25٪ أو أكثر'],['50','خصم 50٪ أو أكثر']].forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;minDiscount.appendChild(option)});
+ const sort=document.createElement('select');sort.className='naya-offer-sort';sort.setAttribute('aria-label','ترتيب العروض');
+ [['discount','أعلى خصم أولًا'],['low','السعر الأقل أولًا'],['high','السعر الأعلى أولًا']].forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;sort.appendChild(option)});
+ filters.append(search,category,minDiscount,sort);panel.appendChild(filters);
+ const status=document.createElement('div');status.className='naya-offer-count';status.setAttribute('aria-live','polite');
+ const list=document.createElement('div');list.className='naya-offer-results';
+ const more=document.createElement('button');more.type='button';more.className='naya-offer-more';more.textContent='عرض 3 عروض أخرى';
+ panel.append(status,list,more);node.appendChild(panel);
+ const requestedCategory=items.find(p=>String(query).toLowerCase().includes(String(p.cat||'').toLowerCase())&&String(p.cat||'').length>2);
+ if(requestedCategory)category.value=String(requestedCategory.cat);
+ let shown=3;
+ const renderResults=()=>{
+  const term=search.value.trim().toLocaleLowerCase();
+  const filtered=items.filter(p=>(!category.value||String(p.cat||'')===category.value)&&nayaOfferDiscount(p)>=Number(minDiscount.value)&&(!term||[p.name,p.en,p.brand,cats?.[p.cat]?.ar].some(v=>String(v||'').toLocaleLowerCase().includes(term))));
+  if(sort.value==='low')filtered.sort((a,b)=>(Number(a.price)||0)-(Number(b.price)||0));
+  else if(sort.value==='high')filtered.sort((a,b)=>(Number(b.price)||0)-(Number(a.price)||0));
+  else filtered.sort((a,b)=>nayaOfferDiscount(b)-nayaOfferDiscount(a));
+  status.textContent=items.length?('عرض '+Math.min(shown,filtered.length)+' من '+filtered.length+' عرض نشط'):'ما في عروض نشطة حاليًا.';
+  list.replaceChildren();
+  filtered.slice(0,shown).forEach(p=>{
+   const button=document.createElement('button');button.type='button';button.className='naya-offer-product';button.dataset.nayaOfferId=String(p.id);
+   const image=document.createElement('img');image.src=safeImg(mainImagesOf(p)[0],LOGO);image.alt='';
+   const info=document.createElement('span');info.className='naya-offer-info';
+   const name=document.createElement('span');name.className='naya-offer-name';name.textContent=String(currentLang==='en'?(p.en||p.name):p.name||p.en);
+   const prices=document.createElement('span');prices.className='naya-offer-prices';const price=document.createElement('b');price.textContent=(Number(p.price)||0)+' ₪';const old=document.createElement('s');old.textContent=(Number(p.old)||0)+' ₪';const badge=document.createElement('small');badge.textContent='خصم '+nayaOfferDiscount(p)+'٪';prices.append(price,old,badge);info.append(name,prices);button.append(image,info);list.appendChild(button);
+  });
+  if(!filtered.length){const empty=document.createElement('p');empty.className='naya-offer-empty';empty.textContent=items.length?'ما لقينا عروض بهالخيارات. جرّبي توسّعي الفلتر.':'ما في عروض نشطة حاليًا.';list.appendChild(empty)}
+  more.hidden=filtered.length<=shown;more.disabled=filtered.length<=shown;
+ };
+ [search,category,minDiscount,sort].forEach(control=>control.addEventListener(control===search?'input':'change',()=>{shown=3;renderResults()}));
+ more.addEventListener('click',()=>{shown+=3;renderResults()});
+ list.addEventListener('click',event=>{const button=event.target.closest('[data-naya-offer-id]');if(!button)return;const p=items.find(item=>String(item.id)===button.dataset.nayaOfferId);if(p&&typeof openProduct==='function')openProduct(p.id)});
+ renderResults();
+}
+
+function nayaLocalAnswer(q){const t=String(q||'').trim().toLowerCase();if(/(?:العروض|عروض|عرض|التخفيضات|تخفيضات|الخصومات|خصومات|offers?|discounts?)/i.test(t))return{reply:'أكيد سيدتي 🌸 بدل ما أسردلك كل العروض، فلترّيهم حسب الفئة والخصم والسعر، واكتبي اسم القطعة اللي ببالك.',recommendations:[],_offers:true};if(/(?:طولي|وزني|خصري|صدري|أردافي|مقاساتي|قياساتي|\\b(?:height|weight|waist|bust|hips)\\b).{0,12}\\d+/i.test(t))return{reply:'خلّينا نحافظ على خصوصية قياساتك 🌸 أدخليها فقط في لوحة المقاسات بعد الموافقة؛ لن أرسلها للمساعد الذكي.',recommendations:[]};if(/\\b(cart|basket)\\b|سلة/.test(t))return{reply:`عندكِ حاليًا ${cart.reduce((n,i)=>n+(Number(i.qty)||0),0)} قطعة في السلة 🛍️`+(cart.length?' ويمكنكِ فتحها من زر السلة.':'، والسلة فارغة حاليًا.'),recommendations:[]};if(/مفضلة|المفضلة|favorite/.test(t))return{reply:`عندكِ ${getFavorites().length} منتج في المفضلة ❤️`,recommendations:[]};if(/مقاساتي|مقاسات|قياسات|جرّبيها على نايا|جربيها على نايا/.test(t)){openNayaBodyProfile();return{reply:'أكيد 🌸 افتحي لوحة المقاسات ووافقي على رسالة الخصوصية، وبعدها أعطيكِ معاينة تقريبية على نايا.',recommendations:[]}}return null}
 const NAYA_PROFILE_AI_CONSENT_KEY='lf_naya_profile_ai_consent';
 function nayaExplicitGiftRequest(q){
   const text=String(q||'').toLowerCase();
@@ -1300,7 +1347,7 @@ function nayaCustomerProfileForAi(q){
 }
 function nayaClientId(){try{let id=localStorage.getItem('lf_naya_client_id');if(!/^[A-Za-z0-9_-]{16,100}$/.test(id||'')){id=window.crypto?.randomUUID?.()||'lf-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem('lf_naya_client_id',id)}return id}catch{return ''}}
 async function nayaAnswer(q){const local=nayaLocalAnswer(q);if(local)return{...local,_local:true};const customerProfile=nayaCustomerProfileForAi(q);const response=await fetch('/api/ai/chat',{method:'POST',headers:await window.lfAiHeaders(),cache:'no-store',body:JSON.stringify({message:q,clientId:nayaClientId(),history:nayaAiHistory.slice(-8),...(customerProfile?{customerProfile}:{})})});const result=await response.json().catch(()=>({}));if(!response.ok||!result.ok)throw new Error(result.message||'نايا الذكية غير متاحة الآن. جربي بعد شوي.');return{reply:String(result.reply||'كيف أقدر أساعدكِ؟'),recommendations:Array.isArray(result.recommendations)?result.recommendations:[]}}
-async function sendNaya(){const input=document.getElementById('nayaInput');if(!input||input.dataset.sending==='true')return;const q=input.value.trim();if(!q)return;input.value='';input.dataset.sending='true';nayaAddMessage(q,true);try{const result=await nayaAnswer(q),node=nayaAddMessage(result.reply,false);if(!result._local){nayaAiHistory.push({role:'user',content:q},{role:'assistant',content:result.reply});nayaAiHistory=nayaAiHistory.slice(-8)}nayaAppendRecommendations(result.recommendations,node)}catch(error){nayaAddMessage(error.message||'تعذر الاتصال بنايا الآن. جربي بعد شوي.',false)}finally{input.dataset.sending='false';input.focus()}}
+async function sendNaya(){const input=document.getElementById('nayaInput');if(!input||input.dataset.sending==='true')return;const q=input.value.trim();if(!q)return;input.value='';input.dataset.sending='true';nayaAddMessage(q,true);try{const result=await nayaAnswer(q),node=nayaAddMessage(result.reply,false);if(!result._local){nayaAiHistory.push({role:'user',content:q},{role:'assistant',content:result.reply});nayaAiHistory=nayaAiHistory.slice(-8)}nayaAppendRecommendations(result.recommendations,node);if(result._offers)nayaAppendOfferBrowser(node,q)}catch(error){nayaAddMessage(error.message||'تعذر الاتصال بنايا الآن. جربي بعد شوي.',false)}finally{input.dataset.sending='false';input.focus()}}
 let nayaRecorder=null,nayaMicStream=null,nayaVoiceChunks=[],nayaVoiceTimer=null,nayaCancelVoice=false;
 const nayaMicIcon='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V21h2v-3.07A7 7 0 0 0 19 11h-2Z"/></svg>';
 const nayaStopIcon='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
