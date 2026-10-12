@@ -90,7 +90,7 @@ html body #nayaAssistant #nayaBodyPanel.open{display:block!important}
 #nayaAssistant .naya-voice-status{flex:0 0 auto;padding:0 14px;color:#63345e;font-size:12px;line-height:1.45}
 #nayaAssistant .naya-voice-status:empty{display:none}
 #nayaAssistant .naya-voice-controls{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-#nayaAssistant .naya-voice-controls button{min-height:34px;padding:7px 10px;border:1px solid #dfcad8;border-radius:999px;background:#fff;color:#63345e;font:inherit;font-size:12px;font-weight:800}
+#nayaAssistant .naya-voice-controls button{display:grid;place-items:center;width:38px;min-width:38px;height:38px;min-height:38px;padding:8px;border:1px solid #dfcad8;border-radius:50%;background:#fff;color:#63345e;font:inherit;font-size:12px;font-weight:800}#nayaAssistant .naya-voice-controls svg{display:block;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}#nayaAssistant .naya-voice-controls .naya-stop-speak svg{fill:currentColor;stroke:none}
 #nayaAssistant .naya-voice-controls .naya-stop-speak{background:#63345e;color:#fff;border-color:#63345e}
 #nayaAssistant .naya-voice-controls button:disabled{opacity:.55;cursor:not-allowed}
 #nayaAssistant .naya-whatsapp-link{display:inline-flex;margin-top:7px;padding:6px 10px;border:1px solid #d8c4d2;border-radius:999px;background:#fff;color:#63345e;font-weight:800;text-decoration:none}
