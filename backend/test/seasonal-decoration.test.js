@@ -20,7 +20,9 @@ function render(active){
   hero.parentNode={};cats.parentNode={};
   const panels=Array.from({length:3},()=>new Element());
   const headings=Array.from({length:4},()=>new Element());
+  const head=new Element();
   const doc={
+    head,
     createElementNS:()=>new Element(),
     createElement:()=>new Element(),
     getElementById:id=>({lfSeasonalWelcome:root,cats,products,storeDiscoveryIdeas:discovery}[id]||null),
@@ -29,12 +31,20 @@ function render(active){
   };
   const window={__LF_SEASONAL__:{active,greetings:{ramadan:'رمضان كريم','eid-fitr':'عيد سعيد'},labels:{ramadan:'رمضان','eid-fitr':'عيد الفطر'},year:2027}};
   vm.runInNewContext(source,{window,document:doc});
-  return {header,footer,root,hero,cats,products,discovery,panels,headings};
+  return {head,header,footer,root,hero,cats,products,discovery,panels,headings};
 }
 test('no decorative DOM is created while the default theme is active',()=>{
   const x=render('none');
   for(const node of [x.header,x.footer,x.root,x.hero,x.cats,x.products,x.discovery,...x.panels,...x.headings])
     assert.equal(node.children.length,0);
+});
+test('season slide artwork is installed as a head stylesheet',()=>{
+  for(const id of ['spring','summer','autumn','winter']){
+    const x=render(id);
+    assert.equal(x.head.children.length,1,id+' scene stylesheet');
+    assert.match(x.head.children[0].textContent,new RegExp('data-theme="'+id+'"'));
+    assert.match(x.head.children[0].textContent,/#cats::before/);
+  }
 });
 test('active seasons receive clear seasonal accents across the page',()=>{
   for(const id of ['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year','spring','summer','autumn','winter']){
