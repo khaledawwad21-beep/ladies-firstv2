@@ -1268,7 +1268,7 @@ async function nayaFetchSpeech(spoken){
   catch(error){if(attempt===0&&error?.name!=='AbortError'){await new Promise(resolve=>setTimeout(resolve,180));continue}throw error}
   if(response.ok)return response;
   const detail=await response.json().catch(()=>({}));
-  const transient=response.status===502||response.status===504||(response.status===503&&!['NAYA_AI_NOT_CONFIGURED','NAYA_TTS_RATE_LIMIT'].includes(detail.code));
+  const transient=(response.status===502||response.status===504)&&detail.code!=='NAYA_TTS_TIMEOUT'||response.status===503&&!detail.code;
   if(attempt===0&&transient){await new Promise(resolve=>setTimeout(resolve,180));continue}
   throw new Error(detail.message||'تعذر تشغيل صوت نايا الآن.');
  }
