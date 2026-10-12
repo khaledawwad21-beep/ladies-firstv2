@@ -22,13 +22,13 @@ function registerProductOffers(app) {
         }
       }
 
-      for(const key of ['offerExpiry','quickOfferExpiry']) {
+      for(const key of ['saleStartsAt','saleEndsAt','offerExpiry','quickOfferExpiry']) {
         if(Object.hasOwn(body,key)) {
           const value=body[key];
           if(value!==''&&value!==null) {
             if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))invalid('تاريخ انتهاء العرض غير صالح');
             const date=new Date(value+'T00:00:00Z');
-            if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==value)invalid('تاريخ انتهاء العرض غير صالح');
+            if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==value)invalid('تاريخ العرض غير صالح');
           }
           patch[key]=value||'';
         }
@@ -53,6 +53,11 @@ function registerProductOffers(app) {
         const nextPrice=hasSalePrice?salePrice:Number(product.price||0);
         const nextOldPrice=hasOriginalPrice?originalPrice:(product.old_price===null?null:Number(product.old_price));
 
+        const saleStart=merged.saleStartsAt||'';
+        const saleEnd=merged.saleEndsAt||'';
+        if((saleStart||saleEnd)&&!(Number(nextOldPrice)>Number(nextPrice))) invalid('تواريخ التخفيض متاحة فقط عند وجود سعر قديم أعلى من السعر الحالي');
+        if((saleStart||saleEnd)&&(!saleStart||!saleEnd)) invalid('حددي تاريخ بداية ونهاية التخفيض');
+        if(saleStart&&saleEnd&&saleStart>saleEnd) invalid('تاريخ بداية التخفيض يجب أن يسبق تاريخ النهاية');
         if(merged.onSale&&!(Number(nextOldPrice)>Number(nextPrice))) {
           invalid('السعر الأصلي يجب أن يكون أعلى من سعر العرض لتفعيل التخفيض');
         }
