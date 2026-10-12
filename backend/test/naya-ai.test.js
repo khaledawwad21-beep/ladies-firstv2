@@ -75,7 +75,7 @@ test("Naya voice endpoint uses the server key and returns uncached audio",async 
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا وسهلًا سيدتي"})});
  assert.equal(res.status,200);assert.equal(res.headers.get("content-type"),"audio/mpeg");assert.equal(res.headers.get("cache-control"),"no-store");
  assert.equal(captured.url,"https://api.openai.com/v1/audio/speech");assert.equal(captured.o.headers.Authorization,"Bearer secret");
- const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"sage");assert.match(payload.instructions,/صوت امرأة واضح ودافئ وحيوي/);assert.match(payload.instructions,/النبرة ودودة ومحادثة مباشرة/);assert.match(payload.instructions,/لهجة لبنانية محكية طبيعية/);assert.match(payload.instructions,/صوت حاضر/);assert.match(payload.instructions,/من دون همس أو خفوت/);assert.match(payload.instructions,/الإلقاء الروائي/);
+ const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"nova");assert.equal(payload.speed,0.94);assert.match(payload.instructions,/بطبقة أنثوية واضحة ومتوسطة إلى مرتفعة/);assert.match(payload.instructions,/نبرة محادثة طبيعية/);assert.match(payload.instructions,/لهجة لبنانية خفيفة ومفهومة/);assert.match(payload.instructions,/بلا همس ولا خفوت/);
  const reader=res.body.getReader(),chunks=[];while(true){const part=await reader.read();if(part.done)break;chunks.push(Buffer.from(part.value))}assert.deepEqual(Buffer.concat(chunks),bytes);
 });
 
