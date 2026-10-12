@@ -181,10 +181,10 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   const key=clean(env.OPENAI_API_KEY,500);
   if(!key)return res.status(503).json({ok:false,code:"NAYA_AI_NOT_CONFIGURED",message:"الصوت غير متاح حاليًا."});
   const allowedVoices=new Set(["alloy","ash","ballad","coral","echo","fable","nova","onyx","sage","shimmer","verse","marin","cedar"]);
-  const configuredVoice=clean(env.NAYA_TTS_VOICE||"sage",20);
-  const voice=allowedVoices.has(configuredVoice)?configuredVoice:"sage";
+  const configuredVoice=clean(env.NAYA_TTS_VOICE||"marin",20);
+  const voice=allowedVoices.has(configuredVoice)?configuredVoice:"marin";
   try{
-   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,speed:0.96,instructions:"استخدمي صوتًا أنثويًا دافئًا ورقيقًا وهادئًا، بطبقة متوسطة مريحة وناعمة بلا خشونة أو حدّة أو عمق رجولي. احكي كموظفة مبيعات لطيفة تتحدث مع زبونة وجهًا لوجه، بجمل قصيرة ونبرة ودودة طبيعية، لا كأنك تلقين نصًا أو تقرئين الأخبار. اجعلي وصل الجمل انسيابيًا مع وقفات قصيرة، ولهجة سورية خفيفة ومفهومة. انطقي العربية بوضوح ومن دون مبالغة في الحركات أو مطّ الكلمات، وحافظي على صوت هادئ وواضح من دون خفوت أو همس. التزمي بالنص كما هو ولا تضيفي كلمات."})});
+   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,speed:0.96,instructions:"استخدمي صوتًا أنثويًا ناعمًا ودافئًا وخفيفًا، بنبرة حنونة ومدلّعة قليلًا وابتسامة مسموعة، من دون تصنّع أو مبالغة أو خشونة أو عمق رجولي. احكي كموظفة مبيعات لبنانية لطيفة تتحدث مع زبونة وجهًا لوجه، بلهجة لبنانية محكية خفيفة وطبيعية، واستخدمي مفردات لبنانية بسيطة عند ملاءمتها من دون تحويل النص إلى أداء تمثيلي. خلي النبرة رقيقة ومرحة وودودة، والجمل متصلة بانسيابية مع وقفات قصيرة؛ لا تقرئي الأخبار ولا تلقي نصًا رسميًا. انطقي العربية بوضوح، من دون مطّ الكلمات أو مبالغة في الحركات، وحافظي على وضوح الصوت من دون همس أو خفوت. التزمي بالنص كما هو ولا تضيفي كلمات."})});
    if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_TTS_BUSY":"NAYA_TTS_UPSTREAM",message:"تعذر تشغيل صوت نايا الآن."});
    res.set("Content-Type","audio/mpeg");
    res.set("Cache-Control","no-store");
