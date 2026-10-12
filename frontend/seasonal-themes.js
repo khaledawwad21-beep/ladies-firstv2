@@ -196,24 +196,46 @@
     for(const name of classes.split(' '))if(name)mark.classList.add(name);
     host.appendChild(mark);
   }
+  const seasonalHeroImages={
+    'ramadan':'/seasonal-art/ramadan-desktop.webp',
+    'eid-fitr':'/seasonal-art/eid-fitr-desktop.webp',
+    'christmas':'/seasonal-art/christmas-desktop.webp',
+    'new-year':'/seasonal-art/new-year-desktop.webp',
+    'halloween':'/seasonal-art/halloween-desktop.webp'
+  };
   const root=document.getElementById('lfSeasonalWelcome');
   if(root){
     root.classList.add('lf-seasonal');
     root.setAttribute('aria-label',labels[id]||'مناسبة موسمية');
-    const layout=document.createElement('div');layout.className='lf-seasonal__layout';
-    const title=document.createElement('strong');
-    title.textContent=greetings[id]||labels[id]||'';
-    const primary=icon('lf-seasonal__ornament','filled');
-    const secondary=icon('lf-seasonal__ornament','outline');
-    secondary.classList.add('lf-seasonal__ornament--right');
-    layout.append(primary,title);
-    if(id==='new-year'){
-      const year=document.createElement('span');
-      year.className='lf-seasonal__year';
-      year.textContent=String(settings.year||'');
-      layout.appendChild(year);
+    const heroImage=seasonalHeroImages[id];
+    if(heroImage){
+      const link=document.createElement('a');
+      link.className='lf-seasonal__hero-link';
+      link.href='#cats';
+      link.setAttribute('aria-label','تسوّقي حسب الفئة');
+      const image=document.createElement('img');
+      image.className='lf-seasonal__hero-image';
+      image.src=heroImage;
+      image.alt=labels[id]||'أجواء موسمية من Ladies First';
+      image.fetchPriority='high';
+      link.appendChild(image);
+      root.replaceChildren(link);
+    } else {
+      const layout=document.createElement('div');layout.className='lf-seasonal__layout';
+      const title=document.createElement('strong');
+      title.textContent=greetings[id]||labels[id]||'';
+      const primary=icon('lf-seasonal__ornament','filled');
+      const secondary=icon('lf-seasonal__ornament','outline');
+      secondary.classList.add('lf-seasonal__ornament--right');
+      layout.append(primary,title);
+      if(id==='new-year'){
+        const year=document.createElement('span');
+        year.className='lf-seasonal__year';
+        year.textContent=String(settings.year||'');
+        layout.appendChild(year);
+      }
+      layout.appendChild(secondary);root.appendChild(layout);
     }
-    layout.appendChild(secondary);root.appendChild(layout);
   }
   // Visual-only icons: do not intercept taps, gestures, or keyboard navigation.
   const categories=document.getElementById('cats');

@@ -830,3 +830,20 @@ html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon {
 @media(prefers-reduced-motion:reduce) {
   html[data-theme]:not([data-theme="none"]) * {scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important;}
 }
+
+/* Seasonal campaign panoramas supplied for the storefront: immersive at the top,
+   with category links left clear and untouched below. */
+html[data-theme]:not([data-theme="none"]) #lfSeasonalWelcome.lf-seasonal {
+  display:block!important;position:relative!important;isolation:isolate;overflow:hidden;
+  width:100%!important;max-width:1440px!important;margin:0 auto 14px!important;padding:0!important;
+  border:0!important;border-radius:0 0 18px 18px!important;background:#fbf4ec!important;
+  box-shadow:0 12px 34px #39213920!important;
+}
+.lf-seasonal__hero-link {display:block;width:100%;line-height:0;overflow:hidden;}
+.lf-seasonal__hero-image {display:block;width:100%;height:auto;max-height:none;object-fit:contain;}
+html[data-theme]:not([data-theme="none"]) #lfSeasonalWelcome .lf-seasonal__layout {display:none!important;}
+@media(max-width:760px) {
+  html[data-theme]:not([data-theme="none"]) #lfSeasonalWelcome.lf-seasonal {
+    margin:0 auto 9px!important;border-radius:0 0 12px 12px!important;
+  }
+}
