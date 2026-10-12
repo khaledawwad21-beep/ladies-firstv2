@@ -14,6 +14,9 @@
     const close=document.createElement('button');close.className='lf-welcome-offer__close';close.type='button';close.setAttribute('aria-label','إغلاق');close.textContent='×';
     const eyebrow=document.createElement('p');eyebrow.className='lf-welcome-offer__eyebrow';eyebrow.textContent='عرض خاص من Ladies First';
     const title=document.createElement('h2');title.id='lfWelcomeOfferTitle';title.textContent=config.headline||'عروض لفترة محدودة';
+    const scope=config.scope||((config.productIds||[]).length?'products':'all');
+    const defaultAnnouncement=scope==='all'?'عروض لفترة محدودة على جميع المنتجات':scope==='category'?'عروض خاصة على فئة '+String(config.categoryName||'مختارة'):'عروض خاصة على القطع المختارة';
+    const announcement=document.createElement('div');announcement.className='lf-welcome-offer__announcement';announcement.textContent=config.offerText||defaultAnnouncement;
     const timer=document.createElement('div');timer.className='lf-welcome-offer__ticket';
     const timeValue=document.createElement('strong');const timeLabel=document.createElement('span');timeLabel.textContent='ينتهي العرض خلال';timer.append(timeValue,timeLabel);
     const list=document.createElement('div');list.style.cssText='display:grid;gap:9px;margin:14px 0';
@@ -30,7 +33,7 @@
     if(config.couponCode){coupon.className='lf-welcome-offer__coupon';const label=document.createElement('span');label.textContent='كود الخصم';const code=document.createElement('strong');code.textContent=String(config.couponCode);const copy=document.createElement('button');copy.type='button';copy.textContent='نسخ الكود';copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(String(config.couponCode));copy.textContent='تم النسخ'}catch{copy.textContent=String(config.couponCode)}});coupon.append(label,code,copy)}
     const actions=document.createElement('div');actions.className='lf-welcome-offer__actions';const later=document.createElement('button');later.type='button';later.className='lf-welcome-offer__later';later.textContent='تصفّحي المتجر';actions.append(later);
     const note=document.createElement('p');note.className='lf-welcome-offer__note';note.textContent='الأسعار والكوبون يخضعان لشروط العرض.';
-    card.append(close,eyebrow,title,timer,list,coupon,actions,note);overlay.append(backdrop,card);document.body.append(overlay);
+    card.append(close,eyebrow,title,announcement,timer,list,coupon,actions,note);overlay.append(backdrop,card);document.body.append(overlay);
     function dismiss(){overlay.classList.remove('is-open');document.body.classList.remove('lf-welcome-offer-open');window.setTimeout(()=>overlay.remove(),220)}
     close.addEventListener('click',dismiss);backdrop.addEventListener('click',dismiss);later.addEventListener('click',dismiss);overlay.addEventListener('keydown',e=>{if(e.key==='Escape')dismiss()});
     const end=Date.parse(config.endAt);const update=()=>{const left=Math.max(0,end-Date.now());if(!left){dismiss();return false}const d=Math.floor(left/86400000),h=Math.floor(left%86400000/3600000),m=Math.floor(left%3600000/60000),s=Math.floor(left%60000/1000);timeValue.textContent=[d?d+' يوم':'',[h,m,s].map(x=>String(x).padStart(2,'0')).join(':')].filter(Boolean).join(' · ');return true};
@@ -44,7 +47,14 @@
     if(!config||config.enabled!==true||!config.startAt||!config.endAt)return false;
     const now=Date.now(),start=Date.parse(config.startAt),end=Date.parse(config.endAt);if(!Number.isFinite(start)||!Number.isFinite(end)||now<start||now>=end)return false;
     const key='lf_welcome_offer_seen_'+String(end),seen=Number(localStorage.getItem(key))||0;if(now-seen<COOLDOWN_MS)return false;
-    const chosen=new Set((config.productIds||[]).map(Number)),items=productList().filter(p=>chosen.has(Number(p.id))&&stock(p)>0).slice(0,12);if(!items.length)return false;
+    const scope=config.scope||((config.productIds||[]).length?'products':'all');
+    const catalog=productList().filter(p=>stock(p)>0);
+    const items=scope==='products'
+      ?catalog.filter(p=>new Set((config.productIds||[]).map(Number)).has(Number(p.id))).slice(0,12)
+      :scope==='category'
+        ?catalog.filter(p=>String(p.category||'').trim()===String(config.categoryName||'').trim()).slice(0,6)
+        :[];
+    if(scope==='products'&&!items.length)return false;
     if(document.getElementById('nayaAssistant')?.classList.contains('open')||document.querySelector('.lf-idea-modal[aria-hidden="false"],.lfImageZoom.open'))return false;
     makePopup(config,items);localStorage.setItem(key,String(now));return true;
   }
