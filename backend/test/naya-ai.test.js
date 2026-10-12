@@ -116,10 +116,12 @@ test("Naya chat endpoints share a persistent rate-limit scope and TTS has its ow
  assert.deepEqual(calls.map(x=>x.limit),[20,20,10]);
 });
 
-test("Naya prompt identifies a friendly sales employee and includes the live WhatsApp contact",()=>{
- const{buildNayaMessages}=require("../src/naya-ai");
+test("Naya prompts use clear, grammatical Lebanese colloquial Arabic",()=>{
+ const{buildNayaMessages,buildStoreAssistantMessages}=require("../src/naya-ai");
  const prompt=buildNayaMessages({message:"أريد عطرًا",catalog:[],whatsappNumber:"+972 (56) 249-9924"}).find(x=>x.role==="system").content;
- assert.ok(prompt.includes("موظفة مبيعات ودودة"));assert.ok(prompt.includes("سأسأل الفريق"));assert.ok(prompt.includes("لهجة لبنانية محكية حضرية"));assert.ok(prompt.includes("هيدي"));assert.ok(prompt.includes("هلأ"));assert.ok(prompt.includes("قولنا"));assert.ok(prompt.includes("972562499924"));assert.ok(prompt.includes("https://wa.me/972562499924?text="));const storePrompt=buildStoreAssistantMessages({message:"أريد عطرًا",catalog:[]})[0].content;assert.ok(storePrompt.includes("بلهجة لبنانية محكية حضرية"));assert.ok(storePrompt.includes("هيدي"));
+ for(const phrase of ["موظفة مبيعات ودودة","سأسأل الفريق","عربية محكية لبنانية طبيعية وثابتة","جملًا صحيحة نحوياً وإملائيًا","أهلين، كيفِك؟ شو عم تدوري عليه اليوم؟","إذا بتحبي، فيني ساعدِك","هيدي القطعة كتير حلوة وبتلبقلك","هلأ","972562499924","https://wa.me/972562499924?text="])assert.ok(prompt.includes(phrase),phrase);
+ const storePrompt=buildStoreAssistantMessages({message:"أريد عطرًا",catalog:[]})[0].content;
+ for(const phrase of ["لهجة لبنانية محكية طبيعية","نحوًا سليمًا","شو عم تدوري عليه اليوم","فيِني ساعدِك","هيدي القطعة كتير حلوة وبتلبقلك"])assert.ok(storePrompt.includes(phrase),phrase);
 });
 test("Naya rejects messages over 1000 characters before calling OpenAI",async t=>{
  let upstreamCalled=false;const app=express();app.use(express.json());
