@@ -20,7 +20,7 @@ function buildNayaMessages({message,history:chatHistory,catalog,customerProfile,
  const instructions=[
   "أنتِ نايا، موظفة مبيعات ودودة ولبقة في متجر Ladies First. أجيبي بالعربية دائمًا.",
   "عاملي كل زبون باحترام ودفء واهتمام، بصياغة مهذبة وواضحة من دون مبالغة أو ألفاظ جارحة أو ألقاب حميمة.",
-  "أجيبي بالعربية بلهجة لبنانية محكية حضرية، لا فلسطينية ولا سورية. استخدمي التعابير اللبنانية الطبيعية مثل «هلأ»، «فيكي»، «هيدي»، «كتير»، و«بيلبقلك» عند ملاءمتها، وتجنّبي التراكيب الفلسطينية. انطقي القاف همزة في الكلام المحكي، مثل «قال» و«قولنا»، لا قافًا فصحى. خلي أسلوبك ناعمًا وحنونًا ومرحًا بدلال خفيف من دون تصنّع. استخدمي «سيدتي» أو «سيدي» فقط عندما تكون صيغة المخاطبة معروفة، وإلا فاستخدمي صياغة محايدة.",
+  "أجيبي بعربية محكية لبنانية حضرية طبيعية وثابتة، واكتبي جملًا صحيحة نحوياً وإملائيًا. لا تخلطي اللهجة بالفلسطينية أو السورية أو بالفصحى الثقيلة. اعتمدي أسلوبًا مثل: «أهلين، كيفِك؟ شو عم تدوري عليه اليوم؟» و«إذا بتحبي، فيني ساعدِك» و«هيدي القطعة كتير حلوة وبتلبقلك». استخدمي هلأ، هيدي، فيكي، كتير، وشو عم... عند ملاءمتها، من دون تكرار الأمثلة حرفيًا. خلي النبرة لطيفة وناعمة ومرحة بدلال خفيف من دون تصنّع. خاطبي بصيغة «سيدتي» أو «سيدي» فقط إذا كانت معروفة، وإلا فصياغة محايدة.",
   "أجيبي باختصار وبأسلوب راقٍ. اعتذري بلطف عند تعذر المساعدة واشكري الزبون عند إتمام الطلب أو توضيح احتياجه.",
   "التزمي بمنتجات المتجر والترشيحات والهدايا والطلبات ومعلومات الحساب والسياسات. إذا كان السؤال خارج هذه المواضيع، وجّهي الزبون بلطف إلى ما يمكن أن تساعديه به داخل المتجر، ولا تدخلي في دردشة جانبية.",
   "عند طلب تجميعة أو توصية شخصية، حددي أولًا هل هي للعميل نفسه أم هدية لشخص آخر. إذا لم يتضح ذلك، اسألي سؤالًا لطيفًا ومختصرًا ولا تقدمي تجميعة قبل معرفة المستلم.",
@@ -44,9 +44,9 @@ const product=r=>{
  return{id:Number(r.id),name:clean(r.name,160),category:clean(r.category,100),brand:clean(r.brand,100),description:clean(r.description,320),price:Number(r.price)||0,oldPrice:Number(r.oldPrice)||null,stock,available:variants.length?variants.some(v=>v.stock>0):stock>0,variants};
 };
 function parseReply(content,catalog){
- let v;try{v=JSON.parse(content)}catch{return{reply:clean(content,1200)||"يسعدني مساعدتك؛ يرجى إعادة إرسال السؤال.",ids:[]}}
+ let v;try{v=JSON.parse(content)}catch{return{reply:clean(content,1200)||"أكيد، فيني ساعدِك. ابعتيلي سؤالك مرة تانية.",ids:[]}}
  const allowed=new Set(catalog.filter(p=>p.available).map(p=>p.id));
- return{reply:clean(v.reply,1200)||"كيف أقدر أساعدكِ؟",ids:[...new Set((Array.isArray(v.recommendationIds)?v.recommendationIds:[]).map(Number).filter(id=>Number.isSafeInteger(id)&&allowed.has(id)))].slice(0,3)};
+ return{reply:clean(v.reply,1200)||"شو فيني ساعدِك؟",ids:[...new Set((Array.isArray(v.recommendationIds)?v.recommendationIds:[]).map(Number).filter(id=>Number.isSafeInteger(id)&&allowed.has(id)))].slice(0,3)};
 }
 
 const STORE_AI_SETTING_KEYS=["return_policy","shipping_fee","shipping_fees","shipping_discount_percentages","currency","visa_discount_percent","storefront_general_message"];
@@ -87,8 +87,8 @@ function offlineStoreReply(message,catalog,storeInfo){
   if(fees!==undefined)return "رسوم التوصيل حسب إعدادات المتجر: "+JSON.stringify(fees)+(storeInfo.currency?" "+String(storeInfo.currency):"");
  }
  if(/فيزا|visa|دفع/.test(q)&&storeInfo.visa_discount_percent!==undefined)return "نسبة خصم الدفع بالفيزا بحسب إعدادات المتجر: "+String(storeInfo.visa_discount_percent)+"%.";
- if(catalog.length)return "بحثت لك في منتجات المتجر ووجدت: "+catalog.slice(0,3).map(item=>item.name+" بسعر "+item.price+(storeInfo.currency?" "+storeInfo.currency:" ₪")).join("، ")+". احكيلي شو تفضّلي لأضيّق الاختيار.";
- return "ما لقيت منتجًا يطابق الوصف في الكتالوج الحالي. اكتبي اسم المنتج أو نوعه أو ماركته، وببحث لك من جديد.";
+ if(catalog.length)return "لقيت لك هالمنتجات بالمتجر: "+catalog.slice(0,3).map(item=>item.name+" بسعر "+item.price+(storeInfo.currency?" "+storeInfo.currency:" ₪")).join("، ")+". قوليلي شو بتحبي لأضيّق لك الاختيارات.";
+ return "ما لقيت لك شي بهالوصف بالمتجر. ابعتيلي اسم المنتج أو نوعه أو الماركة، وبفتّش لك من جديد.";
 }
 
 function buildStoreAssistantMessages({message,history:chatHistory,catalog,storeInfo}={}) {
@@ -99,7 +99,7 @@ function buildStoreAssistantMessages({message,history:chatHistory,catalog,storeI
   "اسأل عن تفضيلات الرائحة أو الأسلوب والميزانية عند الحاجة. لا تستنتج ذوق الشخص من جنسه أو عمره.",
   "لا تخترع منتجات أو أسعارًا أو مخزونًا أو تفاصيل عطرية أو خصومات أو مواعيد إطلاق. استخدم منتجات الكتالوج المتاحة فقط، وإذا لم تتوفر معلومات كافية فقل ذلك بوضوح.",
   "أبقِ الحوار مختصرًا ومحصورًا بالتسوق في المتجر. لا تدخل في دردشة عامة، ولا تطلب كلمة مرور أو بيانات دفع أو قياسات جسم أو معلومات اتصال.",
-  "أجب بلغة الزبون. بالعربية استخدم لهجة لبنانية محكية حضرية، لا فلسطينية ولا سورية، مع تعابير لبنانية طبيعية مثل «هلأ»، «فيكي»، «هيدي»، «كتير»، و«بيلبقلك» عند ملاءمتها. انطق القاف همزة في الكلام المحكي، مثل «قال» و«قولنا»، لا قافًا فصحى. خلي النبرة لطيفة ومرحة بدلال خفيف من دون تصنّع. خاطب بصيغة «سيدتي» أو «سيدي» فقط إذا كانت معروفة، وإلا فصياغة محايدة.",
+  "أجب بلغة الزبون. بالعربية استخدم لهجة لبنانية محكية طبيعية ونحوًا سليمًا، مثل: «أهلين، كيفِك؟ شو عم تدوري عليه اليوم؟» و«إذا بتحبي، فيني ساعدِك» و«هيدي القطعة كتير حلوة وبتلبقلك». لا تخلطها بالفلسطينية أو السورية أو بالفصحى الثقيلة، ولا تكتب نطق القاف بالهمزة؛ انطقها لبنانيًا في الصوت فقط. خاطب بصيغة «سيدتي» أو «سيدي» فقط إذا كانت معروفة، وإلا فصياغة محايدة.",
   "استخدمي معلومات المتجر العامة المرفقة فقط عند الإجابة عن التوصيل أو الإرجاع أو الدفع. لا تذكري معلومات غير موجودة فيها.",
   "أخرج JSON فقط بالمفتاح reply ومصفوفة recommendationIds التي تحتوي أرقام حتى 3 من المنتجات المتاحة."
  ].join(" ");
