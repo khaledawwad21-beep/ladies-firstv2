@@ -854,37 +854,6 @@ function heroSlides(){
     if(!key)return;
     arr.push({image:key,mobileImage:x.mobileImage||'',title:currentLang==='en'?(x.titleEn||x.titleAr||'Ladies First'):(x.titleAr||x.titleEn||'Ladies First'),desc:currentLang==='en'?(x.descEn||x.descAr||''):(x.descAr||x.descEn||''),id:x.id,hideText:x.hideText===true});
   });
-  // Put exactly one selected seasonal campaign first; saved admin banners win.
-  const seasonal=typeof window!=='undefined' ? window.__LF_SEASONAL__ : null;
-  if(seasonal?.active&&seasonal.active!=='none'){
-    const chosen=seasonal.banners?.[seasonal.active]||{};
-    const valid=u=>typeof u==='string'&&(/^(https?:\/\/|\/(?!\/))/.test(u))?u:'';
-    const desktop=valid(chosen.desktop),mobile=valid(chosen.mobile);
-    const campaignImages={
-      ramadan:'/seasonal-art/ramadan-desktop.webp',
-      'eid-fitr':'/seasonal-art/eid-fitr-desktop.webp',
-      'eid-adha':'/seasonal-eid-adha-gifts.svg',
-      halloween:'/seasonal-art/halloween-desktop.webp',
-      christmas:'/seasonal-art/christmas-desktop.webp',
-      'new-year':'/seasonal-art/new-year-desktop.webp',
-      spring:'/seasonal-spring.webp',summer:'/seasonal-summer.webp',
-      autumn:'/seasonal-autumn.webp',winter:'/seasonal-winter.webp'
-    };
-    const campaignTitle={
-      ramadan:'رمضان كريم', 'eid-fitr':'عيد فطر سعيد','eid-adha':'عيد أضحى مبارك',
-      halloween:'أجواء موسمية أنيقة',christmas:'أجواء الميلاد',
-      'new-year':'سنة جديدة بإطلالات أجمل',spring:'ربيع يزهر بإطلالتك',
-      summer:'صيف مليء بالحيوية',autumn:'ألوان الخريف وأناقتك',winter:'دفء وأناقة في الشتاء'
-    };
-    const defaultImage=campaignImages[seasonal.active];
-    const image=desktop||mobile||defaultImage;
-    if(image)arr.unshift({
-      image,mobileImage:mobile||'',
-      title:seasonal.active==='new-year'?'سنة '+seasonal.year+' بإطلالات أجمل':(seasonal.greetings?.[seasonal.active]||'Ladies First'),
-      alt:campaignTitle[seasonal.active]||seasonal.labels?.[seasonal.active]||'أجواء موسمية من Ladies First',
-      desc:'',id:'seasonal-'+seasonal.active,hideText:true,seasonal:true
-    });
-  }
   return arr;
 }
 function heroMobileImageFor(slide){

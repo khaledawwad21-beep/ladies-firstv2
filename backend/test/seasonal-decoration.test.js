@@ -11,19 +11,20 @@ const css=fs.readFileSync(path.join(frontend,'seasonal-themes.css'),'utf8');
 const app=fs.readFileSync(path.join(frontend,'app.js'),'utf8');
 const html=fs.readFileSync(path.join(frontend,'index.html'),'utf8');
 class Element {
-  constructor(){this.children=[];this.attributes={};this.hidden=false;}
+  constructor(tag='div'){this.tag=tag;this.children=[];this.attributes={};this.hidden=false;this.style={};}
   setAttribute(name,value){this.attributes[name]=value;}
+  appendChild(child){this.children.push(child);return child;}
   replaceChildren(...children){this.children=children;}
 }
-function render(active){
+function render(active,banners={}){
   const root=new Element(),htmlRoot=new Element();
-  const doc={documentElement:htmlRoot,getElementById:id=>id==='lfSeasonalWelcome'?root:null};
-  const window={__LF_SEASONAL__:{active}};
+  const doc={documentElement:htmlRoot,getElementById:id=>id==='lfSeasonalWelcome'?root:null,createElement:tag=>new Element(tag)};
+  const window={__LF_SEASONAL__:{active,banners,labels:{ramadan:'رمضان',summer:'الصيف'}}};
   vm.runInNewContext(source,{window,document:doc});
   return {root,htmlRoot};
 }
 
-test('default theme clears the welcome slot and preserves the no-theme attribute',()=>{
+test('no-theme keeps the persistent campaign slot empty',()=>{
   const x=render('none');
   assert.equal(x.htmlRoot.attributes['data-theme'],'none');
   assert.equal(x.root.hidden,true);
@@ -31,51 +32,55 @@ test('default theme clears the welcome slot and preserves the no-theme attribute
   assert.deepEqual(x.root.children,[]);
 });
 
-test('all ten selectable themes are synchronized without injecting overlay elements',()=>{
+test('each selected theme renders a persistent, accessible campaign banner',()=>{
   const ids=['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year','spring','summer','autumn','winter'];
   for(const id of ids){
     const x=render(id);
     assert.equal(x.htmlRoot.attributes['data-theme'],id);
-    assert.equal(x.root.hidden,true);
-    assert.deepEqual(x.root.children,[]);
+    assert.equal(x.root.hidden,false);
+    assert.equal(x.root.className,'lf-seasonal-banner');
+    assert.equal(x.root.children[0].tag,'a');
+    assert.equal(x.root.children[0].children[0].tag,'picture');
+    assert.equal(x.root.children[0].children[0].children.at(-1).tag,'img');
   }
-  assert.doesNotMatch(source,/appendChild|insertAdjacent|createElement/);
 });
 
-test('every theme has a distinct color palette and the full store receives theme framing',()=>{
+test('uploaded responsive artwork takes priority and falls back safely',()=>{
+  const x=render('summer',{summer:{desktop:'/uploads/summer.webp',mobile:'https://cdn.example/summer-mobile.webp'}});
+  const picture=x.root.children[0].children[0];
+  assert.equal(picture.children[0].tag,'source');
+  assert.equal(picture.children[0].media,'(max-width: 700px)');
+  assert.equal(picture.children[0].srcset,'https://cdn.example/summer-mobile.webp');
+  assert.equal(picture.children[1].src,'/uploads/summer.webp');
+  assert.equal(picture.children[1].alt,'الصيف');
+  const invalid=render('summer',{summer:{desktop:'javascript:alert(1)'}});
+  assert.equal(invalid.root.children[0].children[0].children[0].src,'/seasonal-summer.webp');
+});
+
+test('every theme has a distinct palette and visible styling across the storefront',()=>{
   const ids=['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year','spring','summer','autumn','winter'];
-  for(const id of ids){
-    assert.match(css,new RegExp('html\\[data-theme="'+id+'"\\] \\{--season-main:'),id+' palette');
-  }
-  for(const area of ['body > header','.top','.heroSlider','#cats','.cat','.featureBlock','.lf-store-ideas','.featureCard','.quickOfferCard','.grid','body > footer']){
-    assert.ok(css.includes(area),area+' theme styling');
-  }
-  assert.match(css,/object-fit:contain!important/);
+  for(const id of ids)assert.match(css,new RegExp('html\\[data-theme="'+id+'"\\] \\{--season-main:'),id+' palette');
+  for(const area of ['body > header','.top','.heroSlider','#lfSeasonalWelcome','#cats','.cat','.sectionTitle','.featureBlock','.lf-store-ideas','.featureCard','.quickOfferCard','.grid','body > footer','.bottomNav'])assert.ok(css.includes(area),area+' theme styling');
+  assert.match(css,/object-fit:contain/);
   assert.match(css,/@media\(max-width:760px\)/);
   assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
   assert.doesNotMatch(css,/#cats::before|#cats::after|lf-seasonal-decor/);
   assert.doesNotMatch(css,/season-icon|repeating-linear-gradient/);
+  assert.doesNotMatch(css,/#lfSeasonalWelcome \{display:none!important\}/);
 });
 
-test('seasonal campaign fallback covers all ten occasions and configured art takes priority',()=>{
-  const assets={
-    ramadan:'seasonal-art/ramadan-desktop.webp','eid-fitr':'seasonal-art/eid-fitr-desktop.webp',
-    'eid-adha':'seasonal-eid-adha-gifts.svg',halloween:'seasonal-art/halloween-desktop.webp',
-    christmas:'seasonal-art/christmas-desktop.webp','new-year':'seasonal-art/new-year-desktop.webp',
-    spring:'seasonal-spring.webp',summer:'seasonal-summer.webp',autumn:'seasonal-autumn.webp',winter:'seasonal-winter.webp'
-  };
-  for(const [id,file] of Object.entries(assets)){
-    assert.ok(app.includes("'"+id+"':")||app.includes(id+":"),id+' campaign mapping');
-    assert.ok(fs.statSync(path.join(frontend,file)).size>500,id+' art asset');
-  }
-  assert.match(app,/const image=desktop\|\|mobile\|\|defaultImage/);
-  assert.match(app,/seasonal:true/);
-  assert.match(html,/seasonal-rebuild-v1/);
+test('campaign stays outside the auto-rotating hero and is cache-busted',()=>{
+  const assets={ramadan:'seasonal-art/ramadan-desktop.webp','eid-fitr':'seasonal-art/eid-fitr-desktop.webp','eid-adha':'seasonal-eid-adha-gifts.svg',halloween:'seasonal-art/halloween-desktop.webp',christmas:'seasonal-art/christmas-desktop.webp','new-year':'seasonal-art/new-year-desktop.webp',spring:'seasonal-spring.webp',summer:'seasonal-summer.webp',autumn:'seasonal-autumn.webp',winter:'seasonal-winter.webp'};
+  for(const [id,file] of Object.entries(assets))assert.ok(fs.statSync(path.join(frontend,file)).size>500,id+' art asset');
+  const slides=app.slice(app.indexOf('function heroSlides()'),app.indexOf('function heroMobileImageFor'));
+  assert.doesNotMatch(slides,/__LF_SEASONAL__|seasonal:true/);
+  assert.match(app,/function restartHeroTimer\(\)\{clearTimeout\(heroTimer\);if\(heroSlides\(\)\.length<2\)return/);
+  assert.match(html,/seasonal-rebuild-v2/);
 });
 
-test('no-theme pages receive no seasonal skin, animation, or extra canvas layers',()=>{
+test('theme selection remains server-backed and does not add persistent client state or overlays',()=>{
   assert.match(css,/html\[data-theme\]:not\(\[data-theme="none"\]\)/);
-  assert.match(css,/#lfSeasonalWelcome \{display:none!important\}/);
-  assert.match(css,/prefers-reduced-motion:reduce/);
-  assert.doesNotMatch(source,/setInterval|localStorage|addEventListener\(['"]scroll/);
+  assert.match(css,/#lfSeasonalWelcome:not\(\[hidden\]\)/);
+  assert.doesNotMatch(source,/localStorage|setInterval|addEventListener\(['"]scroll/);
+  assert.match(html,/id="lfSeasonalWelcome"/);
 });

@@ -21,7 +21,7 @@ html[data-theme]:not([data-theme="none"]) body {
 }
 html[data-theme]:not([data-theme="none"]) body > header {
   border-bottom:3px solid var(--season-accent)!important;
-  background:linear-gradient(105deg,var(--season-wash),#fffdfb 48%,var(--season-wash))!important;
+  background:linear-gradient(105deg,color-mix(in srgb,var(--season-main) 12%,#fff),#fffdfb 48%,color-mix(in srgb,var(--season-second) 13%,#fff))!important;
   box-shadow:0 7px 24px var(--season-shadow)!important;
 }
 html[data-theme]:not([data-theme="none"]) .heroArrow {
@@ -36,9 +36,20 @@ html[data-theme]:not([data-theme="none"]) .top {
   background:var(--season-deep)!important;
   box-shadow:inset 0 -2px 0 var(--season-accent);
 }
+html[data-theme]:not([data-theme="none"]) .bottomNav {
+  border-top:2px solid var(--season-accent)!important;
+  background:linear-gradient(90deg,var(--season-wash),#fff 48%,var(--season-wash))!important;
+}
 
-/* The campaign belongs in the main carousel exactly once. */
-#lfSeasonalWelcome {display:none!important}
+/* The campaign has its own permanent slot, separate from the rotating hero. */
+#lfSeasonalWelcome {display:none}
+html[data-theme]:not([data-theme="none"]) #lfSeasonalWelcome:not([hidden]) {
+  display:block;width:min(100%,1440px);margin:0 auto 20px;overflow:hidden;
+  border-bottom:5px solid var(--season-accent);border-radius:0 0 18px 18px;
+  background:var(--season-banner);box-shadow:0 12px 30px var(--season-shadow);
+}
+#lfSeasonalWelcome a,#lfSeasonalWelcome picture {display:block;width:100%;line-height:0}
+#lfSeasonalWelcome img {display:block;width:100%;height:auto;max-height:560px;object-fit:contain;object-position:center;background:var(--season-banner)}
 .heroSlider .heroCard.lf-adaptive-slide {
   height:auto!important;min-height:0!important;max-height:min(760px,85dvh)!important;
   aspect-ratio:var(--lf-banner-ratio,2.13333)!important;
@@ -58,9 +69,11 @@ html[data-theme]:not([data-theme="none"]) .top {
 
 /* Seasonal color is carried by section framing; product photography and labels stay clear. */
 html[data-theme]:not([data-theme="none"]) .sectionTitle {
-  border-color:var(--season-edge)!important;
-  background:linear-gradient(90deg,var(--season-wash),#fffdfb 74%)!important;
+  border:1px solid var(--season-edge)!important;
+  border-inline-start:5px solid var(--season-main)!important;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--season-main) 11%,#fff),#fffdfb 74%)!important;
   border-radius:14px;
+  box-shadow:0 5px 18px var(--season-shadow);
 }
 html[data-theme]:not([data-theme="none"]) .sectionTitle h2,
 html[data-theme]:not([data-theme="none"]) .featureTitle,
@@ -77,6 +90,7 @@ html[data-theme]:not([data-theme="none"]) #cats {
 }
 html[data-theme]:not([data-theme="none"]) .cat {
   border:1px solid color-mix(in srgb,var(--season-edge) 72%,#fff)!important;
+  background:linear-gradient(145deg,#fff,color-mix(in srgb,var(--season-wash) 68%,#fff))!important;
   box-shadow:0 7px 22px var(--season-shadow)!important;
 }
 html[data-theme]:not([data-theme="none"]) .cat img {position:relative;z-index:1}
@@ -90,7 +104,8 @@ html[data-theme]:not([data-theme="none"]) .lf-store-ideas {
 html[data-theme]:not([data-theme="none"]) .featureCard,
 html[data-theme]:not([data-theme="none"]) .quickOfferCard,
 html[data-theme]:not([data-theme="none"]) .card {
-  border-color:color-mix(in srgb,var(--season-edge) 72%,#eadce3)!important;
+  border-color:color-mix(in srgb,var(--season-main) 30%,var(--season-edge))!important;
+  box-shadow:0 5px 18px var(--season-shadow);
 }
 html[data-theme]:not([data-theme="none"]) .price,
 html[data-theme]:not([data-theme="none"]) .fprice {color:var(--season-deep)!important}
