@@ -79,3 +79,15 @@ test("closed menu and overlays cannot intercept storefront touches", () => {
   assert.match(stability, /\.mobile-menu:not\(\.open\),\.page-overlay:not\(\.open\)\{pointer-events:none!important\}/);
   assert.match(stability, /\.mobile-menu\.open,\.page-overlay\.open\{pointer-events:auto!important\}/);
 });
+
+const server = fs.readFileSync(path.join(__dirname, "../src/server.js"), "utf8");
+
+test("category photos survive failed image URLs and server restarts", () => {
+  assert.match(app, /const CATEGORY_IMAGE_FALLBACKS=Object\.freeze\(/);
+  assert.match(app, /'شنط':'\/category-images\/bags\.jpg'/);
+  assert.match(app, /'ساعات ستاتي':'\/category-images\/womens-watches\.jpg'/);
+  assert.match(app, /function categoryImageError\(/);
+  assert.match(app, /categoryImage\(c,k\)/);
+  assert.match(app, /categoryImageError\(this,\$\{jsAttr\(k\)\}\)/);
+  assert.match(server, /image_url = COALESCE\(NULLIF\(BTRIM\(image_url\), ''\), \$3\)/);
+});
