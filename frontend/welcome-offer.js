@@ -7,7 +7,7 @@
   const stock=p=>{try{return typeof totalStock==='function'?totalStock(p):Number(p?.stock)||0}catch{return 0}};
   const image=p=>{try{const a=typeof mainImagesOf==='function'?mainImagesOf(p):[];if(a?.[0])return a[0]}catch{}return p?.imageUrl||p?.image||p?.images?.[0]||''};
   function makePopup(config,items){
-    if(document.getElementById('lfWelcomeOffer')||!items.length)return;
+    if(document.getElementById('lfWelcomeOffer'))return false;
     const overlay=document.createElement('section');overlay.id='lfWelcomeOffer';overlay.className='lf-welcome-offer';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-labelledby','lfWelcomeOfferTitle');
     const backdrop=document.createElement('button');backdrop.className='lf-welcome-offer__backdrop';backdrop.type='button';backdrop.setAttribute('aria-label','إغلاق العرض');
     const card=document.createElement('div');card.className='lf-welcome-offer__card';
@@ -39,6 +39,7 @@
     const end=Date.parse(config.endAt);const update=()=>{const left=Math.max(0,end-Date.now());if(!left){dismiss();return false}const d=Math.floor(left/86400000),h=Math.floor(left%86400000/3600000),m=Math.floor(left%3600000/60000),s=Math.floor(left%60000/1000);timeValue.textContent=[d?d+' يوم':'',[h,m,s].map(x=>String(x).padStart(2,'0')).join(':')].filter(Boolean).join(' · ');return true};
     const ticker=window.setInterval(()=>{if(!update())window.clearInterval(ticker)},1000);update();
     requestAnimationFrame(()=>{overlay.classList.add('is-open');document.body.classList.add('lf-welcome-offer-open');close.focus({preventScroll:true})});
+    return true;
   }
   let campaignPromise;
   function loadCampaign(){if(!campaignPromise)campaignPromise=fetch('/api/store/welcome-offer',{cache:'no-store'}).then(r=>r.json()).then(d=>d?.offer||null).catch(()=>null);return campaignPromise}
@@ -56,7 +57,7 @@
         :[];
     if(scope==='products'&&!items.length)return false;
     if(document.getElementById('nayaAssistant')?.classList.contains('open')||document.querySelector('.lf-idea-modal[aria-hidden="false"],.lfImageZoom.open'))return false;
-    makePopup(config,items);localStorage.setItem(key,String(now));return true;
+    if(!makePopup(config,items))return false;localStorage.setItem(key,String(now));return true;
   }
   function start(){let attempts=0;const timer=window.setInterval(async()=>{attempts++;if(await tryShow()||attempts>=40)window.clearInterval(timer)},1000)}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
