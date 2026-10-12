@@ -1,849 +1,119 @@
-/* Seasonal visuals are additive: core Ladies First palette, layout and flows remain unchanged. */
-html[data-theme] { --season-accent:#c393a7; --season-shadow:transparent; --season-tint:transparent; --season-edge:transparent; --season-dark:#63345e; }
-html[data-theme="ramadan"] { --season-accent:#cda96d;--season-shadow:#cda96d21;--season-tint:#fcf6e944;--season-edge:#d3b475;--season-dark:#50315b; }
-html[data-theme="eid-fitr"] { --season-accent:#d19f9f;--season-shadow:#d49eab22;--season-tint:#fff1ec66;--season-edge:#e0b1b3;--season-dark:#704562; }
-html[data-theme="eid-adha"] { --season-accent:#b99b76;--season-shadow:#b99b7622;--season-tint:#f9f2e666;--season-edge:#c7a982;--season-dark:#654357; }
-html[data-theme="halloween"] { --season-accent:#b28271;--season-shadow:#b2827133;--season-tint:#ece4f044;--season-edge:#ad8ba8;--season-dark:#422742; }
-html[data-theme="christmas"] { --season-accent:#b99967;--season-shadow:#9b6b5c22;--season-tint:#f6eee944;--season-edge:#a98f70;--season-dark:#5c344b; }
-html[data-theme="new-year"] { --season-accent:#c5a77a;--season-shadow:#c5a77a25;--season-tint:#f7efdf44;--season-edge:#c5a77a;--season-dark:#4f3658; }
+/* Seasonal storefront skin. One source of truth for every theme. */
+html[data-theme="ramadan"] {--season-main:#684269;--season-deep:#402b4c;--season-accent:#c99755;--season-second:#d58ca4;--season-wash:#f7edf4;--season-edge:#dfc49a;--season-shadow:#50324a20;--season-ink:#4b354d;--season-banner:#f8edf2;--season-meta:#5b3154}
+html[data-theme="eid-fitr"] {--season-main:#a75f78;--season-deep:#66334f;--season-accent:#d3a35f;--season-second:#8aa98e;--season-wash:#fbf0ed;--season-edge:#e4c4a0;--season-shadow:#78465720;--season-ink:#603d52;--season-banner:#fbf0e7;--season-meta:#633450}
+html[data-theme="eid-adha"] {--season-main:#648274;--season-deep:#38594e;--season-accent:#c79b58;--season-second:#bd7890;--season-wash:#eff5ef;--season-edge:#cfbd91;--season-shadow:#416b5b20;--season-ink:#435c50;--season-banner:#f4f3e8;--season-meta:#49675b}
+html[data-theme="halloween"] {--season-main:#9b623e;--season-deep:#503455;--season-accent:#d88845;--season-second:#8a6b9a;--season-wash:#f5edf4;--season-edge:#c7a077;--season-shadow:#50314c24;--season-ink:#503b54;--season-banner:#f2e9f2;--season-meta:#553759}
+html[data-theme="christmas"] {--season-main:#58785f;--season-deep:#3f5947;--season-accent:#c7a064;--season-second:#bb778a;--season-wash:#f0f5ef;--season-edge:#d8c59d;--season-shadow:#425c4820;--season-ink:#43594b;--season-banner:#f4f3eb;--season-meta:#4d6854}
+html[data-theme="new-year"] {--season-main:#695075;--season-deep:#44334f;--season-accent:#d0af73;--season-second:#cf8da7;--season-wash:#f5eff7;--season-edge:#dfcba4;--season-shadow:#49334e20;--season-ink:#4d3c57;--season-banner:#f7f1f4;--season-meta:#5c4564}
+html[data-theme="spring"] {--season-main:#879b62;--season-deep:#53653f;--season-accent:#d7a0ad;--season-second:#e1b857;--season-wash:#f2f6ea;--season-edge:#cbd6af;--season-shadow:#5f714020;--season-ink:#4e6046;--season-banner:#f6f5e8;--season-meta:#667a4c}
+html[data-theme="summer"] {--season-main:#438d91;--season-deep:#31696f;--season-accent:#e5bc62;--season-second:#dc8f9b;--season-wash:#eaf6f4;--season-edge:#a8d4d0;--season-shadow:#367e7e20;--season-ink:#365f65;--season-banner:#eaf5f1;--season-meta:#397a7e}
+html[data-theme="autumn"] {--season-main:#a6643d;--season-deep:#70452f;--season-accent:#d4a64e;--season-second:#829064;--season-wash:#f8f0e3;--season-edge:#dfc198;--season-shadow:#81533120;--season-ink:#684a39;--season-banner:#f6efe5;--season-meta:#8b593a}
+html[data-theme="winter"] {--season-main:#607b99;--season-deep:#465a75;--season-accent:#bf9cba;--season-second:#9bbfc0;--season-wash:#eef3f8;--season-edge:#c4d0dc;--season-shadow:#526d8a20;--season-ink:#4b5e75;--season-banner:#edf2f7;--season-meta:#566e8d}
 
-html[data-theme="spring"] { --season-accent:#9dba82;--season-shadow:#91b8792b;--season-tint:#f5f1d866;--season-edge:#b6c994;--season-dark:#536b4b; }
-html[data-theme="summer"] { --season-accent:#d5a763;--season-shadow:#73b4b122;--season-tint:#dff5f166;--season-edge:#9bcac1;--season-dark:#3f6968; }
-html[data-theme="autumn"] { --season-accent:#c78251;--season-shadow:#bd78402b;--season-tint:#f7e8cb77;--season-edge:#d39a66;--season-dark:#704632; }
-html[data-theme="winter"] { --season-accent:#91aabd;--season-shadow:#9ab9d229;--season-tint:#e9f1f877;--season-edge:#aebfcc;--season-dark:#4c5f76; }
-
-html:not([data-theme="none"])[data-theme] body {
-  background-image:radial-gradient(ellipse at 0 4%,var(--season-tint),transparent 35%),radial-gradient(ellipse at 100% 70%,var(--season-shadow),transparent 40%);
+html[data-theme]:not([data-theme="none"]) {
+  color-scheme:light;
+  --season-active:1;
 }
-html:not([data-theme="none"])[data-theme] header:not(.top) { border-bottom:2px solid var(--season-edge);box-shadow:0 3px 14px var(--season-shadow); }
-html:not([data-theme="none"])[data-theme] .heroSlider { box-shadow:0 7px 24px var(--season-shadow); }
-html:not([data-theme="none"])[data-theme] .sectionTitle h2::after,html:not([data-theme="none"])[data-theme] .featureTitle::after {content:" ✧";color:var(--season-accent);font-size:.75em}
-html:not([data-theme="none"])[data-theme] .cat { box-shadow:0 5px 22px var(--season-shadow); }
-html:not([data-theme="none"])[data-theme] footer { border-top:2px solid var(--season-edge); }
-.lf-seasonal {display:none;position:relative;isolation:isolate;overflow:hidden;max-width:1180px;margin:8px auto 0;border-radius:16px;color:var(--season-dark);border:1px solid var(--season-edge);background:linear-gradient(100deg,#fffaf5ee,#fff3f7ee);box-shadow:0 8px 20px var(--season-shadow)}
-html:not([data-theme="none"])[data-theme] .lf-seasonal {display:block}
-.lf-seasonal__ornament {position:absolute;inset-block-start:-18px;inset-inline-start:4%;font-size:64px;line-height:1;opacity:.12;pointer-events:none;user-select:none}
-.lf-seasonal__ornament--right {inset-inline-start:auto;inset-inline-end:3%;top:auto;bottom:-15px;font-size:54px}
-.lf-seasonal__layout {position:relative;display:flex;align-items:center;justify-content:center;gap:10px;padding:13px 22px;min-height:75px;text-align:center}
-.lf-seasonal__layout strong {font:700 clamp(16px,2vw,23px) Georgia,Tahoma,Arial,sans-serif;line-height:1.5}
-.lf-seasonal__layout small {display:block;font-size:12px;margin-top:3px;color:var(--season-dark);opacity:.75}
-.lf-seasonal__picture {display:block;width:100%;margin:0}
-.lf-seasonal__picture img {display:block;width:100%;height:auto;max-height:none;object-fit:contain;object-position:center}
-.lf-seasonal__year {font:700 1.4em Georgia,serif;white-space:nowrap;color:var(--season-dark)}
-.lf-seasonal__picture+.lf-seasonal__layout {min-height:52px;background:#fffdf9df}
-@media(max-width:760px) {
-  .lf-seasonal {margin:6px 9px;border-radius:11px}
-  .lf-seasonal__layout {min-height:67px;padding:11px 24px}
-  .lf-seasonal__ornament {font-size:46px;opacity:.09}
-  .lf-seasonal__layout strong {font-size:16px}
-}
-@media(prefers-reduced-motion:reduce) {.lf-seasonal * {animation:none!important;transition:none!important}}
-
-/* Seasonal hero is fitted fully; regular promotional slides keep their existing behavior. */
-.heroSlider .heroCard.lf-seasonal-slide .heroVisual img {object-fit:contain!important;object-position:center!important}
-.heroSlider .heroCard.lf-seasonal-slide .heroVisual {background:linear-gradient(125deg,#f8f0f2,#efe1e8)}
-@media(max-width:760px) {.heroSlider .heroCard.lf-seasonal-slide .heroVisual img {object-fit:contain!important}}
-
-/* v2 — Designed for Ladies First: fine-line seasonal motifs across the storefront.
-   These rules do not affect checkout, overlays, or the standard "none" storefront. */
 html[data-theme]:not([data-theme="none"]) body {
-  background-image:
-    radial-gradient(ellipse 570px 330px at 0% 19%,var(--season-tint),transparent 85%),
-    radial-gradient(ellipse 410px 440px at 100% 62%,var(--season-shadow),transparent 85%)!important;
-  background-repeat:no-repeat!important;
+  background-color:#fffdfb;
+  background-image:radial-gradient(ellipse 85vw 460px at 0 430px,var(--season-wash),transparent 70%),radial-gradient(ellipse 70vw 560px at 100% 74%,var(--season-wash),transparent 72%);
+  color:var(--season-ink);
 }
 html[data-theme]:not([data-theme="none"]) body > header {
-  isolation:isolate;
-  border-bottom:2px solid var(--season-edge)!important;
-  box-shadow:0 5px 26px var(--season-shadow)!important;
+  border-bottom:3px solid var(--season-accent)!important;
+  background:linear-gradient(105deg,var(--season-wash),#fffdfb 48%,var(--season-wash))!important;
+  box-shadow:0 7px 24px var(--season-shadow)!important;
 }
-html[data-theme]:not([data-theme="none"]) body > header .nav,
-html[data-theme]:not([data-theme="none"]) body > header .headerSearch {
-  position:relative;z-index:2;
+html[data-theme]:not([data-theme="none"]) .heroArrow {
+  color:var(--season-deep)!important;
+  border:1px solid color-mix(in srgb,var(--season-accent) 65%,#fff)!important;
+  box-shadow:0 5px 16px var(--season-shadow)!important;
 }
-html[data-theme]:not([data-theme="none"]) .featureBlock {
-  position:relative;isolation:isolate;
-  border-color:var(--season-edge)!important;
-  background-image:radial-gradient(circle at 0% 100%,var(--season-tint),transparent 54%)!important;
-  box-shadow:0 10px 28px var(--season-shadow)!important;
+html[data-theme]:not([data-theme="none"]) .heroDots button.active {
+  background:var(--season-main)!important;border-color:var(--season-accent)!important;
 }
-html[data-theme]:not([data-theme="none"]) .lf-store-ideas {
-  position:relative;isolation:isolate;
-  background-image:radial-gradient(ellipse at 100% 0%,var(--season-tint),transparent 62%)!important;
+html[data-theme]:not([data-theme="none"]) .top {
+  background:var(--season-deep)!important;
+  box-shadow:inset 0 -2px 0 var(--season-accent);
 }
+
+/* The campaign belongs in the main carousel exactly once. */
+#lfSeasonalWelcome {display:none!important}
+.heroSlider .heroCard.lf-adaptive-slide {
+  height:auto!important;min-height:0!important;max-height:min(760px,85dvh)!important;
+  aspect-ratio:var(--lf-banner-ratio,2.13333)!important;
+  overflow:hidden!important;background:var(--season-banner,#f6eff2)!important;
+  border:1px solid color-mix(in srgb,var(--season-edge) 60%,transparent)!important;
+  box-shadow:0 12px 32px var(--season-shadow)!important;
+}
+.heroSlider .heroCard.lf-adaptive-slide .heroVisual {height:100%!important;background:var(--season-banner,#f6eff2)!important}
+.heroSlider .heroCard.lf-adaptive-slide .heroVisual::before {display:none!important}
+.heroSlider .heroCard.lf-adaptive-slide .heroLogoLayer {object-fit:contain!important;object-position:center!important;background:var(--season-banner,#f6eff2)!important}
+.heroSlider .heroCard.lf-adaptive-slide .heroText[hidden] {display:none!important}
+@media(max-width:760px) {
+  .heroSlider .heroCard.lf-adaptive-slide {height:auto!important;min-height:0!important;max-height:85dvh!important;aspect-ratio:var(--lf-banner-ratio,2.13333)!important;border-radius:18px!important}
+  .heroSlider .heroCard.lf-adaptive-slide .heroArrow {width:clamp(30px,8vw,40px)!important;height:clamp(30px,8vw,40px)!important}
+  .heroSlider .heroCard.lf-adaptive-slide .heroDots {bottom:5px!important}
+}
+
+/* Seasonal color is carried by section framing; product photography and labels stay clear. */
 html[data-theme]:not([data-theme="none"]) .sectionTitle {
-  border-bottom-color:var(--season-edge)!important;
+  border-color:var(--season-edge)!important;
+  background:linear-gradient(90deg,var(--season-wash),#fffdfb 74%)!important;
+  border-radius:14px;
 }
-html[data-theme]:not([data-theme="none"]) .sectionTitle h2::after {
-  content:""!important;
-  width:54px;height:2px;background:var(--season-accent);
+html[data-theme]:not([data-theme="none"]) .sectionTitle h2,
+html[data-theme]:not([data-theme="none"]) .featureTitle,
+html[data-theme]:not([data-theme="none"]) .lf-store-ideas-head h2 {color:var(--season-deep)!important}
+html[data-theme]:not([data-theme="none"]) .sectionTitle h2::after,
+html[data-theme]:not([data-theme="none"]) .featureTitle::after,
+html[data-theme]:not([data-theme="none"]) .lf-store-ideas-head h2::after {
+  content:""!important;display:block!important;width:62px;height:3px;margin:7px 0 0 auto;
+  border-radius:5px;background:linear-gradient(90deg,var(--season-accent),var(--season-second))!important;
+}
+html[data-theme]:not([data-theme="none"]) #cats {
+  border-radius:18px;background:linear-gradient(105deg,var(--season-wash),#fff 32%,#fff 68%,var(--season-wash));
+  padding:12px!important;
 }
 html[data-theme]:not([data-theme="none"]) .cat {
-  border-color:var(--season-edge)!important;
+  border:1px solid color-mix(in srgb,var(--season-edge) 72%,#fff)!important;
+  box-shadow:0 7px 22px var(--season-shadow)!important;
 }
-html[data-theme]:not([data-theme="none"]) body > footer {
-  position:relative;isolation:isolate;overflow:hidden;
-  border-top:2px solid var(--season-edge)!important;
-  background-image:linear-gradient(115deg,var(--season-shadow),transparent 45%,var(--season-tint))!important;
+html[data-theme]:not([data-theme="none"]) .cat img {position:relative;z-index:1}
+html[data-theme]:not([data-theme="none"]) .featureBlock,
+html[data-theme]:not([data-theme="none"]) .lf-store-ideas {
+  border:1px solid color-mix(in srgb,var(--season-edge) 70%,#fff)!important;
+  border-top:4px solid var(--season-main)!important;
+  background:linear-gradient(125deg,var(--season-wash),#fff 62%,color-mix(in srgb,var(--season-second) 10%,#fff))!important;
+  box-shadow:0 10px 28px var(--season-shadow)!important;
 }
-.lf-seasonal-vector {display:block;flex:none;width:40px;height:40px;color:var(--season-accent);}
-.lf-seasonal-decor {position:absolute;display:block;pointer-events:none!important;user-select:none;color:var(--season-dark);opacity:.28;z-index:0;}
-.lf-seasonal-decor--start {inset-inline-start:16px;}
-.lf-seasonal-decor--end {inset-inline-end:16px;transform:scaleX(-1);}
-.lf-seasonal-decor--header {width:55px;height:55px;top:13px;opacity:.23;}
-.lf-seasonal-decor--panel {width:82px;height:82px;bottom:7px;inset-inline-end:9px;opacity:.24;}
-.lf-seasonal-decor--discovery {width:80px;height:80px;top:12px;opacity:.2;}
-.lf-seasonal-decor--footer {width:75px;height:75px;bottom:6px;opacity:.25;}
-.lf-seasonal__layout {position:relative;isolation:isolate;padding-inline:76px;}
-.lf-seasonal__ornament {position:absolute;width:58px!important;height:58px!important;top:50%!important;bottom:auto!important;transform:translateY(-50%);inset-inline-start:14px!important;inset-inline-end:auto!important;color:var(--season-accent);opacity:.68;}
-.lf-seasonal__ornament--right {inset-inline-start:auto!important;inset-inline-end:14px!important;transform:translateY(-50%) scaleX(-1);}
-.lf-seasonal__layout strong {max-width:100%;overflow-wrap:anywhere;}
-.lf-seasonal__year {font-size:1.16em;}
-.lf-seasonal-divider {
-  box-sizing:border-box;
-  max-width:min(970px,calc(100% - 42px));
-  height:38px;margin:4px auto;
-  display:flex;align-items:center;justify-content:center;gap:18px;
-  color:var(--season-accent);pointer-events:none;user-select:none;
-}
-.lf-seasonal-divider::before,.lf-seasonal-divider::after {
-  content:"";height:1px;max-width:190px;flex:1;
-  background:linear-gradient(to right,transparent,var(--season-edge));
-}
-.lf-seasonal-divider::after {transform:scaleX(-1);}
-.lf-seasonal-divider__icon {width:29px;height:29px;opacity:.62;}
-.lf-seasonal-title-icon {width:23px;height:23px;margin-inline-start:10px;display:inline-block;vertical-align:middle;opacity:.75;}
-html:not([data-theme="none"])[data-theme] .sectionTitle h2,
-html:not([data-theme="none"])[data-theme] .featureTitle,
-html:not([data-theme="none"])[data-theme] .lf-store-ideas-head h2 {color:var(--lf-plum)!important;}
-@media(max-width:760px){
-  .lf-seasonal__layout {padding-inline:43px;min-height:65px;}
-  .lf-seasonal__ornament {width:29px!important;height:29px!important;inset-inline-start:7px!important;opacity:.38;}
-  .lf-seasonal__ornament--right {inset-inline-end:7px!important;inset-inline-start:auto!important;}
-  .lf-seasonal-decor--header {width:23px;height:23px;top:auto;bottom:2px;opacity:.2;}
-  .lf-seasonal-decor--start {inset-inline-start:5px;}
-  .lf-seasonal-decor--end {inset-inline-end:5px;}
-  .lf-seasonal-decor--panel {width:47px;height:47px;bottom:3px;inset-inline-end:4px;opacity:.22;}
-  .lf-seasonal-decor--discovery {width:40px;height:40px;top:5px;opacity:.18;}
-  .lf-seasonal-decor--footer {width:43px;height:43px;bottom:8px;opacity:.22;}
-  .lf-seasonal-divider {height:27px;max-width:calc(100% - 35px);gap:12px;margin:0 auto;}
-  .lf-seasonal-divider__icon {width:23px;height:23px;}
-  .lf-seasonal-title-icon {width:19px;height:19px;margin-inline-start:7px;}
-}
-@media(prefers-reduced-motion:reduce) {
-  .lf-seasonal-vector,.lf-seasonal-divider {animation:none!important;transition:none!important;}
-}
-
-/* Adaptive image-only slides: the frame inherits the current image's actual ratio.
-   Rules must out-rank older 500px mobile and 440px min-height overrides. */
-.heroSlider .heroCard.lf-adaptive-slide {
-  height:auto!important;
-  min-height:0!important;
-  max-height:min(760px,85dvh)!important;
-  aspect-ratio:var(--lf-banner-ratio,2.13333)!important;
-  background:#fbf4ec!important;
-  contain:layout paint;
-}
-.heroSlider .heroCard.lf-adaptive-slide .heroVisual {
-  background:#fbf4ec!important;
-  height:100%!important;
-}
-.heroSlider .heroCard.lf-adaptive-slide .heroVisual::before {display:none!important;}
-.heroSlider .heroCard.lf-adaptive-slide .heroLogoLayer {
-  object-fit:contain!important;
-  object-position:center center!important;
-  background:transparent!important;
-}
-@media(max-width:760px) {
-  .heroSlider .heroCard.lf-adaptive-slide {
-    height:auto!important;
-    min-height:0!important;
-    max-height:85dvh!important;
-    aspect-ratio:var(--lf-banner-ratio,2.13333)!important;
-  }
-  .heroSlider .heroCard.lf-adaptive-slide .heroArrow {
-    width:clamp(27px,8vw,38px)!important;
-    height:clamp(27px,8vw,38px)!important;
-    font-size:23px!important;
-  }
-  .heroSlider .heroCard.lf-adaptive-slide .heroDots{bottom:5px!important;}
-}
-/* Seasonal ornament detail: noticeable on ivory but soft enough for fashion. */
-html:not([data-theme="none"])[data-theme] .lf-seasonal {
-  border-color:var(--season-accent)!important;
-  border-top:2px solid var(--season-accent)!important;
-  background:
-    radial-gradient(circle at 7% 50%,var(--season-tint),transparent 42%),
-    radial-gradient(circle at 94% 50%,var(--season-tint),transparent 43%),
-    linear-gradient(100deg,#fff8f4,#fff9f5 50%,#fff5ef)!important;
-  box-shadow:0 4px 19px var(--season-shadow),inset 0 0 0 2px #ffffffa8!important;
-}
-html:not([data-theme="none"])[data-theme] .lf-seasonal__layout strong {
-  color:var(--season-dark)!important;font-weight:800!important;
-}
-.lf-seasonal-vector {stroke-width:2.4!important;}
-.lf-seasonal__ornament {width:67px!important;height:67px!important;opacity:.9!important;color:var(--season-dark)!important;}
-.lf-seasonal-decor--header {width:65px!important;height:65px!important;opacity:.54!important;color:var(--season-accent)!important;}
-.lf-seasonal-decor--panel {width:90px!important;height:90px!important;opacity:.36!important;color:var(--season-accent)!important;}
-.lf-seasonal-decor--discovery {opacity:.37!important;}
-.lf-seasonal-decor--footer {opacity:.43!important;}
-.lf-seasonal-divider {height:51px!important;gap:20px!important;}
-.lf-seasonal-divider::before,.lf-seasonal-divider::after {max-width:225px!important;height:2px!important;}
-.lf-seasonal-divider__icon {width:37px!important;height:37px!important;opacity:.82!important;color:var(--season-dark)!important;}
-.lf-seasonal-title-icon {width:29px!important;height:29px!important;opacity:.95!important;color:var(--season-accent)!important;}
-html:not([data-theme="none"])[data-theme] .featureBlock {
-  border-top:2px solid var(--season-edge)!important;
-  background-image:
-    linear-gradient(90deg,var(--season-tint),transparent 48%),
-    radial-gradient(circle at 97% 91%,var(--season-shadow),transparent 38%)!important;
-}
-html:not([data-theme="none"])[data-theme] body > header {
-  background-image:linear-gradient(95deg,var(--season-tint),transparent 43%,var(--season-tint))!important;
-}
-html:not([data-theme="none"])[data-theme] body > footer {
-  border-top:3px solid var(--season-edge)!important;
-}
-@media(max-width:760px){
-  .lf-seasonal__layout{padding-inline:55px!important;min-height:80px!important;}
-  .lf-seasonal__ornament{width:51px!important;height:51px!important;opacity:.85!important;inset-inline-start:4px!important;}
-  .lf-seasonal__ornament--right{inset-inline-start:auto!important;inset-inline-end:4px!important;}
-  .lf-seasonal-decor--header{width:37px!important;height:37px!important;top:6px!important;opacity:.43!important;}
-  .lf-seasonal-decor--panel{width:63px!important;height:63px!important;opacity:.31!important;}
-  .lf-seasonal-decor--footer{width:55px!important;height:55px!important;opacity:.35!important;}
-  .lf-seasonal-divider{height:40px!important;gap:12px!important;}
-  .lf-seasonal-divider__icon{width:31px!important;height:31px!important;}
-  .lf-seasonal-title-icon{width:22px!important;height:22px!important;}
-}
-
-/* Seasonal ornaments v4: a deliberately balanced combination of colored enamel-like
-   motifs and open-line illustrations. No photographs, emoji, fonts or dependencies. */
-html[data-theme="ramadan"] {
-  --season-icon-main:#e5ba70;--season-icon-secondary:#e1b6c6;--season-icon-deep:#744666;
-  --season-icon-soft:#fff2d8;--season-icon-stroke:#65405b;--season-icon-halo:#fae4ae77;
-}
-html[data-theme="eid-fitr"] {
-  --season-icon-main:#d9a477;--season-icon-secondary:#d8aa76;--season-icon-deep:#985c64;
-  --season-icon-soft:#fff2dd;--season-icon-stroke:#794a5d;--season-icon-halo:#f5dbc180;
-}
-html[data-theme="eid-adha"] {
-  --season-icon-main:#ddad7b;--season-icon-secondary:#ba8c65;--season-icon-deep:#765449;
-  --season-icon-soft:#fff0d7;--season-icon-stroke:#63433a;--season-icon-halo:#f1dec382;
-}
-html[data-theme="halloween"] {
-  --season-icon-main:#d08b5a;--season-icon-secondary:#df9363;--season-icon-deep:#683f60;
-  --season-icon-soft:#fbe0bb;--season-icon-stroke:#59364f;--season-icon-halo:#dd9a7966;
-}
-html[data-theme="christmas"] {
-  --season-icon-main:#a7be98;--season-icon-secondary:#ccab77;--season-icon-deep:#476c57;
-  --season-icon-soft:#f5e9cb;--season-icon-stroke:#6b3b47;--season-icon-halo:#dfd4b87a;
-}
-html[data-theme="new-year"] {
-  --season-icon-main:#e3c88e;--season-icon-secondary:#c9a25f;--season-icon-deep:#6e4d75;
-  --season-icon-soft:#fff3dc;--season-icon-stroke:#61415a;--season-icon-halo:#e5cf9875;
-}
-
-html[data-theme="spring"] {
-  --season-icon-main:#e8a9ba;--season-icon-secondary:#abc98d;--season-icon-deep:#688653;
-  --season-icon-soft:#fff0d8;--season-icon-stroke:#586b4b;--season-icon-halo:#f8dfd578;
-}
-html[data-theme="summer"] {
-  --season-icon-main:#f0c574;--season-icon-secondary:#70bcb6;--season-icon-deep:#43818b;
-  --season-icon-soft:#fff1d4;--season-icon-stroke:#426c72;--season-icon-halo:#d7f0ed8a;
-}
-html[data-theme="autumn"] {
-  --season-icon-main:#dc9657;--season-icon-secondary:#d6b05e;--season-icon-deep:#945334;
-  --season-icon-soft:#fae2b9;--season-icon-stroke:#704638;--season-icon-halo:#f0d3a177;
-}
-html[data-theme="winter"] {
-  --season-icon-main:#9cb9cf;--season-icon-secondary:#c2a5c7;--season-icon-deep:#617c96;
-  --season-icon-soft:#f7f5fb;--season-icon-stroke:#586b7e;--season-icon-halo:#dce9f399;
-}
-
-.lf-seasonal-vector--filled {
-  color:var(--season-icon-stroke)!important;
-  stroke:var(--season-icon-stroke)!important;
-}
-.lf-seasonal-vector--outline {
-  color:var(--season-icon-stroke)!important;
-  fill:none!important;
-  stroke:var(--season-icon-stroke)!important;
-  stroke-width:2.35!important;
-}
-.lf-seasonal-vector--filled .lf-seasonal-halo {
-  fill:var(--season-icon-halo)!important;stroke:none!important;
-}
-.lf-seasonal-vector--filled .lf-seasonal-painted {
-  fill:var(--season-icon-main)!important;stroke:var(--season-icon-stroke)!important;stroke-width:1.55!important;
-}
-.lf-seasonal-vector--filled .lf-seasonal-painted-secondary {
-  fill:var(--season-icon-secondary)!important;stroke:var(--season-icon-stroke)!important;stroke-width:1.5!important;
-}
-.lf-seasonal-vector--filled .lf-seasonal-painted-deep {
-  fill:var(--season-icon-deep)!important;stroke:var(--season-icon-stroke)!important;stroke-width:1.6!important;
-}
-.lf-seasonal-vector--filled .lf-seasonal-painted-soft {
-  fill:var(--season-icon-soft)!important;stroke:var(--season-icon-stroke)!important;stroke-width:1.7!important;
-}
-.lf-seasonal-vector--filled .lf-seasonal-detail {
-  fill:none!important;stroke:var(--season-icon-stroke)!important;stroke-width:1.75!important;
-}
-.lf-seasonal-vector--filled .lf-seasonal-eye {
-  fill:#2f2424!important;stroke:none!important;
-}
-/* Open-line remains truly unfilled rather than a faded duplicate of the colored icon. */
-.lf-seasonal-vector--outline path,.lf-seasonal-vector--outline circle,
-.lf-seasonal-vector--outline ellipse {
-  fill:none!important;stroke:var(--season-icon-stroke)!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament.lf-seasonal-vector--filled {
-  opacity:1!important;filter:drop-shadow(0 3px 2px #54352116);
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament.lf-seasonal-vector--outline {
-  opacity:.78!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor.lf-seasonal-vector--filled {
-  opacity:.8!important;color:var(--season-icon-deep)!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor.lf-seasonal-vector--outline {
-  opacity:.56!important;color:var(--season-icon-stroke)!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon.lf-seasonal-vector--outline {
-  opacity:.83!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon.lf-seasonal-vector--filled {
-  opacity:.95!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon.lf-seasonal-vector--outline {
-  opacity:.7!important;
-}
-@media(max-width:760px){
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
-    width:47px!important;height:47px!important;
-  }
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--header {
-    width:31px!important;height:31px!important;
-  }
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--panel {
-    width:56px!important;height:56px!important;
-  }
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon {
-    width:22px!important;height:22px!important;
-  }
-}
-
-/* Editorial season coverage across the storefront, including the complete category and product areas. */
-html[data-theme]:not([data-theme="none"]) body {
-  background-image:
-    radial-gradient(ellipse 540px 360px at 0% 12%,var(--season-tint),transparent 86%),
-    radial-gradient(ellipse 480px 520px at 100% 56%,var(--season-shadow),transparent 84%),
-    repeating-linear-gradient(118deg,transparent 0 86px,color-mix(in srgb,var(--season-tint) 23%,transparent) 87px 89px,transparent 90px 174px)!important;
-  background-attachment:scroll!important;
-}
-html[data-theme]:not([data-theme="none"]) #cats,
-html[data-theme]:not([data-theme="none"]) #products,
-html[data-theme]:not([data-theme="none"]) .featureSections,
-html[data-theme]:not([data-theme="none"]) #quickOffers {
-  position:relative;
-  isolation:isolate;
-}
-html[data-theme]:not([data-theme="none"]) #cats,
-html[data-theme]:not([data-theme="none"]) #products {
-  border-radius:22px;
-  background:linear-gradient(100deg,var(--season-tint),transparent 23%,transparent 77%,var(--season-tint));
-}
-.lf-seasonal-decor--section {
-  position:absolute!important;
-  width:88px!important;height:88px!important;
-  top:10px!important;bottom:auto!important;
-  opacity:.25!important;
-}
-.lf-seasonal-decor--section.lf-seasonal-decor--start {inset-inline-start:4px!important;}
-.lf-seasonal-decor--section.lf-seasonal-decor--end {inset-inline-end:4px!important;transform:scaleX(-1);}
 html[data-theme]:not([data-theme="none"]) .featureCard,
-html[data-theme]:not([data-theme="none"]) .quickOfferCard {
-  border-color:color-mix(in srgb,var(--season-edge) 68%,#eadce3)!important;
+html[data-theme]:not([data-theme="none"]) .quickOfferCard,
+html[data-theme]:not([data-theme="none"]) .card {
+  border-color:color-mix(in srgb,var(--season-edge) 72%,#eadce3)!important;
 }
-@media(max-width:760px){
-  .lf-seasonal-decor--section{width:48px!important;height:48px!important;opacity:.19!important;top:4px!important;}
-  html[data-theme]:not([data-theme="none"]) #cats,
-  html[data-theme]:not([data-theme="none"]) #products{border-radius:14px;}
-}
-
-/* Keep the seasonal signature clear and editorial on small screens. */
-.lf-seasonal-decor--header,
-.lf-seasonal-decor--panel,
-.lf-seasonal-title-icon {display:none!important;}
-.lf-seasonal__ornament {width:39px!important;height:39px!important;opacity:.62!important;}
-.lf-seasonal-divider {height:35px!important;gap:14px!important;}
-.lf-seasonal-divider__icon {width:24px!important;height:24px!important;opacity:.48!important;}
-.lf-seasonal-decor--section {
-  width:42px!important;height:42px!important;
-  opacity:.17!important;
-}
-.lf-seasonal-decor--discovery,
-.lf-seasonal-decor--footer {opacity:.2!important;}
-html[data-theme]:not([data-theme="none"]) .featureBlock {
-  border-top:1px solid color-mix(in srgb,var(--season-edge) 70%,#ffffff)!important;
-  box-shadow:0 8px 28px color-mix(in srgb,var(--season-shadow) 60%,transparent)!important;
-}
-html[data-theme]:not([data-theme="none"]) .sectionTitle h2::after,
-html[data-theme]:not([data-theme="none"]) .featureTitle::after {
-  font-size:.55em;
-  opacity:.58;
-}
-@media(max-width:760px){
-  .lf-seasonal__ornament {width:34px!important;height:34px!important;opacity:.55!important;}
-  .lf-seasonal-divider {height:29px!important;}
-  .lf-seasonal-divider__icon {width:20px!important;height:20px!important;}
-  .lf-seasonal-decor--section {width:32px!important;height:32px!important;opacity:.14!important;}
-}
-
-
-/* Restore visible seasonal motifs: colored welcome art, open-line accents, and section markers. */
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:48px!important;height:48px!important;}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section {
-  width:54px!important;height:54px!important;opacity:.32!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--discovery,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--footer {
-  width:58px!important;height:58px!important;opacity:.31!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider {height:40px!important;}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {width:29px!important;height:29px!important;opacity:.7!important;}
-html[data-theme]:not([data-theme="none"]) body {
-  background-image:
-    radial-gradient(ellipse 78vw 62vh at 0% 18%,color-mix(in srgb,var(--season-accent) 9%,transparent),transparent 84%),
-    radial-gradient(ellipse 78vw 60vh at 100% 58%,color-mix(in srgb,var(--season-accent) 7%,transparent),transparent 84%),
-    linear-gradient(180deg,color-mix(in srgb,var(--season-accent) 4%,transparent),transparent 16%,transparent 82%,color-mix(in srgb,var(--season-accent) 4%,transparent)),
-    repeating-linear-gradient(118deg,transparent 0 114px,color-mix(in srgb,var(--season-accent) 2%,transparent) 115px 117px,transparent 118px 230px)!important;
+html[data-theme]:not([data-theme="none"]) .price,
+html[data-theme]:not([data-theme="none"]) .fprice {color:var(--season-deep)!important}
+html[data-theme]:not([data-theme="none"]) .grid {background:linear-gradient(180deg,var(--season-wash),transparent 200px);border-radius:18px}
+html[data-theme]:not([data-theme="none"]) .storeSearchPanel {border-color:var(--season-edge)!important}
+html[data-theme]:not([data-theme="none"]) body > footer {
+  border-top:4px solid var(--season-main)!important;
+  background:linear-gradient(110deg,var(--season-wash),#fff 55%,color-mix(in srgb,var(--season-second) 11%,#fff))!important;
 }
 @media(max-width:760px) {
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:40px!important;height:40px!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section {width:38px!important;height:38px!important;opacity:.29!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--discovery,
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--footer {width:46px!important;height:46px!important;opacity:.28!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider {height:32px!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {width:23px!important;height:23px!important;opacity:.64!important;}
+  html[data-theme]:not([data-theme="none"]) .bottomNav {border-top-color:var(--season-accent)!important}
+  html[data-theme]:not([data-theme="none"]) .bottomNav button,
+  html[data-theme]:not([data-theme="none"]) .bottomNav a {color:var(--season-deep)!important}
 }
 
-/* Seasonal illustration refresh: bolder colors, larger art, and clear medallion framing. */
-.lf-seasonal-vector {stroke-width:2.9!important;}
-.lf-seasonal-vector--filled .lf-seasonal-halo {
-  fill:color-mix(in srgb,var(--season-icon-main) 30%,#fff)!important;
-  stroke:color-mix(in srgb,var(--season-icon-secondary) 52%,#fff)!important;
-  stroke-width:1.4!important;
-}
-.lf-seasonal-vector--filled .lf-seasonal-painted,
-.lf-seasonal-vector--filled .lf-seasonal-painted-deep {stroke-width:2.15!important;}
-.lf-seasonal-vector--filled .lf-seasonal-painted-secondary {stroke-width:2.05!important;}
-.lf-seasonal-vector--filled .lf-seasonal-painted-soft {
-  fill:color-mix(in srgb,var(--season-icon-soft) 70%,var(--season-icon-main))!important;
-  stroke:var(--season-icon-stroke)!important;stroke-width:2.05!important;
-}
-.lf-seasonal-vector--outline {stroke-width:3!important;}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
-  min-height:112px!important;padding-inline:108px!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
-  width:88px!important;height:88px!important;box-sizing:border-box;padding:5px;
-  border:1px solid color-mix(in srgb,var(--season-icon-main) 68%,#fff);border-radius:50%;
-  background:radial-gradient(circle,color-mix(in srgb,var(--season-icon-main) 20%,#fff) 0 48%,color-mix(in srgb,var(--season-icon-secondary) 18%,#fff) 49% 66%,transparent 68%);
-  filter:drop-shadow(0 4px 7px color-mix(in srgb,var(--season-icon-deep) 24%,transparent))!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section {
-  width:66px!important;height:66px!important;opacity:.42!important;
-  filter:drop-shadow(0 3px 5px color-mix(in srgb,var(--season-icon-deep) 22%,transparent));
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--discovery,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--footer {
-  width:70px!important;height:70px!important;opacity:.42!important;
-  filter:drop-shadow(0 3px 6px color-mix(in srgb,var(--season-icon-deep) 22%,transparent));
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor.lf-seasonal-vector--outline {opacity:.84!important;}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider {height:48px!important;}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {
-  width:34px!important;height:34px!important;opacity:.92!important;
-  filter:drop-shadow(0 2px 4px color-mix(in srgb,var(--season-icon-deep) 22%,transparent));
-}
 @media(max-width:760px) {
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {min-height:98px!important;padding-inline:77px!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:70px!important;height:70px!important;padding:4px;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section {width:52px!important;height:52px!important;opacity:.4!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--discovery,
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--footer {width:54px!important;height:54px!important;opacity:.38!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider {height:37px!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {width:27px!important;height:27px!important;}
-}
-/* Keep every seasonal symbol away from text and images. Seasonal character lives in category cards. */
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {
-  display:none!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
-  min-height:92px!important;padding:18px 24px!important;
-}
-html[data-theme]:not([data-theme="none"]) #cats {
-  padding:12px 10px 18px!important;
-  border:1px solid color-mix(in srgb,var(--season-icon-main) 42%,var(--season-edge))!important;
-  border-radius:24px!important;
-  background:
-    radial-gradient(ellipse at 0% 0%,color-mix(in srgb,var(--season-icon-secondary) 16%,transparent),transparent 48%),
-    radial-gradient(ellipse at 100% 100%,color-mix(in srgb,var(--season-icon-main) 17%,transparent),transparent 48%),
-    linear-gradient(135deg,color-mix(in srgb,var(--season-icon-soft) 55%,#fff),#fff 48%,color-mix(in srgb,var(--season-icon-soft) 65%,#fff))!important;
-  box-shadow:inset 0 0 0 4px #ffffffa8,0 10px 26px color-mix(in srgb,var(--season-icon-deep) 13%,transparent)!important;
-}
-html[data-theme]:not([data-theme="none"]) #cats .cat {
-  position:relative!important;isolation:isolate;
-  padding:3px!important;
-  border:1px solid color-mix(in srgb,var(--season-icon-secondary) 45%,var(--season-edge))!important;
-  border-radius:20px!important;
-  background:linear-gradient(145deg,#fff,color-mix(in srgb,var(--season-icon-soft) 65%,#fff) 58%,#fff)!important;
-  box-shadow:0 7px 20px color-mix(in srgb,var(--season-icon-deep) 15%,transparent),inset 0 0 0 2px #ffffffb8!important;
-  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
-}
-html[data-theme]:not([data-theme="none"]) #cats .cat img {
-  display:block;border-radius:16px 16px 8px 8px;
-}
-html[data-theme]:not([data-theme="none"]) #cats .cat label {
-  position:relative;margin-top:2px;padding:12px 8px 10px!important;
-  border-top:2px solid color-mix(in srgb,var(--season-icon-main) 45%,var(--season-icon-secondary));
-  border-radius:0 0 15px 15px;
-  background:linear-gradient(90deg,color-mix(in srgb,var(--season-icon-secondary) 12%,#fff),#fff 50%,color-mix(in srgb,var(--season-icon-main) 13%,#fff));
-}
-html[data-theme]:not([data-theme="none"]) #cats .cat label::before {
-  content:"";display:block;width:32px;height:3px;margin:0 auto 7px;border-radius:999px;
-  background:linear-gradient(90deg,var(--season-icon-secondary),var(--season-icon-main));
-}
-@media(hover:hover) {
-  html[data-theme]:not([data-theme="none"]) #cats .cat:hover {
-    transform:translateY(-3px);
-    border-color:var(--season-icon-main)!important;
-    box-shadow:0 12px 26px color-mix(in srgb,var(--season-icon-deep) 20%,transparent),inset 0 0 0 2px #ffffffc8!important;
-  }
-}
-@media(max-width:760px) {
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {min-height:78px!important;padding:14px 18px!important;}
-  html[data-theme]:not([data-theme="none"]) #cats {padding:8px 6px 12px!important;border-radius:17px!important;}
-  html[data-theme]:not([data-theme="none"]) #cats .cat {padding:2px!important;border-radius:15px!important;}
-  html[data-theme]:not([data-theme="none"]) #cats .cat img {border-radius:12px 12px 7px 7px;}
-  html[data-theme]:not([data-theme="none"]) #cats .cat label {padding:9px 5px 8px!important;border-radius:0 0 12px 12px;}
-  html[data-theme]:not([data-theme="none"]) #cats .cat label::before {width:24px;height:2px;margin-bottom:5px;}
-}
-
-/* Visible botanical artwork lives beside welcome copy and inside category photo corners. */
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
-  min-height:112px!important;padding-inline:132px!important;z-index:2;
-}
-.lf-seasonal-flourish {display:block;pointer-events:none;user-select:none;}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--start,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {
-  position:absolute;top:50%;width:112px;height:76px;z-index:1;
-  transform:translateY(-50%);
-  filter:drop-shadow(0 3px 4px color-mix(in srgb,var(--season-icon-deep) 22%,transparent));
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--start {inset-inline-start:10px;}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {inset-inline-end:10px;transform:translateY(-50%) scaleX(-1);}
-.lf-flourish-stem {fill:none;stroke:var(--season-icon-stroke);stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round;}
-.lf-flourish-leaf {stroke:var(--season-icon-stroke);stroke-width:2.1;stroke-linejoin:round;}
-.lf-flourish-leaf--main {fill:var(--season-icon-main);}
-.lf-flourish-leaf--secondary {fill:var(--season-icon-secondary);}
-.lf-flourish-leaf--soft {fill:var(--season-icon-soft);}
-.lf-flourish-berry {fill:var(--season-icon-deep);stroke:#fff;stroke-width:1;}
-html[data-theme]:not([data-theme="none"]) #cats .cat {overflow:hidden!important;}
-html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card {
-  position:absolute;top:6px;width:66px;height:52px;z-index:2;
-  opacity:.96;filter:drop-shadow(0 2px 3px #3a253222);
-}
-html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--start {inset-inline-start:8px;}
-html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--end {inset-inline-end:8px;transform:scaleX(-1);}
-@media(max-width:760px) {
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {min-height:88px!important;padding-inline:76px!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--start,
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {width:68px;height:56px;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--start {inset-inline-start:3px;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-flourish--end {inset-inline-end:3px;}
-  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card {width:54px!important;height:42px!important;top:4px!important;}
-  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--start {inset-inline-start:6px;}
-  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-flourish--card.lf-seasonal-flourish--end {inset-inline-end:6px;}
-}
-
-/* v5: seasonal color art is anchored to the photo area and stays clear of labels. */
-.cat {position:relative;}
-.lf-seasonal-category-art {
-  position:absolute;top:7px;inset-inline-end:7px;z-index:4;
-  width:36px;height:36px;padding:3px;border-radius:50%;
-  background:color-mix(in srgb,#fff 86%,var(--season-icon-halo));
-  filter:drop-shadow(0 2px 4px #39223825);
-  pointer-events:none!important;user-select:none;
-}
-.lf-seasonal-category-art .lf-seasonal-painted,
-.lf-seasonal-category-art .lf-seasonal-painted-secondary,
-.lf-seasonal-category-art .lf-seasonal-painted-deep,
-.lf-seasonal-category-art .lf-seasonal-painted-soft,
-.lf-seasonal-category-art .lf-seasonal-detail {vector-effect:non-scaling-stroke;}
-html[data-theme="none"] .lf-seasonal-category-art {display:none!important;}
-@media(max-width:760px){
-  .lf-seasonal-category-art {width:31px;height:31px;top:5px;inset-inline-end:5px;}
-}
-
-/* v5 visibility repair: earlier hide rules disabled all seasonal illustrations. */
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {
-  display:block!important;visibility:visible!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
-  display:flex;align-items:center;justify-content:center;gap:12px;
-  min-height:104px!important;padding-inline:112px!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
-  width:70px!important;height:70px!important;opacity:1!important;
-  top:50%!important;bottom:auto!important;
-  inset-inline-start:16px!important;inset-inline-end:auto!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament--right {
-  inset-inline-start:auto!important;inset-inline-end:16px!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section {
-  position:absolute;top:4px;inset-inline-end:5px;z-index:3;
-  width:46px!important;height:46px!important;opacity:.92!important;
-}
-html[data-theme]:not([data-theme="none"]) #products .lf-seasonal-decor--section {
-  top:8px;inset-inline-end:8px;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--discovery,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--footer {
-  position:absolute;inset-inline-end:12px;z-index:1;
-  width:58px!important;height:58px!important;opacity:.75!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {
-  display:block!important;opacity:.88!important;
-}
-@media(max-width:760px){
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
-    min-height:84px!important;padding-inline:62px!important;gap:6px;
-  }
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
-    width:48px!important;height:48px!important;inset-inline-start:6px!important;
-  }
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament--right {
-    inset-inline-start:auto!important;inset-inline-end:6px!important;
-  }
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section {
-    top:3px;inset-inline-end:3px;width:36px!important;height:36px!important;
-  }
-}
-
-/* v7: seasonal drawings are allowed only inside category photos, never beside headings. */
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon {
-  display:none!important;visibility:hidden!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-category-art {
-  display:block!important;visibility:visible!important;
-}
-html[data-theme]:not([data-theme="none"]) .sectionTitle h2::after,
-html[data-theme]:not([data-theme="none"]) .featureTitle::after,
-html[data-theme]:not([data-theme="none"]) .lf-store-ideas-head h2::after {
-  content:none!important;display:none!important;
-}
-
-
-/* v8: bring seasonal artwork back in reserved spaces, clear of all headings and labels. */
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
-  display:block!important;visibility:visible!important;
-  width:66px!important;height:66px!important;opacity:1!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
-  min-height:116px!important;padding-inline:94px!important;
-}
-html[data-theme]:not([data-theme="none"]) #cats {
-  position:relative!important;
-  padding-top:54px!important;
-}
-html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-decor--section {
-  display:block!important;visibility:visible!important;
-  position:absolute!important;left:50%!important;right:auto!important;top:5px!important;
-  bottom:auto!important;width:42px!important;height:42px!important;
-  opacity:1!important;z-index:2!important;transform:translateX(-50%)!important;
-}
-html[data-theme]:not([data-theme="none"]) #products .lf-seasonal-decor--section,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon,
-html[data-theme]:not([data-theme="none"]) #storeDiscoveryIdeas .lf-seasonal-decor {
-  display:none!important;visibility:hidden!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament--right {
-  inset-inline-start:auto!important;inset-inline-end:10px!important;
-}
-@media(max-width:760px) {
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
-    min-height:94px!important;padding-inline:58px!important;
-  }
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
-    width:45px!important;height:45px!important;
-  }
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament--right {
-    inset-inline-end:4px!important;
-  }
-  html[data-theme]:not([data-theme="none"]) #cats {
-    padding-top:43px!important;
-  }
-  html[data-theme]:not([data-theme="none"]) #cats .lf-seasonal-decor--section {
-    width:34px!important;height:34px!important;top:4px!important;
-  }
-}
-
-
-/* v9: season-specific artwork occupies a dedicated band above category cards. */
-html[data-theme="ramadan"] #cats::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cpath%20d%3D%22M48%208a28%2028%200%201%200%2025%2043A30%2030%200%201%201%2048%208Z%22%20fill%3D%22%23e5ba70%22%20stroke%3D%22%2365405b%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M20%2043h24l-3%2024H23zM24%2039h16v5H24zm5-9h7v9h-7zm-7%2029h20%22%20fill%3D%22%23e1b6c6%22%20stroke%3D%22%2365405b%22%20stroke-width%3D%222%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M32%2048v12m-5-6h10%22%20stroke%3D%22%23fff2d8%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E")!important;}
-html[data-theme="eid-fitr"] #cats::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cpath%20d%3D%22M40%209%2049%2021l15-3-3%2015%2011%208-11%209%203%2015-15-3-9%2011-9-11-15%203%203-15-11-9%2011-8-3-15%2015%203Z%22%20fill%3D%22%23d9a477%22%20stroke%3D%22%23794a5d%22%20stroke-width%3D%222%22%20stroke-linejoin%3D%22round%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2241%22%20r%3D%2216%22%20fill%3D%22%23fff2dd%22%20stroke%3D%22%23794a5d%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M40%2026v30M25%2041h30M30%2031l20%2020m0-20L30%2051%22%20stroke%3D%22%23985c64%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2241%22%20r%3D%225%22%20fill%3D%22%23d8aa76%22%2F%3E%3C%2Fsvg%3E")!important;}
-html[data-theme="eid-adha"] #cats::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cpath%20d%3D%22M16%2032c-4-8%205-14%2012-10%204-7%2013-7%2018-1%208-4%2016%202%2015%2010%208%205%206%2014%200%2018%200%209-8%2013-16%209-7%206-15%204-20%200-8%203-15-3-13-11-8-4-6-12%204-15Z%22%20fill%3D%22%23fff0d7%22%20stroke%3D%22%2363433a%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M56%2029c6-7%2014-3%2016%204%203%208-1%2015-8%2016-8%200-12-6-12-12%200-3%201-6%204-8ZM58%2033c-7-5-10%202-5%207%202%202%206%203%208%200Z%22%20fill%3D%22%23ba8c65%22%20stroke%3D%22%2363433a%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M24%2051v14m11-12v12m13-13v13m10-16v16m-36%200h12m7%200h12m5%200h9%22%20stroke%3D%22%23765449%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E")!important;}
-html[data-theme="halloween"] #cats::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cpath%20d%3D%22M40%2022c-14-9-27%202-27%2020s12%2028%2027%2025c16%203%2028-10%2027-27S53%2013%2040%2022Z%22%20fill%3D%22%23df9363%22%20stroke%3D%22%2359364f%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M40%2022c-8%208-10%2034%200%2045%2010-10%208-37%200-45Z%22%20fill%3D%22%23d08b5a%22%20stroke%3D%22%2359364f%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M29%2042%2038%2038v10Zm22%200-9-4v10Zm-21%2012q10%209%2020%200%22%20fill%3D%22%23683f60%22%20stroke%3D%22%2359364f%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M39%2023c-2-8%203-13%2012-12%22%20fill%3D%22none%22%20stroke%3D%22%2359364f%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E")!important;}
-html[data-theme="christmas"] #cats::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cpath%20d%3D%22m40%207%205%2011%2012%201-9%208%203%2012-11-6-11%206%203-12-9-8%2012-1Z%22%20fill%3D%22%23e5ba70%22%20stroke%3D%22%236b3b47%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M40%2020%2025%2040h10L19%2056h15l-9%2012h30l-9-12h15L45%2040h10Z%22%20fill%3D%22%238fae88%22%20stroke%3D%22%23476c57%22%20stroke-width%3D%222%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M36%2068h8v7h-8zM40%2026v37m-14-7h28%22%20fill%3D%22%23ccab77%22%20stroke%3D%22%236b3b47%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%2234%22%20cy%3D%2243%22%20r%3D%222%22%20fill%3D%22%23fff2d8%22%2F%3E%3Ccircle%20cx%3D%2247%22%20cy%3D%2254%22%20r%3D%222%22%20fill%3D%22%23fff2d8%22%2F%3E%3C%2Fsvg%3E")!important;}
-html[data-theme="new-year"] #cats::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cpath%20d%3D%22m40%205%208%2024%2025%2011-25%208-8%2026-8-26-25-8%2025-11Z%22%20fill%3D%22%23e3c88e%22%20stroke%3D%22%2361415a%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22m40%2022%204%2013%2014%205-14%204-4%2014-4-14-14-4%2014-5Z%22%20fill%3D%22%23fff3dc%22%20stroke%3D%22%236e4d75%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%2265%22%20cy%3D%2217%22%20r%3D%223%22%20fill%3D%22%23c9a25f%22%2F%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%2262%22%20r%3D%223%22%20fill%3D%22%236e4d75%22%2F%3E%3C%2Fsvg%3E")!important;}
-html[data-theme="spring"] #cats::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cpath%20d%3D%22M40%2068V38m0%2018c-12%200-19-7-21-16%2012%200%2019%205%2021%2016Zm0-9c12%200%2019-7%2021-16-12%200-19%205-21%2016Z%22%20fill%3D%22%23abc98d%22%20stroke%3D%22%23586b4b%22%20stroke-width%3D%222%22%2F%3E%3Cg%20fill%3D%22%23e8a9ba%22%20stroke%3D%22%23586b4b%22%20stroke-width%3D%221.5%22%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2226%22%20r%3D%228%22%2F%3E%3Ccircle%20cx%3D%2229%22%20cy%3D%2227%22%20r%3D%227%22%2F%3E%3Ccircle%20cx%3D%2251%22%20cy%3D%2227%22%20r%3D%227%22%2F%3E%3Ccircle%20cx%3D%2234%22%20cy%3D%2217%22%20r%3D%227%22%2F%3E%3Ccircle%20cx%3D%2246%22%20cy%3D%2217%22%20r%3D%227%22%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2223%22%20r%3D%224%22%20fill%3D%22%23f0c574%22%2F%3E%3C%2Fsvg%3E")!important;}
-html[data-theme="summer"] #cats::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2229%22%20r%3D%2215%22%20fill%3D%22%23f0c574%22%20stroke%3D%22%23426c72%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M40%205v8m0%2032v8M16%2029h8m32%200h8M23%2012l6%206m22%2022%206%206m0-34-6%206M29%2040l-6%206%22%20stroke%3D%22%23426c72%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M9%2055c8-7%2015%207%2023%200s15%207%2023%200%2012%202%2016%204v12H9Z%22%20fill%3D%22%2370bcb6%22%20stroke%3D%22%23426c72%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M9%2067c8-7%2015%207%2023%200s15%207%2023%200%2012%202%2016%204%22%20fill%3D%22none%22%20stroke%3D%22%23fff1d4%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E")!important;}
-html[data-theme="autumn"] #cats::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cpath%20d%3D%22M40%2010c5%2014%2013%2013%2023%209-4%2011-2%2018%2010%2022-12%205-14%2013-9%2024-12-4-18-2-24%2010-6-13-13-18-25-14%204-12%202-19-10-24%2012-5%2015-12%2010-23%2012%204%2019%202%2025-4Z%22%20fill%3D%22%23dc9657%22%20stroke%3D%22%23704638%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M40%2017v49M37%2037%2023%2027m18%2020%2017-13M37%2053l-13-4m17-1%2014%205%22%20fill%3D%22none%22%20stroke%3D%22%23704638%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E")!important;}
-html[data-theme="winter"] #cats::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cpath%20d%3D%22M40%208v64M13%2024l54%2032M13%2056l54-32M31%2017l9%209%209-9m-18%2046%209-9%209%209M18%2033l13%202%202-13m29%2023-13-2-2%2013M18%2047l13-2%202%2013m29-21-13%202-2-13%22%20fill%3D%22none%22%20stroke%3D%22%23617c96%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2240%22%20r%3D%226%22%20fill%3D%22%23c2a5c7%22%20stroke%3D%22%23586b7e%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E")!important;}
-html[data-theme]:not([data-theme="none"]) #cats::before{
- content:"";position:absolute;z-index:4;top:4px;left:50%;transform:translateX(-50%);
- width:64px;height:64px;background-repeat:no-repeat;background-position:center;background-size:contain;
- pointer-events:none;filter:drop-shadow(0 3px 3px #51374a22);
-}
-html[data-theme]:not([data-theme="none"]) #cats{padding-top:78px!important;}
-@media(max-width:760px){
- html[data-theme]:not([data-theme="none"]) #cats::before{width:51px;height:51px;top:3px;}
- html[data-theme]:not([data-theme="none"]) #cats{padding-top:62px!important;}
-}
-
-/* v11: no seasonal badges on category photos. More seasonal detail stays in the clear space above the grid. */
-.lf-seasonal-category-art {display:none!important;visibility:hidden!important;}
-html[data-theme]:not([data-theme="none"]) #cats {padding-top:88px!important;}
-html[data-theme]:not([data-theme="none"]) #cats::before {
-  width:76px!important;height:72px!important;top:8px!important;z-index:4!important;
-}
-html[data-theme]:not([data-theme="none"]) #cats::after {
-  content:"";position:absolute;top:13px;left:50%;transform:translateX(-50%);
-  width:min(78%,360px);height:47px;box-sizing:border-box;z-index:3;
-  border-bottom:2px solid color-mix(in srgb,var(--season-accent) 70%,transparent);
-  border-radius:0 0 50% 50%;pointer-events:none;opacity:.78;
-  background:
-    radial-gradient(circle at 8% 70%,var(--season-accent) 0 2px,transparent 3px),
-    radial-gradient(circle at 22% 86%,var(--season-edge) 0 2px,transparent 3px),
-    radial-gradient(circle at 36% 96%,var(--season-accent) 0 2px,transparent 3px),
-    radial-gradient(circle at 64% 96%,var(--season-accent) 0 2px,transparent 3px),
-    radial-gradient(circle at 78% 86%,var(--season-edge) 0 2px,transparent 3px),
-    radial-gradient(circle at 92% 70%,var(--season-accent) 0 2px,transparent 3px);
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:76px!important;height:76px!important;}
-@media(max-width:760px) {
-  html[data-theme]:not([data-theme="none"]) #cats {padding-top:82px!important;}
-  html[data-theme]:not([data-theme="none"]) #cats::before {width:68px!important;height:64px!important;top:7px!important;}
-  html[data-theme]:not([data-theme="none"]) #cats::after {top:12px;width:88%;height:39px;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:52px!important;height:52px!important;}
-}
-
-
-/* v13: reserved Fananees artwork space; use the original seasonal motifs until official character files are supplied. */
-html[data-theme="eid-adha"] #cats::before {background-image:url("/seasonal-eid-adha-gifts.svg")!important;}
-html[data-theme="eid-adha"] #cats::before {
-  width:148px!important;height:72px!important;top:6px!important;background-size:contain!important;
-}
-@media(max-width:760px) {
-  html[data-theme="eid-adha"] #cats::before {width:138px!important;height:66px!important;top:6px!important;}
-}
-
-/* v14: vivid, theme-specific festive band in the clear space above category cards. */
-html[data-theme]:not([data-theme="none"]) #cats {
-  position:relative!important;padding-top:118px!important;
-  background:
-    radial-gradient(ellipse at 8% 4%,color-mix(in srgb,var(--season-icon-secondary) 17%,transparent),transparent 38%),
-    radial-gradient(ellipse at 92% 4%,color-mix(in srgb,var(--season-icon-main) 16%,transparent),transparent 38%),
-    linear-gradient(100deg,var(--season-tint),transparent 25%,transparent 75%,var(--season-tint))!important;
-}
-html[data-theme]:not([data-theme="none"]) #cats::before {
-  width:min(94%,390px)!important;height:96px!important;top:3px!important;
-  background-size:contain!important;filter:drop-shadow(0 5px 8px color-mix(in srgb,var(--season-dark) 25%,transparent))!important;
-}
-html[data-theme]:not([data-theme="none"]) #cats::after {
-  top:8px!important;width:min(96%,420px)!important;height:76px!important;
-  border:0!important;border-bottom:3px solid color-mix(in srgb,var(--season-accent) 76%,transparent)!important;
-  border-radius:0 0 50% 50%!important;opacity:.9!important;
-  background:
-    radial-gradient(circle,#fff4d7 0 2px,transparent 2.5px) 4% 43%/9px 9px no-repeat,
-    radial-gradient(circle,#e7a1b5 0 4px,#fff5e3 4.5px,transparent 6px) 13% 66%/13px 13px no-repeat,
-    radial-gradient(circle,#f1ce79 0 4px,#fff7e9 4.5px,transparent 6px) 23% 84%/13px 13px no-repeat,
-    radial-gradient(circle,#a7c9ad 0 4px,#fff7e9 4.5px,transparent 6px) 34% 95%/13px 13px no-repeat,
-    radial-gradient(circle,#c49acb 0 4px,#fff7e9 4.5px,transparent 6px) 44% 100%/13px 13px no-repeat,
-    radial-gradient(circle,#f1ce79 0 4px,#fff7e9 4.5px,transparent 6px) 56% 100%/13px 13px no-repeat,
-    radial-gradient(circle,#e7a1b5 0 4px,#fff5e3 4.5px,transparent 6px) 67% 95%/13px 13px no-repeat,
-    radial-gradient(circle,#a7c9ad 0 4px,#fff7e9 4.5px,transparent 6px) 77% 84%/13px 13px no-repeat,
-    radial-gradient(circle,#c49acb 0 4px,#fff7e9 4.5px,transparent 6px) 87% 66%/13px 13px no-repeat,
-    radial-gradient(circle,#fff4d7 0 2px,transparent 2.5px) 96% 43%/9px 9px no-repeat!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {
-  min-height:116px!important;padding-inline:92px!important;
-  background:
-    radial-gradient(circle at 4% 50%,color-mix(in srgb,var(--season-icon-main) 18%,transparent),transparent 28%),
-    radial-gradient(circle at 96% 50%,color-mix(in srgb,var(--season-icon-secondary) 18%,transparent),transparent 28%);
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {
-  display:block!important;visibility:visible!important;opacity:1!important;
-  width:70px!important;height:70px!important;
-  filter:drop-shadow(0 4px 7px color-mix(in srgb,var(--season-dark) 22%,transparent));
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider {
-  display:flex!important;visibility:visible!important;height:54px!important;gap:16px!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider::before,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider::after {
-  height:2px!important;background:linear-gradient(90deg,transparent,var(--season-edge),var(--season-accent),var(--season-edge),transparent)!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {
-  display:block!important;visibility:visible!important;width:38px!important;height:38px!important;
-  color:var(--season-icon-deep)!important;filter:drop-shadow(0 3px 5px color-mix(in srgb,var(--season-dark) 22%,transparent));
-}
-html[data-theme]:not([data-theme="none"]) .sectionTitle h2::after,
-html[data-theme]:not([data-theme="none"]) .featureTitle::after,
-html[data-theme]:not([data-theme="none"]) .lf-store-ideas-head h2::after {
-  content:none!important;display:none!important;
-}
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-decor--section,
-html[data-theme]:not([data-theme="none"]) #storeDiscoveryIdeas .lf-seasonal-decor,
-html[data-theme]:not([data-theme="none"]) .lf-seasonal-title-icon {
-  display:none!important;visibility:hidden!important;
-}
-@media(max-width:760px) {
-  html[data-theme]:not([data-theme="none"]) #cats {padding-top:106px!important;}
-  html[data-theme]:not([data-theme="none"]) #cats::before {width:96%!important;height:80px!important;top:3px!important;}
-  html[data-theme]:not([data-theme="none"]) #cats::after {top:5px!important;width:98%!important;height:64px!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__layout {min-height:94px!important;padding-inline:58px!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal__ornament {width:48px!important;height:48px!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider {height:48px!important;gap:10px!important;}
-  html[data-theme]:not([data-theme="none"]) .lf-seasonal-divider__icon {width:32px!important;height:32px!important;}
+  html[data-theme]:not([data-theme="none"]) .sectionTitle {border-radius:11px}
+  html[data-theme]:not([data-theme="none"]) #cats {padding:7px!important;border-radius:13px}
+  html[data-theme]:not([data-theme="none"]) .featureBlock,
+  html[data-theme]:not([data-theme="none"]) .lf-store-ideas {border-top-width:3px!important}
 }
 @media(prefers-reduced-motion:reduce) {
-  html[data-theme]:not([data-theme="none"]) * {scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important;}
-}
-
-/* Seasonal campaign panoramas supplied for the storefront: immersive at the top,
-   with category links left clear and untouched below. */
-html[data-theme]:not([data-theme="none"]) #lfSeasonalWelcome.lf-seasonal {
-  display:block!important;position:relative!important;isolation:isolate;overflow:hidden;
-  width:100%!important;max-width:1440px!important;margin:0 auto 14px!important;padding:0!important;
-  border:0!important;border-radius:0 0 18px 18px!important;background:#fbf4ec!important;
-  box-shadow:0 12px 34px #39213920!important;
-}
-.lf-seasonal__hero-link {display:block;width:100%;line-height:0;overflow:hidden;}
-.lf-seasonal__hero-image {display:block;width:100%;height:auto;max-height:none;object-fit:contain;}
-html[data-theme]:not([data-theme="none"]) #lfSeasonalWelcome .lf-seasonal__layout {display:none!important;}
-@media(max-width:760px) {
-  html[data-theme]:not([data-theme="none"]) #lfSeasonalWelcome.lf-seasonal {
-    margin:0 auto 9px!important;border-radius:0 0 12px 12px!important;
-  }
+  html[data-theme]:not([data-theme="none"]) *,
+  html[data-theme]:not([data-theme="none"]) *::before,
+  html[data-theme]:not([data-theme="none"]) *::after {scroll-behavior:auto!important;animation:none!important;transition:none!important}
 }
