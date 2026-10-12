@@ -32,3 +32,5 @@ body.lf-welcome-offer-open{overflow:hidden!important;overscroll-behavior:none!im
 .lf-welcome-offer__coupon strong{font-size:19px;letter-spacing:1px}
 .lf-welcome-offer__coupon button{border:0;border-radius:999px;padding:9px 12px;background:#63345e;color:#fff;font-weight:700}
 @media(max-width:480px){.lf-welcome-offer__coupon{flex-wrap:wrap}.lf-welcome-offer__product img{width:70px;height:70px;flex-basis:70px}}
+
+.lf-welcome-offer__announcement{margin:0 0 13px;padding:14px 16px;border:1px solid #ead2dd;border-radius:17px;background:linear-gradient(135deg,#fff,#f7e6ee);color:#63345e;font-size:clamp(17px,4vw,21px);font-weight:800;line-height:1.6;white-space:pre-line}
