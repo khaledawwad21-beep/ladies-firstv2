@@ -62,8 +62,8 @@ html[data-theme]:not([data-theme="none"]) #lfSeasonalWelcome:not([hidden]) {
 #lfSeasonalWelcome a,#lfSeasonalWelcome picture {display:block;width:100%;line-height:0}
 #lfSeasonalWelcome img {display:block;width:100%;height:auto;max-height:560px;object-fit:contain;object-position:center;background:var(--season-banner)}
 html[data-theme]:not([data-theme="none"]) #lfSeasonalWelcome::after {
-  content:"";display:block;height:42px;border-top:1px solid var(--season-edge);
-  background:var(--season-ornament) center/auto 38px no-repeat var(--season-banner);
+  content:"";display:block;height:60px;border-top:2px solid var(--season-edge);
+  background:var(--season-ornament) center/auto 54px no-repeat var(--season-banner);
 }
 .heroSlider .heroCard.lf-adaptive-slide {
   height:auto!important;min-height:0!important;max-height:min(760px,85dvh)!important;
@@ -85,16 +85,16 @@ html[data-theme]:not([data-theme="none"]) #lfSeasonalWelcome::after {
 /* Seasonal color is carried by section framing; product photography and labels stay clear. */
 html[data-theme]:not([data-theme="none"]) .sectionTitle {
   position:relative;
-  min-height:58px;
-  padding-inline-start:96px!important;
+  min-height:76px;
+  padding-inline-start:166px!important;
   border:1px solid var(--season-edge)!important;
-  border-inline-start:5px solid var(--season-main)!important;
-  background:linear-gradient(90deg,color-mix(in srgb,var(--season-main) 11%,#fff),#fffdfb 74%)!important;
+  border-inline-start:7px solid var(--season-main)!important;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--season-main) 18%,#fff),#fffdfb 76%)!important;
   border-radius:14px;
-  box-shadow:0 5px 18px var(--season-shadow);
+  box-shadow:0 7px 22px var(--season-shadow),inset 0 -3px 0 color-mix(in srgb,var(--season-accent) 42%,transparent);
 }
 html[data-theme]:not([data-theme="none"]) .sectionTitle::before {
-  content:"";position:absolute;left:12px;top:50%;width:78px;height:38px;
+  content:"";position:absolute;left:13px;top:50%;width:136px;height:52px;
   transform:translateY(-50%);background:var(--season-ornament) center/contain no-repeat;
   pointer-events:none;opacity:.96;
 }
@@ -119,10 +119,18 @@ html[data-theme]:not([data-theme="none"]) .cat {
 html[data-theme]:not([data-theme="none"]) .cat img {position:relative;z-index:1}
 html[data-theme]:not([data-theme="none"]) .featureBlock,
 html[data-theme]:not([data-theme="none"]) .lf-store-ideas {
+  position:relative;
   border:1px solid color-mix(in srgb,var(--season-edge) 70%,#fff)!important;
   border-top:4px solid var(--season-main)!important;
   background:linear-gradient(125deg,var(--season-wash),#fff 62%,color-mix(in srgb,var(--season-second) 10%,#fff))!important;
   box-shadow:0 10px 28px var(--season-shadow)!important;
+}
+html[data-theme]:not([data-theme="none"]) .featureBlock::before,
+html[data-theme]:not([data-theme="none"]) .lf-store-ideas::before {
+  content:"";position:absolute;z-index:2;top:-22px;left:50%;transform:translateX(-50%);
+  width:142px;height:48px;border-radius:30px 30px 8px 8px;
+  border:1px solid var(--season-edge);background:var(--season-ornament) center/132px 47px no-repeat var(--season-banner);
+  box-shadow:0 5px 14px var(--season-shadow);pointer-events:none;
 }
 html[data-theme]:not([data-theme="none"]) .featureCard,
 html[data-theme]:not([data-theme="none"]) .quickOfferCard,
@@ -135,8 +143,14 @@ html[data-theme]:not([data-theme="none"]) .fprice {color:var(--season-deep)!impo
 html[data-theme]:not([data-theme="none"]) .grid {background:linear-gradient(180deg,var(--season-wash),transparent 200px);border-radius:18px}
 html[data-theme]:not([data-theme="none"]) .storeSearchPanel {border-color:var(--season-edge)!important}
 html[data-theme]:not([data-theme="none"]) body > footer {
+  position:relative;
   border-top:4px solid var(--season-main)!important;
   background:linear-gradient(110deg,var(--season-wash),#fff 55%,color-mix(in srgb,var(--season-second) 11%,#fff))!important;
+}
+html[data-theme]:not([data-theme="none"]) body > footer::before {
+  content:"";position:absolute;top:-24px;left:50%;transform:translateX(-50%);
+  width:132px;height:46px;background:var(--season-ornament) center/124px 44px no-repeat var(--season-banner);
+  border:1px solid var(--season-edge);border-radius:28px 28px 8px 8px;pointer-events:none;
 }
 @media(max-width:760px) {
   html[data-theme]:not([data-theme="none"]) .bottomNav {border-top-color:var(--season-accent)!important}
@@ -145,8 +159,12 @@ html[data-theme]:not([data-theme="none"]) body > footer {
 }
 
 @media(max-width:760px) {
-  html[data-theme]:not([data-theme="none"]) .sectionTitle {border-radius:11px;min-height:52px;padding-inline-start:82px!important}
-  html[data-theme]:not([data-theme="none"]) .sectionTitle::before {left:8px;width:66px;height:32px}
+  html[data-theme]:not([data-theme="none"]) .sectionTitle {border-radius:11px;min-height:64px;padding-inline-start:105px!important}
+  html[data-theme]:not([data-theme="none"]) .sectionTitle::before {left:7px;width:88px;height:36px}
+  html[data-theme]:not([data-theme="none"]) #lfSeasonalWelcome::after {height:46px;background-size:auto 42px}
+  html[data-theme]:not([data-theme="none"]) .featureBlock::before,
+  html[data-theme]:not([data-theme="none"]) .lf-store-ideas::before,
+  html[data-theme]:not([data-theme="none"]) body > footer::before {width:66px;height:30px;top:-14px;background-size:62px 22px}
   html[data-theme]:not([data-theme="none"]) #cats {padding:7px!important;border-radius:13px}
   html[data-theme]:not([data-theme="none"]) .featureBlock,
   html[data-theme]:not([data-theme="none"]) .lf-store-ideas {border-top-width:3px!important}
