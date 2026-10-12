@@ -1164,7 +1164,7 @@ let nayaCurrentAudio=null,nayaCurrentAudioUrl='',nayaCurrentSpeechButton=null,na
 function stopNayaAudio(){
  if(nayaCurrentAudio){try{nayaCurrentAudio.pause();nayaCurrentAudio.currentTime=0}catch{}nayaCurrentAudio=null}
  if(nayaCurrentAudioUrl){URL.revokeObjectURL(nayaCurrentAudioUrl);nayaCurrentAudioUrl=''}
- if(nayaCurrentSpeechButton){nayaCurrentSpeechButton.disabled=false;nayaCurrentSpeechButton.textContent='استمعي للرد';nayaCurrentSpeechButton.dataset.loading='false';nayaCurrentSpeechButton=null}
+ if(nayaCurrentSpeechButton){nayaCurrentSpeechButton.disabled=false;nayaCurrentSpeechButton.title='استمعي للرد بصوت نايا';nayaCurrentSpeechButton.dataset.loading='false';nayaCurrentSpeechButton=null}
  if(nayaCurrentStopButton){nayaCurrentStopButton.disabled=true;nayaCurrentStopButton=null}
 }
 function nayaFinishAudio(audio,playButton,stopButton){
@@ -1172,7 +1172,7 @@ function nayaFinishAudio(audio,playButton,stopButton){
  nayaCurrentAudio=null;
  if(nayaCurrentAudioUrl){URL.revokeObjectURL(nayaCurrentAudioUrl);nayaCurrentAudioUrl=''}
  nayaCurrentSpeechButton=null;nayaCurrentStopButton=null;
- playButton.disabled=false;playButton.dataset.loading='false';playButton.textContent='إعادة الاستماع';
+ playButton.disabled=false;playButton.dataset.loading='false';playButton.title='إعادة الاستماع';
  stopButton.disabled=true;
 }
 async function nayaCreateAudio(response){
@@ -1216,14 +1216,14 @@ async function nayaCreateAudio(response){
 }
 async function nayaSpeak(text,button,stopButton){
  if(!button||button.dataset.loading==='true')return;
- stopNayaAudio();button.dataset.loading='true';button.disabled=true;button.textContent='جارٍ تجهيز الصوت…';
+ stopNayaAudio();button.dataset.loading='true';button.disabled=true;button.title='جارٍ تجهيز الصوت…';
  try{
   const spoken=String(text||'').replace(/https?:\/\/(?:www\.)?wa\.me\/[^\s]+/gi,'تواصلي مع المتجر عبر واتساب.');
   const response=await fetch('/api/ai/tts',{method:'POST',headers:await window.lfAiHeaders(),cache:'no-store',body:JSON.stringify({text:spoken.slice(0,1200)})});
   if(!response.ok){const detail=await response.json().catch(()=>({}));throw new Error(detail.message||'تعذر تشغيل صوت نايا الآن.')}
   const {audio,url}=await nayaCreateAudio(response);
   nayaCurrentAudio=audio;nayaCurrentAudioUrl=url;nayaCurrentSpeechButton=button;nayaCurrentStopButton=stopButton;
-  button.disabled=false;button.textContent='نايا تتحدث…';stopButton.disabled=false;
+  button.disabled=false;button.title='نايا تتحدث…';stopButton.disabled=false;
   await new Promise((resolve,reject)=>{
    audio.addEventListener('ended',resolve,{once:true});
    audio.addEventListener('pause',resolve,{once:true});
@@ -1259,7 +1259,7 @@ function nayaAddMessage(text,user=false){
   const controls=document.createElement('div');controls.className='naya-voice-controls';
   const listen=document.createElement('button'),stop=document.createElement('button');
   listen.type=stop.type='button';listen.className='naya-speak';stop.className='naya-stop-speak';
-  listen.textContent='استمعي للرد';stop.textContent='إيقاف الصوت';stop.disabled=true;
+  listen.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"></path><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"></path></svg>';stop.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>';listen.title='استمعي للرد بصوت نايا';stop.title='إيقاف الصوت';stop.disabled=true;
   listen.setAttribute('aria-label','استمعي إلى رد نايا بصوت مولد بالذكاء الاصطناعي');stop.setAttribute('aria-label','إيقاف صوت نايا');
   listen.addEventListener('click',()=>nayaSpeak(text,listen,stop));stop.addEventListener('click',stopNayaAudio);
   controls.append(listen,stop);div.appendChild(controls);
