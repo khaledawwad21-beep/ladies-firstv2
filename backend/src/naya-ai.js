@@ -149,6 +149,28 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
    return false;
   }
  }
+ router.post("/transcribe",optionalAuth||((_req,_res,next)=>next()),express.raw({type:()=>true,limit:"8mb"}),async(req,res)=>{
+  res.set("Cache-Control","no-store");
+  if(!await checkLimit(req,res,{scope:"naya-transcribe",limit:10,code:"NAYA_TRANSCRIBE_RATE_LIMIT",message:"جربي تسجيل سؤالك بعد دقائق."}))return;
+  if(!Buffer.isBuffer(req.body)||!req.body.length)return res.status(400).json({ok:false,code:"NAYA_AUDIO_REQUIRED",message:"ما وصل تسجيل صوتي."});
+  const mime=String(req.get("content-type")||"").split(";")[0].trim().toLowerCase();
+  const extensions={"audio/webm":"webm","audio/mp4":"mp4","audio/ogg":"ogg","audio/wav":"wav","audio/mpeg":"mp3","audio/mpga":"mpga","audio/m4a":"m4a","audio/flac":"flac"};
+  if(!extensions[mime])return res.status(415).json({ok:false,code:"NAYA_AUDIO_TYPE_UNSUPPORTED",message:"صيغة التسجيل غير مدعومة. جرّبي مرة ثانية."});
+  const key=clean(env.OPENAI_API_KEY,500);
+  if(!key)return res.status(503).json({ok:false,code:"NAYA_AI_NOT_CONFIGURED",message:"تحويل الصوت إلى نص غير متاح حاليًا."});
+  try{
+   const form=new FormData();
+   form.append("file",new Blob([req.body],{type:mime}),"customer-question."+extensions[mime]);
+   form.append("model","gpt-4o-mini-transcribe");
+   form.append("language","ar");
+   form.append("prompt","فرّغ التسجيل بالعربية كما قيل، مع الحفاظ على اللهجة الفلسطينية وأسماء متجر Ladies First والمنتجات.");
+   const r=await fetchImpl("https://api.openai.com/v1/audio/transcriptions",{method:"POST",headers:{Authorization:"Bearer "+key},body:form,signal:AbortSignal.timeout(30000)});
+   if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_TRANSCRIBE_BUSY":"NAYA_TRANSCRIBE_UPSTREAM",message:"تعذر تحويل التسجيل إلى نص الآن."});
+   const result=await r.json(),textValue=clean(result?.text,1000);
+   if(!textValue)return res.status(422).json({ok:false,code:"NAYA_TRANSCRIBE_EMPTY",message:"ما وصل كلام واضح في التسجيل. جرّبي مرة ثانية."});
+   return res.json({ok:true,text:textValue});
+  }catch{return res.status(502).json({ok:false,code:"NAYA_TRANSCRIBE_UNAVAILABLE",message:"تعذر تحويل التسجيل إلى نص الآن."})}
+ });
  router.post("/tts",optionalAuth||((_req,_res,next)=>next()),async(req,res)=>{
   res.set("Cache-Control","no-store");
   if(!await checkLimit(req,res,{scope:"naya-tts",limit:10,code:"NAYA_TTS_RATE_LIMIT",message:"جربي الاستماع بعد دقائق."}))return;
@@ -157,10 +179,10 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   const key=clean(env.OPENAI_API_KEY,500);
   if(!key)return res.status(503).json({ok:false,code:"NAYA_AI_NOT_CONFIGURED",message:"الصوت غير متاح حاليًا."});
   const allowedVoices=new Set(["alloy","ash","ballad","coral","echo","fable","nova","onyx","sage","shimmer","verse","marin","cedar"]);
-  const configuredVoice=clean(env.NAYA_TTS_VOICE||env.OPENAI_TTS_VOICE||"coral",20);
-  const voice=allowedVoices.has(configuredVoice)?configuredVoice:"coral";
+  const configuredVoice=clean(env.NAYA_TTS_VOICE||env.OPENAI_TTS_VOICE||"marin",20);
+  const voice=allowedVoices.has(configuredVoice)?configuredVoice:"marin";
   try{
-   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,instructions:"تحدثي بصوت أنثوي دافئ وواضح، بلهجة فلسطينية حضرية طبيعية، وبأسلوب مستشارة مبيعات لبقة. انطقي النص العربي كما هو، من دون إضافة كلمات."})});
+   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,instructions:"تحدثي بصوت أنثوي طبيعي ودافئ وغير متكلّف، بلهجة فلسطينية حضرية واضحة. استخدمي نبرة حوارية ودودة وإيقاعًا متنوعًا وسرعة معتدلة، وانطقي النص العربي كما هو من دون إضافة كلمات."})});
    if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_TTS_BUSY":"NAYA_TTS_UPSTREAM",message:"تعذر تشغيل صوت نايا الآن."});
    const audio=await r.arrayBuffer();
    res.set("Content-Type","audio/mpeg");

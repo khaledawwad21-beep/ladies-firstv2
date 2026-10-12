@@ -43,6 +43,29 @@ test("Naya defaults to the selected cost-efficient OpenAI model",async t=>{
  assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).model,"gpt-6-luna");
 });
 
+test("Naya transcribes Arabic customer audio without exposing the server key",async t=>{
+ let captured;
+ const app=express();app.use(express.json());
+ app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async(url,o)=>{captured={url,o};return{ok:true,json:async()=>({text:"بدي ساعة هدية"})}}}));
+ const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
+ const audio=Buffer.from([1,2,3,4]);
+ const res=await fetch(`http://127.0.0.1:${server.address().port}/api/ai/transcribe`,{method:"POST",headers:{"Content-Type":"audio/webm;codecs=opus"},body:audio});
+ const result=await res.json();
+ assert.equal(res.status,200);assert.deepEqual(result,{ok:true,text:"بدي ساعة هدية"});
+ assert.equal(captured.url,"https://api.openai.com/v1/audio/transcriptions");assert.equal(captured.o.headers.Authorization,"Bearer secret");
+ const form=captured.o.body;assert.equal(form.get("model"),"gpt-4o-mini-transcribe");assert.equal(form.get("language"),"ar");
+ const file=form.get("file");assert.equal(file.type,"audio/webm");assert.equal(file.name,"customer-question.webm");assert.deepEqual(Buffer.from(await file.arrayBuffer()),audio);
+});
+
+test("Naya transcription has its own rate limit",async t=>{
+ let captured;
+ const app=express();app.use(express.json());
+ app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},rateLimiter:async input=>{captured=input;return{allowed:false,retryAfterSeconds:30,requestCount:11}}}));
+ const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
+ const res=await fetch(`http://127.0.0.1:${server.address().port}/api/ai/transcribe`,{method:"POST",headers:{"Content-Type":"audio/webm"},body:Buffer.from([1])});
+ assert.equal(res.status,429);assert.equal(captured.scope,"naya-transcribe");assert.equal(captured.limit,10);
+});
+
 test("Naya voice endpoint uses the server key and returns uncached audio",async t=>{
  let captured;
  const bytes=Buffer.from([1,2,3,4]);
@@ -52,7 +75,7 @@ test("Naya voice endpoint uses the server key and returns uncached audio",async 
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا وسهلًا سيدتي"})});
  assert.equal(res.status,200);assert.equal(res.headers.get("content-type"),"audio/mpeg");assert.equal(res.headers.get("cache-control"),"no-store");
  assert.equal(captured.url,"https://api.openai.com/v1/audio/speech");assert.equal(captured.o.headers.Authorization,"Bearer secret");
- const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"coral");assert.match(payload.instructions,/فلسطينية حضرية/);
+ const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"marin");assert.match(payload.instructions,/صوت أنثوي طبيعي/);assert.match(payload.instructions,/فلسطينية حضرية/);
  assert.deepEqual(Buffer.from(await res.arrayBuffer()),bytes);
 });
 
