@@ -1,6 +1,6 @@
 'use strict';
 
-let offerProducts=[],offerBusy=false,offerLoad=0,welcomeConfig={enabled:false,productIds:[],startAt:'',endAt:'',couponCode:'',headline:''},welcomeCoupons=[];
+let offerProducts=[],offerBusy=false,offerLoad=0,welcomeConfig={enabled:false,scope:'all',productIds:[],categoryName:'',offerText:'',startAt:'',endAt:'',couponCode:'',headline:''},welcomeCoupons=[];
 
 function offerProductImage(p){
   const main=Array.isArray(p?.mainImages)?p.mainImages.find(Boolean):'';
@@ -19,7 +19,7 @@ window.offers=async function offers(){
       api('/api/admin/settings').catch(()=>({settings:{}})),
       api('/api/admin/coupons').catch(()=>({coupons:[]}))
     ]);
-    welcomeConfig={enabled:false,productIds:[],startAt:'',endAt:'',couponCode:'',headline:'',...(settings.settings?.welcome_offer||{})};
+    welcomeConfig={enabled:false,scope:'all',productIds:[],categoryName:'',offerText:'',startAt:'',endAt:'',couponCode:'',headline:'',...(settings.settings?.welcome_offer||{})};
     welcomeCoupons=(couponData.coupons||[]).filter(c=>c.is_active!==false);
     $('#sections').innerHTML=`<div class="card"><h2>Top 5 والعروض السريعة</h2>
       <p>ابحثي عن المنتج مباشرة، ثم عدّلي سعر العرض والسعر الأصلي ومكان ظهوره وتاريخ انتهاء العرض.</p>
@@ -32,16 +32,28 @@ window.offers=async function offers(){
       <p id="offerMessage" role="status"></p>
     </div>
     <div class="card" style="margin-top:18px"><h2>نافذة الترحيب والعرض المؤقت</h2>
-      <p class="small-note">اختاري الأصناف التي تظهر للزوار، وحددي موعد البداية والنهاية ليعمل العداد تلقائيًا. يمكن إضافة كوبون فعّال للإعلان عنه.</p>
+      <p class="small-note">اختاري الإعلان على كل المنتجات أو فئة أو أصناف محددة، واكتبي رسالة الخصم أو الكوبون وحددي مدة ظهوره.</p>
       <div class="formgrid">
         <label class="full"><input id="welcomeEnabled" type="checkbox"> تفعيل نافذة الترحيب</label>
+        <label class="full">نطاق الإعلان
+          <select id="welcomeScope" class="field" onchange="offerWelcomeScopeChange()">
+            <option value="all">كل المنتجات</option><option value="category">فئة محددة</option><option value="products">أصناف أختارها</option>
+          </select>
+        </label>
+        <label id="welcomeCategoryField" class="full" style="display:none">الفئة المعلَن عنها
+          <select id="welcomeCategory" class="field"></select>
+        </label>
+        <label id="welcomeProductsHeading" class="full" style="display:none;margin-top:8px">الأصناف التي تظهر في النافذة
+          <input id="welcomeSearch" class="field" placeholder="ابحثي باسم الصنف أو البراند" oninput="offerRenderWelcomeProducts()">
+        </label>
+        <div id="welcomeProductPicker" class="full" style="display:none;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px"></div>
         <label class="full">عنوان النافذة<input id="welcomeHeadline" class="field" maxlength="100" placeholder="مثال: عروض لفترة محدودة"></label>
+        <label class="full">نص الإعلان<textarea id="welcomeOfferText" class="field" rows="3" maxlength="240" placeholder="مثال: خصم 50٪ على كل المنتجات — استغلي كوبونك قبل انتهاء العرض"></textarea></label>
         <label>بداية الحملة<input id="welcomeStart" class="field" type="datetime-local"></label>
-        <label>نهاية الحملة<input id="welcomeEnd" class="field" type="datetime-local"></label>
+        <label>نهاية الحملة / نهاية الكوبون<input id="welcomeEnd" class="field" type="datetime-local"></label>
         <label class="full">كوبون الإعلان<select id="welcomeCoupon" class="field"><option value="">بدون كوبون</option></select></label>
       </div>
-      <label class="full" style="display:block;margin-top:12px">ابحثي عن الأصناف<input id="welcomeSearch" class="field" placeholder="اسم الصنف أو البراند" oninput="offerRenderWelcomeProducts()"></label>
-      <div id="welcomeProductPicker" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px"></div>
+      <p class="small-note">نص الإعلان للترويج فقط؛ جهّزي الخصم أو الكوبون من إعداداتهما، وحددي هنا نطاق الإعلان وموعد انتهائه للعداد.</p>
       <p id="welcomeCampaignMessage" role="status"></p>
       <button type="button" class="btn primary" onclick="saveWelcomeCampaign()">حفظ نافذة الترحيب</button>
     </div>`;
@@ -164,17 +176,32 @@ function offerLocalDateTime(value){
 }
 function offerInitWelcome(){
   const config=welcomeConfig||{};
+  config.productIds=Array.isArray(config.productIds)?config.productIds:[];
+  if(!config.scope)config.scope=config.productIds.length?'products':'all';
   $('#welcomeEnabled').checked=config.enabled===true;
   $('#welcomeHeadline').value=config.headline||'';
+  $('#welcomeOfferText').value=config.offerText||'';
   $('#welcomeStart').value=offerLocalDateTime(config.startAt);
   $('#welcomeEnd').value=offerLocalDateTime(config.endAt);
+  $('#welcomeScope').value=['all','category','products'].includes(config.scope)?config.scope:'all';
+  const categories=[...new Set(offerProducts.map(p=>String(p.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
+  $('#welcomeCategory').innerHTML=categories.map(name=>'<option value="'+E(name)+'">'+E(name)+'</option>').join('')||'<option value="">لا توجد فئات</option>';
+  $('#welcomeCategory').value=categories.includes(config.categoryName)?config.categoryName:(categories[0]||'');
   $('#welcomeCoupon').innerHTML='<option value="">بدون كوبون</option>'+welcomeCoupons.map(c=>'<option value="'+E(c.code)+'">'+E(c.code)+' — '+E(c.discount_type==='percent'?Number(c.discount_value)+'%':M(c.discount_value)+' ₪')+'</option>').join('');
   $('#welcomeCoupon').value=welcomeCoupons.some(c=>String(c.code).toUpperCase()===String(config.couponCode||'').toUpperCase())?config.couponCode:'';
-  offerRenderWelcomeProducts();
+  offerWelcomeScopeChange();
 }
+window.offerWelcomeScopeChange=function offerWelcomeScopeChange(){
+  const scope=$('#welcomeScope')?.value||'all';
+  const cat=$('#welcomeCategoryField'),productsTitle=$('#welcomeProductsHeading'),picker=$('#welcomeProductPicker');
+  if(cat)cat.style.display=scope==='category'?'block':'none';
+  if(productsTitle)productsTitle.style.display=scope==='products'?'block':'none';
+  if(picker)picker.style.display=scope==='products'?'grid':'none';
+  if(scope==='products')offerRenderWelcomeProducts();
+};
 window.offerRenderWelcomeProducts=function offerRenderWelcomeProducts(){
   const box=$('#welcomeProductPicker');
-  if(!box)return;
+  if(!box||$('#welcomeScope')?.value!=='products')return;
   const q=String($('#welcomeSearch')?.value||'').trim().toLowerCase();
   const chosen=new Set((welcomeConfig.productIds||[]).map(Number));
   const matches=offerProducts.filter(p=>!q||[p.name||'',p.brand||'',p.category||''].join(' ').toLowerCase().includes(q)).slice(0,40);
@@ -195,17 +222,21 @@ window.offerToggleWelcomeProduct=function offerToggleWelcomeProduct(id,checked){
 };
 window.saveWelcomeCampaign=async function saveWelcomeCampaign(){
   const message=$('#welcomeCampaignMessage');
+  const scope=$('#welcomeScope')?.value||'all';
+  const productIds=scope==='products'?(welcomeConfig.productIds||[]).map(Number):[];
+  const categoryName=scope==='category'?$('#welcomeCategory')?.value||'':'';
   const startRaw=$('#welcomeStart')?.value||'',endRaw=$('#welcomeEnd')?.value||'';
-  const productIds=(welcomeConfig.productIds||[]).map(Number);
   const enabled=$('#welcomeEnabled')?.checked===true;
-  if(enabled&&(!productIds.length||!startRaw||!endRaw)){message.textContent='فعّلي الحملة بعد اختيار صنف واحد على الأقل وتحديد البداية والنهاية.';return}
+  if(enabled&&(!startRaw||!endRaw||(scope==='products'&&!productIds.length)||(scope==='category'&&!categoryName))){
+    message.textContent='حددي نطاق الإعلان وتاريخ البداية والنهاية قبل تفعيل النافذة.';return;
+  }
   const startAt=startRaw?new Date(startRaw).toISOString():'',endAt=endRaw?new Date(endRaw).toISOString():'';
-  if(startAt&&endAt&&Date.parse(startAt)>=Date.parse(endAt)){message.textContent='تاريخ البداية يجب أن يسبق تاريخ النهاية.';return}
-  const payload={welcome_offer:{enabled,productIds,startAt,endAt,couponCode:$('#welcomeCoupon')?.value||'',headline:$('#welcomeHeadline')?.value.trim()||''}};
+  if(startAt&&endAt&&Date.parse(startAt)>=Date.parse(endAt)){message.textContent='تاريخ البداية يجب أن يسبق النهاية.';return}
+  const payload={welcome_offer:{enabled,scope,productIds,categoryName,offerText:$('#welcomeOfferText')?.value.trim()||'',startAt,endAt,couponCode:$('#welcomeCoupon')?.value||'',headline:$('#welcomeHeadline')?.value.trim()||''}};
   message.textContent='جاري الحفظ…';
   try{
     await api('/api/admin/settings',{method:'PUT',body:JSON.stringify(payload)});
     welcomeConfig=payload.welcome_offer;
-    message.textContent='تم حفظ إعدادات نافذة الترحيب والعداد.';
+    message.textContent='تم حفظ إعدادات الإعلان والعداد.';
   }catch(e){message.textContent=e.message||'تعذر حفظ الإعدادات.'}
 };
