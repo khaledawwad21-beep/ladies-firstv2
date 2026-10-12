@@ -53,7 +53,7 @@ test("Naya transcribes Arabic customer audio without exposing the server key",as
  const result=await res.json();
  assert.equal(res.status,200);assert.deepEqual(result,{ok:true,text:"بدي ساعة هدية"});
  assert.equal(captured.url,"https://api.openai.com/v1/audio/transcriptions");assert.equal(captured.o.headers.Authorization,"Bearer secret");
- const form=captured.o.body;assert.equal(form.get("model"),"gpt-4o-mini-transcribe");assert.equal(form.get("language"),"ar");
+ const form=captured.o.body;assert.equal(form.get("model"),"gpt-4o-mini-transcribe");assert.equal(form.get("language"),"ar");assert.match(form.get("prompt"),/حافظ على لهجة المتحدث من دون تحويلها إلى لهجة أخرى/);
  const file=form.get("file");assert.equal(file.type,"audio/webm");assert.equal(file.name,"customer-question.webm");assert.deepEqual(Buffer.from(await file.arrayBuffer()),audio);
 });
 
@@ -121,7 +121,7 @@ test("Naya prompts keep Syrian dialect consistent after conversation history",()
  const messages=buildNayaMessages({message:"أريد عطرًا",catalog:[],history:[{role:"assistant",content:"مرحبا"}],whatsappNumber:"+972 (56) 249-9924"});
  const prompt=messages.find(x=>x.role==="system").content;
  const reminder=messages.at(-2).content;
- for(const phrase of ["موظفة مبيعات ودودة","بلهجة سورية مدينية محكية","أهلين، كيفك؟ شو عم تدوري عليه؟","إذا بتحبي، فيني ساعدك","هاي القطعة كتير حلوة وبتليقلك","هلأ بشوفلك شو متوفر","بتأكدلك من فريق المتجر وبرجعلك","972562499924","https://wa.me/972562499924?text="])assert.ok(prompt.includes(phrase),phrase);
+ for(const phrase of ["موظفة مبيعات ودودة","بلهجة سورية مدينية محكية","أهلين، كيفك؟ شو عم تدوري عليه؟","إذا بتحبي، فيني ساعدك","هاي القطعة كتير حلوة وبتليقلك","هلأ بشوفلك شو متوفر","رح أتأكدلك من فريق المتجر وبرجعلك","972562499924","https://wa.me/972562499924?text="])assert.ok(prompt.includes(phrase),phrase);
  assert.match(reminder,/لهجة سورية مدينية محكية/);
  assert.match(reminder,/حتى لو كانت صياغة الردود السابقة مختلفة/);
  assert.doesNotMatch(prompt,/سأسأل الفريق|سأبحث لك|هل ترغبين/);
