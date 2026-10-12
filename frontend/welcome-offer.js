@@ -1,7 +1,6 @@
 /* Configurable welcome campaign popup. */
 (() => {
   'use strict';
-  const COOLDOWN_MS=24*60*60*1000;
   const money=v=>`${Number(v).toLocaleString('en-US',{maximumFractionDigits:2})} ₪`;
   const productList=()=>{try{return Array.isArray(products)?products:[]}catch{return[]}};
   const stock=p=>{try{return typeof totalStock==='function'?totalStock(p):Number(p?.stock)||0}catch{return 0}};
@@ -47,7 +46,6 @@
     const config=await loadCampaign();
     if(!config||config.enabled!==true||!config.startAt||!config.endAt)return false;
     const now=Date.now(),start=Date.parse(config.startAt),end=Date.parse(config.endAt);if(!Number.isFinite(start)||!Number.isFinite(end)||now<start||now>=end)return false;
-    const key='lf_welcome_offer_seen_v2_'+String(end),seen=Number(localStorage.getItem(key))||0;if(now-seen<COOLDOWN_MS)return false;
     const scope=config.scope||((config.productIds||[]).length?'products':'all');
     const catalog=productList().filter(p=>stock(p)>0);
     const items=scope==='products'
@@ -57,7 +55,7 @@
         :[];
     if(scope==='products'&&!items.length)return false;
     if(document.getElementById('nayaAssistant')?.classList.contains('open')||document.querySelector('.lf-idea-modal[aria-hidden="false"],.lfImageZoom.open'))return false;
-    if(!makePopup(config,items))return false;localStorage.setItem(key,String(now));return true;
+    if(!makePopup(config,items))return false;return true;
   }
   function start(){let attempts=0;const timer=window.setInterval(async()=>{attempts++;if(await tryShow()||attempts>=40)window.clearInterval(timer)},1000)}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
