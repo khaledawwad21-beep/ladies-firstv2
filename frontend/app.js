@@ -1408,7 +1408,7 @@ function nayaCustomerProfileForAi(q){
 }
 function nayaClientId(){try{let id=localStorage.getItem('lf_naya_client_id');if(!/^[A-Za-z0-9_-]{16,100}$/.test(id||'')){id=window.crypto?.randomUUID?.()||'lf-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem('lf_naya_client_id',id)}return id}catch{return ''}}
 async function nayaAnswer(q){const local=nayaLocalAnswer(q);if(local)return{...local,_local:true};const customerProfile=nayaCustomerProfileForAi(q);const response=await fetch('/api/ai/chat',{method:'POST',headers:await window.lfAiHeaders(),cache:'no-store',body:JSON.stringify({message:q,clientId:nayaClientId(),history:nayaAiHistory.slice(-8),...(customerProfile?{customerProfile}:{})})});const result=await response.json().catch(()=>({}));if(!response.ok||!result.ok)throw new Error(result.message||'نايا الذكية غير متاحة الآن. جربي بعد شوي.');return{reply:String(result.reply||'كيف أقدر أساعدكِ؟'),recommendations:Array.isArray(result.recommendations)?result.recommendations:[]}}
-async function sendNaya(){const input=document.getElementById('nayaInput');if(!input||input.dataset.sending==='true')return;const q=input.value.trim();if(!q)return;input.value='';input.dataset.sending='true';nayaAddMessage(q,true);try{const result=await nayaAnswer(q),node=nayaAddMessage(result.reply,false);if(!result._local){nayaAiHistory.push({role:'user',content:q},{role:'assistant',content:result.reply});nayaAiHistory=nayaAiHistory.slice(-8)}nayaAppendRecommendations(result.recommendations,node);if(result._offers)nayaAppendOfferBrowser(node,q)}catch(error){nayaAddMessage(error.message||'تعذر الاتصال بنايا الآن. جربي بعد شوي.',false)}finally{input.dataset.sending='false';input.focus()}}
+async function sendNaya({focusInput=true}={}){const input=document.getElementById('nayaInput');if(!input||input.dataset.sending==='true')return;const q=input.value.trim();if(!q)return;input.value='';input.dataset.sending='true';const sendButton=document.querySelector('#nayaAssistant .naya-send');if(sendButton)sendButton.disabled=true;nayaAddMessage(q,true);const pending=nayaAddMessage('هلّق بشوفلك…',false);pending.classList.add('naya-pending');try{const result=await nayaAnswer(q),node=nayaAddMessage(result.reply,false);if(!result._local){nayaAiHistory.push({role:'user',content:q},{role:'assistant',content:result.reply});nayaAiHistory=nayaAiHistory.slice(-8)}nayaAppendRecommendations(result.recommendations,node);if(result._offers)nayaAppendOfferBrowser(node,q)}catch(error){nayaAddMessage(error.message||'نايا الذكية مش متاحة هلّق. جرّبي كمان شوي.',false)}finally{pending.remove();input.dataset.sending='false';if(sendButton)sendButton.disabled=false;if(focusInput&&document.activeElement===input)input.focus()}}
 let nayaRecorder=null,nayaMicStream=null,nayaVoiceChunks=[],nayaVoiceTimer=null,nayaCancelVoice=false;
 const nayaMicIcon='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V21h2v-3.07A7 7 0 0 0 19 11h-2Z"/></svg>';
 const nayaStopIcon='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
@@ -1464,11 +1464,11 @@ async function transcribeNayaVoice(blob){
   if(input){input.value=transcript;input.disabled=false}
   if(sendButton)sendButton.disabled=false;
   nayaVoiceStatus('تم تحويل رسالتك وإرسالها لنايا…');
-  await sendNaya();
+  await sendNaya({focusInput:false});
  }catch(error){nayaVoiceStatus(error.message||'تعذر تحويل التسجيل إلى نص.');if(input)input.disabled=false;if(sendButton)sendButton.disabled=false}
  finally{if(button)button.disabled=false}
 }
-function nayaQuick(text){const input=document.getElementById('nayaInput');if(input){input.value=text;sendNaya()}}
+function nayaQuick(text){const input=document.getElementById('nayaInput');if(input){input.value=text;sendNaya({focusInput:false})}}
 let storefrontAnnouncementPoll=null;
 async function refreshStorefrontAnnouncement(){
   try{

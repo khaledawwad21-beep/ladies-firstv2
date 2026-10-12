@@ -70,7 +70,14 @@ test("changed message scripts use fresh cache versions",()=>{
   assert.match(adminHtml,/admin-conversations\.js\?v=20261009-close-order-modal1/);
   assert.match(adminHtml,/admin-product-upload\.js\?v=20261011-media3/);
   assert.match(adminHtml,/data-s="messages"/);
-  assert.match(indexHtml,/app\.js\?v=20261013-naya-all-categories/);
+  assert.match(indexHtml,/app\.js\?v=20261013-naya-no-autofill-wait-status/);
+});
+
+test("Naya chat avoids browser password autofill and refocusing after quick replies",()=>{
+  assert.match(indexHtml,/<input id="nayaInput" type="search" name="naya_message" autocomplete="off"/);
+  assert.match(indexHtml,/data-form-type="other" data-lpignore="true" data-1p-ignore="true"/);
+  assert.match(app,/function nayaQuick\(text\)[\s\S]{0,180}sendNaya\(\{focusInput:false\}\)/);
+  assert.match(app,/هلّق بشوفلك…/);
 });
 
 
