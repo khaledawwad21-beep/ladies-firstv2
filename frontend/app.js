@@ -1159,11 +1159,74 @@ function saveNayaBodyProfile(){const consent=document.getElementById('nayaBodyCo
 window.addEventListener('beforeunload',()=>{nayaBodyProfile=null});
 let nayaScrollY=0;
 function openNaya(){const assistant=document.getElementById('nayaAssistant');if(!assistant)return;const portrait=new URL('/naya-boutique.png?v=20261011',window.location.origin).href;assistant.querySelectorAll('.naya-real-avatar,#nayaBodyImage').forEach(image=>{if(!image.dataset.outfitResult&&image.src!==portrait)image.src=portrait;image.style.setProperty('content','normal','important')});nayaScrollY=window.scrollY||0;document.body.style.top='-'+nayaScrollY+'px';assistant.classList.add('open');document.documentElement.classList.add('naya-locked');document.body.classList.add('naya-open')}
-function closeNaya(){const assistant=document.getElementById('nayaAssistant');if(!assistant)return;assistant.classList.remove('open');document.documentElement.classList.remove('naya-locked');document.body.classList.remove('naya-open');document.body.style.top='';window.scrollTo(0,nayaScrollY||0)}
-let nayaCurrentAudio=null,nayaCurrentAudioUrl='',nayaCurrentSpeechButton=null;
-function stopNayaAudio(){if(nayaCurrentAudio){nayaCurrentAudio.pause();nayaCurrentAudio=null}if(nayaCurrentAudioUrl){URL.revokeObjectURL(nayaCurrentAudioUrl);nayaCurrentAudioUrl=''}if(nayaCurrentSpeechButton){nayaCurrentSpeechButton.disabled=false;nayaCurrentSpeechButton.textContent='🔊 استمعي للرد • صوت ذكاء اصطناعي';nayaCurrentSpeechButton=null}}
-async function nayaSpeak(text,button){if(!button||button.dataset.loading==='true')return;stopNayaAudio();button.dataset.loading='true';button.disabled=true;button.textContent='جارٍ تجهيز الصوت...';try{const response=await fetch('/api/ai/tts',{method:'POST',headers:await window.lfAiHeaders(),cache:'no-store',body:JSON.stringify({text:String(text||'').slice(0,1200)})});if(!response.ok){const detail=await response.json().catch(()=>({}));throw new Error(detail.message||'تعذر تشغيل صوت نايا الآن.')}nayaCurrentAudioUrl=URL.createObjectURL(await response.blob());nayaCurrentAudio=new Audio(nayaCurrentAudioUrl);nayaCurrentSpeechButton=button;button.disabled=false;button.textContent='🔊 نايا تتحدث...';await new Promise((resolve,reject)=>{nayaCurrentAudio.addEventListener('ended',resolve,{once:true});nayaCurrentAudio.addEventListener('error',()=>reject(new Error('تعذر تشغيل الصوت.')),{once:true});nayaCurrentAudio.play().catch(reject)})}catch(error){if(typeof nayaAddMessage==='function')nayaAddMessage(error.message||'تعذر تشغيل صوت نايا الآن.',false)}finally{if(nayaCurrentSpeechButton===button)stopNayaAudio();button.dataset.loading='false';button.disabled=false}}
-function nayaAddMessage(text,user=false){const box=document.getElementById('nayaConversation');if(!box)return;const div=document.createElement('div');div.className='naya-message '+(user?'user':'naya');div.textContent=text;if(!user){const listen=document.createElement('button');listen.type='button';listen.className='naya-speak';listen.textContent='🔊 استمعي للرد • صوت ذكاء اصطناعي';listen.setAttribute('aria-label','استمعي لرد نايا. الصوت مولّد بالذكاء الاصطناعي.');listen.addEventListener('click',()=>nayaSpeak(text,listen));div.appendChild(listen)}box.appendChild(div);box.scrollTop=box.scrollHeight;return div}
+function closeNaya(){stopNayaAudio();cancelNayaRecording();const assistant=document.getElementById('nayaAssistant');if(!assistant)return;assistant.classList.remove('open');document.documentElement.classList.remove('naya-locked');document.body.classList.remove('naya-open');document.body.style.top='';window.scrollTo(0,nayaScrollY||0)}
+let nayaCurrentAudio=null,nayaCurrentAudioUrl='',nayaCurrentSpeechButton=null,nayaCurrentStopButton=null;
+function stopNayaAudio(){
+ if(nayaCurrentAudio){try{nayaCurrentAudio.pause();nayaCurrentAudio.currentTime=0}catch{}nayaCurrentAudio=null}
+ if(nayaCurrentAudioUrl){URL.revokeObjectURL(nayaCurrentAudioUrl);nayaCurrentAudioUrl=''}
+ if(nayaCurrentSpeechButton){nayaCurrentSpeechButton.disabled=false;nayaCurrentSpeechButton.textContent='استمعي للرد';nayaCurrentSpeechButton.dataset.loading='false';nayaCurrentSpeechButton=null}
+ if(nayaCurrentStopButton){nayaCurrentStopButton.disabled=true;nayaCurrentStopButton=null}
+}
+function nayaFinishAudio(audio,playButton,stopButton){
+ if(nayaCurrentAudio!==audio)return;
+ nayaCurrentAudio=null;
+ if(nayaCurrentAudioUrl){URL.revokeObjectURL(nayaCurrentAudioUrl);nayaCurrentAudioUrl=''}
+ nayaCurrentSpeechButton=null;nayaCurrentStopButton=null;
+ playButton.disabled=false;playButton.dataset.loading='false';playButton.textContent='إعادة الاستماع';
+ stopButton.disabled=true;
+}
+async function nayaSpeak(text,button,stopButton){
+ if(!button||button.dataset.loading==='true')return;
+ stopNayaAudio();button.dataset.loading='true';button.disabled=true;button.textContent='جارٍ تجهيز الصوت…';
+ try{
+  const spoken=String(text||'').replace(/https?:\/\/(?:www\.)?wa\.me\/[^\s]+/gi,'تواصلي مع المتجر عبر واتساب.');
+  const response=await fetch('/api/ai/tts',{method:'POST',headers:await window.lfAiHeaders(),cache:'no-store',body:JSON.stringify({text:spoken.slice(0,1200)})});
+  if(!response.ok){const detail=await response.json().catch(()=>({}));throw new Error(detail.message||'تعذر تشغيل صوت نايا الآن.')}
+  const url=URL.createObjectURL(await response.blob()),audio=new Audio(url);
+  nayaCurrentAudio=audio;nayaCurrentAudioUrl=url;nayaCurrentSpeechButton=button;nayaCurrentStopButton=stopButton;
+  button.disabled=false;button.textContent='نايا تتحدث…';stopButton.disabled=false;
+  await new Promise((resolve,reject)=>{
+   audio.addEventListener('ended',resolve,{once:true});
+   audio.addEventListener('pause',resolve,{once:true});
+   audio.addEventListener('error',()=>reject(new Error('تعذر تشغيل الصوت.')),{once:true});
+   audio.play().catch(reject);
+  });
+  nayaFinishAudio(audio,button,stopButton);
+ }catch(error){
+  if(typeof nayaAddMessage==='function')nayaAddMessage(error.message||'تعذر تشغيل صوت نايا الآن.',false);
+  if(nayaCurrentSpeechButton===button)stopNayaAudio();
+  button.disabled=false;button.dataset.loading='false';
+ }
+}
+function nayaAppendReplyText(row,text){
+ const chunks=String(text||'').split(/(https?:\/\/(?:www\.)?wa\.me\/[^\s]+)/gi);
+ chunks.forEach(chunk=>{
+  if(!/^https?:\/\/(?:www\.)?wa\.me\//i.test(chunk)){row.appendChild(document.createTextNode(chunk));return}
+  const linkText=chunk.replace(/[.,،؛!?؟)\]]+$/u,'');
+  const punctuation=chunk.slice(linkText.length);
+  try{
+   const url=new URL(linkText);
+   if(url.hostname!=='wa.me'||!/^\/\d{7,15}$/.test(url.pathname)){row.appendChild(document.createTextNode(chunk));return}
+   const link=document.createElement('a');link.className='naya-whatsapp-link';link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='تواصلي مع المتجر على واتساب';row.appendChild(link);
+   if(punctuation)row.appendChild(document.createTextNode(punctuation));
+  }catch{row.appendChild(document.createTextNode(chunk))}
+ });
+}
+function nayaAddMessage(text,user=false){
+ const box=document.getElementById('nayaConversation');if(!box)return;
+ const div=document.createElement('div');div.className='naya-message '+(user?'user':'naya');
+ if(user)div.textContent=String(text||'');else nayaAppendReplyText(div,text);
+ if(!user){
+  const controls=document.createElement('div');controls.className='naya-voice-controls';
+  const listen=document.createElement('button'),stop=document.createElement('button');
+  listen.type=stop.type='button';listen.className='naya-speak';stop.className='naya-stop-speak';
+  listen.textContent='استمعي للرد';stop.textContent='إيقاف الصوت';stop.disabled=true;
+  listen.setAttribute('aria-label','استمعي إلى رد نايا بصوت مولد بالذكاء الاصطناعي');stop.setAttribute('aria-label','إيقاف صوت نايا');
+  listen.addEventListener('click',()=>nayaSpeak(text,listen,stop));stop.addEventListener('click',stopNayaAudio);
+  controls.append(listen,stop);div.appendChild(controls);
+ }
+ box.appendChild(div);box.scrollTop=box.scrollHeight;return div
+}
 let nayaAiHistory=[];
 function nayaAppendRecommendations(items,node){if(!Array.isArray(items)||!items.length||!node)return;const box=document.createElement('div');box.className='naya-recommendations';items.slice(0,3).forEach(item=>{const btn=document.createElement('button');btn.type='button';btn.dataset.nayaProductId=String(item.id);btn.textContent=`${item.name} — ${Number(item.price)||0} ₪`;box.appendChild(btn)});node.appendChild(box);box.addEventListener('click',e=>{const button=e.target.closest('[data-naya-product-id]');if(button&&Number.isSafeInteger(Number(button.dataset.nayaProductId))&&typeof openProduct==='function')openProduct(Number(button.dataset.nayaProductId))})}
 function nayaLocalAnswer(q){const t=String(q||'').trim().toLowerCase();if(/(?:طولي|وزني|خصري|صدري|أردافي|مقاساتي|قياساتي|\\b(?:height|weight|waist|bust|hips)\\b).{0,12}\\d+/i.test(t))return{reply:'خلّينا نحافظ على خصوصية قياساتك 🌸 أدخليها فقط في لوحة المقاسات بعد الموافقة؛ لن أرسلها للمساعد الذكي.',recommendations:[]};if(/\\b(cart|basket)\\b|سلة/.test(t))return{reply:`عندكِ حاليًا ${cart.reduce((n,i)=>n+(Number(i.qty)||0),0)} قطعة في السلة 🛍️`+(cart.length?' ويمكنكِ فتحها من زر السلة.':'، والسلة فارغة حاليًا.'),recommendations:[]};if(/مفضلة|المفضلة|favorite/.test(t))return{reply:`عندكِ ${getFavorites().length} منتج في المفضلة ❤️`,recommendations:[]};if(/مقاساتي|مقاسات|قياسات|جرّبيها على نايا|جربيها على نايا/.test(t)){openNayaBodyProfile();return{reply:'أكيد 🌸 افتحي لوحة المقاسات ووافقي على رسالة الخصوصية، وبعدها أعطيكِ معاينة تقريبية على نايا.',recommendations:[]}}return null}
@@ -1199,6 +1262,56 @@ function nayaCustomerProfileForAi(q){
 function nayaClientId(){try{let id=localStorage.getItem('lf_naya_client_id');if(!/^[A-Za-z0-9_-]{16,100}$/.test(id||'')){id=window.crypto?.randomUUID?.()||'lf-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem('lf_naya_client_id',id)}return id}catch{return ''}}
 async function nayaAnswer(q){const local=nayaLocalAnswer(q);if(local)return{...local,_local:true};const customerProfile=nayaCustomerProfileForAi(q);const response=await fetch('/api/ai/chat',{method:'POST',headers:await window.lfAiHeaders(),cache:'no-store',body:JSON.stringify({message:q,clientId:nayaClientId(),history:nayaAiHistory.slice(-8),...(customerProfile?{customerProfile}:{})})});const result=await response.json().catch(()=>({}));if(!response.ok||!result.ok)throw new Error(result.message||'نايا الذكية غير متاحة الآن. جربي بعد شوي.');return{reply:String(result.reply||'كيف أقدر أساعدكِ؟'),recommendations:Array.isArray(result.recommendations)?result.recommendations:[]}}
 async function sendNaya(){const input=document.getElementById('nayaInput');if(!input||input.dataset.sending==='true')return;const q=input.value.trim();if(!q)return;input.value='';input.dataset.sending='true';nayaAddMessage(q,true);try{const result=await nayaAnswer(q),node=nayaAddMessage(result.reply,false);if(!result._local){nayaAiHistory.push({role:'user',content:q},{role:'assistant',content:result.reply});nayaAiHistory=nayaAiHistory.slice(-8)}nayaAppendRecommendations(result.recommendations,node)}catch(error){nayaAddMessage(error.message||'تعذر الاتصال بنايا الآن. جربي بعد شوي.',false)}finally{input.dataset.sending='false';input.focus()}}
+let nayaRecorder=null,nayaMicStream=null,nayaVoiceChunks=[],nayaVoiceTimer=null,nayaCancelVoice=false;
+function nayaVoiceStatus(message){const status=document.getElementById('nayaVoiceStatus');if(status)status.textContent=message}
+function nayaVoiceButton(){return document.getElementById('nayaVoiceButton')}
+function nayaReleaseMic(){if(nayaVoiceTimer)clearTimeout(nayaVoiceTimer);nayaVoiceTimer=null;if(nayaMicStream)nayaMicStream.getTracks().forEach(track=>track.stop());nayaMicStream=null}
+function cancelNayaRecording(){nayaCancelVoice=true;if(nayaRecorder&&nayaRecorder.state==='recording')nayaRecorder.stop()}
+async function startNayaRecording(){
+ const button=nayaVoiceButton(),input=document.getElementById('nayaInput'),sendButton=document.querySelector('#nayaAssistant .naya-send');
+ if(nayaRecorder&&nayaRecorder.state==='recording'){nayaVoiceStatus('جارٍ إرسال رسالتك الصوتية…');button.textContent='جارٍ الإرسال…';nayaRecorder.stop();return}
+ if(input?.dataset.sending==='true'){nayaVoiceStatus('انتظري حتى ينتهي الرد الحالي ثم سجّلي سؤالك.');return}
+ if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined'){nayaVoiceStatus('التسجيل الصوتي غير مدعوم في هذا المتصفح.');return}
+ try{
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  const preferred=['audio/webm;codecs=opus','audio/mp4'].find(type=>MediaRecorder.isTypeSupported?.(type));
+  const recorder=preferred?new MediaRecorder(stream,{mimeType:preferred}):new MediaRecorder(stream);
+  nayaMicStream=stream;nayaRecorder=recorder;nayaVoiceChunks=[];nayaCancelVoice=false;
+  if(input)input.disabled=true;if(sendButton)sendButton.disabled=true;
+  recorder.ondataavailable=event=>{if(event.data?.size)nayaVoiceChunks.push(event.data)};
+  recorder.onstop=()=>{
+   const blob=new Blob(nayaVoiceChunks,{type:recorder.mimeType||preferred||'audio/webm'});nayaVoiceChunks=[];
+   nayaReleaseMic();nayaRecorder=null;
+   if(button){button.disabled=false;button.textContent='إرسال صوتي';button.setAttribute('aria-label','تسجيل وإرسال سؤال صوتي');button.removeAttribute('data-recording')}
+   if(nayaCancelVoice){nayaCancelVoice=false;if(input)input.disabled=false;if(sendButton)sendButton.disabled=false;nayaVoiceStatus('');return}
+   if(!blob.size){if(input)input.disabled=false;if(sendButton)sendButton.disabled=false;nayaVoiceStatus('ما وصل تسجيل واضح. جرّبي مرة ثانية.');return}
+   transcribeNayaVoice(blob);
+  };
+  recorder.start();button.textContent='إيقاف وإرسال';button.setAttribute('aria-label','إيقاف التسجيل وإرسال الصوت');button.dataset.recording='true';
+  nayaVoiceStatus('جاري التسجيل… اضغطي «إيقاف وإرسال» عند الانتهاء.');
+  nayaVoiceTimer=setTimeout(()=>{if(nayaRecorder===recorder){nayaVoiceStatus('انتهت مدة التسجيل؛ جارٍ إرسال رسالتك الصوتية…');recorder.stop()}},45000);
+ }catch(error){
+  nayaReleaseMic();if(input)input.disabled=false;if(sendButton)sendButton.disabled=false;
+  nayaVoiceStatus(error?.name==='NotAllowedError'?'اسمحي باستخدام الميكروفون لتسجيل سؤالك.':'تعذر بدء التسجيل. تحققي من إذن الميكروفون وحاولي مجددًا.');
+ }
+}
+async function transcribeNayaVoice(blob){
+ const button=nayaVoiceButton(),input=document.getElementById('nayaInput'),sendButton=document.querySelector('#nayaAssistant .naya-send');
+ if(button)button.disabled=true;nayaVoiceStatus('جارٍ تحويل كلامك إلى نص وإرساله لنايا…');
+ try{
+  const headers=await window.lfAiHeaders();headers['Content-Type']=blob.type||'audio/webm';
+  const response=await fetch('/api/ai/transcribe',{method:'POST',headers,body:blob,cache:'no-store'});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok||!result.ok)throw new Error(result.message||'تعذر تحويل التسجيل إلى نص.');
+  const transcript=String(result.text||'').trim().slice(0,1000);
+  if(!transcript)throw new Error('ما وصل كلام واضح في التسجيل. جرّبي مرة ثانية.');
+  if(input){input.value=transcript;input.disabled=false}
+  if(sendButton)sendButton.disabled=false;
+  nayaVoiceStatus('تم تحويل رسالتك وإرسالها لنايا…');
+  await sendNaya();
+ }catch(error){nayaVoiceStatus(error.message||'تعذر تحويل التسجيل إلى نص.');if(input)input.disabled=false;if(sendButton)sendButton.disabled=false}
+ finally{if(button)button.disabled=false}
+}
 function nayaQuick(text){const input=document.getElementById('nayaInput');if(input){input.value=text;sendNaya()}}
 let storefrontAnnouncementPoll=null;
 async function refreshStorefrontAnnouncement(){

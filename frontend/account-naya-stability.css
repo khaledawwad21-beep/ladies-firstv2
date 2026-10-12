@@ -77,3 +77,18 @@ html body #nayaAssistant #nayaBodyPanel.open{display:block!important}
 }
 
 @media(max-width:650px){.lf-naya-modal{padding:8px;align-items:end}.lf-naya-sheet{grid-template-columns:1fr;max-height:94dvh;border-radius:26px 26px 16px 16px}.lf-naya-visual{min-height:44dvh;max-height:420px;border-radius:26px 26px 0 0}.lf-naya-copy{padding:20px 18px 24px}.lf-naya-copy h2{font-size:27px}.lf-naya-close{position:fixed;top:max(16px,env(safe-area-inset-top));left:16px}.lf-naya-actions>*{flex:1;min-width:130px}}
+
+#nayaAssistant .naya-input{gap:6px!important;align-items:center!important}
+#nayaAssistant .naya-input input{flex:1 1 auto!important;min-width:0!important}
+#nayaAssistant .naya-input .naya-send,#nayaAssistant .naya-input .naya-voice-input{flex:0 0 auto!important;width:auto!important;min-width:62px!important;height:42px!important;padding:8px 11px!important;border:0!important;border-radius:12px!important;background:#63345e!important;color:#fff!important;font-size:13px!important;font-weight:800!important;white-space:nowrap!important}
+#nayaAssistant .naya-input .naya-voice-input{min-width:104px!important;background:#63345e!important}
+#nayaAssistant .naya-input .naya-voice-input[data-recording="true"]{background:#b84c5c!important}
+#nayaAssistant .naya-input button:disabled{opacity:.6!important;cursor:not-allowed!important}
+#nayaAssistant .naya-voice-status{flex:0 0 auto;padding:0 14px;color:#63345e;font-size:12px;line-height:1.45}
+#nayaAssistant .naya-voice-status:empty{display:none}
+#nayaAssistant .naya-voice-controls{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#nayaAssistant .naya-voice-controls button{min-height:34px;padding:7px 10px;border:1px solid #dfcad8;border-radius:999px;background:#fff;color:#63345e;font:inherit;font-size:12px;font-weight:800}
+#nayaAssistant .naya-voice-controls .naya-stop-speak{background:#63345e;color:#fff;border-color:#63345e}
+#nayaAssistant .naya-voice-controls button:disabled{opacity:.55;cursor:not-allowed}
+#nayaAssistant .naya-whatsapp-link{display:inline-flex;margin-top:7px;padding:6px 10px;border:1px solid #d8c4d2;border-radius:999px;background:#fff;color:#63345e;font-weight:800;text-decoration:none}
+@media(max-width:420px){#nayaAssistant .naya-input{gap:5px!important;padding:8px!important}#nayaAssistant .naya-input .naya-send{min-width:54px!important;padding-inline:8px!important}#nayaAssistant .naya-input .naya-voice-input{min-width:96px!important;padding-inline:8px!important}#nayaAssistant .naya-voice-status{font-size:11px}}
