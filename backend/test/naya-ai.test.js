@@ -75,8 +75,16 @@ test("Naya voice endpoint uses the server key and returns uncached audio",async 
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا وسهلًا سيدتي"})});
  assert.equal(res.status,200);assert.equal(res.headers.get("content-type"),"audio/mpeg");assert.equal(res.headers.get("cache-control"),"no-store");
  assert.equal(captured.url,"https://api.openai.com/v1/audio/speech");assert.equal(captured.o.headers.Authorization,"Bearer secret");
- const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"shimmer");assert.equal(payload.speed,1);assert.match(payload.instructions,/distinctly feminine, light, youthful voice/);assert.match(payload.instructions,/natural urban Lebanese \(Beirut\) colloquial accent/);assert.match(payload.instructions,/glottal stop \/ʔ\//);assert.match(payload.instructions,/قولنا \(ʔūlna\)/);assert.match(payload.instructions,/subtly playful and sweet/);assert.doesNotMatch(payload.instructions,/deep or masculine timbre|announcer delivery|drawn-out syllables/);
+ const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"marin");assert.equal(payload.speed,0.96);assert.match(payload.instructions,/gentle, soft, clearly feminine voice/);assert.match(payload.instructions,/natural urban Lebanese Arabic/);assert.match(payload.instructions,/glottal stop \/ʔ\//);assert.match(payload.instructions,/قولنا \(ʔūlna\)/);assert.doesNotMatch(payload.instructions,/roughness|announcer-like delivery/);
  const reader=res.body.getReader(),chunks=[];while(true){const part=await reader.read();if(part.done)break;chunks.push(Buffer.from(part.value))}assert.deepEqual(Buffer.concat(chunks),bytes);
+});
+
+test("Naya retries one transient upstream TTS failure",async t=>{
+ let attempts=0;const app=express();app.use(express.json());
+ app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async()=>{attempts++;return attempts===1?{ok:false,status:502}:{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}}}));
+ const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
+ const res=await fetch(`http://127.0.0.1:${server.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا"})});
+ assert.equal(res.status,200);assert.equal(attempts,2);
 });
 
 test("Naya voice endpoint refuses text without an API key",async t=>{
@@ -86,13 +94,13 @@ test("Naya voice endpoint refuses text without an API key",async t=>{
  assert.equal(res.status,503);assert.equal((await res.json()).code,"NAYA_AI_NOT_CONFIGURED");
 });
 
-test("Naya voice endpoint replaces the legacy Sage setting with Shimmer",async t=>{
+test("Naya voice endpoint replaces legacy Sage and Shimmer settings with Marin",async t=>{
  let captured;
  const app=express();app.use(express.json());
- app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret",NAYA_TTS_VOICE:"sage"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}}}));
+ app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret",NAYA_TTS_VOICE:"shimmer"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}}}));
  const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
  const res=await fetch(`http://127.0.0.1:${server.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"مرحبًا"})});
- assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).voice,"shimmer");
+ assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).voice,"marin");
 });
 
 test("Naya chat endpoints share a persistent rate-limit scope and TTS has its own scope",async t=>{
