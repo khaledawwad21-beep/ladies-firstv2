@@ -199,7 +199,7 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
    const audio=await r.arrayBuffer();
    res.set("Content-Length",String(audio.byteLength));
    return res.status(200).send(Buffer.from(audio));
-  }catch{if(res.headersSent){res.destroy();return}return res.status(502).json({ok:false,code:"NAYA_TTS_UNAVAILABLE",message:"تعذر تشغيل صوت نايا الآن."})}
+  }catch(error){if(res.headersSent){res.destroy();return}const timedOut=error?.name==="TimeoutError"||error?.name==="AbortError";return res.status(timedOut?504:502).json({ok:false,code:timedOut?"NAYA_TTS_TIMEOUT":"NAYA_TTS_UNAVAILABLE",message:timedOut?"تأخر تجهيز الصوت. جرّبي الاستماع مرة ثانية.":"تعذر تشغيل صوت نايا الآن."})}
  });
  router.post("/chat",optionalAuth||((_req,_res,next)=>next()),async(req,res)=>{
   res.set("Cache-Control","no-store");
