@@ -47,7 +47,7 @@
     const config=await loadCampaign();
     if(!config||config.enabled!==true||!config.startAt||!config.endAt)return false;
     const now=Date.now(),start=Date.parse(config.startAt),end=Date.parse(config.endAt);if(!Number.isFinite(start)||!Number.isFinite(end)||now<start||now>=end)return false;
-    const key='lf_welcome_offer_seen_'+String(end),seen=Number(localStorage.getItem(key))||0;if(now-seen<COOLDOWN_MS)return false;
+    const key='lf_welcome_offer_seen_v2_'+String(end),seen=Number(localStorage.getItem(key))||0;if(now-seen<COOLDOWN_MS)return false;
     const scope=config.scope||((config.productIds||[]).length?'products':'all');
     const catalog=productList().filter(p=>stock(p)>0);
     const items=scope==='products'
