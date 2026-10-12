@@ -27,6 +27,7 @@ function videoUrl(value) {
 function cleanMetadata(value) {
   const metadata = value && typeof value === 'object' && !Array.isArray(value) ? {...value} : {};
   for (const key of ['saleStartsAt','saleEndsAt']) {
+    if (!Object.hasOwn(metadata, key)) continue;
     if (metadata[key] === undefined || metadata[key] === null || metadata[key] === '') { metadata[key] = ''; continue; }
     const value = String(metadata[key]);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) invalid('تاريخ التخفيض غير صالح');
