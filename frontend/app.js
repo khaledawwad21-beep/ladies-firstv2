@@ -1338,7 +1338,8 @@ function nayaAppendOfferBrowser(node,query=''){
  const search=document.createElement('input');search.type='search';search.className='naya-offer-search';search.placeholder='اكتبي اسم المنتج أو البراند';search.setAttribute('aria-label','بحث في العروض');
  const category=document.createElement('select');category.className='naya-offer-category';category.setAttribute('aria-label','فلترة حسب الفئة');
  const allCategory=document.createElement('option');allCategory.value='';allCategory.textContent='كل الفئات';category.appendChild(allCategory);
- [...new Set(items.map(nayaOfferCategory).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')).forEach(name=>{const option=document.createElement('option');option.value=name;option.textContent=cats?.[name]?.[currentLang]||cats?.[name]?.ar||name;category.appendChild(option)});
+ const categoryNames=[...new Set([...Object.keys(cats||{}),...products.map(nayaOfferCategory)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
+ categoryNames.forEach(name=>{const option=document.createElement('option');option.value=name;const count=items.filter(p=>nayaOfferCategory(p)===name).length;option.textContent=(cats?.[name]?.[currentLang]||cats?.[name]?.ar||name)+(count?' ('+count+')':currentLang==='en'?' — no active offers':' — بلا عروض حاليًا');category.appendChild(option)});
  const minDiscount=document.createElement('select');minDiscount.className='naya-offer-discount';minDiscount.setAttribute('aria-label','فلترة حسب نسبة الخصم');
  [['0','أي نسبة خصم'],['10','خصم 10٪ أو أكثر'],['25','خصم 25٪ أو أكثر'],['50','خصم 50٪ أو أكثر']].forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;minDiscount.appendChild(option)});
  const sort=document.createElement('select');sort.className='naya-offer-sort';sort.setAttribute('aria-label','ترتيب العروض');
@@ -1348,8 +1349,8 @@ function nayaAppendOfferBrowser(node,query=''){
  const list=document.createElement('div');list.className='naya-offer-results';
  const more=document.createElement('button');more.type='button';more.className='naya-offer-more';more.textContent='عرض 3 عروض أخرى';
  panel.append(status,list,more);node.appendChild(panel);
- const requestedCategory=items.find(p=>String(query).toLowerCase().includes(nayaOfferCategory(p).toLowerCase())&&nayaOfferCategory(p).length>2);
- if(requestedCategory)category.value=String(requestedCategory.cat);
+ const requestedCategory=categoryNames.find(name=>name.length>2&&String(query).toLocaleLowerCase().includes(name.toLocaleLowerCase()));
+ if(requestedCategory)category.value=requestedCategory;
  let shown=3;
  const renderResults=()=>{
   const term=search.value.trim().toLocaleLowerCase();
@@ -1366,7 +1367,7 @@ function nayaAppendOfferBrowser(node,query=''){
    const name=document.createElement('span');name.className='naya-offer-name';name.textContent=String(currentLang==='en'?(p.en||p.name):p.name||p.en);
    const prices=document.createElement('span');prices.className='naya-offer-prices';const price=document.createElement('b');price.textContent=(Number(p.price)||0)+' ₪';const old=document.createElement('s');old.textContent=(Number(p.old)||0)+' ₪';const badge=document.createElement('small');badge.textContent='خصم '+nayaOfferDiscount(p)+'٪';prices.append(price,old,badge);info.append(name,prices);button.append(image,info);list.appendChild(button);
   });
-  if(!filtered.length){const empty=document.createElement('p');empty.className='naya-offer-empty';empty.textContent=items.length?'ما لقينا عروض بهالخيارات. جرّبي توسّعي الفلتر.':'ما في عروض نشطة حاليًا.';list.appendChild(empty)}
+  if(!filtered.length){const empty=document.createElement('p');empty.className='naya-offer-empty';empty.textContent=category.value&&!items.some(p=>nayaOfferCategory(p)===category.value)?'ما في عروض نشطة بهالفئة حاليًا. اختاري فئة تانية أو ارجعي لكل الفئات.':items.length?'ما لقينا عروض بهالخيارات. جرّبي توسّعي الفلتر.':'ما في عروض نشطة حاليًا.';list.appendChild(empty)}
   more.hidden=filtered.length<=shown;more.disabled=filtered.length<=shown;
  };
  [search,category,minDiscount,sort].forEach(control=>control.addEventListener(control===search?'input':'change',()=>{shown=3;renderResults()}));
