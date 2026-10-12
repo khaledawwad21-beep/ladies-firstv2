@@ -121,7 +121,7 @@ test("Naya prompts use clear, grammatical Lebanese colloquial Arabic",()=>{
  const prompt=buildNayaMessages({message:"أريد عطرًا",catalog:[],whatsappNumber:"+972 (56) 249-9924"}).find(x=>x.role==="system").content;
  for(const phrase of ["موظفة مبيعات ودودة","سأسأل الفريق","عربية محكية لبنانية طبيعية وثابتة","جملًا صحيحة نحوياً وإملائيًا","أهلين، كيفِك؟ شو عم تدوري عليه اليوم؟","إذا بتحبي، فيني ساعدِك","هيدي القطعة كتير حلوة وبتلبقلك","هلأ","972562499924","https://wa.me/972562499924?text="])assert.ok(prompt.includes(phrase),phrase);
  const storePrompt=buildStoreAssistantMessages({message:"أريد عطرًا",catalog:[]})[0].content;
- for(const phrase of ["لهجة لبنانية محكية طبيعية","نحوًا سليمًا","شو عم تدوري عليه اليوم","فيِني ساعدِك","هيدي القطعة كتير حلوة وبتلبقلك"])assert.ok(storePrompt.includes(phrase),phrase);
+ for(const phrase of ["لهجة لبنانية محكية طبيعية","نحوًا سليمًا","شو عم تدوري عليه اليوم","فيني ساعدك","هيدي القطعة كتير حلوة وبتلبقلك"])assert.ok(storePrompt.includes(phrase),phrase);
 });
 test("Naya rejects messages over 1000 characters before calling OpenAI",async t=>{
  let upstreamCalled=false;const app=express();app.use(express.json());
