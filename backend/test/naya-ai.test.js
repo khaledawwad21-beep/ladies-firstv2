@@ -75,7 +75,7 @@ test("Naya voice endpoint uses the server key and returns uncached audio",async 
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا وسهلًا سيدتي"})});
  assert.equal(res.status,200);assert.equal(res.headers.get("content-type"),"audio/mpeg");assert.equal(res.headers.get("cache-control"),"no-store");
  assert.equal(captured.url,"https://api.openai.com/v1/audio/speech");assert.equal(captured.o.headers.Authorization,"Bearer secret");
- const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"sage");assert.equal(payload.speed,0.96);assert.match(payload.instructions,/أنثويًا دافئًا ورقيقًا وهادئًا/);assert.match(payload.instructions,/نبرة ودودة طبيعية/);assert.match(payload.instructions,/لهجة سورية خفيفة ومفهومة/);assert.match(payload.instructions,/وصل الجمل انسيابيًا/);assert.doesNotMatch(payload.instructions,/متوسطة إلى مرتفعة|بلا همس ولا خفوت/);
+ const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"marin");assert.equal(payload.speed,0.96);assert.match(payload.instructions,/أنثويًا دافئًا ورقيقًا وهادئًا/);assert.match(payload.instructions,/نبرة ودودة طبيعية/);assert.match(payload.instructions,/لهجة لبنانية محكية خفيفة وطبيعية/);assert.match(payload.instructions,/وصل الجمل انسيابيًا/);assert.doesNotMatch(payload.instructions,/متوسطة إلى مرتفعة|بلا همس ولا خفوت/);
  const reader=res.body.getReader(),chunks=[];while(true){const part=await reader.read();if(part.done)break;chunks.push(Buffer.from(part.value))}assert.deepEqual(Buffer.concat(chunks),bytes);
 });
 
@@ -86,13 +86,13 @@ test("Naya voice endpoint refuses text without an API key",async t=>{
  assert.equal(res.status,503);assert.equal((await res.json()).code,"NAYA_AI_NOT_CONFIGURED");
 });
 
-test("Naya voice endpoint honors the NAYA_TTS_VOICE setting",async t=>{
+test("Naya voice endpoint honors the configured Marin voice",async t=>{
  let captured;
  const app=express();app.use(express.json());
- app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret",NAYA_TTS_VOICE:"sage"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}}}));
+ app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret",NAYA_TTS_VOICE:"marin"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}}}));
  const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
  const res=await fetch(`http://127.0.0.1:${server.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"مرحبًا"})});
- assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).voice,"sage");
+ assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).voice,"marin");
 });
 
 test("Naya chat endpoints share a persistent rate-limit scope and TTS has its own scope",async t=>{
