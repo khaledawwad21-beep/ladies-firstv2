@@ -181,10 +181,16 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   const key=clean(env.OPENAI_API_KEY,500);
   if(!key)return res.status(503).json({ok:false,code:"NAYA_AI_NOT_CONFIGURED",message:"الصوت غير متاح حاليًا."});
   const allowedVoices=new Set(["alloy","ash","ballad","coral","echo","fable","nova","onyx","sage","shimmer","verse","marin","cedar"]);
-  const configuredVoice=clean(env.NAYA_TTS_VOICE||"shimmer",20);
-  const voice=["sage","marin"].includes(configuredVoice)?"shimmer":allowedVoices.has(configuredVoice)?configuredVoice:"shimmer";
+  const configuredVoice=clean(env.NAYA_TTS_VOICE||"marin",20);
+  const voice=["sage","shimmer"].includes(configuredVoice)?"marin":allowedVoices.has(configuredVoice)?configuredVoice:"marin";
   try{
-   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,speed:1,instructions:"Speak Arabic with a natural urban Lebanese (Beirut) colloquial accent and Lebanese intonation, clearly distinct from Palestinian or Syrian speech. Pronounce the written Arabic letter qaf (ق) as a glottal stop /ʔ/ in colloquial words, for example قال (ʔāl) and قولنا (ʔūlna), not as formal /q/. Use a distinctly feminine, light, youthful voice with a slightly higher register, gentle resonance, and soft clear diction. Sound warm, affectionate, subtly playful and sweet, like a friendly Lebanese boutique sales consultant speaking naturally to one customer. Keep phrases smooth and conversational with short natural pauses. Avoid a deep or masculine timbre, huskiness, announcer delivery, theatrical sweetness, exaggerated pitch, drawn-out syllables, or whispering. Read exactly the supplied Arabic text without adding words."})});
+   const speechRequest=()=>fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,speed:0.96,instructions:"Use a gentle, soft, clearly feminine voice with a warm, sweet, lightly playful tone. Speak in natural urban Lebanese Arabic, not Palestinian or Syrian. Pronounce colloquial ق as a glottal stop /ʔ/, as in قال (ʔāl) and قولنا (ʔūlna), not a formal /q/. Keep the sound smooth, light, and conversational, with clear diction and short pauses. Avoid roughness, strain, a deep voice, or announcer-like delivery. Read the supplied text exactly.")});
+   let r;
+   for(let attempt=0;attempt<2;attempt++){
+    try{r=await speechRequest()}catch(error){if(attempt===1||error?.name==="TimeoutError"||error?.name==="AbortError")throw error;await new Promise(resolve=>setTimeout(resolve,150));continue}
+    if(r.ok||r.status<500||attempt===1)break;
+    await new Promise(resolve=>setTimeout(resolve,150));
+   }
    if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_TTS_BUSY":"NAYA_TTS_UPSTREAM",message:"تعذر تشغيل صوت نايا الآن."});
    res.set("Content-Type","audio/mpeg");
    res.set("Cache-Control","no-store");
