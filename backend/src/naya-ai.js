@@ -181,8 +181,8 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   const key=clean(env.OPENAI_API_KEY,500);
   if(!key)return res.status(503).json({ok:false,code:"NAYA_AI_NOT_CONFIGURED",message:"الصوت غير متاح حاليًا."});
   const allowedVoices=new Set(["alloy","ash","ballad","coral","echo","fable","nova","onyx","sage","shimmer","verse","marin","cedar"]);
-  const configuredVoice=clean(env.NAYA_TTS_VOICE||"shimmer",20);
-  const voice=allowedVoices.has(configuredVoice)?configuredVoice:"shimmer";
+  const configuredVoice=clean(env.NAYA_TTS_VOICE||"sage",20);
+  const voice=allowedVoices.has(configuredVoice)?configuredVoice:"sage";
   try{
    const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,speed:1,instructions:"استخدمي صوت امرأة شابة بطبقة أنثوية واضحة ومتوسطة إلى مرتفعة، ناعمة ودافئة وقريبة. احكي كموظفة مبيعات لبنانية عم تحكي مع زبونة وجهًا لوجه: عفوية ولطيفة وبنبرة محادثة طبيعية، مش إلقاء ولا قراءة أخبار. خففي الخشونة والطبقة المنخفضة، وخلي الصوت حاضرًا وواضحًا بلا همس ولا خفوت. انطقي الكلمات العربية والحركات بوضوح وبسرعة هادئة طبيعية، مع لهجة لبنانية خفيفة ومفهومة. التزمي بالنص كما هو ولا تضيفي كلمات."})});
    if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_TTS_BUSY":"NAYA_TTS_UPSTREAM",message:"تعذر تشغيل صوت نايا الآن."});
