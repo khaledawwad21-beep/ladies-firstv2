@@ -75,7 +75,7 @@ test("Naya voice endpoint uses the server key and returns uncached audio",async 
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا وسهلًا سيدتي"})});
  assert.equal(res.status,200);assert.equal(res.headers.get("content-type"),"audio/mpeg");assert.equal(res.headers.get("cache-control"),"no-store");
  assert.equal(captured.url,"https://api.openai.com/v1/audio/speech");assert.equal(captured.o.headers.Authorization,"Bearer secret");
- const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"coral");assert.match(payload.instructions,/صوت أنثوي طبيعي/);assert.match(payload.instructions,/فلسطينية حضرية/);
+ const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"coral");assert.match(payload.instructions,/صوت امرأة فلسطينية مدينية ناعم/);assert.match(payload.instructions,/دلع خفيف/);
  assert.deepEqual(Buffer.from(await res.arrayBuffer()),bytes);
 });
 
