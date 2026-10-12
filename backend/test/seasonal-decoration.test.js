@@ -60,7 +60,13 @@ test('uploaded responsive artwork takes priority and falls back safely',()=>{
 test('every theme has a distinct palette and visible styling across the storefront',()=>{
   const ids=['ramadan','eid-fitr','eid-adha','halloween','christmas','new-year','spring','summer','autumn','winter'];
   for(const id of ids)assert.match(css,new RegExp('html\\[data-theme="'+id+'"\\] \\{--season-main:'),id+' palette');
+  for(const id of ids){
+    assert.match(css,new RegExp('html\\[data-theme="'+id+'"\\] \\{--season-ornament:url'),id+' ornament mapping');
+    const ornament=fs.readFileSync(path.join(frontend,'seasonal-ornaments',id+'.svg'),'utf8');
+    assert.match(ornament,/^<svg[\s>]/);assert.match(ornament,/<\/svg>\s*$/);assert.ok(ornament.length>300,id+' seasonal illustration');
+  }
   for(const area of ['body > header','.top','.heroSlider','#lfSeasonalWelcome','#cats','.cat','.sectionTitle','.featureBlock','.lf-store-ideas','.featureCard','.quickOfferCard','.grid','body > footer','.bottomNav'])assert.ok(css.includes(area),area+' theme styling');
+  assert.match(css,/\.sectionTitle::before/);assert.match(css,/#lfSeasonalWelcome::after/);
   assert.match(css,/object-fit:contain/);
   assert.match(css,/@media\(max-width:760px\)/);
   assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
@@ -75,7 +81,7 @@ test('campaign stays outside the auto-rotating hero and is cache-busted',()=>{
   const slides=app.slice(app.indexOf('function heroSlides()'),app.indexOf('function heroMobileImageFor'));
   assert.doesNotMatch(slides,/__LF_SEASONAL__|seasonal:true/);
   assert.match(app,/function restartHeroTimer\(\)\{clearTimeout\(heroTimer\);if\(heroSlides\(\)\.length<2\)return/);
-  assert.match(html,/seasonal-rebuild-v2/);
+  assert.match(html,/seasonal-rebuild-v3/);
 });
 
 test('theme selection remains server-backed and does not add persistent client state or overlays',()=>{
