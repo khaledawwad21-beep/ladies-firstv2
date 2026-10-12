@@ -13,6 +13,7 @@ class Element {
   setAttribute(name,value){this.attributes[name]=value;}
   appendChild(child){this.children.push(child);return child;}
   append(...children){children.forEach(x=>this.appendChild(x));}
+  replaceChildren(...children){this.children=[];this.append(...children);}
   insertAdjacentElement(where,child){if(where!=='afterend')throw Error('Unsupported');this.added=child;}
 }
 function render(active){
