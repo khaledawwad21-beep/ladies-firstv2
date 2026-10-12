@@ -129,6 +129,19 @@ function closePolicy(){document.getElementById('policyModal').style.display='non
 function shippingInfo(region){const fees=storeCommerceSettings.shippingFees||{westbank:20,jerusalem:35,inside:70},discounts=storeCommerceSettings.shippingDiscountPercentages||{westbank:0,jerusalem:0,inside:0};const info={westbank:{ar:'الضفة الغربية',en:'West Bank'},jerusalem:{ar:'القدس',en:'Jerusalem'},inside:{ar:'الداخل',en:'Inside 1948'}}[region]||{ar:'الضفة الغربية',en:'West Bank'};const key=['westbank','jerusalem','inside'].includes(region)?region:'westbank',baseFee=Math.max(0,Number(fees[key]??20)||0),discountPercent=Math.min(100,Math.max(0,Number(discounts[key])||0)),discountAmount=baseFee*discountPercent/100;return {...info,baseFee,discountPercent,discountAmount,fee:Math.max(0,baseFee-discountAmount)}}
 function currentShipping(){const r=document.getElementById('shippingRegion')?.value||'westbank';return shippingInfo(r)}
 function isOfferActive(p){return !!p?.onSale&&Number(p?.old)>Number(p?.price)}
+function offerExpiryEnd(p){
+  const raw=p?.offerExpiry??p?.metadata?.offerExpiry??p?.offer_expiry??p?.metadata?.offer_expiry;
+  if(raw==null||String(raw).trim()==='')return Infinity;
+  const value=String(raw).trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(value)){
+    const [year,month,day]=value.split('-').map(Number);
+    const check=new Date(Date.UTC(year,month-1,day));
+    if(check.getUTCFullYear()!==year||check.getUTCMonth()!==month-1||check.getUTCDate()!==day)return -Infinity;
+    return Date.UTC(year,month-1,day,23,59,59,999);
+  }
+  const time=Date.parse(value);
+  return Number.isFinite(time)?time:-Infinity;
+}
 function weeklyOrderDate(o){const raw=o?.createdAt||o?.timestamp||o?.date;const d=raw instanceof Date?raw:new Date(raw);return Number.isNaN(d.getTime())?null:d}
 function isThisWeekOrder(o){const d=weeklyOrderDate(o);return !!d&&d.getTime()>=Date.now()-7*24*60*60*1000}
 function salesMap(orders){const m={};(orders||[]).forEach(o=>(o.items||[]).forEach(it=>{const id=it.productId??it.id;if(id==null)return;m[String(id)]=(m[String(id)]||0)+(Number(it.qty)||0)}));return m}
