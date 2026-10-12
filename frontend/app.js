@@ -32,6 +32,39 @@ function safeImg(src,fallback=LOGO){
   if(/^\/(?!\/)/.test(src)||/^https?:\/\//i.test(src)||/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(src))return src;
   return fallback;
 }
+const CATEGORY_IMAGE_FALLBACKS=Object.freeze({
+  'ساعات ستاتي':'/category-images/womens-watches.jpg',
+  'ساعات نسائية':'/category-images/womens-watches.jpg',
+  'ساعات رجالي':'/category-images/mens-watches.jpg',
+  'مكياج':'/category-images/makeup.jpg',
+  'اكسسوارات':'/category-images/accessories.jpg',
+  'شنط':'/category-images/bags.jpg',
+  'حقائب':'/category-images/bags.jpg',
+  'عطور':'/category-images/perfume.jpg',
+  'women\'s watches':'/category-images/womens-watches.jpg',
+  'womens watches':'/category-images/womens-watches.jpg',
+  'men\'s watches':'/category-images/mens-watches.jpg',
+  'mens watches':'/category-images/mens-watches.jpg',
+  'makeup':'/category-images/makeup.jpg',
+  'accessories':'/category-images/accessories.jpg',
+  'bags':'/category-images/bags.jpg',
+  'perfumes':'/category-images/perfume.jpg'
+});
+function categoryFallbackImage(name){
+  const key=String(name??'').trim().toLocaleLowerCase().replace(/[إأآ]/g,'ا');
+  return CATEGORY_IMAGE_FALLBACKS[key]||'';
+}
+function categoryImage(category,name){
+  const fallback=categoryFallbackImage(name);
+  const source=safeImg(category?.image,'');
+  return source&&source!==LOGO?source:(fallback||LOGO);
+}
+function categoryImageError(img,name){
+  const fallback=categoryFallbackImage(name);
+  const fallbackUrl=fallback?new URL(fallback,location.href).href:'';
+  if(fallbackUrl&&img.src!==fallbackUrl){img.src=fallback;return}
+  img.onerror=null;img.src=LOGO;
+}
 function safeLink(value){try{const u=new URL(String(value),location.origin);return ['http:','https:'].includes(u.protocol)?u.href:'#'}catch{return '#'}}
 function applyStoreDescription(value){const el=document.getElementById('brandTagline');if(!el)return;const text=String(value??'').trim().slice(0,80);el.textContent=text;el.hidden=!text}
 function openStoreLogoPreview(){const overlay=document.getElementById('storeLogoZoom'),source=document.getElementById('logo'),preview=document.getElementById('storeLogoZoomImage');if(!overlay||!source||!preview)return;preview.src=safeImg(source.currentSrc||source.src,LOGO);preview.alt=source.alt||'شعار المتجر';overlay.classList.add('open');document.body.classList.add('store-logo-zoom-open');document.getElementById('storeLogoZoomClose')?.focus({preventScroll:true})}
@@ -39,7 +72,7 @@ function closeStoreLogoPreview(){const overlay=document.getElementById('storeLog
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.getElementById('storeLogoZoom')?.classList.contains('open'))closeStoreLogoPreview()});
 function jsAttr(value){return esc(JSON.stringify(String(value??'')))}
 function renderHero(){heroSettings=load('lf_hero',DEFAULT_HERO)||DEFAULT_HERO;const logo=document.getElementById('logo'),hero=document.getElementById('heroLogo'),side=document.getElementById('sideLogo');if(logo){logo.src=safeImg(heroSettings.logo);logo.onerror=()=>{logo.onerror=null;logo.src=LOGO}}if(hero){hero.src=safeImg(heroSettings.image);hero.onerror=()=>{hero.onerror=null;hero.src=LOGO}}if(side){side.src=safeImg(heroSettings.logo);side.onerror=()=>{side.onerror=null;side.src=LOGO}}}
-function renderCats(){const keys=Object.keys(cats);const countBy={};products.forEach(p=>countBy[p.cat]=(countBy[p.cat]||0)+1);const catsEl=document.getElementById('cats');if(catsEl)catsEl.innerHTML=keys.map(k=>{const c=cats[k]||{};return `<button class="cat" onclick="setCat(${jsAttr(k)})"><img src="${safeImg(c.image,LOGO)}" alt="${esc(currentLang==='en'?(c.en||c.ar||k):(c.ar||k))}" onerror="this.onerror=null;this.src='${LOGO}'"><label>${esc(currentLang==='en'?(c.en||c.ar||k):(c.ar||k))}</label></button>`}).join('');const filter=document.getElementById('filter');if(filter)filter.innerHTML=`<option value="">${currentLang==='en'?'All categories':'كل الفئات'}</option>`+keys.map(k=>`<option value="${esc(k)}">${esc(currentLang==='en'?(cats[k]?.en||cats[k]?.ar||k):(cats[k]?.ar||k))}</option>`).join('');const bf=document.getElementById('brandFilter');if(bf)bf.innerHTML=`<option value="">${currentLang==='en'?'All brands':'كل البراندات'}</option>`+Object.keys(brands).map(k=>`<option value="${esc(k)}">${esc(currentLang==='en'?(brands[k]?.en||brands[k]?.ar||k):(brands[k]?.ar||k))}</option>`).join('');const side=document.getElementById('sideCats');if(side)side.innerHTML=keys.map(k=>{const c=cats[k]||{};return `<button class="sideCat" onclick="setCat(${jsAttr(k)});toggleSideMenu()"><img src="${safeImg(c.image,LOGO)}" onerror="this.onerror=null;this.src='${LOGO}'"><b>${esc(currentLang==='en'?(c.en||c.ar||k):(c.ar||k))}</b><span>${countBy[k]||0}</span></button>`}).join('');const sideB=document.getElementById('sideBrands');if(sideB)sideB.innerHTML=Object.keys(brands).map(k=>{const b=brands[k]||{};const n=products.filter(p=>p.brand===k).length;return `<button class="sideCat" onclick="setBrand(${jsAttr(k)});toggleSideMenu()"><img src="${safeImg(b.image,LOGO)}" alt="${esc(currentLang==='en'?(b.en||b.ar||k):(b.ar||k))}" onerror="this.onerror=null;this.src='${LOGO}'"><b>${esc(currentLang==='en'?(b.en||b.ar||k):(b.ar||k))}</b><span>${n}</span></button>`}).join('')}
+function renderCats(){const keys=Object.keys(cats);const countBy={};products.forEach(p=>countBy[p.cat]=(countBy[p.cat]||0)+1);const catsEl=document.getElementById('cats');if(catsEl)catsEl.innerHTML=keys.map(k=>{const c=cats[k]||{};return `<button class="cat" onclick="setCat(${jsAttr(k)})"><img src="${categoryImage(c,k)}" alt="${esc(currentLang==='en'?(c.en||c.ar||k):(c.ar||k))}" onerror="categoryImageError(this,${jsAttr(k)})"><label>${esc(currentLang==='en'?(c.en||c.ar||k):(c.ar||k))}</label></button>`}).join('');const filter=document.getElementById('filter');if(filter)filter.innerHTML=`<option value="">${currentLang==='en'?'All categories':'كل الفئات'}</option>`+keys.map(k=>`<option value="${esc(k)}">${esc(currentLang==='en'?(cats[k]?.en||cats[k]?.ar||k):(cats[k]?.ar||k))}</option>`).join('');const bf=document.getElementById('brandFilter');if(bf)bf.innerHTML=`<option value="">${currentLang==='en'?'All brands':'كل البراندات'}</option>`+Object.keys(brands).map(k=>`<option value="${esc(k)}">${esc(currentLang==='en'?(brands[k]?.en||brands[k]?.ar||k):(brands[k]?.ar||k))}</option>`).join('');const side=document.getElementById('sideCats');if(side)side.innerHTML=keys.map(k=>{const c=cats[k]||{};return `<button class="sideCat" onclick="setCat(${jsAttr(k)});toggleSideMenu()"><img src="${categoryImage(c,k)}" onerror="categoryImageError(this,${jsAttr(k)})"><b>${esc(currentLang==='en'?(c.en||c.ar||k):(c.ar||k))}</b><span>${countBy[k]||0}</span></button>`}).join('');const sideB=document.getElementById('sideBrands');if(sideB)sideB.innerHTML=Object.keys(brands).map(k=>{const b=brands[k]||{};const n=products.filter(p=>p.brand===k).length;return `<button class="sideCat" onclick="setBrand(${jsAttr(k)});toggleSideMenu()"><img src="${safeImg(b.image,LOGO)}" alt="${esc(currentLang==='en'?(b.en||b.ar||k):(b.ar||k))}" onerror="this.onerror=null;this.src='${LOGO}'"><b>${esc(currentLang==='en'?(b.en||b.ar||k):(b.ar||k))}</b><span>${n}</span></button>`}).join('')}
 function setCat(c){document.getElementById('filter').value=c;const bf=document.getElementById('brandFilter');if(bf)bf.value='';document.getElementById('products').scrollIntoView({behavior:'smooth'});renderProducts()}
 function setBrand(b){const bf=document.getElementById('brandFilter');if(bf)bf.value=b;const f=document.getElementById('filter');if(f)f.value='';document.getElementById('products').scrollIntoView({behavior:'smooth'});renderProducts()}
 function variantList(p){return Array.isArray(p.variants)?p.variants.filter(v=>v&&String(v.name||'').trim()).map(v=>({name:String(v.name).trim(),stock:Math.max(0,Number(v.stock)||0)})):[]}
