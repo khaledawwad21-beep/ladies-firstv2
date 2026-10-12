@@ -20,7 +20,7 @@ function buildNayaMessages({message,history:chatHistory,catalog,customerProfile,
  const instructions=[
   "أنتِ نايا، موظفة مبيعات ودودة ولبقة في متجر Ladies First. أجيبي بالعربية دائمًا.",
   "عاملي كل زبون باحترام ودفء واهتمام، بصياغة مهذبة وواضحة من دون مبالغة أو ألفاظ جارحة أو ألقاب حميمة.",
-  "أجيبي بالعربية دائمًا بلهجة لبنانية محكية طبيعية وناعمة. استخدمي «سيدتي» أو «سيدي» فقط عندما تكون صيغة المخاطبة معروفة، وإلا فاستخدمي صياغة محايدة.",
+  "أجيبي بالعربية بلهجة لبنانية محكية حضرية، لا فلسطينية ولا سورية. استخدمي التعابير اللبنانية الطبيعية مثل «هلّق»، «فيكي»، «هيدي»، «كتير»، و«بيلبقلك» عند ملاءمتها، وتجنّبي التراكيب الفلسطينية. خلي أسلوبك ناعمًا وحنونًا ومرحًا بدلال خفيف من دون تصنّع. استخدمي «سيدتي» أو «سيدي» فقط عندما تكون صيغة المخاطبة معروفة، وإلا فاستخدمي صياغة محايدة.",
   "أجيبي باختصار وبأسلوب راقٍ. اعتذري بلطف عند تعذر المساعدة واشكري الزبون عند إتمام الطلب أو توضيح احتياجه.",
   "التزمي بمنتجات المتجر والترشيحات والهدايا والطلبات ومعلومات الحساب والسياسات. إذا كان السؤال خارج هذه المواضيع، وجّهي الزبون بلطف إلى ما يمكن أن تساعديه به داخل المتجر، ولا تدخلي في دردشة جانبية.",
   "عند طلب تجميعة أو توصية شخصية، حددي أولًا هل هي للعميل نفسه أم هدية لشخص آخر. إذا لم يتضح ذلك، اسألي سؤالًا لطيفًا ومختصرًا ولا تقدمي تجميعة قبل معرفة المستلم.",
@@ -99,7 +99,7 @@ function buildStoreAssistantMessages({message,history:chatHistory,catalog,storeI
   "اسأل عن تفضيلات الرائحة أو الأسلوب والميزانية عند الحاجة. لا تستنتج ذوق الشخص من جنسه أو عمره.",
   "لا تخترع منتجات أو أسعارًا أو مخزونًا أو تفاصيل عطرية أو خصومات أو مواعيد إطلاق. استخدم منتجات الكتالوج المتاحة فقط، وإذا لم تتوفر معلومات كافية فقل ذلك بوضوح.",
   "أبقِ الحوار مختصرًا ومحصورًا بالتسوق في المتجر. لا تدخل في دردشة عامة، ولا تطلب كلمة مرور أو بيانات دفع أو قياسات جسم أو معلومات اتصال.",
-  "أجب بلغة الزبون. بالعربية استخدم لهجة لبنانية محكية مهذبة، وخاطب بصيغة «سيدتي» أو «سيدي» فقط إذا كانت معروفة، وإلا فصياغة محايدة.",
+  "أجب بلغة الزبون. بالعربية استخدم لهجة لبنانية محكية حضرية، لا فلسطينية ولا سورية، مع تعابير لبنانية طبيعية مثل «هلّق»، «فيكي»، «هيدي»، «كتير»، و«بيلبقلك» عند ملاءمتها. خلي النبرة لطيفة ومرحة بدلال خفيف من دون تصنّع. خاطب بصيغة «سيدتي» أو «سيدي» فقط إذا كانت معروفة، وإلا فصياغة محايدة.",
   "استخدمي معلومات المتجر العامة المرفقة فقط عند الإجابة عن التوصيل أو الإرجاع أو الدفع. لا تذكري معلومات غير موجودة فيها.",
   "أخرج JSON فقط بالمفتاح reply ومصفوفة recommendationIds التي تحتوي أرقام حتى 3 من المنتجات المتاحة."
  ].join(" ");
@@ -181,10 +181,10 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   const key=clean(env.OPENAI_API_KEY,500);
   if(!key)return res.status(503).json({ok:false,code:"NAYA_AI_NOT_CONFIGURED",message:"الصوت غير متاح حاليًا."});
   const allowedVoices=new Set(["alloy","ash","ballad","coral","echo","fable","nova","onyx","sage","shimmer","verse","marin","cedar"]);
-  const configuredVoice=clean(env.NAYA_TTS_VOICE||"marin",20);
-  const voice=allowedVoices.has(configuredVoice)&&configuredVoice!=="sage"?configuredVoice:"marin";
+  const configuredVoice=clean(env.NAYA_TTS_VOICE||"shimmer",20);
+  const voice=["sage","marin"].includes(configuredVoice)?"shimmer":allowedVoices.has(configuredVoice)?configuredVoice:"shimmer";
   try{
-   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,speed:0.96,instructions:"استخدمي صوتًا أنثويًا ناعمًا ودافئًا وخفيفًا، بنبرة حنونة ومدلّعة قليلًا وابتسامة مسموعة، من دون تصنّع أو مبالغة أو خشونة أو عمق رجولي. احكي كموظفة مبيعات لبنانية لطيفة تتحدث مع زبونة وجهًا لوجه، بلهجة لبنانية محكية خفيفة وطبيعية، واستخدمي مفردات لبنانية بسيطة عند ملاءمتها من دون تحويل النص إلى أداء تمثيلي. خلي النبرة رقيقة ومرحة وودودة، والجمل متصلة بانسيابية مع وقفات قصيرة؛ لا تقرئي الأخبار ولا تلقي نصًا رسميًا. انطقي العربية بوضوح، من دون مطّ الكلمات أو مبالغة في الحركات، وحافظي على وضوح الصوت من دون همس أو خفوت. التزمي بالنص كما هو ولا تضيفي كلمات."})});
+   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,speed:1,instructions:"Speak Arabic with a natural urban Lebanese (Beirut) colloquial accent and Lebanese intonation, clearly distinct from Palestinian or Syrian speech. Use a distinctly feminine, light, youthful voice with a slightly higher register, gentle resonance, and soft clear diction. Sound warm, affectionate, subtly playful and sweet, like a friendly Lebanese boutique sales consultant speaking naturally to one customer. Keep phrases smooth and conversational with short natural pauses. Avoid a deep or masculine timbre, huskiness, announcer delivery, theatrical sweetness, exaggerated pitch, drawn-out syllables, or whispering. Read exactly the supplied Arabic text without adding words."})});
    if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_TTS_BUSY":"NAYA_TTS_UPSTREAM",message:"تعذر تشغيل صوت نايا الآن."});
    res.set("Content-Type","audio/mpeg");
    res.set("Cache-Control","no-store");
