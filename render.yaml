@@ -34,7 +34,7 @@ services:
       - key: OPENAI_TTS_MODEL
         value: gpt-4o-mini-tts
 
-      - key: OPENAI_TTS_VOICE
+      - key: NAYA_TTS_VOICE
         value: coral
 
 databases:

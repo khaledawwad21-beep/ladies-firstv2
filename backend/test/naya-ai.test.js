@@ -37,7 +37,7 @@ test("Naya passes only sanitized self profile and says not to use it for gifts",
 test("Naya defaults to the selected cost-efficient OpenAI model",async t=>{
  let captured;
  const app=express();app.use(express.json());
- app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:"أهلًا",recommendationIds:[]})}}]})}}}));
+ app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret",OPENAI_TTS_VOICE:"marin"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:"أهلًا",recommendationIds:[]})}}]})}}}));
  const s=app.listen(0);t.after(()=>s.close());await new Promise(r=>s.once("listening",r));
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/chat`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"مرحبا"})});
  assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).model,"gpt-6-luna");
@@ -86,10 +86,10 @@ test("Naya voice endpoint refuses text without an API key",async t=>{
  assert.equal(res.status,503);assert.equal((await res.json()).code,"NAYA_AI_NOT_CONFIGURED");
 });
 
-test("Naya voice endpoint honors the Render OPENAI_TTS_VOICE setting",async t=>{
+test("Naya voice endpoint honors the NAYA_TTS_VOICE setting",async t=>{
  let captured;
  const app=express();app.use(express.json());
- app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret",OPENAI_TTS_VOICE:"coral"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}}}));
+ app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret",NAYA_TTS_VOICE:"coral"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}}}));
  const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
  const res=await fetch(`http://127.0.0.1:${server.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"مرحبًا"})});
  assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).voice,"coral");
