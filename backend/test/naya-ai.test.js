@@ -23,7 +23,7 @@ test("Naya distinguishes self recommendations from gifts and requests recipient 
  assert.match(prompt,/لا تفترضي الذوق أو نوع المنتجات المناسبة من الجنس وحده/);
 });
 test("Naya passes only sanitized self profile and says not to use it for gifts",()=>{
- const{buildNayaMessages}=require("../src/naya-ai");
+ const{buildNayaMessages,buildStoreAssistantMessages}=require("../src/naya-ai");
  const messages=buildNayaMessages({message:"اقترحي عطرًا لي",catalog:[],history:[],customerProfile:{age:31,gender:"female",name:"private",phone:"123"}});
  const profile=messages.find(x=>x.role==="system"&&x.content.startsWith("بيانات ملف العميل"));
  assert.ok(profile);
