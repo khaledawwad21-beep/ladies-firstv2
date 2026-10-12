@@ -1261,13 +1261,25 @@ async function nayaCreateAudio(response){
  const url=URL.createObjectURL(await response.blob());
  return {audio:new Audio(url),url};
 }
+async function nayaFetchSpeech(spoken){
+ for(let attempt=0;attempt<2;attempt++){
+  let response;
+  try{response=await fetch('/api/ai/tts',{method:'POST',headers:await window.lfAiHeaders(),cache:'no-store',body:JSON.stringify({text:spoken.slice(0,1200)})})}
+  catch(error){if(attempt===0&&error?.name!=='AbortError'){await new Promise(resolve=>setTimeout(resolve,180));continue}throw error}
+  if(response.ok)return response;
+  const detail=await response.json().catch(()=>({}));
+  const transient=response.status===502||response.status===504||(response.status===503&&!['NAYA_AI_NOT_CONFIGURED','NAYA_TTS_RATE_LIMIT'].includes(detail.code));
+  if(attempt===0&&transient){await new Promise(resolve=>setTimeout(resolve,180));continue}
+  throw new Error(detail.message||'تعذر تشغيل صوت نايا الآن.');
+ }
+ throw new Error('تعذر تشغيل صوت نايا الآن.');
+}
 async function nayaSpeak(text,button,stopButton){
  if(!button||button.dataset.loading==='true')return;
  stopNayaAudio();button.dataset.loading='true';button.disabled=true;button.title='جارٍ تجهيز الصوت…';
  try{
   const spoken=String(text||'').replace(/https?:\/\/(?:www\.)?wa\.me\/[^\s]+/gi,'تواصلي مع المتجر عبر واتساب.');
-  const response=await fetch('/api/ai/tts',{method:'POST',headers:await window.lfAiHeaders(),cache:'no-store',body:JSON.stringify({text:spoken.slice(0,1200)})});
-  if(!response.ok){const detail=await response.json().catch(()=>({}));throw new Error(detail.message||'تعذر تشغيل صوت نايا الآن.')}
+  const response=await nayaFetchSpeech(spoken);
   const {audio,url}=await nayaCreateAudio(response);
   nayaCurrentAudio=audio;nayaCurrentAudioUrl=url;nayaCurrentSpeechButton=button;nayaCurrentStopButton=stopButton;
   button.disabled=false;button.title='نايا تتحدث…';stopButton.disabled=false;
