@@ -75,7 +75,7 @@ test("Naya voice endpoint uses the server key and returns uncached audio",async 
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا وسهلًا سيدتي"})});
  assert.equal(res.status,200);assert.equal(res.headers.get("content-type"),"audio/mpeg");assert.equal(res.headers.get("cache-control"),"no-store");
  assert.equal(captured.url,"https://api.openai.com/v1/audio/speech");assert.equal(captured.o.headers.Authorization,"Bearer secret");
- const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"marin");assert.match(payload.instructions,/صوت أنثوي طبيعي/);assert.match(payload.instructions,/فلسطينية حضرية/);
+ const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"coral");assert.match(payload.instructions,/صوت أنثوي طبيعي/);assert.match(payload.instructions,/فلسطينية حضرية/);
  assert.deepEqual(Buffer.from(await res.arrayBuffer()),bytes);
 });
 
@@ -89,10 +89,10 @@ test("Naya voice endpoint refuses text without an API key",async t=>{
 test("Naya voice endpoint honors the Render OPENAI_TTS_VOICE setting",async t=>{
  let captured;
  const app=express();app.use(express.json());
- app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret",OPENAI_TTS_VOICE:"marin"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}}}));
+ app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret",OPENAI_TTS_VOICE:"coral"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}}}));
  const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
  const res=await fetch(`http://127.0.0.1:${server.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"مرحبًا"})});
- assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).voice,"marin");
+ assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).voice,"coral");
 });
 
 test("Naya chat endpoints share a persistent rate-limit scope and TTS has its own scope",async t=>{

@@ -35,7 +35,7 @@ services:
         value: gpt-4o-mini-tts
 
       - key: OPENAI_TTS_VOICE
-        value: marin
+        value: coral
 
 databases:
   - name: ladies-first-db

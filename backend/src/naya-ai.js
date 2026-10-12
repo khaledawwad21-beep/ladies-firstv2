@@ -179,10 +179,10 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   const key=clean(env.OPENAI_API_KEY,500);
   if(!key)return res.status(503).json({ok:false,code:"NAYA_AI_NOT_CONFIGURED",message:"الصوت غير متاح حاليًا."});
   const allowedVoices=new Set(["alloy","ash","ballad","coral","echo","fable","nova","onyx","sage","shimmer","verse","marin","cedar"]);
-  const configuredVoice=clean(env.NAYA_TTS_VOICE||env.OPENAI_TTS_VOICE||"marin",20);
-  const voice=allowedVoices.has(configuredVoice)?configuredVoice:"marin";
+  const configuredVoice=clean(env.NAYA_TTS_VOICE||env.OPENAI_TTS_VOICE||"coral",20);
+  const voice=allowedVoices.has(configuredVoice)?configuredVoice:"coral";
   try{
-   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,instructions:"تحدثي بصوت أنثوي طبيعي ودافئ وغير متكلّف، بلهجة فلسطينية حضرية واضحة. استخدمي نبرة حوارية ودودة وإيقاعًا متنوعًا وسرعة معتدلة، وانطقي النص العربي كما هو من دون إضافة كلمات."})});
+   const r=await fetchImpl("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input,instructions:"تحدثي بصوت امرأة فلسطينية مدينية ناعم ودافئ ولطيف، مع دلع خفيف وعفوية وابتسامة مسموعة. خلي النبرة مرحة وحنونة من دون مبالغة أو تصنّع أو طفولية، والإيقاع هادئًا ومتنوعًا والنطق واضحًا وطبيعيًا. التزمي بالنص العربي كما هو ولا تضيفي كلمات."})});
    if(!r.ok)return res.status(r.status===429?503:502).json({ok:false,code:r.status===429?"NAYA_TTS_BUSY":"NAYA_TTS_UPSTREAM",message:"تعذر تشغيل صوت نايا الآن."});
    const audio=await r.arrayBuffer();
    res.set("Content-Type","audio/mpeg");
