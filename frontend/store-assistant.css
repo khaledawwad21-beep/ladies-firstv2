@@ -11,3 +11,7 @@
 .lf-store-ai-recording-status{min-height:0;margin:0;padding:0 16px;color:#63345e;font-size:12px;line-height:1.55}
 .lf-store-ai-recording-status:empty{display:none}
 @media(max-width:430px){.lf-store-ai-form{flex-wrap:wrap}.lf-store-ai-form input{flex:1 1 100%}.lf-store-ai-form .lf-store-ai-mic,.lf-store-ai-form button[type=submit]{flex:1;min-height:42px;padding:0 8px}}
+
+.lf-store-ai-form .lf-store-ai-mic{background:#63345e;color:#fff;border-color:#63345e;white-space:nowrap;min-width:112px}
+.lf-store-ai-form .lf-store-ai-mic:hover{background:#51284d}
+.lf-store-ai-form .lf-store-ai-mic[aria-label="إيقاف التسجيل وإرسال الصوت"]{background:#b84c5c;border-color:#b84c5c}

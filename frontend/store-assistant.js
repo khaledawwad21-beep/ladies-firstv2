@@ -12,7 +12,7 @@
    main.insertBefore(card,main.firstElementChild);card.querySelector('button').addEventListener('click',open);
   }
   const dialog=document.createElement('div');dialog.id='lfStoreAiDialog';dialog.className='lf-store-ai-overlay';dialog.hidden=true;
-  dialog.innerHTML='<section class="lf-store-ai-panel" role="dialog" aria-modal="true" aria-labelledby="lfStoreAiTitle"><header class="lf-store-ai-header"><div class="lf-store-ai-brand"><img class="lf-store-ai-avatar" src="naya-boutique.png" alt=""><div><span class="lf-store-ai-eyebrow">Ladies First</span><h2 id="lfStoreAiTitle">نايا • مستشارة التسوّق</h2><p>بحث مباشر في المنتجات ومعلومات المتجر</p></div></div><button type="button" class="lf-store-ai-close" aria-label="إغلاق">×</button></header><div class="lf-store-ai-prompts"><button type="button" data-prompt="بدي أجهز هدية لشخص. اسألني عن المناسبة والميزانية والمستلم خطوة خطوة.">هدية مناسبة</button><button type="button" data-prompt="ساعدني أختار عطرًا من الموجود. اسألني عن الرائحة التي أحبها والميزانية.">اختيار عطر</button><button type="button" data-prompt="نسق لي ساعة مع إكسسوار متوفر في المتجر.">تنسيق إكسسوارات</button><button type="button" data-prompt="ما المنتجات والعروض المتاحة حاليًا؟">المنتجات والعروض</button></div><div class="lf-store-ai-messages" id="lfStoreAiMessages" aria-live="polite"><p class="lf-store-ai-welcome">أهلًا، أنا نايا 🌸 احكيلي شو بتدوري عليه، وببحث لك في منتجات المتجر وبجاوبك عن المعلومات المتاحة.</p></div><form class="lf-store-ai-form"><input id="lfStoreAiInput" type="text" maxlength="1000" autocomplete="off" placeholder="اكتبي أو احكي سؤالك لنايا..." aria-label="اكتبي سؤالك لمساعد التسوق"><button class="lf-store-ai-mic" type="button" aria-label="تسجيل سؤال صوتي">🎙 تسجيل</button><button type="submit">إرسال</button></form><p class="lf-store-ai-recording-status" id="lfStoreAiRecordingStatus" aria-live="polite"></p><small class="lf-store-ai-note">يمكنك كتابة سؤالك أو تسجيله. يُرسل التسجيل لتحويله إلى نص ومعالجته، ولا يحفظه الموقع.</small></section>';
+  dialog.innerHTML='<section class="lf-store-ai-panel" role="dialog" aria-modal="true" aria-labelledby="lfStoreAiTitle"><header class="lf-store-ai-header"><div class="lf-store-ai-brand"><img class="lf-store-ai-avatar" src="naya-boutique.png" alt=""><div><span class="lf-store-ai-eyebrow">Ladies First</span><h2 id="lfStoreAiTitle">نايا • مستشارة التسوّق</h2><p>بحث مباشر في المنتجات ومعلومات المتجر</p></div></div><button type="button" class="lf-store-ai-close" aria-label="إغلاق">×</button></header><div class="lf-store-ai-prompts"><button type="button" data-prompt="بدي أجهز هدية لشخص. اسألني عن المناسبة والميزانية والمستلم خطوة خطوة.">هدية مناسبة</button><button type="button" data-prompt="ساعدني أختار عطرًا من الموجود. اسألني عن الرائحة التي أحبها والميزانية.">اختيار عطر</button><button type="button" data-prompt="نسق لي ساعة مع إكسسوار متوفر في المتجر.">تنسيق إكسسوارات</button><button type="button" data-prompt="ما المنتجات والعروض المتاحة حاليًا؟">المنتجات والعروض</button></div><div class="lf-store-ai-messages" id="lfStoreAiMessages" aria-live="polite"><p class="lf-store-ai-welcome">أهلًا، أنا نايا 🌸 احكيلي شو بتدوري عليه، وببحث لك في منتجات المتجر وبجاوبك عن المعلومات المتاحة.</p></div><form class="lf-store-ai-form"><input id="lfStoreAiInput" type="text" maxlength="1000" autocomplete="off" placeholder="اكتبي أو احكي سؤالك لنايا..." aria-label="اكتبي سؤالك لمساعد التسوق"><button class="lf-store-ai-mic" type="button" aria-label="إرسال سؤال صوتي">إرسال صوتي</button><button type="submit">إرسال</button></form><p class="lf-store-ai-recording-status" id="lfStoreAiRecordingStatus" aria-live="polite"></p><small class="lf-store-ai-note">لإرسال سؤال صوتي، اضغطي «إرسال صوتي» وتحدثي، ثم اضغطي «إيقاف وإرسال». يُحوَّل كلامك إلى نص ويُرسل لنايا، ولا يحفظ الموقع التسجيل.</small></section>';
   dialog.addEventListener('click',e=>{if(e.target===dialog||e.target.closest('.lf-store-ai-close'))close()});
   dialog.querySelector('.lf-store-ai-form').addEventListener('submit',e=>{e.preventDefault();send()});
   dialog.querySelector('.lf-store-ai-mic').addEventListener('click',toggleRecording);
@@ -79,7 +79,7 @@
  function releaseMicrophone(){if(recordingTimer)clearTimeout(recordingTimer);recordingTimer=null;if(microphoneStream)microphoneStream.getTracks().forEach(track=>track.stop());microphoneStream=null}
  async function toggleRecording(){
   const button=recordingButton();
-  if(activeRecorder&&activeRecorder.state==='recording'){setRecordingStatus('جارٍ تجهيز التسجيل لتحويله إلى نص…');activeRecorder.stop();return}
+  if(activeRecorder&&activeRecorder.state==='recording'){setRecordingStatus('جارٍ تجهيز رسالتك الصوتية للإرسال…');activeRecorder.stop();return}
   if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined'){setRecordingStatus('التسجيل الصوتي غير مدعوم في هذا المتصفح.');return}
   try{
    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
@@ -90,12 +90,12 @@
    recorder.onstop=()=>{
     const blob=new Blob(recordingChunks,{type:recorder.mimeType||preferred||'audio/webm'});recordingChunks=[];
     releaseMicrophone();activeRecorder=null;
-    if(button){button.disabled=false;button.textContent='🎙 تسجيل';button.setAttribute('aria-label','تسجيل سؤال صوتي')}
+    if(button){button.disabled=false;button.textContent='إرسال صوتي';button.setAttribute('aria-label','إرسال سؤال صوتي')}
     if(cancelRecording){cancelRecording=false;setRecordingStatus('');return}
     if(!blob.size){setRecordingStatus('ما وصل تسجيل واضح. جرّبي مرة ثانية.');return}
     transcribe(blob);
    };
-   recorder.start();button.textContent='إيقاف التسجيل';button.setAttribute('aria-label','إيقاف التسجيل وإرسال الصوت');setRecordingStatus('جاري التسجيل… اضغطي «إيقاف التسجيل» عند الانتهاء.');recordingTimer=setTimeout(()=>{if(activeRecorder===recorder){setRecordingStatus('انتهت مدة التسجيل؛ جارٍ تحويله إلى نص…');recorder.stop()}},45000);
+   recorder.start();button.textContent='إيقاف وإرسال';button.setAttribute('aria-label','إيقاف التسجيل وإرسال الصوت');setRecordingStatus('جاري التسجيل… اضغطي «إيقاف وإرسال» عند الانتهاء.');recordingTimer=setTimeout(()=>{if(activeRecorder===recorder){setRecordingStatus('انتهت مدة التسجيل؛ جارٍ إرسال رسالتك الصوتية…');recorder.stop()}},45000);
   }catch(error){releaseMicrophone();setRecordingStatus(error?.name==='NotAllowedError'?'اسمحي باستخدام الميكروفون لتسجيل سؤالك.':'تعذر بدء التسجيل. تحققي من إذن الميكروفون وحاولي مجددًا.')}
  }
  async function transcribe(blob){
@@ -106,10 +106,10 @@
    const response=await fetch(base+'/api/ai/transcribe',{method:'POST',headers,body:blob,cache:'no-store'});
    const result=await response.json().catch(()=>({}));
    if(!response.ok||!result.ok)throw new Error(result.message||'تعذر تحويل التسجيل إلى نص.');
-   const input=$('#lfStoreAiInput'),transcript=String(result.text||'').trim().slice(0,1000);
+   const transcript=String(result.text||'').trim().slice(0,1000);
    if(!transcript)throw new Error('ما وصل كلام واضح في التسجيل. جرّبي مرة ثانية.');
-   if(input){input.value=transcript;input.focus()}
-   setRecordingStatus('راجعي النص وعدّليه إذا لزم، ثم اضغطي «إرسال».');
+   setRecordingStatus('تم تحويل كلامك وإرساله لنايا…');
+   await send(transcript);
   }catch(error){setRecordingStatus(error.message||'تعذر تحويل التسجيل إلى نص.')}
   finally{if(button)button.disabled=false}
  }
