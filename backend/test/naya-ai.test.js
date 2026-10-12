@@ -15,7 +15,7 @@ test("Naya customer context accepts only a valid age and gender",()=>{
  assert.deepEqual(sanitizeCustomerProfile({age:35,gender:"male"}),{age:35,gender:"male"});
 });
 test("Naya distinguishes self recommendations from gifts and requests recipient details",()=>{
- const{buildNayaMessages}=require("../src/naya-ai");
+ const{buildNayaMessages,buildStoreAssistantMessages}=require("../src/naya-ai");
  const messages=buildNayaMessages({message:"بدي تجميعة",catalog:[],history:[]});
  const prompt=messages.filter(x=>x.role==="system").map(x=>x.content).join(" ");
  assert.match(prompt,/هل هي للعميل نفسه أم هدية لشخص آخر/);
@@ -75,7 +75,7 @@ test("Naya voice endpoint uses the server key and returns uncached audio",async 
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا وسهلًا سيدتي"})});
  assert.equal(res.status,200);assert.equal(res.headers.get("content-type"),"audio/mpeg");assert.equal(res.headers.get("cache-control"),"no-store");
  assert.equal(captured.url,"https://api.openai.com/v1/audio/speech");assert.equal(captured.o.headers.Authorization,"Bearer secret");
- const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"marin");assert.equal(payload.speed,0.96);assert.match(payload.instructions,/أنثويًا دافئًا ورقيقًا وهادئًا/);assert.match(payload.instructions,/نبرة ودودة طبيعية/);assert.match(payload.instructions,/لهجة لبنانية محكية خفيفة وطبيعية/);assert.match(payload.instructions,/ابتسامة مسموعة/);assert.match(payload.instructions,/وصل الجمل انسيابيًا/);assert.doesNotMatch(payload.instructions,/متوسطة إلى مرتفعة|بلا همس ولا خفوت/);
+ const payload=JSON.parse(captured.o.body);assert.equal(payload.model,"gpt-4o-mini-tts");assert.equal(payload.voice,"shimmer");assert.equal(payload.speed,1);assert.match(payload.instructions,/distinctly feminine, light, youthful voice/);assert.match(payload.instructions,/natural urban Lebanese \(Beirut\) colloquial accent/);assert.match(payload.instructions,/subtly playful and sweet/);assert.doesNotMatch(payload.instructions,/deep or masculine timbre|announcer delivery|drawn-out syllables/);
  const reader=res.body.getReader(),chunks=[];while(true){const part=await reader.read();if(part.done)break;chunks.push(Buffer.from(part.value))}assert.deepEqual(Buffer.concat(chunks),bytes);
 });
 
@@ -86,13 +86,13 @@ test("Naya voice endpoint refuses text without an API key",async t=>{
  assert.equal(res.status,503);assert.equal((await res.json()).code,"NAYA_AI_NOT_CONFIGURED");
 });
 
-test("Naya voice endpoint replaces the legacy Sage setting with Marin",async t=>{
+test("Naya voice endpoint replaces the legacy Sage setting with Shimmer",async t=>{
  let captured;
  const app=express();app.use(express.json());
  app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret",NAYA_TTS_VOICE:"sage"},fetchImpl:async(_url,o)=>{captured=o;return{ok:true,arrayBuffer:async()=>new ArrayBuffer(0)}}}));
  const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
  const res=await fetch(`http://127.0.0.1:${server.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"مرحبًا"})});
- assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).voice,"marin");
+ assert.equal(res.status,200);assert.equal(JSON.parse(captured.body).voice,"shimmer");
 });
 
 test("Naya chat endpoints share a persistent rate-limit scope and TTS has its own scope",async t=>{
@@ -111,7 +111,7 @@ test("Naya chat endpoints share a persistent rate-limit scope and TTS has its ow
 test("Naya prompt identifies a friendly sales employee and includes the live WhatsApp contact",()=>{
  const{buildNayaMessages}=require("../src/naya-ai");
  const prompt=buildNayaMessages({message:"أريد عطرًا",catalog:[],whatsappNumber:"+972 (56) 249-9924"}).find(x=>x.role==="system").content;
- assert.ok(prompt.includes("موظفة مبيعات ودودة"));assert.ok(prompt.includes("سأسأل الفريق"));assert.ok(prompt.includes("لهجة لبنانية محكية طبيعية وناعمة"));assert.ok(prompt.includes("972562499924"));assert.ok(prompt.includes("https://wa.me/972562499924?text="));
+ assert.ok(prompt.includes("موظفة مبيعات ودودة"));assert.ok(prompt.includes("سأسأل الفريق"));assert.ok(prompt.includes("لهجة لبنانية محكية حضرية"));assert.ok(prompt.includes("هيدي"));assert.ok(prompt.includes("هلّق"));assert.ok(prompt.includes("972562499924"));assert.ok(prompt.includes("https://wa.me/972562499924?text="));const storePrompt=buildStoreAssistantMessages({message:"أريد عطرًا",catalog:[]})[0].content;assert.ok(storePrompt.includes("بلهجة لبنانية محكية حضرية"));assert.ok(storePrompt.includes("هيدي"));
 });
 test("Naya rejects messages over 1000 characters before calling OpenAI",async t=>{
  let upstreamCalled=false;const app=express();app.use(express.json());
