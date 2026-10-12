@@ -26,6 +26,14 @@ function videoUrl(value) {
 }
 function cleanMetadata(value) {
   const metadata = value && typeof value === 'object' && !Array.isArray(value) ? {...value} : {};
+  for (const key of ['saleStartsAt','saleEndsAt']) {
+    if (metadata[key] === undefined || metadata[key] === null || metadata[key] === '') { metadata[key] = ''; continue; }
+    const value = String(metadata[key]);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) invalid('تاريخ التخفيض غير صالح');
+    const date = new Date(value + 'T00:00:00Z');
+    if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== value) invalid('تاريخ التخفيض غير صالح');
+    metadata[key] = value;
+  }
   if (Object.hasOwn(metadata, 'videos')) {
     if (!Array.isArray(metadata.videos) || metadata.videos.length > 8) invalid('الحد الأقصى 8 فيديوهات للمنتج');
     metadata.videos = metadata.videos.map(videoUrl);
@@ -86,6 +94,13 @@ function registerProductWrites(app, getProducts) {
         const existing = id ? (await client.query('SELECT * FROM products WHERE id = $1 FOR UPDATE', [id])).rows[0] : null;
         if (id && !existing) { const error = new Error('المنتج غير موجود'); error.status = 404; throw error; }
         const mergedMetadata = {...(existing?.metadata || {}), ...metadata};
+        const saleStart = mergedMetadata.saleStartsAt || '';
+        const saleEnd = mergedMetadata.saleEndsAt || '';
+        if (saleStart || saleEnd) {
+          if (!(Number(oldPrice) > price)) invalid('تواريخ التخفيض متاحة فقط عند وجود سعر قديم أعلى من السعر الحالي');
+          if (!saleStart || !saleEnd) invalid('حددي تاريخ بداية ونهاية التخفيض');
+          if (saleStart > saleEnd) invalid('تاريخ بداية التخفيض يجب أن يسبق تاريخ النهاية');
+        }
         const categoryProvided = body.categoryId !== undefined || body.category_id !== undefined || body.category !== undefined;
         const category = categoryProvided
           ? await taxonomy(client, 'categories', body.categoryId ?? body.category_id, body.category)
