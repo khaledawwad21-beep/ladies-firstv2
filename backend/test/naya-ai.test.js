@@ -87,6 +87,14 @@ test("Naya retries one transient upstream TTS failure",async t=>{
  assert.equal(res.status,200);assert.equal(attempts,2);
 });
 
+test("Naya reports speech timeouts clearly without retrying them",async t=>{
+ let attempts=0;const app=express();app.use(express.json());
+ app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{OPENAI_API_KEY:"secret"},fetchImpl:async()=>{attempts++;const error=new Error("timed out");error.name="TimeoutError";throw error}}));
+ const server=app.listen(0);t.after(()=>server.close());await new Promise(r=>server.once("listening",r));
+ const res=await fetch(`http://127.0.0.1:${server.address().port}/api/ai/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"أهلًا"})});
+ const result=await res.json();assert.equal(res.status,504);assert.equal(result.code,"NAYA_TTS_TIMEOUT");assert.equal(attempts,1);
+});
+
 test("Naya voice endpoint refuses text without an API key",async t=>{
  const app=express();app.use(express.json());app.use("/api/ai",createRouter({db:async()=>({rows:[]}),env:{}}));
  const s=app.listen(0);t.after(()=>s.close());await new Promise(r=>s.once("listening",r));
