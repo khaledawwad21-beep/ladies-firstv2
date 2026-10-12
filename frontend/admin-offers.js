@@ -1,6 +1,6 @@
 'use strict';
 
-let offerProducts=[],offerBusy=false,offerLoad=0;
+let offerProducts=[],offerBusy=false,offerLoad=0,welcomeConfig={enabled:false,productIds:[],startAt:'',endAt:'',couponCode:'',headline:''},welcomeCoupons=[];
 
 function offerProductImage(p){
   const main=Array.isArray(p?.mainImages)?p.mainImages.find(Boolean):'';
@@ -15,6 +15,12 @@ window.offers=async function offers(){
     const data=await api('/api/products');
     if(request!==offerLoad||!$('#offersLoading'))return;
     offerProducts=data.products||[];
+    const [settings,couponData]=await Promise.all([
+      api('/api/admin/settings').catch(()=>({settings:{}})),
+      api('/api/admin/coupons').catch(()=>({coupons:[]}))
+    ]);
+    welcomeConfig={enabled:false,productIds:[],startAt:'',endAt:'',couponCode:'',headline:'',...(settings.settings?.welcome_offer||{})};
+    welcomeCoupons=(couponData.coupons||[]).filter(c=>c.is_active!==false);
     $('#sections').innerHTML=`<div class="card"><h2>Top 5 والعروض السريعة</h2>
       <p>ابحثي عن المنتج مباشرة، ثم عدّلي سعر العرض والسعر الأصلي ومكان ظهوره وتاريخ انتهاء العرض.</p>
       <div class="offer-search-box">
@@ -24,7 +30,22 @@ window.offers=async function offers(){
       </div>
       <div id="offerEditor"></div>
       <p id="offerMessage" role="status"></p>
+    </div>
+    <div class="card" style="margin-top:18px"><h2>نافذة الترحيب والعرض المؤقت</h2>
+      <p class="small-note">اختاري الأصناف التي تظهر للزوار، وحددي موعد البداية والنهاية ليعمل العداد تلقائيًا. يمكن إضافة كوبون فعّال للإعلان عنه.</p>
+      <div class="formgrid">
+        <label class="full"><input id="welcomeEnabled" type="checkbox"> تفعيل نافذة الترحيب</label>
+        <label class="full">عنوان النافذة<input id="welcomeHeadline" class="field" maxlength="100" placeholder="مثال: عروض لفترة محدودة"></label>
+        <label>بداية الحملة<input id="welcomeStart" class="field" type="datetime-local"></label>
+        <label>نهاية الحملة<input id="welcomeEnd" class="field" type="datetime-local"></label>
+        <label class="full">كوبون الإعلان<select id="welcomeCoupon" class="field"><option value="">بدون كوبون</option></select></label>
+      </div>
+      <label class="full" style="display:block;margin-top:12px">ابحثي عن الأصناف<input id="welcomeSearch" class="field" placeholder="اسم الصنف أو البراند" oninput="offerRenderWelcomeProducts()"></label>
+      <div id="welcomeProductPicker" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px"></div>
+      <p id="welcomeCampaignMessage" role="status"></p>
+      <button type="button" class="btn primary" onclick="saveWelcomeCampaign()">حفظ نافذة الترحيب</button>
     </div>`;
+    offerInitWelcome();
   }catch(e){
     if(request===offerLoad&&$('#offersLoading'))$('#sections').textContent=e.message;
   }
@@ -133,3 +154,58 @@ async function saveProductOffer(){
     if($('#offerFields'))$('#offerFields').disabled=false;
   }
 }
+
+
+function offerLocalDateTime(value){
+  if(!value)return '';
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime()))return '';
+  return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);
+}
+function offerInitWelcome(){
+  const config=welcomeConfig||{};
+  $('#welcomeEnabled').checked=config.enabled===true;
+  $('#welcomeHeadline').value=config.headline||'';
+  $('#welcomeStart').value=offerLocalDateTime(config.startAt);
+  $('#welcomeEnd').value=offerLocalDateTime(config.endAt);
+  $('#welcomeCoupon').innerHTML='<option value="">بدون كوبون</option>'+welcomeCoupons.map(c=>'<option value="'+E(c.code)+'">'+E(c.code)+' — '+E(c.discount_type==='percent'?Number(c.discount_value)+'%':M(c.discount_value)+' ₪')+'</option>').join('');
+  $('#welcomeCoupon').value=welcomeCoupons.some(c=>String(c.code).toUpperCase()===String(config.couponCode||'').toUpperCase())?config.couponCode:'';
+  offerRenderWelcomeProducts();
+}
+window.offerRenderWelcomeProducts=function offerRenderWelcomeProducts(){
+  const box=$('#welcomeProductPicker');
+  if(!box)return;
+  const q=String($('#welcomeSearch')?.value||'').trim().toLowerCase();
+  const chosen=new Set((welcomeConfig.productIds||[]).map(Number));
+  const matches=offerProducts.filter(p=>!q||[p.name||'',p.brand||'',p.category||''].join(' ').toLowerCase().includes(q)).slice(0,40);
+  const rows=matches.map(p=>'<label style="display:flex;align-items:center;gap:9px;padding:8px;border:1px solid #eadce3;border-radius:10px"><input type="checkbox" value="'+Number(p.id)+'" '+(chosen.has(Number(p.id))?'checked':'')+' onchange="offerToggleWelcomeProduct('+Number(p.id)+',this.checked)">'+
+    (offerProductImage(p)?'<img src="'+E(offerProductImage(p))+'" alt="" style="width:42px;height:42px;object-fit:cover;border-radius:8px">':'')+
+    '<span>'+E(p.name||'صنف')+'</span></label>').join('');
+  const chosenNotVisible=(welcomeConfig.productIds||[]).map(Number).filter(id=>!matches.some(p=>Number(p.id)===id)).map(id=>{
+    const p=offerProducts.find(x=>Number(x.id)===id);
+    if(!p)return '';
+    return '<label style="display:flex;align-items:center;gap:9px;padding:8px;border:1px solid #eadce3;border-radius:10px"><input type="checkbox" value="'+id+'" checked onchange="offerToggleWelcomeProduct('+id+',this.checked)">'+E(p.name||'صنف')+'</label>';
+  }).join('');
+  box.innerHTML=(chosenNotVisible+rows)||'<small>لا توجد أصناف مطابقة.</small>';
+};
+window.offerToggleWelcomeProduct=function offerToggleWelcomeProduct(id,checked){
+  const selected=new Set((welcomeConfig.productIds||[]).map(Number));
+  checked?selected.add(Number(id)):selected.delete(Number(id));
+  welcomeConfig.productIds=[...selected];
+};
+window.saveWelcomeCampaign=async function saveWelcomeCampaign(){
+  const message=$('#welcomeCampaignMessage');
+  const startRaw=$('#welcomeStart')?.value||'',endRaw=$('#welcomeEnd')?.value||'';
+  const productIds=(welcomeConfig.productIds||[]).map(Number);
+  const enabled=$('#welcomeEnabled')?.checked===true;
+  if(enabled&&(!productIds.length||!startRaw||!endRaw)){message.textContent='فعّلي الحملة بعد اختيار صنف واحد على الأقل وتحديد البداية والنهاية.';return}
+  const startAt=startRaw?new Date(startRaw).toISOString():'',endAt=endRaw?new Date(endRaw).toISOString():'';
+  if(startAt&&endAt&&Date.parse(startAt)>=Date.parse(endAt)){message.textContent='تاريخ البداية يجب أن يسبق تاريخ النهاية.';return}
+  const payload={welcome_offer:{enabled,productIds,startAt,endAt,couponCode:$('#welcomeCoupon')?.value||'',headline:$('#welcomeHeadline')?.value.trim()||''}};
+  message.textContent='جاري الحفظ…';
+  try{
+    await api('/api/admin/settings',{method:'PUT',body:JSON.stringify(payload)});
+    welcomeConfig=payload.welcome_offer;
+    message.textContent='تم حفظ إعدادات نافذة الترحيب والعداد.';
+  }catch(e){message.textContent=e.message||'تعذر حفظ الإعدادات.'}
+};
