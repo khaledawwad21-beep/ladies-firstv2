@@ -50,3 +50,12 @@
     padding:7px 6px!important;
   }
 }
+
+
+/* Legible subtitle over Naya's dark plum header on web and Android WebView. */
+html body #nayaAssistant .naya-header .naya-status{
+  color:#fff5fa!important;
+  opacity:1!important;
+  font-size:12px!important;
+  line-height:1.5!important;
+}
