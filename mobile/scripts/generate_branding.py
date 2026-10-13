@@ -1,5 +1,6 @@
 """Generate native startup art from the approved icon, without modifying store branding."""
 from pathlib import Path
+import xml.etree.ElementTree as ET
 import cairosvg
 
 root = Path(__file__).resolve().parents[1]
@@ -12,6 +13,27 @@ for density, size in [('mdpi',48), ('hdpi',72), ('xhdpi',96), ('xxhdpi',144), ('
     target = res / ('mipmap-' + density) / 'ic_launcher.png'
     target.parent.mkdir(parents=True, exist_ok=True)
     cairosvg.svg2png(url=str(source), write_to=str(target), output_width=size, output_height=size)
+# Android 12+ clips the splash icon to a circle. Render the approved icon
+# at 62% within a matching cream canvas so the full butterfly/leaf is visible;
+# do not shrink or replace the user's regular launcher icon.
+ns = 'http://www.w3.org/2000/svg'
+ET.register_namespace('', ns)
+splash = ET.Element(f'{{{ns}}}svg', {
+    'width': '1024', 'height': '1024', 'viewBox': '0 0 1024 1024'
+})
+ET.SubElement(splash, f'{{{ns}}}rect', {
+    'width': '1024', 'height': '1024', 'fill': '#FBF4EC'
+})
+center = ET.SubElement(splash, f'{{{ns}}}g', {
+    'transform': 'translate(194 194) scale(0.62)'
+})
+center.append(ET.parse(source).getroot())
+splash_asset = res / 'drawable-nodpi/lf_splash_icon.png'
+splash_asset.parent.mkdir(parents=True, exist_ok=True)
+cairosvg.svg2png(bytestring=ET.tostring(splash, encoding='utf-8'),
+                write_to=str(splash_asset),
+                output_width=432, output_height=432)
+
 for folder in ['drawable', 'drawable-v21']:
     target = res / folder / 'launch_background.xml'
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -30,7 +52,7 @@ for folder in ['values-v31', 'values-night-v31']:
     target.write_text('''<resources>
   <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
     <item name="android:windowSplashScreenBackground">@color/lf_cream</item>
-    <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@drawable/lf_splash_icon</item>
     <item name="android:windowLightStatusBar">false</item>
     <item name="android:statusBarColor">#5B3154</item>
     <item name="android:navigationBarColor">@color/lf_cream</item>
