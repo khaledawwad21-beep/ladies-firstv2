@@ -31,6 +31,7 @@ const {
 } = require("./auth");
 
 const { validateHomepageSettings } = require("./homepage-settings");
+const { applyOfficialContactSettings, OFFICIAL_PHONE } = require("./official-contact");
 const {
   normalizePermissions,
   initAdminPermissions,
@@ -1170,12 +1171,13 @@ async function initDatabase() {
     DO NOTHING
   `);
 
+  // Enforce the owner's explicitly approved public contact in persisted
+  // settings; never rewrite buyer/staff/order phone numbers.
   await db(`
     UPDATE settings
     SET value = '"+970562499924"'::jsonb
     WHERE key IN ('phone', 'whatsapp_number', 'whatsapp')
-      AND regexp_replace(COALESCE(value #>> '{}', ''), '[^0-9]', '', 'g')
-        IN ('0562499924', '970562499924', '00970562499924', '972562499924', '00972562499924')
+      AND value IS DISTINCT FROM '"+970562499924"'::jsonb
   `);
 
   await db(`
@@ -1184,6 +1186,43 @@ async function initDatabase() {
     FROM settings
     WHERE key = 'social'
     ON CONFLICT(key) DO NOTHING
+  `);
+
+  // Preserve each other social platform, replacing only the official WA URL.
+  await db(`
+    UPDATE settings
+    SET value = jsonb_set(
+      value, '{whatsapp,url}', '"https://wa.me/970562499924"'::jsonb, true
+    )
+    WHERE key IN ('social', 'social_links')
+      AND jsonb_typeof(value) = 'object'
+      AND jsonb_typeof(value -> 'whatsapp') = 'object'
+      AND COALESCE(value #>> '{whatsapp,url}', '') <> 'https://wa.me/970562499924'
+  `);
+
+  // Migrate only the existing owner login contact, without touching customer,
+  // staff, or historic order numbers. If another account already owns this
+  // phone, leave it unchanged so the owner can resolve the conflict safely.
+  await db(`
+    WITH chosen_owner AS (
+      SELECT id
+      FROM users
+      WHERE role = 'owner' OR is_owner = TRUE
+      ORDER BY is_owner DESC, id ASC
+      LIMIT 1
+    )
+    UPDATE users AS owner_account
+    SET phone = '+970562499924', updated_at = NOW()
+    FROM chosen_owner
+    WHERE owner_account.id = chosen_owner.id
+      AND owner_account.phone IS DISTINCT FROM '+970562499924'
+      AND NOT EXISTS (
+        SELECT 1 FROM users AS conflicting_account
+        WHERE conflicting_account.id <> owner_account.id
+          AND regexp_replace(COALESCE(conflicting_account.phone, ''), '[^0-9]', '', 'g')
+            IN ('970562499924', '00970562499924', '972562499924',
+                '00972562499924', '0562499924')
+      )
   `);
 
   console.log(
@@ -8442,7 +8481,7 @@ app.put(
         : {};
 
     try {
-      incoming = validateHomepageSettings(incoming);
+      incoming = applyOfficialContactSettings(validateHomepageSettings(incoming));
 
       const changesMaintenance =
         Object.prototype.hasOwnProperty.call(incoming,"maintenance_mode") ||
