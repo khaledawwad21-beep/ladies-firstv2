@@ -22,7 +22,7 @@
     if (typeof window.storeWhatsAppDigits === 'function') {
       return String(window.storeWhatsAppDigits());
     }
-    return '972562499924';
+    return '970562499924';
   }
   function create() {
     let modal = document.getElementById('lfWhatsAppContact');
