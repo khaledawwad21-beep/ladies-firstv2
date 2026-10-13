@@ -1,0 +1,80 @@
+name: Flutter iOS simulator build (test)
+
+on:
+  push:
+    branches: [codex/ios-simulator-ci, feature/flutter-mobile-app]
+    paths: ['mobile/**', '.github/workflows/flutter-ios-test.yml']
+  pull_request:
+    branches: [feature/flutter-mobile-app]
+    paths: ['mobile/**', '.github/workflows/flutter-ios-test.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios-simulator:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Check out application source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - name: Generate missing iOS project files
+        run: flutter create --org com.ladiesfirst --project-name ladies_first --platforms ios --no-pub .
+
+      - name: Set iOS display name and microphone permission text
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('ios/Runner/Info.plist')
+          text = p.read_text()
+          text = text.replace(
+              '<key>CFBundleDisplayName</key>\n\t<string>ladies_first</string>',
+              '<key>CFBundleDisplayName</key>\n\t<string>Ladies First</string>',
+          )
+          microphone = (
+              '<key>NSMicrophoneUsageDescription</key>\n'
+              '\t<string>يُستخدم الميكروفون عند طلبك استخدام الإدخال الصوتي في المتجر.</string>\n'
+          )
+          if 'NSMicrophoneUsageDescription' not in text:
+              text = text.replace('<dict>', '<dict>\n\t' + microphone, 1)
+          if '<string>Ladies First</string>' not in text:
+              text = text.replace(
+                  '<key>CFBundleName</key>\n\t<string>ladies_first</string>',
+                  '<key>CFBundleName</key>\n\t<string>Ladies First</string>',
+              )
+          p.write_text(text)
+          assert 'NSMicrophoneUsageDescription' in text
+          assert 'Ladies First' in text
+          PY
+
+      - name: Fetch Flutter packages
+        run: flutter pub get
+
+      - name: Analyze Dart code
+        run: flutter analyze
+
+      - name: Test Flutter code
+        run: flutter test
+
+      - name: Build iOS simulator app without signing
+        run: flutter build ios --simulator --debug
+
+      - name: Upload iOS simulator build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladies-first-ios-simulator-app
+          path: mobile/build/ios/iphonesimulator/Runner.app
+          if-no-files-found: error
+          retention-days: 14
