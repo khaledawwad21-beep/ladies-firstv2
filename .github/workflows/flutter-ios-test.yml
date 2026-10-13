@@ -37,26 +37,15 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import plistlib
           p = Path('ios/Runner/Info.plist')
-          text = p.read_text()
-          text = text.replace(
-              '<key>CFBundleDisplayName</key>\n\t<string>ladies_first</string>',
-              '<key>CFBundleDisplayName</key>\n\t<string>Ladies First</string>',
+          settings = plistlib.loads(p.read_bytes())
+          settings['CFBundleDisplayName'] = 'Ladies First'
+          settings['CFBundleName'] = 'Ladies First'
+          settings['NSMicrophoneUsageDescription'] = (
+              'يُستخدم الميكروفون عند طلبك استخدام الإدخال الصوتي في المتجر.'
           )
-          microphone = (
-              '<key>NSMicrophoneUsageDescription</key>\n'
-              '\t<string>يُستخدم الميكروفون عند طلبك استخدام الإدخال الصوتي في المتجر.</string>\n'
-          )
-          if 'NSMicrophoneUsageDescription' not in text:
-              text = text.replace('<dict>', '<dict>\n\t' + microphone, 1)
-          if '<string>Ladies First</string>' not in text:
-              text = text.replace(
-                  '<key>CFBundleName</key>\n\t<string>ladies_first</string>',
-                  '<key>CFBundleName</key>\n\t<string>Ladies First</string>',
-              )
-          p.write_text(text)
-          assert 'NSMicrophoneUsageDescription' in text
-          assert 'Ladies First' in text
+          p.write_bytes(plistlib.dumps(settings, fmt=plistlib.FMT_XML, sort_keys=False))
           PY
 
       - name: Fetch Flutter packages
