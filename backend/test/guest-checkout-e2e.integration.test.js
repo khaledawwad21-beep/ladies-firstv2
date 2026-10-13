@@ -138,5 +138,33 @@ if (process.env.RUN_DB_E2E !== "1") {
 
     const afterCancel = await api("/api/products/" + productId);
     assert.equal(Number(afterCancel.product.stock), 4);
+
+    // Repeating cancellation must not return the same inventory twice.
+    await api("/api/admin/orders/" + orderId + "/status", {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ status: "cancelled", cancelSource: "admin" })
+    });
+    const afterRepeatedCancel = await api("/api/products/" + productId);
+    assert.equal(Number(afterRepeatedCancel.product.stock), 4);
+
+    // A cancelled order is terminal: reopening it would sell already-restored stock.
+    let reopenError = null;
+    try {
+      await api("/api/admin/orders/" + orderId + "/status", {
+        method: "PATCH",
+        headers: ownerHeaders,
+        body: JSON.stringify({ status: "confirmed" })
+      });
+    } catch (error) {
+      reopenError = error;
+    }
+    assert.equal(reopenError?.status, 409);
+    assert.equal(reopenError?.body?.code, "CANCELLED_ORDER_FINAL");
+    const afterRejectedReopen = await api("/api/products/" + productId);
+    assert.equal(Number(afterRejectedReopen.product.stock), 4);
+
+    const cancelledOrder = await api("/api/admin/orders/" + orderId, { headers: ownerHeaders });
+    assert.equal(String(cancelledOrder.order.status).toLowerCase(), "cancelled");
   });
 }
