@@ -8211,12 +8211,12 @@ app.patch(
     }
 
     if (
-      req.body.discount_value !==
-      undefined
+      req.body.discount_value !== undefined ||
+      req.body.discountValue !== undefined
     ) {
       const value =
         Number(
-          req.body.discount_value
+          req.body.discount_value ?? req.body.discountValue
         );
 
       if (
@@ -8345,8 +8345,28 @@ app.patch(
     values.push(id);
 
     try {
-      const result =
-        await db(
+      const result = await transaction(async client => {
+        // Lock the current coupon before evaluating its effective discount.
+        // Updating only type or only value must never create a percentage > 100.
+        const current = await client.query(
+          "SELECT discount_type,discount_value FROM coupons WHERE id=$1 FOR UPDATE",
+          [id]
+        );
+        if (!current.rowCount) return current;
+
+        const incomingType = req.body.discount_type ?? req.body.discountType;
+        const incomingValue = req.body.discount_value ?? req.body.discountValue;
+        const nextType = incomingType === undefined
+          ? String(current.rows[0].discount_type || "percent").toLowerCase()
+          : String(incomingType).trim().toLowerCase();
+        const nextValue = incomingValue === undefined
+          ? Number(current.rows[0].discount_value)
+          : Number(incomingValue);
+        if ((incomingType !== undefined || incomingValue !== undefined) && nextType === "percent" && nextValue > 100) {
+          throw createHttpError(400, "INVALID_COUPON_VALUE", "خصم النسبة المئوية لا يمكن أن يتجاوز 100%");
+        }
+
+        return client.query(
           `
           UPDATE coupons
           SET
@@ -8357,6 +8377,7 @@ app.patch(
           `,
           values
         );
+      });
 
       if (
         !result.rowCount
@@ -8374,6 +8395,9 @@ app.patch(
           result.rows[0]
       });
     } catch (error) {
+      if (error.status >= 400 && error.status < 500) {
+        return res.status(error.status).json({ ok:false, code:error.code, message:error.message });
+      }
       console.error(
         "[COUPON UPDATE]",
         error
@@ -8407,15 +8431,30 @@ app.delete(
     }
 
     try {
-      const result =
-        await db(
-          `
-          DELETE FROM coupons
-          WHERE id = $1
-          RETURNING id, code
-          `,
+      const result = await transaction(async client => {
+        // Checkout also locks the coupon row; serializing both operations
+        // preserves historical usage counts, even against concurrent orders.
+        const current = await client.query(
+          "SELECT id,code FROM coupons WHERE id=$1 FOR UPDATE",
           [id]
         );
+        if (!current.rowCount) return current;
+        const used = await client.query(
+          "SELECT 1 FROM orders WHERE UPPER(COALESCE(coupon_code,''))=$1 LIMIT 1",
+          [String(current.rows[0].code || "").toUpperCase()]
+        );
+        if (used.rowCount) {
+          throw createHttpError(
+            409,
+            "COUPON_HAS_ORDERS",
+            "تم استخدام الكوبون في طلبات سابقة؛ عطّليه بدل حذفه للحفاظ على سجل الاستخدام والفواتير."
+          );
+        }
+        return client.query(
+          "DELETE FROM coupons WHERE id=$1 RETURNING id,code",
+          [id]
+        );
+      });
 
       if (!result.rowCount) {
         return res.status(404).json({
@@ -8430,6 +8469,9 @@ app.delete(
         coupon: result.rows[0]
       });
     } catch (error) {
+      if (error.status >= 400 && error.status < 500) {
+        return res.status(error.status).json({ ok:false, code:error.code, message:error.message });
+      }
       console.error(
         "[COUPON DELETE]",
         error
