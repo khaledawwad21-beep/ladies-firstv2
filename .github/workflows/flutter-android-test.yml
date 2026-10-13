@@ -48,6 +48,24 @@ jobs:
               text=text.replace('<application', permission+'\n    <application', 1)
           p.write_text(text)
           PY
+      - name: Generate official Ladies First launcher icons
+        run: |
+          python3 -m pip install --quiet cairosvg
+          python3 - <<'PY'
+          from pathlib import Path
+          import cairosvg
+          source = Path('branding/ladies-first-app-icon.svg')
+          assert source.is_file(), 'Missing official launcher icon'
+          res = Path('android/app/src/main/res')
+          for density, size in [('mdpi',48),('hdpi',72),('xhdpi',96),
+                                ('xxhdpi',144),('xxxhdpi',192)]:
+              target = res / ('mipmap-' + density) / 'ic_launcher.png'
+              target.parent.mkdir(parents=True, exist_ok=True)
+              cairosvg.svg2png(url=str(source), write_to=str(target),
+                               output_width=size, output_height=size)
+              assert target.stat().st_size > 1000, 'Launcher icon failed: ' + str(target)
+          print('Official Ladies First launcher icons generated for all Android densities.')
+          PY
       - name: Fetch Flutter packages
         run: flutter pub get
       - name: Analyze Dart code
