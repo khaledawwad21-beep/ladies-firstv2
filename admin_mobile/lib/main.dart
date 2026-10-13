@@ -112,6 +112,37 @@ class AdminError implements Exception {
   String toString() => message;
 }
 
+class DashboardMetrics {
+  const DashboardMetrics({
+    required this.customers,
+    required this.products,
+    required this.orders,
+    required this.sales,
+    required this.pendingOrders,
+    required this.lowStock,
+  });
+
+  final int customers;
+  final int products;
+  final int orders;
+  final double sales;
+  final int pendingOrders;
+  final int lowStock;
+
+  factory DashboardMetrics.fromJson(Map<String, dynamic> json) {
+    int count(String key) => int.tryParse('${json[key] ?? 0}') ?? 0;
+    double amount(String key) => double.tryParse('${json[key] ?? 0}') ?? 0;
+    return DashboardMetrics(
+      customers: count('customers'),
+      products: count('products'),
+      orders: count('orders'),
+      sales: amount('sales'),
+      pendingOrders: count('pendingOrders'),
+      lowStock: count('lowStock'),
+    );
+  }
+}
+
 class SessionGate extends StatefulWidget {
   const SessionGate({super.key});
 
@@ -350,9 +381,11 @@ class _DashboardPageState extends State<DashboardPage> {
     _data = _load();
   }
 
-  Future<Map<String, dynamic>> _load() async {
+  Future<DashboardMetrics> _load() async {
     final response = await widget.api.request('/admin/dashboard');
-    return Map<String, dynamic>.from(response['dashboard'] as Map? ?? const {});
+    return DashboardMetrics.fromJson(
+      Map<String, dynamic>.from(response['dashboard'] as Map? ?? const {}),
+    );
   }
 
   Future<void> _refresh() async {
@@ -373,7 +406,7 @@ class _DashboardPageState extends State<DashboardPage> {
             const SizedBox(height: 4),
             const Text('اسحبي للأسفل لتحديث الأرقام'),
             const SizedBox(height: 16),
-            FutureBuilder<Map<String, dynamic>>(
+            FutureBuilder<DashboardMetrics>(
               future: _data,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
@@ -390,12 +423,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 }
                 final d = snapshot.data!;
                 final cards = [
-                  ('الطلبات', '${d['orders'] ?? 0}', Icons.receipt_long),
-                  ('قيد التنفيذ', '${d['pendingOrders'] ?? 0}', Icons.pending_actions),
-                  ('المنتجات', '${d['products'] ?? 0}', Icons.shopping_bag),
-                  ('مخزون منخفض', '${d['lowStock'] ?? 0}', Icons.warning_amber),
-                  ('العملاء', '${d['customers'] ?? 0}', Icons.people_outline),
-                  ('المبيعات', '${d['sales'] ?? 0}', Icons.payments_outlined),
+                  ('الطلبات', '${d.orders}', Icons.receipt_long),
+                  ('قيد التنفيذ', '${d.pendingOrders}', Icons.pending_actions),
+                  ('المنتجات', '${d.products}', Icons.shopping_bag),
+                  ('مخزون منخفض', '${d.lowStock}', Icons.warning_amber),
+                  ('العملاء', '${d.customers}', Icons.people_outline),
+                  ('المبيعات', d.sales.toStringAsFixed(2), Icons.payments_outlined),
                 ];
                 return GridView.count(
                   crossAxisCount: 2,
