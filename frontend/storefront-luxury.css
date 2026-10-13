@@ -481,3 +481,6 @@ body.store-logo-zoom-open{overflow:hidden}
   .actions{gap:3px!important}
   .actions .iconbtn{width:32px!important;height:32px!important;flex-basis:32px!important}
 }
+
+/* Keep the approved standalone mark inside the circular header frame. */
+.logoZoomTrigger .logo{width:calc(100% - 8px)!important;height:calc(100% - 8px)!important;object-fit:contain!important;object-position:center!important;border-radius:50%!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
