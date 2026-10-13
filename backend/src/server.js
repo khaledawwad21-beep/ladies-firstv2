@@ -8372,7 +8372,7 @@ app.patch(
           SET
             ${fields.join(", ")},
             updated_at = NOW()
-          WHERE id = ${values.length}
+          WHERE id = $${values.length}
           RETURNING *
           `,
           values
