@@ -185,7 +185,8 @@ try:
     find(['Ladies First'])
     snapshot('13-installed-app-icon')
     admin_package = package + '.admin'
-    adb('shell', 'am', 'start', '-n', admin_package + '/.MainActivity')
+    adb('shell', 'monkey', '-p', admin_package,
+        '-c', 'android.intent.category.LAUNCHER', '1')
     find(['تسجيل الدخول'], timeout=90)
     find(['Ladies First'])
     snapshot('14-admin-login')
@@ -199,3 +200,4 @@ except Exception:
     raise
 finally:
     (out / 'logcat.txt').write_bytes(adb('logcat', '-d', '-t', '500'))
+
