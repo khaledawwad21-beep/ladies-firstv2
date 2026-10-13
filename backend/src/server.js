@@ -57,6 +57,9 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 
 app.use(require("./security-policy").createSecurityPolicy({ db }));
 
+// Signed Cloud API webhook requires raw bytes; mount before JSON parsing.
+require("./whatsapp-inbound").registerWhatsAppInboundRoutes(app, { db });
+
 app.use(
   express.json({
     limit: "5mb"
@@ -581,6 +584,7 @@ async function initDatabase() {
   await require('./cart-tracking').initCartTracking(db);
   await require('./account-state').initAccountState(db);
   await require('./whatsapp-automation').initWhatsAppAutomation(db);
+  await require("./whatsapp-inbound").initWhatsAppInbound(db);
   await require('./passkeys').initPasskeys(db);
   await require('./password-recovery').initPasswordRecovery(db);
   await require('./staff-messages').initStaffMessages(db);
