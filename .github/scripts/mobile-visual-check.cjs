@@ -102,6 +102,26 @@ async function run() {
     await page.locator('#nayaAssistant').waitFor({ state: 'visible' });
     await shot('07-naya-open');
     pass('Naya can open from mobile storefront without sending an AI request');
+    const quick = await page.locator('#nayaAssistant .naya-quick').evaluate(el => {
+      const box = el.getBoundingClientRect();
+      const buttons = Array.from(el.querySelectorAll('button'))
+        .map(b => { const r = b.getBoundingClientRect(); return { left:r.left, right:r.right, top:r.top, bottom:r.bottom, text:b.innerText }; });
+      const assistantBottom = document.querySelector('#nayaAssistant').getBoundingClientRect().bottom;
+      const navTop = document.querySelector('.bottomNav').getBoundingClientRect().top;
+      return { left:box.left, right:box.right, top:box.top, bottom:box.bottom,
+        scrollWidth:el.scrollWidth, clientWidth:el.clientWidth, buttons, assistantBottom, navTop };
+    });
+    assert.equal(quick.buttons.length, 4, 'Naya must retain all four shortcuts');
+    assert(quick.scrollWidth <= quick.clientWidth + 2, 'Naya quick buttons overflow horizontally');
+    assert(quick.buttons.every(b => b.left >= quick.left - 2 && b.right <= quick.right + 2 &&
+      b.top >= quick.top - 2 && b.bottom <= quick.bottom + 2),
+      'All four Naya buttons must be fully visible within the rail');
+    assert.equal(new Set(quick.buttons.map(b => Math.round(b.top / 5))).size, 2,
+      'Four shortcuts should form two readable rows on mobile');
+    assert(quick.assistantBottom <= quick.navTop + 3,
+      'Naya panel should not cover the bottom navigation');
+    await shot('08-naya-quick-actions');
+    pass('All Naya quick actions fit in two mobile rows above the navigation');
   } catch (error) {
     errors.push(String(error));
     try { await shot('failure-current-screen'); } catch (_) {}
