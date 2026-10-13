@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Ladies First butterfly leaf app icon">
+ <defs>
+  <linearGradient id="tile" x1=".12" y1=".02" x2=".86" y2=".96" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#fffaf3"/><stop offset=".53" stop-color="#ffe5e8"/><stop offset="1" stop-color="#dca4bd"/></linearGradient>
+  <linearGradient id="plum" x1=".16" y1=".86" x2=".83" y2=".11" gradientUnits="objectBoundingBox"><stop stop-color="#3d193c"/><stop offset=".55" stop-color="#643258"/><stop offset="1" stop-color="#a15c86"/></linearGradient>
+  <linearGradient id="rose" x1=".2" y1="1" x2=".8" y2="0" gradientUnits="objectBoundingBox"><stop stop-color="#7c365f"/><stop offset=".51" stop-color="#ce8b9e"/><stop offset=".85" stop-color="#f8c9c4"/><stop offset="1" stop-color="#fff2dc"/></linearGradient>
+  <linearGradient id="wing" x1="0" y1=".92" x2=".95" y2="0" gradientUnits="objectBoundingBox"><stop stop-color="#4a1e48"/><stop offset=".4" stop-color="#773b64"/><stop offset=".84" stop-color="#b46d91"/><stop offset="1" stop-color="#efbec4"/></linearGradient>
+  <linearGradient id="blush" x1=".2" y1="0" x2=".9" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#fff2db"/><stop offset=".5" stop-color="#ecb6ba"/><stop offset="1" stop-color="#a96582"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#a86937"/><stop offset=".35" stop-color="#f6d5a1"/><stop offset=".7" stop-color="#c18b57"/><stop offset="1" stop-color="#fff5d7"/></linearGradient>
+  <clipPath id="rounded"><rect x="14" y="14" width="996" height="996" rx="229" ry="229"/></clipPath>
+ </defs>
+ <g clip-path="url(#rounded)">
+  <rect x="14" y="14" width="996" height="996" fill="url(#tile)"/>
+  <path d="M-35 725 C160 648 268 744 415 776 C638 825 783 735 1090 629 L1090 1065 L-40 1065Z" fill="url(#plum)"/>
+  <path d="M-20 733 C165 650 308 754 456 780 C648 808 805 725 1060 644" fill="none" stroke="url(#gold)" stroke-width="11" opacity=".88"/>
+  <path d="M47 176 C290 20 660 33 900 140" fill="none" stroke="#fffefb" stroke-width="32" stroke-linecap="round" opacity=".42"/>
+  <path d="M375 752 C315 642 249 575 194 534 C148 498 139 446 155 422" fill="none" stroke="url(#gold)" stroke-width="14" stroke-linecap="round"/>
+  <path d="M223 443 C180 425 169 389 183 362 C199 394 219 400 246 405" fill="none" stroke="#bf8a59" stroke-width="6" stroke-linecap="round"/>
+  <path d="M209 410 C206 398 205 388 209 377" fill="none" stroke="#f6d29f" stroke-width="4"/>
+  <!-- Main upward leaf, standing proud like the brand's butterfly -->
+  <path d="M479 725 C401 603 416 476 466 362 C501 279 570 221 674 142 C625 244 594 323 609 420 C631 557 564 668 479 725Z" fill="url(#rose)" stroke="#c99c6c" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M480 710 C478 573 540 436 636 246" fill="none" stroke="#ffe7c6" stroke-width="14" opacity=".9" stroke-linecap="round"/>
+  <path d="M479 722 C424 634 379 546 325 481 C276 420 231 409 180 427 C228 485 243 563 321 635 C363 674 407 699 479 722Z" fill="url(#wing)" stroke="#c69b75" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M468 705 C381 629 308 544 227 459" fill="none" stroke="#e6b6ae" stroke-width="12" stroke-linecap="round" opacity=".8"/>
+  <!-- Right petal, blending blush, gold and plum -->
+  <path d="M509 714 C558 595 628 534 713 501 C780 475 836 473 900 489 C833 535 810 609 738 661 C662 717 576 732 509 714Z" fill="url(#blush)" stroke="#bc8c60" stroke-width="11" stroke-linejoin="round"/>
+  <path d="M529 708 C660 624 758 551 848 511" fill="none" stroke="#fff2d8" stroke-width="12" opacity=".93" stroke-linecap="round"/>
+  <!-- Signature soft seeds / jewelry details -->
+  <path d="M714 498 C731 434 753 403 777 387" fill="none" stroke="url(#gold)" stroke-width="9" stroke-linecap="round"/>
+  <path d="M757 505 C791 448 814 429 842 420" fill="none" stroke="url(#gold)" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="780" cy="379" r="17" fill="url(#gold)"/>
+  <circle cx="849" cy="413" r="15" fill="url(#gold)"/>
+  <circle cx="746" cy="457" r="12" fill="#f0c4a7"/>
+ </g>
+ <rect x="21" y="21" width="982" height="982" rx="223" ry="223" fill="none" stroke="#fff5ee" stroke-width="15" opacity=".66"/>
+</svg>
