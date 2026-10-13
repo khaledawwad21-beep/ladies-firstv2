@@ -22,11 +22,34 @@ def snapshot(name):
     (out / (name + '.png')).write_bytes(adb('exec-out', 'screencap', '-p'))
 
 
+last_ui_error = ''
+
+
 def nodes():
-    adb('shell', 'uiautomator', 'dump', '/sdcard/lf-window.xml')
-    xml = adb('shell', 'cat', '/sdcard/lf-window.xml').decode()
-    (out / 'last-window.xml').write_text(xml)
-    return list(ET.fromstring(xml).iter('node'))
+    """UIAutomator occasionally returns no root during a fresh emulator boot.
+
+    Retry from find() instead of failing on a missing dump file. Never reuse a
+    stale hierarchy: each probe removes the previous XML first.
+    """
+    global last_ui_error
+    path = '/sdcard/lf-window.xml'
+    try:
+        adb('shell', 'rm', '-f', path)
+        message = adb('shell', 'uiautomator', 'dump', path, timeout=35).decode(
+            errors='replace'
+        )
+        if 'ERROR:' in message or 'null root node' in message.lower():
+            last_ui_error = message.strip()
+            return []
+        xml = adb('shell', 'cat', path, timeout=12).decode(errors='replace')
+        root = ET.fromstring(xml)
+        (out / 'last-window.xml').write_text(xml)
+        last_ui_error = ''
+        return list(root.iter('node'))
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            ET.ParseError, OSError) as exc:
+        last_ui_error = f'{type(exc).__name__}: {exc}'
+        return []
 
 
 def label(node):
@@ -44,7 +67,11 @@ def find(names, timeout=30, exact=False):
                     return node
         time.sleep(1)
     snapshot('failure')
-    raise AssertionError('Visible control missing: ' + ', '.join(names))
+    (out / 'ui-probe-error.txt').write_text(last_ui_error)
+    raise AssertionError(
+        'Visible control missing: ' + ', '.join(names) +
+        ('; last UIAutomator error: ' + last_ui_error if last_ui_error else '')
+    )
 
 
 def tap(names, exact=False):
@@ -63,7 +90,9 @@ def passed(name):
 try:
     adb('install', '-r', 'apk/app-debug.apk', timeout=120)
     passed('APK installed on Android 35')
-    adb('shell', 'am', 'start', '-n', package + '/.MainActivity')
+    adb('shell', 'input', 'keyevent', 'KEYCODE_WAKEUP')
+    adb('shell', 'wm', 'dismiss-keyguard')
+    adb('shell', 'am', 'start', '-W', '-n', package + '/.MainActivity')
     snapshot('01-startup')
     find(['فتح القائمة'], timeout=90)
     snapshot('02-storefront')
