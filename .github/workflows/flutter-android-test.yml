@@ -3,7 +3,7 @@ name: Flutter Android APK (test)
 on:
   push:
     branches: [feature/flutter-mobile-app]
-    paths: ['mobile/**']
+    paths: ['mobile/**', '.github/workflows/flutter-android-test.yml']
   workflow_dispatch:
 
 permissions:
@@ -51,21 +51,7 @@ jobs:
       - name: Generate official Ladies First launcher icons
         run: |
           python3 -m pip install --quiet cairosvg
-          python3 - <<'PY'
-          from pathlib import Path
-          import cairosvg
-          source = Path('branding/ladies-first-app-icon.svg')
-          assert source.is_file(), 'Missing official launcher icon'
-          res = Path('android/app/src/main/res')
-          for density, size in [('mdpi',48),('hdpi',72),('xhdpi',96),
-                                ('xxhdpi',144),('xxxhdpi',192)]:
-              target = res / ('mipmap-' + density) / 'ic_launcher.png'
-              target.parent.mkdir(parents=True, exist_ok=True)
-              cairosvg.svg2png(url=str(source), write_to=str(target),
-                               output_width=size, output_height=size)
-              assert target.stat().st_size > 1000, 'Launcher icon failed: ' + str(target)
-          print('Official Ladies First launcher icons generated for all Android densities.')
-          PY
+          python3 scripts/generate_branding.py
       - name: Fetch Flutter packages
         run: flutter pub get
       - name: Analyze Dart code
@@ -80,4 +66,36 @@ jobs:
           name: ladies-first-android-debug-apk
           path: mobile/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
+
+  android-device-smoke:
+    needs: android-debug-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ladies-first-android-debug-apk
+          path: apk
+      - name: Enable KVM for the isolated emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install and exercise the APK on Android 35
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: python3 mobile/scripts/android_smoke.py
+      - name: Upload actual Android screenshots and test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladies-first-android-device-evidence
+          path: android-evidence/
+          if-no-files-found: warn
           retention-days: 14

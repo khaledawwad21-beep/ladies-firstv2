@@ -20,7 +20,7 @@ const Color cream = Color(0xFFFBF4EC);
 // MutationObservers and repeated DOM scans on every animation frame.
 const String mobileStoreEnhancements = r'''
 (() => {
-  if (!location.hostname.endsWith('ladies-firstv2.onrender.com')) return;
+  if (location.hostname !== 'ladies-firstv2.onrender.com') return;
   if (window.__lfFlutterEnhancementsInstalled) return;
   window.__lfFlutterEnhancementsInstalled = true;
 
@@ -53,8 +53,6 @@ const String mobileStoreEnhancements = r'''
   }
   const realGetAccount = typeof window.getAccount === 'function'
     ? window.getAccount : null;
-  const originalGreeting = typeof window.greetingForAccount === 'function'
-    ? window.greetingForAccount : null;
   if (!realGetAccount) return;
 
   function prefKey(a) {
@@ -204,7 +202,7 @@ class StoreScreen extends StatefulWidget {
   State<StoreScreen> createState() => _StoreScreenState();
 }
 
-enum _StoreLoadIssue { none, network, timeout, blank }
+enum _StoreLoadIssue { none, network, timeout }
 
 class _StoreScreenState extends State<StoreScreen> {
   late final WebViewController _webView;
@@ -219,7 +217,7 @@ class _StoreScreenState extends State<StoreScreen> {
   void _armLoadTimeout() {
     _loadTimeout?.cancel();
     final int current = ++_navigationId;
-    _loadTimeout = Timer(const Duration(seconds: 22), () {
+    _loadTimeout = Timer(const Duration(seconds: 60), () {
       if (!mounted || current != _navigationId || !_loading) return;
       setState(() {
         _loading = false;
@@ -229,21 +227,36 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Future<void> _checkStorePage(int navigationId) async {
-    // Some WebViews report onPageFinished for an empty/failed document.
-    // Check that the real storefront markup is present after scripts settle.
-    await Future<void>.delayed(const Duration(seconds: 3));
-    if (!mounted || navigationId != _navigationId) return;
-    try {
-      final Object result = await _webView.runJavaScriptReturningResult(
-        "(function(){var b=document.body;return !!(b && b.innerText && b.innerText.trim().length>80 && document.getElementById('sideMenuOverlay') && document.getElementById('bottomWhatsLink'));})()",
-      );
-      if (!mounted || navigationId != _navigationId) return;
-      if (result != true && result.toString() != 'true') {
-        setState(() => _loadIssue = _StoreLoadIssue.blank);
+    // Render may finish a warm-up document before the real store arrives.
+    // Probe the document without reloading or resetting the customer session.
+    while (mounted && navigationId == _navigationId) {
+      try {
+        final Object result = await _webView.runJavaScriptReturningResult(
+          "!!(document.getElementById('sideMenuOverlay') && document.getElementById('bottomWhatsLink') && document.getElementById('grid') && document.querySelector('#grid > *'))",
+        );
+        if (!mounted || navigationId != _navigationId) return;
+        if (result == true || result.toString() == 'true') {
+          await _applyMobileEnhancements();
+          if (!mounted || navigationId != _navigationId) return;
+          _finishLoad();
+          return;
+        }
+      } catch (_) {
+        // The bridge can be briefly unavailable during a server redirect.
       }
-    } catch (_) {
-      // A JavaScript bridge failure should not obscure a visible storefront.
+      if (!_loading || _loadIssue == _StoreLoadIssue.network) return;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
     }
+  }
+
+  void _finishLoad() {
+    _loadTimeout?.cancel();
+    setState(() {
+      _loading = false;
+      _loadedOnce = true;
+      _progress = 100;
+      _loadIssue = _StoreLoadIssue.none;
+    });
   }
 
   @override
@@ -268,18 +281,15 @@ class _StoreScreenState extends State<StoreScreen> {
             _armLoadTimeout();
           },
           onPageFinished: (String url) {
-            if (!mounted) return;
-            _loadTimeout?.cancel();
-            if (Uri.tryParse(url)?.host == Uri.parse(storeUrl).host) {
-              unawaited(_applyMobileEnhancements());
+            if (!mounted || _loadIssue == _StoreLoadIssue.network) return;
+            final uri = Uri.tryParse(url);
+            if (uri != null && uri.host == Uri.parse(storeUrl).host &&
+                (uri.path == '/' || uri.path == '/index.html' || uri.path.isEmpty)) {
               unawaited(_checkStorePage(_navigationId));
+            } else {
+              // Receipts and other store pages do not contain the home menu.
+              _finishLoad();
             }
-            setState(() {
-              _loading = false;
-              _loadedOnce = true;
-              _progress = 100;
-              _loadIssue = _StoreLoadIssue.none;
-            });
           },
           onWebResourceError: (WebResourceError error) {
             // Missing images and blocked third-party requests are not a
@@ -307,6 +317,11 @@ class _StoreScreenState extends State<StoreScreen> {
             }
             // Keep the original checkout, account, products, and Naya pages
             // on the same origin so their browser session is preserved.
+            if ((uri.scheme == 'http' || uri.scheme == 'https') &&
+                uri.host != Uri.parse(storeUrl).host && request.isMainFrame) {
+              unawaited(_openOutside(uri));
+              return NavigationDecision.prevent;
+            }
             if (uri.scheme == 'http' ||
                 uri.scheme == 'https' ||
                 uri.scheme == 'about' ||
@@ -339,7 +354,8 @@ class _StoreScreenState extends State<StoreScreen> {
 
   Future<void> _openOutside(Uri uri) async {
     try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened) throw StateError('No application can open this link');
     } catch (_) {
       // An external application may not be installed.
       if (!mounted) return;
@@ -420,6 +436,8 @@ class _StoreScreenState extends State<StoreScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
+                          Image(image: AssetImage('assets/app-icon.png'), width: 112, height: 112),
+                          SizedBox(height: 16),
                           Text(
                             'Ladies First',
                             style: TextStyle(
@@ -483,9 +501,7 @@ class _StoreScreenState extends State<StoreScreen> {
                             Text(
                               _loadIssue == _StoreLoadIssue.timeout
                                   ? 'التحميل أخذ وقت أطول من المعتاد. جرّب إعادة المحاولة.'
-                                  : _loadIssue == _StoreLoadIssue.blank
-                                      ? 'الصفحة ما ظهرت. جرّب تحديثها أو افتح المتجر بالمتصفح.'
-                                      : 'تحقّق من اتصال الإنترنت ثم أعد المحاولة.',
+                                  : 'تحقّق من اتصال الإنترنت ثم أعد المحاولة.',
                               textDirection: TextDirection.rtl,
                               textAlign: TextAlign.center,
                             ),
