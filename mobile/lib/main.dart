@@ -15,6 +15,157 @@ const String storeUrl = String.fromEnvironment(
 const Color plum = Color(0xFF5B3154);
 const Color cream = Color(0xFFFBF4EC);
 
+
+// Runs only on the store origin after its scripts have loaded. Avoid
+// MutationObservers and repeated DOM scans on every animation frame.
+const String mobileStoreEnhancements = r'''
+(() => {
+  if (!location.hostname.endsWith('ladies-firstv2.onrender.com')) return;
+  if (window.__lfFlutterEnhancementsInstalled) return;
+  window.__lfFlutterEnhancementsInstalled = true;
+
+  const style = document.createElement('style');
+  style.id = 'lf-flutter-mobile-style';
+  style.textContent = [
+    '#whatsappFloat { display:none!important; }',
+    '@media(max-width:760px){',
+    '  .bottomNav { bottom:0!important; }',
+    '  .naya-launcher { width:58px!important; height:58px!important;',
+    '    right:12px!important; bottom:calc(82px + env(safe-area-inset-bottom,0px))!important;',
+    '    box-shadow:0 4px 12px #40234c33!important; }',
+    '  header,.heroText,.bottomNav { backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }',
+    '}',
+    '#lfMobileGender { display:flex; align-items:center; gap:7px; flex-wrap:wrap;',
+    '  padding:10px 3px 2px; direction:rtl; color:#63345e; font-size:13px; }',
+    '#lfMobileGender button { border:1px solid #dfc8d6; border-radius:13px;',
+    '  background:#fff; padding:6px 11px; color:#63345e; font:inherit; cursor:pointer; }',
+    '#lfMobileGender button[aria-pressed="true"] { background:#63345e; color:#fff; }',
+  ].join('\n');
+  (document.head || document.documentElement).appendChild(style);
+
+  // Selection is scoped to the signed-in account, not inferred from the
+  // person's name, and does not change the server-side profile.
+  function normalGender(value) {
+    const v = String(value || '').trim().toLowerCase();
+    if (['male', 'm', 'ذكر', 'man'].includes(v)) return 'male';
+    if (['female', 'f', 'أنثى', 'انثى', 'woman'].includes(v)) return 'female';
+    return '';
+  }
+  const realGetAccount = typeof window.getAccount === 'function'
+    ? window.getAccount : null;
+  const originalGreeting = typeof window.greetingForAccount === 'function'
+    ? window.greetingForAccount : null;
+  if (!realGetAccount) return;
+
+  function prefKey(a) {
+    const id = a && (a.serverUserId || a.user_id || a.id ||
+      (a.type && a.contact ? a.type + ':' + a.contact : ''));
+    return id ? 'lf_app_gender:' + String(id) : '';
+  }
+  function chosenGender(a) {
+    const key = prefKey(a);
+    const setting = key ? normalGender(localStorage.getItem(key)) : '';
+    return setting || normalGender(a && a.gender);
+  }
+
+  window.getAccount = function() {
+    const a = realGetAccount();
+    if (!a) return a;
+    const gender = chosenGender(a);
+    return gender ? { ...a, gender } : a;
+  };
+  window.greetingForAccount = function(a) {
+    const gender = chosenGender(a);
+    return gender === 'male' ? 'نورتنا' :
+      gender === 'female' ? 'نورتينا' : 'أهلاً وسهلاً';
+  };
+
+  function applyCustomerCopy() {
+    const a = window.getAccount();
+    const gender = a ? chosenGender(a) : '';
+    const en = document.documentElement.lang === 'en';
+    if (en || !gender) return;
+    const headerSearch = document.getElementById('headerSearchText');
+    if (headerSearch) headerSearch.textContent =
+      gender === 'male' ? 'ابحث عن قطعة مميزة' : 'ابحثي عن قطعة مميزة';
+    const nayaWelcome = document.getElementById('nayaWelcome');
+    if (nayaWelcome && nayaWelcome.textContent &&
+      document.getElementById('nayaAssistant')?.classList.contains('open')) {
+      nayaWelcome.textContent = gender === 'male'
+        ? 'يا أهلا فيك 🌸 أنا نايا، شو بقدر ساعدك اليوم؟'
+        : 'يا أهلا فيكي 🌸 أنا نايا، شو بقدر ساعدك اليوم؟';
+    }
+  }
+
+  function insertGenderChoice() {
+    const slot = document.getElementById('sideAccountGreeting');
+    const account = realGetAccount();
+    if (!slot || !account) return;
+    if (document.getElementById('lfMobileGender')) return;
+    const row = document.createElement('div');
+    row.id = 'lfMobileGender';
+    const text = document.createElement('span');
+    text.textContent = 'صيغة مخاطبتك:';
+    row.appendChild(text);
+
+    const gender = chosenGender(account);
+    for (const entry of [['male', 'مذكر'], ['female', 'مؤنث']]) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = entry[1];
+      btn.dataset.gender = entry[0];
+      btn.setAttribute('aria-pressed', String(entry[0] === gender));
+      btn.addEventListener('click', () => {
+        const key = prefKey(realGetAccount());
+        if (!key) return;
+        localStorage.setItem(key, entry[0]);
+        if (typeof window.renderSideAccountGreeting === 'function') {
+          window.renderSideAccountGreeting();
+        }
+        if (typeof window.updateAccountBadge === 'function') {
+          window.updateAccountBadge();
+        }
+        if (document.getElementById('accountModal')?.style.display === 'flex'
+          && typeof window.renderAccountContent === 'function') {
+          window.renderAccountContent();
+        }
+        applyCustomerCopy();
+      });
+      row.appendChild(btn);
+    }
+    slot.appendChild(row);
+  }
+
+  if (typeof window.renderSideAccountGreeting === 'function') {
+    const original = window.renderSideAccountGreeting;
+    window.renderSideAccountGreeting = function(...args) {
+      const result = original.apply(this, args);
+      insertGenderChoice();
+      applyCustomerCopy();
+      return result;
+    };
+  }
+  for (const name of ['renderNewUiLang', 'renderStaticLang']) {
+    if (typeof window[name] === 'function') {
+      const original = window[name];
+      window[name] = function(...args) {
+        const result = original.apply(this, args);
+        applyCustomerCopy();
+        return result;
+      };
+    }
+  }
+  // No continuous layout observer: re-render only at known app events.
+  if (typeof window.renderSideAccountGreeting === 'function') {
+    window.renderSideAccountGreeting();
+  }
+  if (typeof window.updateAccountBadge === 'function') {
+    window.updateAccountBadge();
+  }
+  applyCustomerCopy();
+})();
+''';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
@@ -55,6 +206,7 @@ class StoreScreen extends StatefulWidget {
 
 class _StoreScreenState extends State<StoreScreen> {
   late final WebViewController _webView;
+  late final Widget _webContent;
   bool _loading = true;
   bool _hasMainFrameError = false;
   int _progress = 0;
@@ -68,7 +220,7 @@ class _StoreScreenState extends State<StoreScreen> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
-            if (!mounted) return;
+            if (!mounted || progress - _progress < 10 && progress != 100) return;
             setState(() => _progress = progress);
           },
           onPageStarted: (String _) {
@@ -78,8 +230,11 @@ class _StoreScreenState extends State<StoreScreen> {
               _hasMainFrameError = false;
             });
           },
-          onPageFinished: (String _) {
+          onPageFinished: (String url) {
             if (!mounted) return;
+            if (Uri.tryParse(url)?.host == Uri.parse(storeUrl).host) {
+              unawaited(_applyMobileEnhancements());
+            }
             setState(() {
               _loading = false;
               _progress = 100;
@@ -120,7 +275,16 @@ class _StoreScreenState extends State<StoreScreen> {
           },
         ),
       );
+    _webContent = WebViewWidget(controller: _webView);
     unawaited(_webView.loadRequest(Uri.parse(storeUrl)));
+  }
+
+  Future<void> _applyMobileEnhancements() async {
+    try {
+      await _webView.runJavaScript(mobileStoreEnhancements);
+    } catch (_) {
+      // Keep the store usable even if a third-party page blocks JavaScript.
+    }
   }
 
   Future<void> _openOutside(Uri uri) async {
@@ -164,7 +328,7 @@ class _StoreScreenState extends State<StoreScreen> {
         body: SafeArea(
           child: Stack(
             children: <Widget>[
-              WebViewWidget(controller: _webView),
+              _webContent,
               if (_loading && !_hasMainFrameError)
                 Positioned(
                   top: 0,
