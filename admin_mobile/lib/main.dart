@@ -686,7 +686,6 @@ class _OrdersPageState extends State<OrdersPage> {
         body: body,
       );
       if (!mounted) return;
-      Navigator.of(context).maybePop();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تحديث حالة الطلب')),
       );
