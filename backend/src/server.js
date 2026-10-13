@@ -8362,7 +8362,7 @@ app.patch(
         const nextValue = incomingValue === undefined
           ? Number(current.rows[0].discount_value)
           : Number(incomingValue);
-        if (nextType === "percent" && nextValue > 100) {
+        if ((incomingType !== undefined || incomingValue !== undefined) && nextType === "percent" && nextValue > 100) {
           throw createHttpError(400, "INVALID_COUPON_VALUE", "خصم النسبة المئوية لا يمكن أن يتجاوز 100%");
         }
 
