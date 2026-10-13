@@ -56,9 +56,14 @@ class AdminApi {
     if (body != null) headers['Content-Type'] = 'application/json';
     final uri = Uri.parse('$_base$path');
     late http.Response response;
+    final encodedBody = body == null ? null : jsonEncode(body);
     if (method == 'POST') {
       response = await _client
-          .post(uri, headers: headers, body: jsonEncode(body ?? {}))
+          .post(uri, headers: headers, body: encodedBody ?? '{}')
+          .timeout(const Duration(seconds: 30));
+    } else if (method == 'PATCH') {
+      response = await _client
+          .patch(uri, headers: headers, body: encodedBody ?? '{}')
           .timeout(const Duration(seconds: 30));
     } else {
       response = await _client
@@ -351,9 +356,11 @@ class _AdminShellState extends State<AdminShell> {
         ),
         body: _index == 0
             ? DashboardPage(api: widget.api)
-            : _index == 4
-                ? const MoreSections()
-                : _ComingSoon(title: _tabs[_index].$1),
+            : _index == 1
+                ? OrdersPage(api: widget.api)
+                : _index == 4
+                    ? const MoreSections()
+                    : _ComingSoon(title: _tabs[_index].$1),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _index,
           onDestinationSelected: (value) => setState(() => _index = value),
@@ -479,6 +486,327 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
           ],
+        ),
+      );
+}
+
+class OrdersPage extends StatefulWidget {
+  const OrdersPage({required this.api, super.key});
+
+  final AdminApi api;
+
+  @override
+  State<OrdersPage> createState() => _OrdersPageState();
+}
+
+class _OrdersPageState extends State<OrdersPage> {
+  String _filter = '';
+  late Future<List<Map<String, dynamic>>> _orders;
+
+  static const _statuses = <String, String>{
+    'pending': 'بانتظار التأكيد',
+    'confirmed': 'مؤكد',
+    'processing': 'قيد التجهيز',
+    'shipped': 'تم الشحن',
+    'delivered': 'تم التسليم',
+    'completed': 'مكتمل',
+    'cancelled': 'ملغي',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _orders = _load();
+  }
+
+  Future<List<Map<String, dynamic>>> _load() async {
+    final suffix = _filter.isEmpty ? '' : '?status=' + Uri.encodeQueryComponent(_filter);
+    final result = await widget.api.request('/admin/orders' + suffix);
+    return (result['orders'] as List? ?? const [])
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _orders = _load());
+    try {
+      await _orders;
+    } catch (_) {}
+  }
+
+  String _statusLabel(dynamic value) =>
+      _statuses[value?.toString()] ?? value?.toString() ?? 'غير معروف';
+
+  String _money(dynamic value) =>
+      '₪ ' + (double.tryParse(value?.toString() ?? '') ?? 0).toStringAsFixed(2);
+
+  String _date(dynamic value) {
+    final parsed = DateTime.tryParse(value?.toString() ?? '');
+    if (parsed == null) return '';
+    final date = parsed.toLocal();
+    return date.year.toString() +
+        '/' +
+        date.month.toString().padLeft(2, '0') +
+        '/' +
+        date.day.toString().padLeft(2, '0');
+  }
+
+  Future<void> _showOrder(Map<String, dynamic> order) async {
+    final items = (order['items'] as List? ?? const [])
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 6, 18, 24),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'تفاصيل الطلب #' + (order['id']?.toString() ?? ''),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text('الحالة: ' + _statusLabel(order['status'])),
+                Text('التاريخ: ' + _date(order['created_at'])),
+                Text('رقم الهاتف: ' +
+                    (order['user_phone']?.toString() ??
+                        order['phone']?.toString() ??
+                        'غير متوفر')),
+                Text('المجموع: ' + _money(order['total'])),
+                const Divider(height: 24),
+                const Text('الأصناف',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                ...items.map((item) {
+                  final name = item['productName'] ??
+                      item['product_name'] ??
+                      'منتج';
+                  final quantity = item['quantity'] ?? 1;
+                  final price = item['unitPrice'] ?? item['unit_price'];
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFFF4EAF1),
+                      child: Icon(Icons.shopping_bag_outlined, color: _plum),
+                    ),
+                    title: Text(name.toString()),
+                    subtitle: Text('الكمية: ' + quantity.toString()),
+                    trailing: Text(_money(price)),
+                  );
+                }),
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    _changeStatus(order);
+                  },
+                  icon: const Icon(Icons.sync_alt),
+                  label: const Text('تغيير حالة الطلب'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _changeStatus(Map<String, dynamic> order) async {
+    final id = order['id']?.toString();
+    if (id == null) return;
+    var selected = _statuses.containsKey(order['status']?.toString())
+        ? order['status'].toString()
+        : 'pending';
+    final reason = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('تحديث الطلب #' + id),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: selected,
+                decoration: const InputDecoration(labelText: 'الحالة الجديدة'),
+                items: _statuses.entries
+                    .map((entry) => DropdownMenuItem(
+                          value: entry.key,
+                          child: Text(entry.value),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => selected = value);
+                },
+              ),
+              if (selected == 'cancelled') ...[
+                const SizedBox(height: 10),
+                TextField(
+                  controller: reason,
+                  decoration: const InputDecoration(
+                    labelText: 'سبب الإلغاء',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('رجوع'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('حفظ الحالة'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) {
+      reason.dispose();
+      return;
+    }
+    try {
+      final body = <String, Object?>{'status': selected};
+      if (selected == 'cancelled') {
+        body['cancelSource'] = 'admin';
+        body['cancellationReason'] =
+            reason.text.trim().isEmpty ? 'إلغاء من لوحة الإدارة' : reason.text.trim();
+      }
+      await widget.api.request(
+        '/admin/orders/' + id + '/status',
+        method: 'PATCH',
+        body: body,
+      );
+      if (!mounted) return;
+      Navigator.of(context).maybePop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تحديث حالة الطلب')),
+      );
+      await _refresh();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    } finally {
+      reason.dispose();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+        children: [
+          SizedBox(
+            height: 58,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              scrollDirection: Axis.horizontal,
+              children: [
+                _filterChip('', 'الكل'),
+                ..._statuses.entries
+                    .map((entry) => _filterChip(entry.key, entry.value)),
+              ],
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _orders,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: _ErrorPanel(
+                      message: snapshot.error.toString(),
+                      retry: _refresh,
+                    ),
+                  );
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.data!.isEmpty) {
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      children: const [
+                        SizedBox(height: 150),
+                        Center(child: Text('ما في طلبات بهذا التصفية')),
+                      ],
+                    ),
+                  );
+                }
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: snapshot.data!.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final order = snapshot.data![index];
+                      final count = (order['items'] as List? ?? const []).length;
+                      final customer = order['user_phone'] ??
+                          order['phone'] ??
+                          order['customer_name'] ??
+                          'طلب زبون';
+                      return Card(
+                        color: Colors.white,
+                        child: ListTile(
+                          onTap: () => _showOrder(order),
+                          leading: const CircleAvatar(
+                            backgroundColor: Color(0xFFF4EAF1),
+                            child: Icon(Icons.receipt_long, color: _plum),
+                          ),
+                          title: Text('طلب #' + (order['id']?.toString() ?? '')),
+                          subtitle: Text(
+                            customer.toString() +
+                                ' · ' +
+                                _statusLabel(order['status']) +
+                                ' · ' +
+                                count.toString() +
+                                ' أصناف',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(_money(order['total']),
+                                  style: const TextStyle(
+                                      color: _plum,
+                                      fontWeight: FontWeight.bold)),
+                              Text(_date(order['created_at']),
+                                  style: const TextStyle(fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      );
+
+  Widget _filterChip(String status, String label) => Padding(
+        padding: const EdgeInsetsDirectional.only(start: 6),
+        child: ChoiceChip(
+          label: Text(label),
+          selected: _filter == status,
+          onSelected: (_) => setState(() {
+            _filter = status;
+            _orders = _load();
+          }),
         ),
       );
 }
