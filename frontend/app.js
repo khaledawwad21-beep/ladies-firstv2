@@ -302,8 +302,10 @@ function renderAccountContent(){
   if(!el)return;
   const a=getAccount(),fav=getFavorites(),orders=getAccountOrders();
   renderSideAccountGreeting();
+  const accountTitle=document.getElementById('accountModalTitle');
+  if(accountTitle)accountTitle.textContent=a?'حسابي وطلباتي':'الدخول أو إنشاء حساب';
   if(!a){
-    el.innerHTML=`<div class="notice">تسجيل الدخول اختياري. عند تسجيل الدخول تُحفظ طلباتك ومفضلتك وتفضيلاتك مع حسابك.</div>
+    el.innerHTML=`<div class="notice">مرحبًا بك في Ladies First. سجّل الدخول لحفظ المفضلة والطلبات، أو تابع التسوق كضيف.</div>
       <div class="accountMode">
         <button id="actionLogin" class="active" type="button" onclick="setAccountActionMode('login')">تسجيل الدخول</button>
         <button id="actionRegister" type="button" onclick="setAccountActionMode('register')">إنشاء حساب</button>
@@ -329,14 +331,14 @@ function renderAccountContent(){
       </div>
       <div id="accountGpsNote" class="gpsNote">📍 الموقع اختياري ويُستخدم فقط لتحديد الدولة تلقائيًا، ولا نحتاج حفظ إحداثياتك.</div>
       <input id="accountPassword" class="field" type="password" minlength="12" autocomplete="current-password" placeholder="كلمة المرور — 12 خانة على الأقل">
-      <div id="accountActionHint" class="passwordNote">أدخلي بيانات حسابك لتسجيل الدخول.</div>
+      <div id="accountActionHint" class="passwordNote">أدخل بيانات حسابك لتسجيل الدخول.</div>
       <button id="accountSubmit" class="add" onclick="saveAccount()">تسجيل الدخول</button>
       <button id="accountPasskeyLogin" class="add secondaryAdd" type="button" onclick="customerPasskeyLogin()">🔐 الدخول ببصمة / قفل الجهاز</button>
       <button id="accountRecoveryButton" class="add secondaryAdd" type="button" onclick="showCustomerRecovery()">نسيت كلمة المرور</button>
       <div id="customerRecoveryBox"></div>
       <div class="passwordNote">الدخول بالبصمة يظهر بعد تفعيله مرة واحدة من داخل الحساب على هذا الجهاز.</div>
-      <hr><h3>❤️ المفضلة (${fav.length})</h3>
-      <div class="favoritesRow">${fav.length?favoriteCards():'<div class="empty">لم تضيفي منتجات للمفضلة بعد.</div>'}</div>`;
+      <details class="lf-login-favorites"><summary>♡ المفضلة (${fav.length}) — عرض</summary>
+      <div class="favoritesRow">${fav.length?favoriteCards():'<div class="empty">لا توجد منتجات في المفضلة بعد.</div>'}</div></details>`;
     initCountrySelectors();
     setAccountMode(accountMode);
     setAccountActionMode(accountActionMode);
@@ -386,7 +388,7 @@ function setAccountActionMode(mode){
   if(login&&register){login.classList.toggle('active',accountActionMode==='login');register.classList.toggle('active',accountActionMode==='register')}
   if(fields)fields.style.display=accountActionMode==='register'?'block':'none';
   if(submit)submit.textContent=accountActionMode==='register'?'إنشاء الحساب':'تسجيل الدخول';
-  if(hint)hint.textContent=accountActionMode==='register'?'أنشئي حسابًا اختياريًا لحفظ الطلبات والمفضلة بين الزيارات.':'أدخلي رقم واتساب أو البريد وكلمة المرور لتسجيل الدخول.';
+  if(hint)hint.textContent=accountActionMode==='register'?'أنشئ حسابًا لحفظ الطلبات والمفضلة بين الزيارات.':'أدخل رقم واتساب أو البريد وكلمة المرور لتسجيل الدخول.';
   if(password)password.autocomplete=accountActionMode==='register'?'new-password':'current-password';
 }
 function greetingForAccount(a){return a?.gender==='male'?'نورتنا':'نورتينا'}
