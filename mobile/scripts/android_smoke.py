@@ -131,11 +131,11 @@ try:
         n for n in nodes()
         if 'السلة' in label(n) and '🛍️' in label(n)
         and (lambda b: len(b) == 4 and b[1] > 1000)(
-            list(map(int, re.findall(r'\\d+', n.get('bounds', ''))))
+            list(map(int, re.findall(r'\d+', n.get('bounds', ''))))
         )
     ]
     assert cart_nodes, 'Visible bottom navigation cart entry is missing'
-    bounds = list(map(int, re.findall(r'\\d+', cart_nodes[-1].get('bounds', ''))))
+    bounds = list(map(int, re.findall(r'\d+', cart_nodes[-1].get('bounds', ''))))
     adb('shell', 'input', 'tap', str((bounds[0]+bounds[2])//2),
         str((bounds[1]+bounds[3])//2))
     find(['السلة فارغة'], timeout=20)
