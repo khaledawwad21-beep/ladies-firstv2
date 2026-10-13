@@ -6457,13 +6457,10 @@ app.get(
           WITH order_days AS (
             SELECT
               DATE(created_at) AS date,
-              COUNT(*) FILTER (
-                WHERE status <> 'cancelled'
-              )::int AS orders,
+              COUNT(*) FILTER (WHERE status <> 'cancelled')::int AS orders,
               COALESCE(
-                SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost) FILTER (
-                  WHERE status <> 'cancelled'
-                ),
+                SUM(GREATEST(0, subtotal - coupon_discount - visa_discount - loyalty_discount) + packaging_cost)
+                  FILTER (WHERE status <> 'cancelled'),
                 0
               ) AS sales
             FROM orders
@@ -6481,16 +6478,44 @@ app.get(
               AND po.created_at >= $1::date
               AND po.created_at < ($2::date + INTERVAL '1 day')
             GROUP BY DATE(po.created_at)
+          ),
+          settlement_days AS (
+            SELECT
+              DATE(completed_at) AS date,
+              COALESCE(SUM(refundable_cash_value) FILTER (WHERE request_type='return'),0) AS returns_value,
+              COALESCE(SUM(returned_cost_value) FILTER (WHERE request_type='return'),0) AS returned_cost,
+              COALESCE(SUM(price_difference) FILTER (WHERE request_type='exchange'),0) AS exchange_difference,
+              COALESCE(SUM(service_fee),0) AS return_service_fees,
+              COALESCE(SUM(store_delivery_cost),0) AS store_delivery_cost
+            FROM return_requests
+            WHERE status = 'completed'
+              AND completed_at >= $1::date
+              AND completed_at < ($2::date + INTERVAL '1 day')
+            GROUP BY DATE(completed_at)
+          ),
+          report_dates AS (
+            SELECT date FROM order_days
+            UNION
+            SELECT date FROM settlement_days
+          ),
+          net_days AS (
+            SELECT
+              dates.date,
+              COALESCE(od.orders,0) AS orders,
+              COALESCE(od.sales,0)
+                - COALESCE(sd.returns_value,0)
+                + COALESCE(sd.exchange_difference,0)
+                + COALESCE(sd.return_service_fees,0) AS sales,
+              COALESCE(cd.cost,0) - COALESCE(sd.returned_cost,0) AS cost,
+              COALESCE(sd.store_delivery_cost,0) AS store_delivery_cost
+            FROM report_dates dates
+            LEFT JOIN order_days od ON od.date = dates.date
+            LEFT JOIN cost_days cd ON cd.date = dates.date
+            LEFT JOIN settlement_days sd ON sd.date = dates.date
           )
-          SELECT
-            od.date,
-            od.orders,
-            od.sales,
-            COALESCE(cd.cost,0) AS cost,
-            od.sales - COALESCE(cd.cost,0) AS profit
-          FROM order_days od
-          LEFT JOIN cost_days cd ON cd.date = od.date
-          ORDER BY od.date
+          SELECT date, orders, sales, cost, sales - cost - store_delivery_cost AS profit
+          FROM net_days
+          ORDER BY date
           `,
           [
             from,

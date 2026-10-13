@@ -73,3 +73,28 @@ test('exchange blocks unsettled difference and moves original and replacement st
  assert.equal(await stock(productId),5);assert.equal(await stock(replacement),2);
  await api('/api/returns','POST',{orderId,orderItemId:itemId,quantity:1,requestType:'return',reasonCode:'other',reason:'Extra return'},customer,400);
 });
+
+test('daily finance rows reconcile with completed returns and exchanges on a different day',async()=>{
+ // Isolated PGlite only. A return-only date must appear in the day-by-day report,
+ // even when no new order was placed that day.
+ const dates=(await query("SELECT CURRENT_DATE::text AS today, (CURRENT_DATE - INTERVAL '3 days')::date::text AS sale_day")).rows[0];
+ await query("UPDATE orders SET created_at=(CURRENT_DATE - INTERVAL '3 days') + INTERVAL '12 hours' WHERE id=$1",[orderId]);
+ await query("UPDATE return_requests SET completed_at=CURRENT_DATE + INTERVAL '12 hours' WHERE order_id=$1 AND status='completed'",[orderId]);
+
+ const report=await api('/api/admin/reports/sales?from='+dates.sale_day+'&to='+dates.today);
+ const summary=report.summary;
+ assert.ok(Array.isArray(report.rows));
+ const sale=report.rows.find(row=>String(row.date).slice(0,10)===dates.sale_day);
+ const settlement=report.rows.find(row=>String(row.date).slice(0,10)===dates.today);
+ assert.ok(sale,'original sale day must appear');
+ assert.ok(settlement,'settlement-only day must appear despite no orders');
+ assert.equal(Number(settlement.orders),0);
+ assert.equal(Number(settlement.sales),-70,'100 refund and 30 exchange difference');
+ assert.equal(Number(settlement.cost),-40,'return recovers one item cost');
+ assert.equal(Number(settlement.profit),-70,'settlement fees and delivery costs affect profit');
+ for(const field of ['sales','cost','profit']){
+   const dailyTotal=Math.round(report.rows.reduce((sum,row)=>sum+Number(row[field]||0),0)*100)/100;
+   assert.equal(dailyTotal,Number(summary[field]),
+      'sum of daily '+field+' must match net summary');
+ }
+});

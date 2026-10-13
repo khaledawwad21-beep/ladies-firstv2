@@ -37,6 +37,10 @@ test("daily sales report aggregates costs by date without correlated ungrouped c
   const server=fs.readFileSync(path.join(__dirname,"../src/server.js"),"utf8");
   assert.match(server,/WITH order_days AS/);
   assert.match(server,/cost_days AS/);
-  assert.match(server,/LEFT JOIN cost_days cd ON cd\.date = od\.date/);
+  assert.match(server,/settlement_days AS/);
+  assert.match(server,/report_dates AS/);
+  assert.match(server,/SELECT date FROM settlement_days/);
+  assert.match(server,/LEFT JOIN cost_days cd ON cd\.date = dates\.date/);
+  assert.match(server,/LEFT JOIN settlement_days sd ON sd\.date = dates\.date/);
   assert.doesNotMatch(server,/DATE\(po\.created_at\) = DATE\(orders\.created_at\)/);
 });
