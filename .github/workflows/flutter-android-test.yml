@@ -4,6 +4,9 @@ on:
   push:
     branches: [feature/flutter-mobile-app]
     paths: ['mobile/**', '.github/workflows/flutter-android-test.yml']
+  pull_request:
+    branches: [feature/flutter-mobile-app]
+    paths: ['mobile/**', '.github/workflows/flutter-android-test.yml']
   workflow_dispatch:
 
 permissions:
@@ -55,6 +58,31 @@ jobs:
         run: |
           python3 -m pip install --quiet cairosvg
           python3 scripts/generate_branding.py
+      - name: Verify Android launcher resources are branded
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          from hashlib import sha256
+          base = Path('android/app/src/main')
+          manifest = ET.parse(base/'AndroidManifest.xml').getroot()
+          android = '{http://schemas.android.com/apk/res/android}'
+          application = manifest.find('application')
+          assert application is not None
+          assert application.get(android + 'icon') == '@mipmap/ic_launcher'
+          assert application.get(android + 'label') == 'Ladies First'
+          icon = base/'res/mipmap-anydpi-v26/ic_launcher.xml'
+          assert icon.exists(), 'Android 8+ adaptive launcher icon missing'
+          root = ET.parse(icon).getroot()
+          assert root.tag == 'adaptive-icon', root.tag
+          assert root.find('foreground').get(android + 'drawable') == '@drawable/lf_launcher_foreground'
+          assert (base/'res/drawable-nodpi/lf_launcher_foreground.png').read_bytes()[:8] == bytes.fromhex('89504e470d0a1a0a')
+          for density in ('mdpi','hdpi','xhdpi','xxhdpi','xxxhdpi'):
+              icon_png = base/f'res/mipmap-{density}/ic_launcher.png'
+              assert icon_png.read_bytes()[:8] == bytes.fromhex('89504e470d0a1a0a')
+              print(density, sha256(icon_png.read_bytes()).hexdigest()[:16])
+          print('Verified native and adaptive Ladies First launcher icon resources')
+          PY
       - name: Fetch Flutter packages
         run: flutter pub get
       - name: Analyze Dart code
