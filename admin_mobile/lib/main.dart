@@ -373,7 +373,7 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  late Future<Map<String, dynamic>> _data;
+  late Future<DashboardMetrics> _data;
 
   @override
   void initState() {
