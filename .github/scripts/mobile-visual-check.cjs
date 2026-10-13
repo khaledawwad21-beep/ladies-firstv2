@@ -50,6 +50,25 @@ async function run() {
     await shot('02-sidebar-categories');
     pass('Sidebar opens and displays category cards');
 
+    const drawer = page.locator('#sideMenuOverlay .sideMenu');
+    const layout = await drawer.evaluate((node) => {
+      const nav = document.querySelector('.bottomNav');
+      const drawerBounds = node.getBoundingClientRect();
+      const navBounds = nav?.getBoundingClientRect();
+      const overflow = node.scrollHeight - node.clientHeight;
+      node.scrollTop = node.scrollHeight;
+      return { overflow, bottom: drawerBounds.bottom, navTop: navBounds?.top ?? 0 };
+    });
+    assert(layout.overflow > 30, 'Category drawer should be independently scrollable');
+    assert(layout.bottom <= layout.navTop + 3,
+      'Sidebar is overlapping the persistent bottom navigation');
+    await page.waitForTimeout(200);
+    assert(await drawer.evaluate(node => node.scrollTop) > 30,
+      'Category list must be reachable by scrolling to bottom');
+    await shot('02b-sidebar-scrolled-bottom');
+    pass('Sidebar scroll reaches brands and policies without covering bottom nav');
+    await drawer.evaluate(node => { node.scrollTop = 0; });
+
     await page.locator('#sideAccountGreeting .sideAccountBtn').click();
     await page.locator('#accountModal').waitFor({ state: 'visible' });
     assert(!(await page.locator('#accountRegisterFields').isVisible()),
