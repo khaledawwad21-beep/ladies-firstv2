@@ -30,7 +30,7 @@ adaptive_svg = ET.Element('{http://www.w3.org/2000/svg}svg', {
     'width': '1024', 'height': '1024', 'viewBox': '0 0 1024 1024'
 })
 adaptive_center = ET.SubElement(adaptive_svg, '{http://www.w3.org/2000/svg}g', {
-    'transform': 'translate(170 170) scale(0.668)'
+    'transform': 'translate(133 133) scale(0.74)'
 })
 adaptive_center.append(ET.parse(source).getroot())
 adaptive_png = res / 'drawable-nodpi/lf_launcher_foreground.png'
