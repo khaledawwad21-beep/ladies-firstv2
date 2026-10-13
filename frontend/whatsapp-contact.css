@@ -1,0 +1,24 @@
+/* Ladies First — WhatsApp customer support picker */
+.lf-wa-overlay[hidden]{display:none!important}
+.lf-wa-overlay{position:fixed;inset:0;z-index:200500;background:#201220a8;display:flex;align-items:center;justify-content:center;padding:16px;overscroll-behavior:contain}
+.lf-wa-dialog{box-sizing:border-box;width:min(510px,100%);max-height:min(690px,calc(100dvh - 32px));overflow:auto;overscroll-behavior:contain;background:#fffdfb;color:#533751;border:1px solid #ead8df;border-radius:22px;padding:20px;box-shadow:0 22px 60px #2913274a;font-family:inherit}
+.lf-wa-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px}
+.lf-wa-head small{color:#9b708d;font-weight:600}
+.lf-wa-head h2{font-size:25px;margin:5px 0 6px;color:#63345e}
+#lfWaClose{background:#f6e9f0;width:38px;height:38px;border-radius:50%;color:#63345e;font-size:26px;cursor:pointer}
+.lf-wa-intro{font-size:14px;margin:6px 0 14px;line-height:1.7;color:#765f71}
+.lf-wa-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:18px}
+.lf-wa-purpose{font:inherit;font-weight:700;font-size:13px;line-height:1.4;padding:13px 8px;min-height:50px;background:#fcf7fa;border:1px solid #e8d9e2;border-radius:13px;color:#63345e;text-align:center;cursor:pointer}
+.lf-wa-purpose[aria-pressed="true"]{background:#63345e;color:#fff;border-color:#63345e}
+.lf-wa-label{display:block;font-weight:700;margin-bottom:8px;color:#63345e}
+.lf-wa-label span{font-weight:400;color:#8e7485;font-size:12px}
+#lfWaDetails{display:block;box-sizing:border-box;width:100%;resize:vertical;max-height:130px;min-height:70px;font:inherit;padding:12px;border:1px solid #decbd5;border-radius:13px;background:#fff;color:#412a40;line-height:1.5;outline-offset:3px}
+.lf-wa-actions{display:flex;gap:10px;margin-top:16px}
+.lf-wa-actions button{font:inherit;border-radius:13px;padding:12px 14px;cursor:pointer}
+.lf-wa-send{flex:1;background:#63345e;color:#fff;font-weight:800}
+.lf-wa-send:disabled{opacity:.45;cursor:not-allowed}
+.lf-wa-cancel{background:#f4e9ef;color:#63345e}
+.lf-wa-note{font-size:12px;color:#8e7586;line-height:1.7;margin:12px 0 0}
+.lf-wa-purpose:focus-visible,#lfWaClose:focus-visible,.lf-wa-actions button:focus-visible{outline:3px solid #d4a3c1;outline-offset:2px}
+body.lf-wa-open{overflow:hidden!important}
+@media(max-width:460px){.lf-wa-dialog{padding:15px;border-radius:18px}.lf-wa-head h2{font-size:22px}.lf-wa-grid{gap:7px}.lf-wa-purpose{font-size:12px;padding:11px 6px}}
