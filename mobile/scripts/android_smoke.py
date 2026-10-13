@@ -166,9 +166,23 @@ try:
     find(['فتح القائمة'], timeout=90)
     snapshot('10-recovered')
     passed('Storefront returns after connectivity is restored')
+
+    # WhatsApp support opens a reason picker, not an immediate outgoing message.
+    # Do not select a reason or invoke WhatsApp: this is a read-only device check.
+    tap(['WhatsApp', 'واتساب'])
+    find(['كيف فينا نساعدك؟'], timeout=20)
+    snapshot('11-whatsapp-reasons')
+    passed('WhatsApp entry opens the contact-reason chooser')
+    tap(['إغلاق'])
+    # Naia opens without requesting any paid AI response.
+    tap(['نايا'])
+    find(['مساعدتكِ داخل Ladies First', 'نايا 🌸'], timeout=20)
+    snapshot('12-naya-open')
+    passed('Naia opens within the store on Android')
+
     adb('shell', 'am', 'start', '-a', 'android.settings.APPLICATION_DETAILS_SETTINGS', '-d', 'package:' + package)
     find(['Ladies First'])
-    snapshot('11-installed-app-icon')
+    snapshot('13-installed-app-icon')
 except Exception:
     snapshot('failure')
     raise
