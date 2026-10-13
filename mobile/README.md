@@ -30,3 +30,5 @@ To replace with the original Flutter Work project, back it up and upload its
 actual source to `mobile/` on the `feature/flutter-mobile-app` branch. Preserve
 any existing Android and iOS project files, resolve conflicts carefully, and
 build/test before release.
+
+CI note: Android SDK comes preinstalled on the GitHub Ubuntu runner.
