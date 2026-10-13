@@ -461,7 +461,7 @@ class _StoreScreenState extends State<StoreScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Image(image: AssetImage('assets/app-icon.png'), width: 144, height: 144, semanticLabel: 'Ladies First'),
+                          Image(image: AssetImage('assets/brand-mark.png'), width: 144, height: 144, semanticLabel: 'Ladies First'),
                           SizedBox(height: 16),
                           Text(
                             'Ladies First',

@@ -14,6 +14,13 @@ void main() {
     expect(source, contains('image/png;base64,'));
   });
 
+  test('the in-app splash uses the standalone flower mark', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    expect(source, contains("AssetImage('assets/brand-mark.png')"));
+    expect(File('assets/brand-mark.png').existsSync(), isTrue);
+    expect(File('assets/app-icon.png').existsSync(), isTrue);
+  });
+
   test('Flutter uses the real Ladies First storefront', () {
     expect(storeUrl, startsWith('https://'));
     expect(Uri.parse(storeUrl).host, 'ladies-firstv2.onrender.com');

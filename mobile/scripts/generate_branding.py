@@ -1,6 +1,7 @@
 """Generate native startup art from the approved icon, without modifying store branding."""
 from pathlib import Path
 import xml.etree.ElementTree as ET
+import base64
 import cairosvg
 
 root = Path(__file__).resolve().parents[1]
@@ -38,9 +39,8 @@ cairosvg.svg2png(bytestring=ET.tostring(adaptive_svg, encoding='utf-8'),
                 write_to=str(adaptive_png),
                 output_width=432, output_height=432)
 
-# Android 12+ clips the splash icon to a circle. Render the approved icon
-# at 62% within a matching cream canvas so the full floral icon is visible;
-# do not shrink or replace the user's regular launcher icon.
+# Android 12+ clips the splash icon to a circle. Use the standalone transparent
+# flower mark here; the square app tile remains the external launcher icon.
 ns = 'http://www.w3.org/2000/svg'
 ET.register_namespace('', ns)
 splash = ET.Element(f'{{{ns}}}svg', {
@@ -52,7 +52,12 @@ ET.SubElement(splash, f'{{{ns}}}rect', {
 center = ET.SubElement(splash, f'{{{ns}}}g', {
     'transform': 'translate(194 194) scale(0.62)'
 })
-center.append(ET.parse(source).getroot())
+mark_data = base64.b64encode((root / 'assets/brand-mark.png').read_bytes()).decode('ascii')
+ET.SubElement(center, f'{{{ns}}}image', {
+    'x': '0', 'y': '0', 'width': '1024', 'height': '1024',
+    'href': 'data:image/png;base64,' + mark_data,
+    '{http://www.w3.org/1999/xlink}href': 'data:image/png;base64,' + mark_data,
+})
 splash_asset = res / 'drawable-nodpi/lf_splash_icon.png'
 splash_asset.parent.mkdir(parents=True, exist_ok=True)
 cairosvg.svg2png(bytestring=ET.tostring(splash, encoding='utf-8'),
