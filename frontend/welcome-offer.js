@@ -33,11 +33,12 @@
     const actions=document.createElement('div');actions.className='lf-welcome-offer__actions';const later=document.createElement('button');later.type='button';later.className='lf-welcome-offer__later';later.textContent='تصفّحي المتجر';actions.append(later);
     const note=document.createElement('p');note.className='lf-welcome-offer__note';note.textContent='الأسعار والكوبون يخضعان لشروط العرض.';
     card.append(close,eyebrow,title,announcement,timer,list,coupon,actions,note);overlay.append(backdrop,card);document.body.append(overlay);
-    function dismiss(){overlay.classList.remove('is-open');document.body.classList.remove('lf-welcome-offer-open');window.setTimeout(()=>overlay.remove(),220)}
+    let ticker=null,dismissed=false;
+    function dismiss(){if(dismissed)return;dismissed=true;window.clearInterval(ticker);overlay.classList.remove('is-open');document.body.classList.remove('lf-welcome-offer-open');window.setTimeout(()=>overlay.remove(),220)}
     close.addEventListener('click',dismiss);backdrop.addEventListener('click',dismiss);later.addEventListener('click',dismiss);overlay.addEventListener('keydown',e=>{if(e.key==='Escape')dismiss()});
     const end=Date.parse(config.endAt);const update=()=>{const left=Math.max(0,end-Date.now());if(!left){dismiss();return false}const d=Math.floor(left/86400000),h=Math.floor(left%86400000/3600000),m=Math.floor(left%3600000/60000),s=Math.floor(left%60000/1000);timeValue.textContent=[d?d+' يوم':'',[h,m,s].map(x=>String(x).padStart(2,'0')).join(':')].filter(Boolean).join(' · ');return true};
-    const ticker=window.setInterval(()=>{if(!update())window.clearInterval(ticker)},1000);update();
-    requestAnimationFrame(()=>{overlay.classList.add('is-open');document.body.classList.add('lf-welcome-offer-open');close.focus({preventScroll:true})});
+    ticker=window.setInterval(()=>{if(!update())window.clearInterval(ticker)},1000);update();
+    requestAnimationFrame(()=>{if(dismissed)return;overlay.classList.add('is-open');document.body.classList.add('lf-welcome-offer-open');close.focus({preventScroll:true})});
     return true;
   }
   let campaignPromise;
