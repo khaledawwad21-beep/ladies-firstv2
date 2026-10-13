@@ -11,12 +11,13 @@ function normalizeProductImages(p){if(!p)return p;const mains=Array.isArray(p.ma
 function mainImagesOf(p){return normalizeProductImages(p).mainImages||[]}
 function subImagesOf(p){return normalizeProductImages(p).subImages||[]}
 let products=[],cats={},brands={},cart=load('lf_cart',[]),heroSettings=load('lf_hero',DEFAULT_HERO);
-let storeCommerceSettings={visaDiscountPercent:0,giftCardPrice:0,giftCardFreeThreshold:0,whatsappNumber:'00972562499924',shippingFees:{westbank:20,jerusalem:35,inside:70}};
+let storeCommerceSettings={visaDiscountPercent:0,giftCardPrice:0,giftCardFreeThreshold:0,whatsappNumber:'+970562499924',shippingFees:{westbank:20,jerusalem:35,inside:70}};
 function storeWhatsAppDigits(value=storeCommerceSettings.whatsappNumber){
   let digits=String(value||'').replace(/\D/g,'');
   digits=digits.replace(/^00+/, '');
-  if(/^0\d{8,10}$/.test(digits))digits='972'+digits.slice(1);
-  return digits.length>=8?digits:'972562499924';
+  if(/^0\d{8,10}$/.test(digits))digits='970'+digits.slice(1);
+  if(digits==='972562499924')digits='970562499924';
+  return /^[1-9]\d{7,14}$/.test(digits)?digits:'970562499924';
 }
 function storeWhatsAppHref(message='مرحباً، أريد الاستفسار عن منتج من Ladies First'){
   const base='https://wa.me/'+storeWhatsAppDigits();
@@ -1142,7 +1143,7 @@ async function lfSyncStoreSettings(){
       jerusalem:Math.min(100,Math.max(0,Number(shippingDiscounts.jerusalem)||0)),
       inside:Math.min(100,Math.max(0,Number(shippingDiscounts.inside)||0))
     };
-    storeCommerceSettings.whatsappNumber=String(st.whatsapp_number||st.whatsapp||storeCommerceSettings.whatsappNumber||'00972562499924');
+    storeCommerceSettings.whatsappNumber=String(st.whatsapp_number||st.whatsapp||storeCommerceSettings.whatsappNumber||'+970562499924');
     DEFAULT_SOCIAL_LINKS.whatsapp.url=storeWhatsAppHref();
     updateStoreWhatsAppLinks();
     renderSocialLinks();

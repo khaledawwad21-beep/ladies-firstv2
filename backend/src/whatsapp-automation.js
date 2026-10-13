@@ -122,7 +122,9 @@ async function sendDeliveredThankYou(db, orderId, options = {}) {
        ''
      ) AS phone`
   );
-  const storePhone = normalizeRecipient(storeResult.rows[0]?.phone);
+  const storedStorePhone = normalizeRecipient(storeResult.rows[0]?.phone);
+  const storePhone = storedStorePhone === "972562499924"
+    ? "970562499924" : (storedStorePhone || "970562499924");
   if (!storePhone) return { sent: false, skipped: true, reason: "store_phone_missing" };
 
   const feedbackText = `مرحبًا Ladies First، استلمت طلبي رقم #${order.id} وعندي ملاحظة:`;

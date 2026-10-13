@@ -5,7 +5,7 @@ const {pipeline}=require("node:stream/promises");
 const {createPersistentRateLimiter}=require("./persistent-rate-limit");
 const LIMIT=20,WINDOW=300000,MAX_PRODUCTS=80,MAX_MESSAGE_LENGTH=1000;
 const clean=(v,n=1000)=>String(v??"").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,n);
-function whatsappDigits(value){let digits=String(value??"").replace(/[^0-9]/g,"").replace(/^00+/,"");if(/^0[0-9]{8,10}$/.test(digits))digits="972"+digits.slice(1);return /^[1-9][0-9]{7,14}$/.test(digits)?digits:"972562499924"}
+function whatsappDigits(value){let digits=String(value??"").replace(/[^0-9]/g,"").replace(/^00+/,"");if(/^0[0-9]{8,10}$/.test(digits))digits="970"+digits.slice(1);if(digits==="972562499924")digits="970562499924";return /^[1-9][0-9]{7,14}$/.test(digits)?digits:"970562499924"}
 function messageInput(value){return String(value??"").replace(/[\u0000-\u001f\u007f]/g,"").trim();}
 const history=v=>Array.isArray(v)?v.slice(-8).flatMap(x=>x&&["user","assistant"].includes(x.role)&&clean(x.content)?[{role:x.role,content:clean(x.content)}]:[]):[];
 function sanitizeCustomerProfile(value){
