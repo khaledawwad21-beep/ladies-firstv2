@@ -122,6 +122,43 @@ async function run() {
       'Naya panel should not cover the bottom navigation');
     await shot('08-naya-quick-actions');
     pass('All Naya quick actions fit in two mobile rows above the navigation');
+
+    // Product inspection only: never add to cart or submit a live order.
+    await page.locator('#nayaAssistant .naya-header button').click();
+    await page.locator('#nayaAssistant').waitFor({ state: 'hidden' });
+    const firstProduct = page.locator('#grid .card').first();
+    await firstProduct.waitFor({ state: 'visible' });
+    const productName = (await firstProduct.locator('.body h3').textContent() || '').trim();
+    assert(productName, 'First product is missing its display name');
+    await firstProduct.locator('.pic').click();
+    await page.locator('#modal').waitFor({ state: 'visible' });
+    assert((await page.locator('#modalBody h1').textContent() || '').trim() === productName,
+      'Product modal did not open the selected catalog product');
+    const detailImage = page.locator('#mainProductImg');
+    await detailImage.waitFor({ state: 'visible' });
+    await detailImage.evaluate(img => img.decode().catch(() => null));
+    assert(await detailImage.evaluate(img => img.complete && img.naturalWidth > 0),
+      'Main product image failed to load');
+    assert(await page.locator('#modalBody .price').count() > 0,
+      'Product details should show a price');
+    await shot('09-product-details');
+    pass('Product details, name, price and image load without modifying stock');
+    await page.locator('#modal .close').click();
+
+    await page.locator('#search').click();
+    await page.locator('#search').fill(productName);
+    await page.waitForFunction(() => document.querySelectorAll('#grid .card').length > 0);
+    assert((await page.locator('#grid .card').count()) > 0,
+      'Live search must find an existing product by name');
+    await shot('10-live-product-search');
+    pass('Live product search filters the catalog while typing');
+
+    await page.locator('#cartBtn').click();
+    await page.locator('#drawer').waitFor({ state: 'visible' });
+    assert(await page.locator('#cart .empty').isVisible(),
+      'New guest session should show an empty cart');
+    await shot('11-guest-empty-cart');
+    pass('Guest cart opens without login or order creation');
   } catch (error) {
     errors.push(String(error));
     try { await shot('failure-current-screen'); } catch (_) {}
