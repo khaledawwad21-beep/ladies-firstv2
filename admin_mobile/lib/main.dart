@@ -520,8 +520,8 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
-    final suffix = _filter.isEmpty ? '' : '?status=' + Uri.encodeQueryComponent(_filter);
-    final result = await widget.api.request('/admin/orders' + suffix);
+    final suffix = _filter.isEmpty ? '' : '?status=${Uri.encodeQueryComponent(_filter)}';
+    final result = await widget.api.request('/admin/orders$suffix');
     return (result['orders'] as List? ?? const [])
         .map((item) => Map<String, dynamic>.from(item as Map))
         .toList();
@@ -538,17 +538,13 @@ class _OrdersPageState extends State<OrdersPage> {
       _statuses[value?.toString()] ?? value?.toString() ?? 'غير معروف';
 
   String _money(dynamic value) =>
-      '₪ ' + (double.tryParse(value?.toString() ?? '') ?? 0).toStringAsFixed(2);
+      '₪ ${(double.tryParse(value?.toString() ?? '') ?? 0).toStringAsFixed(2)}';
 
   String _date(dynamic value) {
     final parsed = DateTime.tryParse(value?.toString() ?? '');
     if (parsed == null) return '';
     final date = parsed.toLocal();
-    return date.year.toString() +
-        '/' +
-        date.month.toString().padLeft(2, '0') +
-        '/' +
-        date.day.toString().padLeft(2, '0');
+    return '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
   }
 
   Future<void> _showOrder(Map<String, dynamic> order) async {
@@ -568,17 +564,14 @@ class _OrdersPageState extends State<OrdersPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'تفاصيل الطلب #' + (order['id']?.toString() ?? ''),
+                  'تفاصيل الطلب #${order['id']?.toString() ?? ''}',
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                Text('الحالة: ' + _statusLabel(order['status'])),
-                Text('التاريخ: ' + _date(order['created_at'])),
-                Text('رقم الهاتف: ' +
-                    (order['user_phone']?.toString() ??
-                        order['phone']?.toString() ??
-                        'غير متوفر')),
-                Text('المجموع: ' + _money(order['total'])),
+                Text('الحالة: ${_statusLabel(order['status'])}'),
+                Text('التاريخ: ${_date(order['created_at'])}'),
+                Text('رقم الهاتف: ${order['user_phone']?.toString() ?? order['phone']?.toString() ?? 'غير متوفر'}'),
+                Text('المجموع: ${_money(order['total'])}'),
                 const Divider(height: 24),
                 const Text('الأصناف',
                     style: TextStyle(fontWeight: FontWeight.bold)),
@@ -595,7 +588,7 @@ class _OrdersPageState extends State<OrdersPage> {
                       child: Icon(Icons.shopping_bag_outlined, color: _plum),
                     ),
                     title: Text(name.toString()),
-                    subtitle: Text('الكمية: ' + quantity.toString()),
+                    subtitle: Text('الكمية: $quantity'),
                     trailing: Text(_money(price)),
                   );
                 }),
@@ -627,12 +620,12 @@ class _OrdersPageState extends State<OrdersPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text('تحديث الطلب #' + id),
+          title: Text('تحديث الطلب #$id'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: selected,
+                initialValue: selected,
                 decoration: const InputDecoration(labelText: 'الحالة الجديدة'),
                 items: _statuses.entries
                     .map((entry) => DropdownMenuItem(
@@ -681,7 +674,7 @@ class _OrdersPageState extends State<OrdersPage> {
             reason.text.trim().isEmpty ? 'إلغاء من لوحة الإدارة' : reason.text.trim();
       }
       await widget.api.request(
-        '/admin/orders/' + id + '/status',
+        '/admin/orders/$id/status',
         method: 'PATCH',
         body: body,
       );
@@ -747,7 +740,7 @@ class _OrdersPageState extends State<OrdersPage> {
                   child: ListView.separated(
                     padding: const EdgeInsets.all(12),
                     itemCount: snapshot.data!.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final order = snapshot.data![index];
                       final count = (order['items'] as List? ?? const []).length;
@@ -763,14 +756,9 @@ class _OrdersPageState extends State<OrdersPage> {
                             backgroundColor: Color(0xFFF4EAF1),
                             child: Icon(Icons.receipt_long, color: _plum),
                           ),
-                          title: Text('طلب #' + (order['id']?.toString() ?? '')),
+                          title: Text('طلب #${order['id']?.toString() ?? ''}'),
                           subtitle: Text(
-                            customer.toString() +
-                                ' · ' +
-                                _statusLabel(order['status']) +
-                                ' · ' +
-                                count.toString() +
-                                ' أصناف',
+                            '${customer.toString()} · ${_statusLabel(order['status'])} · $count أصناف',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
