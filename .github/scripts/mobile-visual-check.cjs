@@ -123,6 +123,26 @@ async function run() {
     await shot('08-naya-quick-actions');
     pass('All Naya quick actions fit in two mobile rows above the navigation');
 
+    const subtitleContrast = await page.locator('#nayaAssistant .naya-status').evaluate(node => {
+      const fg = getComputedStyle(node).color;
+      const bg = getComputedStyle(node.closest('.naya-header')).backgroundColor;
+      const components = css => (css.match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+      const luminance = values => {
+        const channels = values.map(v => {
+          const c = v / 255;
+          return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+      };
+      const a = luminance(components(fg));
+      const b = luminance(components(bg));
+      return { fg, bg, ratio: (Math.max(a,b) + .05) / (Math.min(a,b) + .05) };
+    });
+    assert(subtitleContrast.ratio >= 4.5,
+      'Naya subtitle must meet 4.5:1 text contrast on the plum header: ' +
+        JSON.stringify(subtitleContrast));
+    pass('Naya subtitle maintains readable text contrast on mobile');
+
     // Product inspection only: never add to cart or submit a live order.
     await page.locator('#nayaAssistant .naya-header button').click();
     await page.locator('#nayaAssistant').waitFor({ state: 'hidden' });
