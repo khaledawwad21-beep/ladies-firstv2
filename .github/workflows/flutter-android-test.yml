@@ -6,7 +6,6 @@ on:
       - feature/flutter-mobile-app
     paths:
       - 'mobile/**'
-      - '.github/workflows/flutter-android-test.yml'
   workflow_dispatch:
 
 permissions:
