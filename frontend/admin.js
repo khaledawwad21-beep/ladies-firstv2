@@ -746,7 +746,7 @@ async function invoice(id){
       <div class="invoiceBrand">${logo&&logo!=='#'?`<img class="invoiceLogo" src="${E(logo)}" alt="${E(storeName)}">`:''}<h1>${E(storeName)}</h1></div>
       <div>فاتورة #${id}<br>${new Date(o.created_at).toLocaleString('ar')}</div>
     </div>
-    <div class="invoiceCustomer">العميل: ${E(o.user_name||o.customer_name||'-')} — الهاتف: ${E(o.user_phone||o.customer_phone||'-')}<br>البريد: ${E(o.user_email||'-')} — منطقة التوصيل: ${E(region)} — طريقة الدفع: ${E(payment)}<br>العنوان: ${E(o.shipping_address||'-')}</div>
+    <div class="invoiceCustomer">العميل: ${E(o.customer_name||o.user_name||'-')} — الهاتف: ${E(o.customer_phone||o.user_phone||'-')}<br>البريد: ${E(o.user_email||'-')} — منطقة التوصيل: ${E(region)} — طريقة الدفع: ${E(payment)}<br>العنوان: ${E(o.shipping_address||'-')}</div>
     ${table(['المنتج','الخيار','الكمية','السعر','الإجمالي'],items.map(i=>`<tr class="${i.is_gift?'gift-order-row':''}"><td>${i.is_gift?'🎁 هدية — ':''}${E(i.product_name||'-')}</td><td>${E(i.variant_name||'-')}</td><td>${i.quantity}</td><td>${i.is_gift?'0.00':M(i.unit_price)}</td><td>${i.is_gift?'0.00':M(i.total)}</td></tr>`))}
     <div class="invoiceThankYou">${E(thankYouPhrase)}</div>
     <div class="invoiceTotals compact">
