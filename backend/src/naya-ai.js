@@ -158,6 +158,17 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
    return false;
   }
  }
+ async function checkDailyLimit(req,res,message){
+  if(req.user?.role==="owner")return true;
+  const key=clean(env.OPENAI_API_KEY,500);
+  const parsedLimit=Number.parseInt(env.STORE_AI_DAILY_LIMIT||"15",10);
+  const dailyLimit=Number.isInteger(parsedLimit)&&parsedLimit>0?Math.min(parsedLimit,50):15;
+  const userId=Number(req.user?.id),principal=Number.isSafeInteger(userId)&&userId>0?"user:"+userId:"guest:"+crypto.createHmac("sha256",clean(env.STORE_AI_LIMIT_SECRET||env.RATE_LIMIT_SECRET||env.JWT_SECRET||key,500)).update(clean(String(req.ip||"unknown"),120)).digest("hex");
+  const usageDay=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jerusalem",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(now()));
+  const quota=await db("INSERT INTO store_ai_daily_usage (customer_key,usage_day,message_count,updated_at) VALUES ($1,$2,1,NOW()) ON CONFLICT (customer_key,usage_day) DO UPDATE SET message_count=store_ai_daily_usage.message_count+1,updated_at=NOW() WHERE store_ai_daily_usage.message_count < $3 RETURNING message_count",[principal,usageDay,dailyLimit]);
+  if(!quota.rows?.length){res.status(429).json({ok:false,code:"STORE_AI_DAILY_LIMIT",message:(/[a-z]/i.test(message)&&!/[\u0600-\u06ff]/.test(message)?"You have reached today’s message limit. I’m here to help on WhatsApp: ":(req.user?.gender==="male"?"خلصت رسائلك لليوم 🌸 بتقدر تكمل معنا عالواتساب، دايماً بخدمتك. ":"خلصت رسائلك لليوم يا قلبي 🌸 بتقدري تكملي معنا عالواتساب، دايماً بخدمتك. "))+"https://wa.me/"+whatsappDigits(env.WHATSAPP_NUMBER)});return false;}
+  return true;
+ }
  router.post("/transcribe",optionalAuth||((_req,_res,next)=>next()),express.raw({type:()=>true,limit:"8mb"}),async(req,res)=>{
   res.set("Cache-Control","no-store");
   if(!await checkLimit(req,res,{scope:"naya-transcribe",limit:10,code:"NAYA_TRANSCRIBE_RATE_LIMIT",message:"جربي تسجيل سؤالك بعد دقائق."}))return;
@@ -216,6 +227,7 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
   const key=clean(env.OPENAI_API_KEY,500);
   if(!key)return res.status(503).json({ok:false,code:"NAYA_AI_NOT_CONFIGURED",message:"نايا الذكية غير متاحة حاليًا."});
   try{
+   if(!await checkDailyLimit(req,res,message))return;
    const result=await db(`SELECT p.id,p.name,p.description,p.price,p.old_price AS "oldPrice",p.stock,c.name AS category,b.name AS brand,COALESCE((SELECT json_agg(json_build_object('color',v.color,'size',v.size,'price',v.price,'stock',v.stock) ORDER BY v.id) FROM product_variants v WHERE v.product_id=p.id AND v.is_active=TRUE),'[]'::json) AS variants,(SELECT value FROM settings WHERE key IN ($$whatsapp_number$$,$$whatsapp$$) ORDER BY CASE key WHEN $$whatsapp_number$$ THEN 0 ELSE 1 END LIMIT 1) AS whatsappnumber FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE p.is_active=TRUE ORDER BY p.is_featured DESC,p.is_best_seller DESC,p.updated_at DESC,p.id DESC LIMIT $1`,[MAX_PRODUCTS]);
    const catalog=(result.rows||[]).map(product);
    const modelCatalog=catalog.map(({id,name,category,brand,description,price,oldPrice,stock,available,variants})=>({id,name,category,brand,description,price,oldPrice,stock,available,variants}));
@@ -230,22 +242,14 @@ function createNayaAiRouter({db,fetchImpl=global.fetch,env=process.env,now=Date.
  });
  router.post("/store-chat",optionalAuth||((_req,_res,next)=>next()),async(req,res)=>{
   res.set("Cache-Control","no-store");
-  const t=now();
   if(!await checkLimit(req,res,{scope:"naya-chat",limit:LIMIT,code:"STORE_AI_RATE_LIMIT",message:"وصلنا لعدد كبير من الرسائل بسرعة. جرب بعد دقائق."}))return;
   const rawMessage=messageInput(req.body?.message);
   if(!rawMessage)return res.status(400).json({ok:false,code:"STORE_AI_MESSAGE_REQUIRED",message:"اكتب سؤالك عن منتجات المتجر."});
   if(rawMessage.length>MAX_MESSAGE_LENGTH)return res.status(413).json({ok:false,code:"STORE_AI_MESSAGE_TOO_LONG",message:"اختصر رسالتك إلى 1000 حرف أو أقل."});
   const message=clean(rawMessage,MAX_MESSAGE_LENGTH);
   const key=clean(env.OPENAI_API_KEY,500);
-  const parsedLimit=Number.parseInt(env.STORE_AI_DAILY_LIMIT||"15",10);
-  const dailyLimit=Number.isInteger(parsedLimit)&&parsedLimit>0?Math.min(parsedLimit,50):15;
-  const userId=Number(req.user?.id),principal=Number.isSafeInteger(userId)&&userId>0?"user:"+userId:"guest:"+crypto.createHmac("sha256",clean(env.STORE_AI_LIMIT_SECRET||env.RATE_LIMIT_SECRET||env.JWT_SECRET||key,500)).update(clean(String(req.ip||"unknown"),120)).digest("hex");
-  const usageDay=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jerusalem",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(t));
   try{
-   if(req.user?.role!=="owner"){
-    const quota=await db("INSERT INTO store_ai_daily_usage (customer_key,usage_day,message_count,updated_at) VALUES ($1,$2,1,NOW()) ON CONFLICT (customer_key,usage_day) DO UPDATE SET message_count=store_ai_daily_usage.message_count+1,updated_at=NOW() WHERE store_ai_daily_usage.message_count < $3 RETURNING message_count",[principal,usageDay,dailyLimit]);
-    if(!quota.rows?.length)return res.status(429).json({ok:false,code:"STORE_AI_DAILY_LIMIT",message:(/[a-z]/i.test(message)&&!/[\u0600-\u06ff]/.test(message)?"You have reached today’s message limit. I’m here to help on WhatsApp: ":(req.user?.gender==="male"?"خلصت رسائلك لليوم 🌸 بتقدر تكمل معنا عالواتساب، دايماً بخدمتك. ":"خلصت رسائلك لليوم يا قلبي 🌸 بتقدري تكملي معنا عالواتساب، دايماً بخدمتك. "))+"https://wa.me/"+whatsappDigits(env.WHATSAPP_NUMBER)});
-   }
+   if(!await checkDailyLimit(req,res,message))return;
    const result=await db(`SELECT p.id,p.name,p.description,p.price,p.old_price AS "oldPrice",p.stock,c.name AS category,b.name AS brand,COALESCE((SELECT json_agg(json_build_object('color',v.color,'size',v.size,'price',v.price,'stock',v.stock) ORDER BY v.id) FROM product_variants v WHERE v.product_id=p.id AND v.is_active=TRUE),'[]'::json) AS variants,(SELECT value FROM settings WHERE key IN ($$whatsapp_number$$,$$whatsapp$$) ORDER BY CASE key WHEN $$whatsapp_number$$ THEN 0 ELSE 1 END LIMIT 1) AS whatsappnumber FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE p.is_active=TRUE ORDER BY p.is_featured DESC,p.is_best_seller DESC,p.updated_at DESC,p.id DESC LIMIT $1`,[MAX_PRODUCTS]);
    const searchedProducts=await searchCatalog(db,message);
    const catalog=mergeProducts((result.rows||[]).map(product),searchedProducts);

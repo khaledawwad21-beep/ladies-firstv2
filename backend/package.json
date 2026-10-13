@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/start.js",
     "dev": "node --watch src/start.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --require ./test/support/no-external-fetch.cjs --test --test-concurrency=2 test/*.test.js"
   },
   "engines": {
     "node": ">=20"
