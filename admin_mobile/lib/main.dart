@@ -358,9 +358,11 @@ class _AdminShellState extends State<AdminShell> {
             ? DashboardPage(api: widget.api)
             : _index == 1
                 ? OrdersPage(api: widget.api)
-                : _index == 4
-                    ? const MoreSections()
-                    : _ComingSoon(title: _tabs[_index].$1),
+                : _index == 2
+                    ? ProductsPage(api: widget.api)
+                    : _index == 3
+                        ? InventoryPage(api: widget.api)
+                        : const MoreSections(),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _index,
           onDestinationSelected: (value) => setState(() => _index = value),
@@ -795,6 +797,423 @@ class _OrdersPageState extends State<OrdersPage> {
             _orders = _load();
           }),
         ),
+      );
+}
+
+
+class ProductsPage extends StatefulWidget {
+  const ProductsPage({required this.api, super.key});
+  final AdminApi api;
+
+  @override
+  State<ProductsPage> createState() => _ProductsPageState();
+}
+
+class _ProductsPageState extends State<ProductsPage> {
+  late Future<List<Map<String, dynamic>>> _products;
+
+  @override
+  void initState() {
+    super.initState();
+    _products = _load();
+  }
+
+  Future<List<Map<String, dynamic>>> _load() async {
+    final data = await widget.api.request('/admin/inventory');
+    return (data['products'] as List? ?? const [])
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _products = _load());
+    try {
+      await _products;
+    } catch (_) {}
+  }
+
+  Future<void> _edit(Map<String, dynamic> product) async {
+    final id = product['id']?.toString();
+    if (id == null) return;
+    final name = TextEditingController(text: product['name']?.toString() ?? '');
+    final price = TextEditingController(text: product['price']?.toString() ?? '0');
+    var active = product['is_active'] == true || product['is_active'] == 1;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: Text('تعديل المنتج #' + id),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'اسم المنتج'),
+                ),
+                TextField(
+                  controller: price,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'السعر'),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: active,
+                  title: const Text('المنتج متاح للبيع'),
+                  onChanged: (value) => update(() => active = value),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final amount = double.tryParse(price.text);
+                if (name.text.trim().isEmpty || amount == null || amount < 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('تحققي من الاسم والسعر')),
+                  );
+                  return;
+                }
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved == true) {
+      try {
+        await widget.api.request(
+          '/admin/products/' + id,
+          method: 'PATCH',
+          body: {
+            'name': name.text.trim(),
+            'price': double.parse(price.text),
+            'is_active': active,
+          },
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم حفظ المنتج')),
+          );
+          await _refresh();
+        }
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString())),
+          );
+        }
+      }
+    }
+    name.dispose();
+    price.dispose();
+  }
+
+  String _money(dynamic value) =>
+      '₪ ${(double.tryParse(value?.toString() ?? '') ?? 0).toStringAsFixed(2)}';
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<Map<String, dynamic>>>(
+        future: _products,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: _ErrorPanel(
+                message: snapshot.error.toString(),
+                retry: _refresh,
+              ),
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.data!.isEmpty) {
+            return const Center(child: Text('ما في منتجات'));
+          }
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: snapshot.data!.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final product = snapshot.data![index];
+                final image = product['image_url']?.toString() ?? '';
+                final uri = Uri.tryParse(image);
+                final imageUrl = uri?.hasAbsolutePath == true &&
+                        (uri?.hasScheme == true)
+                    ? image
+                    : 'https://ladies-firstv2.onrender.com/' + image;
+                return Card(
+                  color: Colors.white,
+                  child: ListTile(
+                    onTap: () => _edit(product),
+                    leading: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: image.isEmpty
+                          ? const SizedBox(
+                              width: 52,
+                              height: 52,
+                              child: Icon(Icons.shopping_bag_outlined, color: _plum),
+                            )
+                          : Image.network(
+                              imageUrl,
+                              width: 52,
+                              height: 52,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => const SizedBox(
+                                width: 52,
+                                height: 52,
+                                child: Icon(Icons.shopping_bag_outlined, color: _plum),
+                              ),
+                            ),
+                    ),
+                    title: Text(product['name']?.toString() ?? 'منتج'),
+                    subtitle: Text(
+                      'المخزون: ${product['stock'] ?? 0} · ' + _money(product['price']),
+                    ),
+                    trailing: const Icon(Icons.edit_outlined, color: _plum),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      );
+}
+
+class InventoryPage extends StatefulWidget {
+  const InventoryPage({required this.api, super.key});
+  final AdminApi api;
+
+  @override
+  State<InventoryPage> createState() => _InventoryPageState();
+}
+
+class _InventoryPageState extends State<InventoryPage> {
+  late Future<Map<String, dynamic>> _data;
+
+  @override
+  void initState() {
+    super.initState();
+    _data = widget.api.request('/admin/inventory');
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _data = widget.api.request('/admin/inventory'));
+    try {
+      await _data;
+    } catch (_) {}
+  }
+
+  Future<void> _editStock({
+    required String endpoint,
+    required String title,
+    required dynamic stock,
+  }) async {
+    final controller = TextEditingController(text: stock?.toString() ?? '0');
+    final note = TextEditingController();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('تعديل مخزون ' + title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'الكمية الجديدة',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: note,
+              decoration: const InputDecoration(
+                labelText: 'ملاحظة حركة المخزون',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final amount = int.tryParse(controller.text);
+              if (amount == null || amount < 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('أدخلي كمية صحيحة')),
+                );
+                return;
+              }
+              Navigator.pop(dialogContext, true);
+            },
+            child: const Text('حفظ الكمية'),
+          ),
+        ],
+      ),
+    );
+    if (saved == true) {
+      try {
+        await widget.api.request(
+          endpoint,
+          method: 'PATCH',
+          body: {
+            'stock': int.parse(controller.text),
+            if (note.text.trim().isNotEmpty) 'note': note.text.trim(),
+          },
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم تحديث المخزون')),
+          );
+          await _refresh();
+        }
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString())),
+          );
+        }
+      }
+    }
+    controller.dispose();
+    note.dispose();
+  }
+
+  Future<void> _showProductInventory(
+    Map<String, dynamic> product,
+    List<Map<String, dynamic>> variants,
+  ) async {
+    final id = product['id']?.toString();
+    if (id == null) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: variants.isEmpty
+              ? ListTile(
+                  title: const Text('المخزون العام'),
+                  subtitle: Text('الكمية: ${product['stock'] ?? 0}'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.edit_outlined, color: _plum),
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _editStock(
+                        endpoint: '/admin/inventory/' + id,
+                        title: product['name']?.toString() ?? 'المنتج',
+                        stock: product['stock'],
+                      );
+                    },
+                  ),
+                )
+              : ListView(
+                  shrinkWrap: true,
+                  children: [
+                    Text(
+                      product['name']?.toString() ?? 'مخزون المنتج',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    ...variants.map((variant) {
+                      final variantId = variant['id']?.toString() ?? '';
+                      final label = [
+                        variant['color']?.toString() ?? '',
+                        variant['size']?.toString() ?? '',
+                      ].where((value) => value.isNotEmpty).join(' · ');
+                      return ListTile(
+                        title: Text(label.isEmpty ? 'خيار ' + variantId : label),
+                        subtitle: Text('الكمية: ${variant['stock'] ?? 0}'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.edit_outlined, color: _plum),
+                          onPressed: () {
+                            Navigator.pop(sheetContext);
+                            _editStock(
+                              endpoint: '/admin/inventory/variant/' + variantId,
+                              title: label.isEmpty ? 'الخيار' : label,
+                              stock: variant['stock'],
+                            );
+                          },
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
+        future: _data,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: _ErrorPanel(
+                message: snapshot.error.toString(),
+                retry: _refresh,
+              ),
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final products = (snapshot.data!['products'] as List? ?? const [])
+              .map((item) => Map<String, dynamic>.from(item as Map))
+              .toList();
+          final variants = (snapshot.data!['variants'] as List? ?? const [])
+              .map((item) => Map<String, dynamic>.from(item as Map))
+              .toList();
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: products.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final product = products[index];
+                final productId = product['id'];
+                final productVariants = variants
+                    .where((variant) =>
+                        variant['product_id'].toString() == productId.toString() &&
+                        (variant['is_active'] == true || variant['is_active'] == 1))
+                    .toList();
+                return Card(
+                  color: Colors.white,
+                  child: ListTile(
+                    onTap: () => _showProductInventory(product, productVariants),
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFFF4EAF1),
+                      child: Icon(Icons.warehouse_outlined, color: _plum),
+                    ),
+                    title: Text(product['name']?.toString() ?? 'منتج'),
+                    subtitle: Text(
+                      'الإجمالي: ${product['stock'] ?? 0} · الخيارات: ' +
+                          productVariants.length.toString(),
+                    ),
+                    trailing: const Icon(Icons.edit_outlined, color: _plum),
+                  ),
+                );
+              },
+            ),
+          );
+        },
       );
 }
 
