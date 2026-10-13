@@ -22,9 +22,9 @@ test("official WhatsApp number is +970562499924 throughout store contacts", () =
   assert.match(automation, /storedStorePhone === "972562499924"/);
   assert.match(settings, /SET value = '"\+970562499924"'::jsonb/);
   assert.match(settings, /UPDATE users AS owner_account/);
-  assert.match(settings, /SET phone = '\\+970562499924'/);
-  assert.match(settings, /jsonb_set\\(/);
-  assert.match(admin, /id="osPhone" class="field" value="\\+970562499924"/);
+  assert.ok(settings.includes("SET phone = '+970562499924'"));
+  assert.ok(settings.includes('jsonb_set('));
+  assert.ok(admin.includes('id="osPhone" class="field" value="+970562499924"'));
   assert.doesNotMatch(admin, /id="osPhone" class="field" value="0562499924"/);
   assert.doesNotMatch(app, /whatsappNumber:'00972562499924'/);
 });
