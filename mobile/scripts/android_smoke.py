@@ -106,18 +106,24 @@ try:
     snapshot('04-phone-login')
     passed('Phone login opens from sidebar')
     tap(['إيميل'])
-    find(['البريد الإلكتروني'])
+    # Android WebView can show an HTML input placeholder visually without
+    # exposing it as a UIAutomator text node. Verify the actual transition:
+    # phone-only controls must disappear in email mode.
     values = [label(n) for n in nodes()]
     assert not any('تحديد الدولة تلقائيًا' in v for v in values), values
+    assert not any('فلسطين (+970)' in v for v in values), values
     snapshot('05-email-login')
     passed('Email login hides country controls')
     tap(['إنشاء حساب'], exact=True)
-    find(['الاسم'], exact=True)
+    # A mode-specific submit button has stable accessible text, unlike
+    # placeholders of the newly visible input fields.
+    find(['إنشاء الحساب'], exact=True)
     snapshot('06-register')
-    passed('Registration reveals name field')
+    passed('Registration changes the submit control and reveals registration mode')
     tap(['تسجيل الدخول'], exact=True)
-    assert not any(label(n) == 'الاسم' for n in nodes())
-    passed('Login hides registration fields again')
+    values = [label(n) for n in nodes()]
+    assert not any(v == 'إنشاء الحساب' for v in values), values
+    passed('Login restores its submit control and hides registration mode')
     tap(['إغلاق نافذة الحساب'])
     tap(['السلة'], exact=True)
     snapshot('07-cart')
