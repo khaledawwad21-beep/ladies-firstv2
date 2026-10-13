@@ -3363,7 +3363,7 @@ app.post(
           const shippingDiscountPercent = Math.max(0,Math.min(100,Number(shippingDiscountsRaw?.[shippingRegion])||0));
           const shippingBaseCost = shippingFees[shippingRegion];
           const shippingDiscountAmount = money(shippingBaseCost * shippingDiscountPercent / 100);
-          const shippingWaived = req.body.shippingWaived === true && req.user && ["owner","admin"].includes(String(req.user.role||"").toLowerCase());
+          const shippingWaived = req.body.shippingWaived === true && !!req.user && ["owner","admin"].includes(String(req.user.role||"").toLowerCase());
           const shipping = shippingWaived ? 0 : money(Math.max(0,shippingBaseCost-shippingDiscountAmount));
 
           /* Packaging price is authoritative on the server. The browser only sends option ids per item. */
