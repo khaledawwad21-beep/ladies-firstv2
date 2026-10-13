@@ -39,7 +39,7 @@ cairosvg.svg2png(bytestring=ET.tostring(adaptive_svg, encoding='utf-8'),
                 output_width=432, output_height=432)
 
 # Android 12+ clips the splash icon to a circle. Render the approved icon
-# at 62% within a matching cream canvas so the full butterfly/leaf is visible;
+# at 62% within a matching cream canvas so the full floral icon is visible;
 # do not shrink or replace the user's regular launcher icon.
 ns = 'http://www.w3.org/2000/svg'
 ET.register_namespace('', ns)
