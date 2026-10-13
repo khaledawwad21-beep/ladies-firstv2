@@ -1,0 +1,20 @@
+name: ladies_first
+description: Ladies First mobile storefront — Android test build.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.11.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  webview_flutter: ^4.14.1
+  url_launcher: ^6.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
