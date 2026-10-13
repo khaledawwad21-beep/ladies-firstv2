@@ -16,9 +16,11 @@ void main() {
 class LadiesFirstAdmin extends StatelessWidget {
   const LadiesFirstAdmin({super.key});
 
+  static const appTitle = 'Ladies First Admin';
+
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Ladies First Admin',
+        title: appTitle,
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,
