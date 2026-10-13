@@ -842,7 +842,7 @@ class _ProductsPageState extends State<ProductsPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
-          title: Text('تعديل المنتج #' + id),
+          title: Text('تعديل المنتج #$id'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -890,7 +890,7 @@ class _ProductsPageState extends State<ProductsPage> {
     if (saved == true) {
       try {
         await widget.api.request(
-          '/admin/products/' + id,
+          '/admin/products/$id',
           method: 'PATCH',
           body: {
             'name': name.text.trim(),
@@ -950,7 +950,7 @@ class _ProductsPageState extends State<ProductsPage> {
                 final imageUrl = uri?.hasAbsolutePath == true &&
                         (uri?.hasScheme == true)
                     ? image
-                    : 'https://ladies-firstv2.onrender.com/' + image;
+                    : 'https://ladies-firstv2.onrender.com/$image';
                 return Card(
                   color: Colors.white,
                   child: ListTile(
@@ -977,7 +977,7 @@ class _ProductsPageState extends State<ProductsPage> {
                     ),
                     title: Text(product['name']?.toString() ?? 'منتج'),
                     subtitle: Text(
-                      'المخزون: ${product['stock'] ?? 0} · ' + _money(product['price']),
+                      'المخزون: ${product['stock'] ?? 0} · ${_money(product['price'])}',
                     ),
                     trailing: const Icon(Icons.edit_outlined, color: _plum),
                   ),
@@ -1023,7 +1023,7 @@ class _InventoryPageState extends State<InventoryPage> {
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('تعديل مخزون ' + title),
+        title: Text('تعديل مخزون $title'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1115,7 +1115,7 @@ class _InventoryPageState extends State<InventoryPage> {
                     onPressed: () {
                       Navigator.pop(sheetContext);
                       _editStock(
-                        endpoint: '/admin/inventory/' + id,
+                        endpoint: '/admin/inventory/$id',
                         title: product['name']?.toString() ?? 'المنتج',
                         stock: product['stock'],
                       );
@@ -1137,14 +1137,14 @@ class _InventoryPageState extends State<InventoryPage> {
                         variant['size']?.toString() ?? '',
                       ].where((value) => value.isNotEmpty).join(' · ');
                       return ListTile(
-                        title: Text(label.isEmpty ? 'خيار ' + variantId : label),
+                        title: Text(label.isEmpty ? 'خيار $variantId' : label),
                         subtitle: Text('الكمية: ${variant['stock'] ?? 0}'),
                         trailing: IconButton(
                           icon: const Icon(Icons.edit_outlined, color: _plum),
                           onPressed: () {
                             Navigator.pop(sheetContext);
                             _editStock(
-                              endpoint: '/admin/inventory/variant/' + variantId,
+                              endpoint: '/admin/inventory/variant/$variantId',
                               title: label.isEmpty ? 'الخيار' : label,
                               stock: variant['stock'],
                             );
@@ -1204,8 +1204,7 @@ class _InventoryPageState extends State<InventoryPage> {
                     ),
                     title: Text(product['name']?.toString() ?? 'منتج'),
                     subtitle: Text(
-                      'الإجمالي: ${product['stock'] ?? 0} · الخيارات: ' +
-                          productVariants.length.toString(),
+                      'الإجمالي: ${product['stock'] ?? 0} · الخيارات: ${productVariants.length}',
                     ),
                     trailing: const Icon(Icons.edit_outlined, color: _plum),
                   ),
@@ -1249,26 +1248,6 @@ class _SectionRow extends StatelessWidget {
           onTap: () => ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('هذا القسم قادم ضمن المرحلة التالية.')),
           ),
-        ),
-      );
-}
-
-class _ComingSoon extends StatelessWidget {
-  const _ComingSoon({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.construction_outlined, size: 48, color: _plum),
-            const SizedBox(height: 10),
-            Text(title, style: const TextStyle(fontSize: 20)),
-            const SizedBox(height: 6),
-            const Text('هذا القسم قيد التنفيذ ضمن مراحله.'),
-          ],
         ),
       );
 }
