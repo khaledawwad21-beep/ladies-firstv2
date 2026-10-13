@@ -132,7 +132,7 @@
   background:#63345e!important;border-color:#63345e!important;
   color:#fff!important;box-shadow:0 4px 10px #63345e18;
 }
-#accountModal #accountContent .accountMode:nth-of-type(2) button.active{
+#accountModal #accountContent .accountMode + .accountMode button.active{
   background:#fff!important;border-color:#774773!important;
   color:#63345e!important;box-shadow:none;
 }
@@ -149,11 +149,12 @@
 #accountModal #accountContent .phoneIntlBox{
   display:flex;flex-direction:column;gap:0;min-width:0;
 }
-#accountModal #accountContent #accountCountryTools{
+#accountModal #accountContent #accountCountryTools:not([style*="display: none"]){
   display:grid!important;
   grid-template-columns:minmax(0,1fr) auto;
   align-items:center;gap:7px!important;margin-bottom:8px;
 }
+#accountModal #accountContent #accountCountryTools[style*="display: none"]{display:none!important;}
 #accountModal #accountCountryCode{
   margin:0!important;max-width:100%;
   min-width:0!important;font-size:13px!important;
