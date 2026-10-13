@@ -37,7 +37,7 @@
           <div><small>خدمة عملاء Ladies First</small><h2 id="lfWaHeading">كيف فينا نساعدك؟</h2></div>
           <button type="button" id="lfWaClose" aria-label="إغلاق">×</button>
         </div>
-        <p class="lf-wa-intro">اختاري سبب التواصل، وبنجهّز رسالتك مباشرة على واتساب.</p>
+        <p class="lf-wa-intro">لتسهيل التواصل مع فريقنا، حدّد سبب التواصل من الخيارات التالية وسنجهّز رسالتك على واتساب.</p>
         <div class="lf-wa-grid" role="group" aria-label="سبب التواصل">
           ${intents.map(([id, label]) => `<button type="button" class="lf-wa-purpose"
             data-purpose="${id}" aria-pressed="false">${safe(label)}</button>`).join('')}
