@@ -478,6 +478,32 @@ if (process.env.RUN_DB_E2E !== "1") {
     const giftStockAfterRemove = await api("/api/products/" + giftProductId);
     assert.equal(Number(giftStockAfterRemove.product.stock), 2);
 
+    // A greeting-card charge is part of the order total and must survive
+    // both manual shipping discounts and shipping waiver toggles.
+    await db("UPDATE orders SET gift_card_cost=7,total=total+7 WHERE id=$1", [orderId]);
+    const discountedWithCard = await api("/api/admin/orders/" + orderId + "/shipping-discount", {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ percent: 20, confirmStack: true })
+    });
+    assert.equal(Number(discountedWithCard.order.total), 119);
+
+    const waivedWithCard = await api("/api/admin/orders/" + orderId + "/shipping-waiver", {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ waived: true })
+    });
+    assert.equal(Number(waivedWithCard.order.shipping_cost), 0);
+    assert.equal(Number(waivedWithCard.order.total), 107);
+
+    const restoredWithCard = await api("/api/admin/orders/" + orderId + "/shipping-waiver", {
+      method: "PATCH",
+      headers: ownerHeaders,
+      body: JSON.stringify({ waived: false })
+    });
+    assert.equal(Number(restoredWithCard.order.shipping_cost), 12);
+    assert.equal(Number(restoredWithCard.order.total), 119);
+
     const clearedDiscount = await api("/api/admin/orders/" + orderId + "/shipping-discount", {
       method: "PATCH",
       headers: ownerHeaders,
@@ -485,7 +511,7 @@ if (process.env.RUN_DB_E2E !== "1") {
     });
     assert.equal(Number(clearedDiscount.order.shipping_manual_discount_amount), 0);
     assert.equal(Number(clearedDiscount.order.shipping_cost), 15);
-    assert.equal(Number(clearedDiscount.order.total), 115);
+    assert.equal(Number(clearedDiscount.order.total), 122);
 
     await api("/api/admin/orders/" + orderId + "/status", {
       method: "PATCH",

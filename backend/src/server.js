@@ -4895,7 +4895,7 @@ app.patch("/api/admin/orders/:id/shipping-waiver",requireAdmin,async(req,res)=>{
       const manualAmount=Math.max(0,Math.min(manualBase,Number(o.shipping_manual_discount_amount||0)||money(manualBase*manualPercent/100)));
       const normalShipping=money(Math.max(0,baseShipping-autoAmount-manualAmount));
       const shipping=waived?0:normalShipping;
-      const total=money(Math.max(0,Number(o.subtotal||0)-Number(o.coupon_discount||0)-Number(o.visa_discount||0)-Number(o.loyalty_discount||0)+Number(o.packaging_cost||0)+shipping));
+      const total=money(Math.max(0,Number(o.subtotal||0)-Number(o.coupon_discount||0)-Number(o.visa_discount||0)-Number(o.loyalty_discount||0)+Number(o.packaging_cost||0)+Number(o.gift_card_cost||0)+shipping));
       const u=await client.query(
         "UPDATE orders SET shipping_waived=$1,shipping_cost=$2,total=$3,updated_at=NOW() WHERE id=$4 RETURNING *",
         [waived,shipping,total,orderId]
@@ -4934,7 +4934,7 @@ app.patch("/api/admin/orders/:id/shipping-discount",requireAdmin,async(req,res)=
       const manualBase=Math.max(0,baseShipping-autoAmount);
       const manualAmount=money(manualBase*(manualPercent/100));
       const shipping=Boolean(o.shipping_waived)?0:money(Math.max(0,manualBase-manualAmount));
-      const total=money(Math.max(0,Number(o.subtotal||0)-Number(o.coupon_discount||0)-Number(o.visa_discount||0)-Number(o.loyalty_discount||0)+Number(o.packaging_cost||0)+shipping));
+      const total=money(Math.max(0,Number(o.subtotal||0)-Number(o.coupon_discount||0)-Number(o.visa_discount||0)-Number(o.loyalty_discount||0)+Number(o.packaging_cost||0)+Number(o.gift_card_cost||0)+shipping));
       const u=await client.query(
         `UPDATE orders
          SET shipping_manual_discount_percent=$1,
