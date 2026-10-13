@@ -13,6 +13,31 @@ for density, size in [('mdpi',48), ('hdpi',72), ('xhdpi',96), ('xxhdpi',144), ('
     target = res / ('mipmap-' + density) / 'ic_launcher.png'
     target.parent.mkdir(parents=True, exist_ok=True)
     cairosvg.svg2png(url=str(source), write_to=str(target), output_width=size, output_height=size)
+# Android 8+ launchers may prefer mipmap-anydpi-v26/ic_launcher.xml over the
+# legacy density PNGs. Flutter's generated template can otherwise retain a
+# Flutter-logo adaptive resource even when all mipmap PNGs are branded.
+adaptive_dir = res / 'mipmap-anydpi-v26'
+adaptive_dir.mkdir(parents=True, exist_ok=True)
+adaptive_dir.joinpath('ic_launcher.xml').write_text('''<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+  <background android:drawable="@color/lf_cream" />
+  <foreground android:drawable="@drawable/lf_launcher_foreground" />
+</adaptive-icon>
+''')
+# Provide safe padding for the system's circular/squircle icon masks.
+adaptive_svg = ET.Element('{http://www.w3.org/2000/svg}svg', {
+    'width': '1024', 'height': '1024', 'viewBox': '0 0 1024 1024'
+})
+adaptive_center = ET.SubElement(adaptive_svg, '{http://www.w3.org/2000/svg}g', {
+    'transform': 'translate(170 170) scale(0.668)'
+})
+adaptive_center.append(ET.parse(source).getroot())
+adaptive_png = res / 'drawable-nodpi/lf_launcher_foreground.png'
+adaptive_png.parent.mkdir(parents=True, exist_ok=True)
+cairosvg.svg2png(bytestring=ET.tostring(adaptive_svg, encoding='utf-8'),
+                write_to=str(adaptive_png),
+                output_width=432, output_height=432)
+
 # Android 12+ clips the splash icon to a circle. Render the approved icon
 # at 62% within a matching cream canvas so the full butterfly/leaf is visible;
 # do not shrink or replace the user's regular launcher icon.
