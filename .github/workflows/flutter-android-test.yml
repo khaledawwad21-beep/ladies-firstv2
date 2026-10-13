@@ -73,10 +73,10 @@ jobs:
           root = ET.parse(icon).getroot()
           assert root.tag == 'adaptive-icon', root.tag
           assert root.find('foreground').get(android + 'drawable') == '@drawable/lf_launcher_foreground'
-          assert (base/'res/drawable-nodpi/lf_launcher_foreground.png').read_bytes()[:8] == b'\\x89PNG\\r\\n\\x1a\\n'
+          assert (base/'res/drawable-nodpi/lf_launcher_foreground.png').read_bytes()[:8] == bytes.fromhex('89504e470d0a1a0a')
           for density in ('mdpi','hdpi','xhdpi','xxhdpi','xxxhdpi'):
               icon_png = base/f'res/mipmap-{density}/ic_launcher.png'
-              assert icon_png.read_bytes()[:8] == b'\\x89PNG\\r\\n\\x1a\\n'
+              assert icon_png.read_bytes()[:8] == bytes.fromhex('89504e470d0a1a0a')
               print(density, sha256(icon_png.read_bytes()).hexdigest()[:16])
           print('Verified native and adaptive Ladies First launcher icon resources')
           PY
