@@ -41,6 +41,20 @@ async function run() {
     await page.waitForTimeout(1800);
     const welcomeClose = page.locator('#lfWelcomeOffer .lf-welcome-offer__close');
     if (await welcomeClose.isVisible()) await welcomeClose.click();
+    const headerLogo = page.locator('#logo');
+    await headerLogo.waitFor({ state: 'visible' });
+    await headerLogo.evaluate(img => img.decode().catch(() => null));
+    const logoStyle = await headerLogo.evaluate(img => ({
+      naturalWidth: img.naturalWidth,
+      borderRadius: getComputedStyle(img).borderRadius,
+      objectFit: getComputedStyle(img).objectFit,
+      box: img.getBoundingClientRect().toJSON(),
+    }));
+    assert(logoStyle.naturalWidth > 0, 'Header flower mark failed to load');
+    assert.equal(logoStyle.borderRadius, '50%', 'Header logo must fit the circular frame');
+    assert.equal(logoStyle.objectFit, 'contain', 'Header flower mark must preserve its shape');
+    pass('Header flower mark loads and fits the circular frame');
+
     await shot('01-home-390x844');
     pass('Actual mobile storefront and at least one category rendered');
 
