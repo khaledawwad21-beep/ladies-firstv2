@@ -126,7 +126,7 @@ async function run() {
     const subtitleContrast = await page.locator('#nayaAssistant .naya-status').evaluate(node => {
       const fg = getComputedStyle(node).color;
       const bg = getComputedStyle(node.closest('.naya-header')).backgroundColor;
-      const components = css => (css.match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+      const components = css => (css.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
       const luminance = values => {
         const channels = values.map(v => {
           const c = v / 255;
