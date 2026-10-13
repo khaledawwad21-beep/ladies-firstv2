@@ -18,12 +18,12 @@ if is_kotlin:
     productFlavors {
         create("store") {
             dimension = "app"
-            resValue("string", "app_name", "Ladies First")
+            manifestPlaceholders["appName"] = "Ladies First"
         }
         create("admin") {
             dimension = "app"
             applicationIdSuffix = ".admin"
-            resValue("string", "app_name", "Ladies First إدارة")
+            manifestPlaceholders["appName"] = "Ladies First إدارة"
         }
     }
 '''
@@ -32,12 +32,12 @@ else:
     productFlavors {
         store {
             dimension "app"
-            resValue "string", "app_name", "Ladies First"
+            manifestPlaceholders = [appName: "Ladies First"]
         }
         admin {
             dimension "app"
             applicationIdSuffix ".admin"
-            resValue "string", "app_name", "Ladies First إدارة"
+            manifestPlaceholders = [appName: "Ladies First إدارة"]
         }
     }
 '''
@@ -49,7 +49,7 @@ app_gradle.write_text(gradle)
 
 manifest_path = Path("android/app/src/main/AndroidManifest.xml")
 manifest = manifest_path.read_text()
-manifest, count = re.subn(r'android:label="[^"]*"', 'android:label="@string/app_name"', manifest, count=1)
+manifest, count = re.subn(r'android:label="[^"]*"', 'android:label="${appName}"', manifest, count=1)
 if count != 1:
     raise SystemExit("Could not set the app label resource in AndroidManifest.xml")
 manifest_path.write_text(manifest)

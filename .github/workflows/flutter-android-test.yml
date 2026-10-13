@@ -72,7 +72,7 @@ jobs:
           application = manifest.find('application')
           assert application is not None
           assert application.get(android + 'icon') == '@mipmap/ic_launcher'
-          assert application.get(android + 'label') == '@string/app_name'
+          assert application.get(android + 'label') == '${appName}'
           icon = base/'res/mipmap-anydpi-v26/ic_launcher.xml'
           assert icon.exists(), 'Android 8+ adaptive launcher icon missing'
           root = ET.parse(icon).getroot()
