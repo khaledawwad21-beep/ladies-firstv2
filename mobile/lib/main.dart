@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 /// Canonical production URL from the Ladies First storefront.
@@ -262,7 +263,9 @@ class _StoreScreenState extends State<StoreScreen> {
   @override
   void initState() {
     super.initState();
-    _webView = WebViewController()
+    _webView = WebViewController(
+      onPermissionRequest: (request) => unawaited(_requestMicrophone(request)),
+    )
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(cream)
       ..setNavigationDelegate(
@@ -342,6 +345,28 @@ class _StoreScreenState extends State<StoreScreen> {
         _loading = false;
       });
     }));
+  }
+
+  Future<void> _requestMicrophone(WebViewPermissionRequest request) async {
+    final navigation = _navigationId;
+    try {
+      final current = Uri.tryParse(await _webView.currentUrl() ?? '');
+      final onlyMicrophone = request.types.length == 1 &&
+          request.types.contains(WebViewPermissionResourceType.microphone);
+      if (!mounted || !onlyMicrophone || current?.origin != Uri.parse(storeUrl).origin) {
+        await request.deny();
+        return;
+      }
+      // This callback runs only after the customer taps the voice control.
+      final permission = await Permission.microphone.request();
+      if (mounted && permission.isGranted && navigation == _navigationId) {
+        await request.grant();
+      } else {
+        await request.deny();
+      }
+    } catch (_) {
+      await request.deny();
+    }
   }
 
   Future<void> _applyMobileEnhancements() async {

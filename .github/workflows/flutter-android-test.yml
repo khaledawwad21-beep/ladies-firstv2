@@ -46,6 +46,9 @@ jobs:
           permission='<uses-permission android:name="android.permission.INTERNET" />'
           if permission not in text:
               text=text.replace('<application', permission+'\n    <application', 1)
+          microphone='<uses-permission android:name="android.permission.RECORD_AUDIO" />'
+          if microphone not in text:
+              text=text.replace('<application', microphone+'\n    <application', 1)
           p.write_text(text)
           PY
       - name: Generate official Ladies First launcher icons

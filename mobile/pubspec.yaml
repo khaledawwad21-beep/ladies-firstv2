@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
   webview_flutter: ^4.14.1
   url_launcher: ^6.3.3
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:
