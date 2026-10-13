@@ -70,7 +70,7 @@ test("changed message scripts use fresh cache versions",()=>{
   assert.match(adminHtml,/admin-conversations\.js\?v=20261009-close-order-modal1/);
   assert.match(adminHtml,/admin-product-upload\.js\?v=20261011-media3/);
   assert.match(adminHtml,/data-s="messages"/);
-  assert.match(indexHtml,/app\.js\?v=20261013-audit-search-cleanup/);
+  assert.match(indexHtml,/app\.js\?v=20261013-account-polish-2/);
 });
 
 test("Naya chat avoids browser password autofill and refocusing after quick replies",()=>{

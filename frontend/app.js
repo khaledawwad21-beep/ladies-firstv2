@@ -269,7 +269,7 @@ async function submitReturnRequest(orderId,itemId,maxQty){if(!lfToken())return a
 function viewOrder(id){const o=load('lf_orders',[]).find(x=>String(x.id)===String(id));if(!o)return;const m=document.getElementById('orderDetailModal');if(!m)return;document.getElementById('orderDetailContent').innerHTML=orderDetailsHtml(o);m.style.display='flex'}
 function closeOrderDetail(){const m=document.getElementById('orderDetailModal');if(m)m.style.display='none';if(/^\/order\/\d+\/?$/.test(location.pathname))history.replaceState(null,'','/')}
 function reorder(id){const o=load('lf_orders',[]).find(x=>String(x.id)===String(id));if(!o)return;let added=0,skipped=0,giftsSkipped=0;(o.items||[]).forEach(it=>{if(it.isGift){giftsSkipped++;return}const p=products.find(x=>Number(x.id)===Number(it.productId));if(!p){skipped++;return}const available=variantStock(p,it.variant||'');const want=Math.max(1,Number(it.qty)||1);if(available<=0){skipped++;return}const qty=Math.min(want,available);addToCart(p.id,qty,it.variant||'',it.packagingId||'');added+=qty;if(qty<want)skipped++});closeOrderDetail();closeAccount();openCart();const notes=[];if(skipped)notes.push(skipped+' من القطع لم تعد متوفرة بالكمية المطلوبة.');if(giftsSkipped)notes.push('الهدايا السابقة لا تُعاد تلقائيًا للسلة.');if(notes.length)alert(`تمت إعادة إضافة ${added} قطعة 🌸\n`+notes.join('\n'))}
-function renderSideAccountGreeting(){const el=document.getElementById('sideAccountGreeting');if(!el)return;const a=getAccount();el.innerHTML=a?`<div class="sideGreeting">${greetingForAccount(a)}، <b>${esc(a.name||'سيدتي')}</b> 🩷</div><button class="sideAccountBtn" onclick="openAccount();toggleSideMenu()">👤 حسابي وطلباتي</button>`:`<button class="sideAccountBtn" onclick="openAccount();toggleSideMenu()">👤 تسجيل الدخول الاختياري</button>`}
+function renderSideAccountGreeting(){const el=document.getElementById('sideAccountGreeting');if(!el)return;const a=getAccount();el.innerHTML=a?`<div class="sideGreeting">${greetingForAccount(a)}، <b>${esc(a.name||'سيدتي')}</b> 🩷</div><button class="sideAccountBtn" onclick="openAccount();toggleSideMenu()">👤 حسابي وطلباتي</button>`:`<div class="sideGreeting">أهلاً بك في Ladies First</div><button class="sideAccountBtn" onclick="openAccount();toggleSideMenu()">👤 تسجيل الدخول الاختياري</button>`}
 function localPhoneForAccount(a){const raw=String(a?.contact||'').trim();if(!raw)return '';const n=normalizePhone(raw,a?.countryIso||'PS');if(!n.startsWith('+'))return raw;const dial=String(COUNTRY_DIAL_CODES[a?.countryIso||'PS']||'');if(dial&&n.slice(1,1+dial.length)===dial)return '0'+n.slice(1+dial.length);return n.slice(1)}
 function accountWaitlistStatusLabel(status){
   return ({waiting:'بانتظار التوفر',notified:'تم الإشعار',closed:'مغلق'})[String(status||'').toLowerCase()]||String(status||'-');
@@ -315,22 +315,22 @@ function renderAccountContent(){
         <button id="modeEmail" type="button" onclick="setAccountMode('email')">✉️ إيميل</button>
       </div>
       <div id="accountRegisterFields">
-        <input id="accountName" class="field" placeholder="الاسم">
+        <input id="accountName" aria-label="الاسم" class="field" placeholder="الاسم">
         <div class="genderRow">
-          <select id="accountGender" class="field"><option value="female">أنثى</option><option value="male">ذكر</option></select>
-          <input id="accountAge" class="field" type="number" min="13" max="120" placeholder="العمر">
+          <select id="accountGender" aria-label="الجنس" class="field"><option value="female">أنثى</option><option value="male">ذكر</option></select>
+          <input id="accountAge" aria-label="العمر" class="field" type="number" min="13" max="120" placeholder="العمر">
         </div>
       </div>
       <div class="phoneIntlBox">
         <div id="accountCountryTools" class="phoneIntlTop">
-          <select id="accountCountryCode" class="field countrySelect" onchange="syncCountryDialPreview('accountCountryCode','accountContact')"></select>
+          <select id="accountCountryCode" aria-label="الدولة ومفتاح الاتصال" class="field countrySelect" onchange="syncCountryDialPreview('accountCountryCode','accountContact')"></select>
           <span class="phoneDialHint" id="accountDialHint">+970</span>
           <button id="gpsCountryBtn" type="button" class="gpsBtn" onclick="detectCountryByGPS('accountCountryCode')">📍 تحديد الدولة تلقائيًا</button>
         </div>
-        <input id="accountContact" class="field" placeholder="رقم الواتساب بدون مفتاح الدولة" inputmode="tel" autocomplete="username">
+        <input id="accountContact" aria-label="رقم الواتساب بدون مفتاح الدولة" class="field" placeholder="رقم الواتساب بدون مفتاح الدولة" inputmode="tel" autocomplete="username">
       </div>
       <div id="accountGpsNote" class="gpsNote">📍 الموقع اختياري ويُستخدم فقط لتحديد الدولة تلقائيًا، ولا نحتاج حفظ إحداثياتك.</div>
-      <input id="accountPassword" class="field" type="password" minlength="12" autocomplete="current-password" placeholder="كلمة المرور — 12 خانة على الأقل">
+      <input id="accountPassword" aria-label="كلمة المرور" class="field" type="password" minlength="12" autocomplete="current-password" placeholder="كلمة المرور — 12 خانة على الأقل">
       <div id="accountActionHint" class="passwordNote">أدخل بيانات حسابك لتسجيل الدخول.</div>
       <button id="accountSubmit" class="add" onclick="saveAccount()">تسجيل الدخول</button>
       <button id="accountPasskeyLogin" class="add secondaryAdd" type="button" onclick="customerPasskeyLogin()">🔐 الدخول ببصمة / قفل الجهاز</button>
@@ -372,12 +372,13 @@ let accountMode='whatsapp',accountActionMode='login';
 function setAccountMode(mode){
   accountMode=mode==='email'?'email':'whatsapp';
   const w=document.getElementById('modeWhats'),e=document.getElementById('modeEmail'),contact=document.getElementById('accountContact'),tools=document.getElementById('accountCountryTools'),note=document.getElementById('accountGpsNote');
-  if(w&&e){w.classList.toggle('active',accountMode==='whatsapp');e.classList.toggle('active',accountMode==='email')}
+  if(w&&e){w.classList.toggle('active',accountMode==='whatsapp');e.classList.toggle('active',accountMode==='email');w.setAttribute('aria-pressed',String(accountMode==='whatsapp'));e.setAttribute('aria-pressed',String(accountMode==='email'))}
   if(contact){
     contact.type=accountMode==='email'?'email':'tel';
     contact.inputMode=accountMode==='email'?'email':'tel';
     contact.placeholder=accountMode==='email'?'البريد الإلكتروني':'رقم الواتساب بدون مفتاح الدولة';
     contact.autocomplete='username';
+    contact.setAttribute('aria-label',contact.placeholder);
   }
   if(tools)tools.style.display=accountMode==='email'?'none':'flex';
   if(note)note.style.display=accountMode==='email'?'none':'block';
@@ -385,7 +386,7 @@ function setAccountMode(mode){
 function setAccountActionMode(mode){
   accountActionMode=mode==='register'?'register':'login';
   const login=document.getElementById('actionLogin'),register=document.getElementById('actionRegister'),fields=document.getElementById('accountRegisterFields'),submit=document.getElementById('accountSubmit'),hint=document.getElementById('accountActionHint'),password=document.getElementById('accountPassword');
-  if(login&&register){login.classList.toggle('active',accountActionMode==='login');register.classList.toggle('active',accountActionMode==='register')}
+  if(login&&register){login.classList.toggle('active',accountActionMode==='login');register.classList.toggle('active',accountActionMode==='register');login.setAttribute('aria-pressed',String(accountActionMode==='login'));register.setAttribute('aria-pressed',String(accountActionMode==='register'))}
   if(fields)fields.style.display=accountActionMode==='register'?'block':'none';
   if(submit)submit.textContent=accountActionMode==='register'?'إنشاء الحساب':'تسجيل الدخول';
   if(hint)hint.textContent=accountActionMode==='register'?'أنشئ حسابًا لحفظ الطلبات والمفضلة بين الزيارات.':'أدخل رقم واتساب أو البريد وكلمة المرور لتسجيل الدخول.';

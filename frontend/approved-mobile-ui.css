@@ -241,3 +241,14 @@
   #sideMenuOverlay .sideCat img{width:47px!important;height:47px!important;flex-basis:47px!important;}
   #sideMenuOverlay .sideCat{min-height:57px;}
 }
+
+/* Keep primary actions together, before the full category list. */
+#sideMenuOverlay .sideQuickActions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}
+#sideMenuOverlay .sideQuickActions .sideLink{justify-content:center;flex-wrap:wrap;gap:5px;padding:9px 4px!important;font-size:12px!important;}
+#sideMenuOverlay .sideMenu{overscroll-behavior:contain;scrollbar-width:thin;}
+#sideMenuOverlay .sideClose:focus-visible{outline:2px solid #bf8ca2;outline-offset:2px;}
+@media(max-width:760px){
+  #whatsappFloat{display:none!important;}
+  #sideMenuOverlay .sideMenu{box-sizing:border-box;}
+  #accountModal #accountContent .field{font-size:16px!important;}
+}
