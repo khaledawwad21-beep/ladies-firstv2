@@ -2,10 +2,8 @@ name: Flutter Android APK (test)
 
 on:
   push:
-    branches:
-      - feature/flutter-mobile-app
-    paths:
-      - 'mobile/**'
+    branches: [feature/flutter-mobile-app]
+    paths: ['mobile/**']
   workflow_dispatch:
 
 permissions:
@@ -14,44 +12,48 @@ permissions:
 jobs:
   android-debug-apk:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: mobile
     steps:
       - name: Check out application source
         uses: actions/checkout@v4
-
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.7'
           channel: stable
           cache: true
-
-      - name: Confirm Flutter project is present
-        run: test -f pubspec.yaml && test -d lib && test -d android
-
-      - name: Install Flutter dependencies
+      - name: Generate missing Android project files
+        run: flutter create --org com.ladiesfirst --project-name ladies_first --platforms android --no-pub .
+      - name: Ensure Android networking and app name
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/AndroidManifest.xml')
+          text=p.read_text()
+          text=text.replace('android:label="ladies_first"', 'android:label="Ladies First"')
+          permission='<uses-permission android:name="android.permission.INTERNET" />'
+          if permission not in text:
+              text=text.replace('<application', permission+'\n    <application', 1)
+          p.write_text(text)
+          PY
+      - name: Fetch Flutter packages
         run: flutter pub get
-
-      - name: Run Dart analysis
+      - name: Analyze Dart code
         run: flutter analyze
-
-      - name: Run Flutter tests
+      - name: Test Flutter code
         run: flutter test
-
       - name: Build installable Android debug APK
         run: flutter build apk --debug
-
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
