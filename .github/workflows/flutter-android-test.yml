@@ -4,6 +4,9 @@ on:
   push:
     branches: [feature/flutter-mobile-app]
     paths: ['mobile/**', '.github/workflows/flutter-android-test.yml']
+  pull_request:
+    branches: [feature/flutter-mobile-app]
+    paths: ['mobile/**', '.github/workflows/flutter-android-test.yml']
   workflow_dispatch:
 
 permissions:
