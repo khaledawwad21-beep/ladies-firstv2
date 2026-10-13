@@ -204,12 +204,47 @@ class StoreScreen extends StatefulWidget {
   State<StoreScreen> createState() => _StoreScreenState();
 }
 
+enum _StoreLoadIssue { none, network, timeout, blank }
+
 class _StoreScreenState extends State<StoreScreen> {
   late final WebViewController _webView;
   late final Widget _webContent;
+  Timer? _loadTimeout;
+  int _navigationId = 0;
   bool _loading = true;
-  bool _hasMainFrameError = false;
+  bool _loadedOnce = false;
+  _StoreLoadIssue _loadIssue = _StoreLoadIssue.none;
   int _progress = 0;
+
+  void _armLoadTimeout() {
+    _loadTimeout?.cancel();
+    final int current = ++_navigationId;
+    _loadTimeout = Timer(const Duration(seconds: 22), () {
+      if (!mounted || current != _navigationId || !_loading) return;
+      setState(() {
+        _loading = false;
+        _loadIssue = _StoreLoadIssue.timeout;
+      });
+    });
+  }
+
+  Future<void> _checkStorePage(int navigationId) async {
+    // Some WebViews report onPageFinished for an empty/failed document.
+    // Check that the real storefront markup is present after scripts settle.
+    await Future<void>.delayed(const Duration(seconds: 3));
+    if (!mounted || navigationId != _navigationId) return;
+    try {
+      final Object result = await _webView.runJavaScriptReturningResult(
+        "(function(){var b=document.body;return !!(b && b.innerText && b.innerText.trim().length>80 && document.getElementById('sideMenuOverlay') && document.getElementById('bottomWhatsLink'));})()",
+      );
+      if (!mounted || navigationId != _navigationId) return;
+      if (result != true && result.toString() != 'true') {
+        setState(() => _loadIssue = _StoreLoadIssue.blank);
+      }
+    } catch (_) {
+      // A JavaScript bridge failure should not obscure a visible storefront.
+    }
+  }
 
   @override
   void initState() {
@@ -227,25 +262,32 @@ class _StoreScreenState extends State<StoreScreen> {
             if (!mounted) return;
             setState(() {
               _loading = true;
-              _hasMainFrameError = false;
+              _progress = 0;
+              _loadIssue = _StoreLoadIssue.none;
             });
+            _armLoadTimeout();
           },
           onPageFinished: (String url) {
             if (!mounted) return;
+            _loadTimeout?.cancel();
             if (Uri.tryParse(url)?.host == Uri.parse(storeUrl).host) {
               unawaited(_applyMobileEnhancements());
+              unawaited(_checkStorePage(_navigationId));
             }
             setState(() {
               _loading = false;
+              _loadedOnce = true;
               _progress = 100;
+              _loadIssue = _StoreLoadIssue.none;
             });
           },
           onWebResourceError: (WebResourceError error) {
             // Missing images and blocked third-party requests are not a
             // reason to replace the full storefront with an offline screen.
-            if (error.isForMainFrame == false || !mounted) return;
+            if (error.isForMainFrame != true || !mounted) return;
+            _loadTimeout?.cancel();
             setState(() {
-              _hasMainFrameError = true;
+              _loadIssue = _StoreLoadIssue.network;
               _loading = false;
             });
           },
@@ -276,7 +318,15 @@ class _StoreScreenState extends State<StoreScreen> {
         ),
       );
     _webContent = WebViewWidget(controller: _webView);
-    unawaited(_webView.loadRequest(Uri.parse(storeUrl)));
+    _armLoadTimeout();
+    unawaited(_webView.loadRequest(Uri.parse(storeUrl)).catchError((Object _) {
+      if (!mounted) return;
+      _loadTimeout?.cancel();
+      setState(() {
+        _loadIssue = _StoreLoadIssue.network;
+        _loading = false;
+      });
+    }));
   }
 
   Future<void> _applyMobileEnhancements() async {
@@ -308,13 +358,46 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Future<void> _reload() async {
-    if (mounted) {
+    if (!mounted) return;
+    setState(() {
+      _loadIssue = _StoreLoadIssue.none;
+      _loading = true;
+      _progress = 0;
+    });
+    _armLoadTimeout();
+    try {
+      // Reload the same origin to retain customer login and cart data.
+      await _webView.reload();
+    } catch (_) {
+      if (!mounted) return;
+      _loadTimeout?.cancel();
       setState(() {
-        _hasMainFrameError = false;
-        _loading = true;
+        _loadIssue = _StoreLoadIssue.network;
+        _loading = false;
       });
     }
-    await _webView.reload();
+  }
+
+  Future<void> _openStoreInBrowser() async {
+    try {
+      final opened = await launchUrl(
+        Uri.parse(storeUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (opened) return;
+    } catch (_) {
+      // Report the failure below.
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تعذّر فتح المتجر في المتصفح')),
+    );
+  }
+
+  @override
+  void dispose() {
+    _loadTimeout?.cancel();
+    super.dispose();
   }
 
   @override
@@ -329,7 +412,36 @@ class _StoreScreenState extends State<StoreScreen> {
           child: Stack(
             children: <Widget>[
               _webContent,
-              if (_loading && !_hasMainFrameError)
+              if (_loading && !_loadedOnce && _loadIssue == _StoreLoadIssue.none)
+                const Positioned.fill(
+                  child: ColoredBox(
+                    color: cream,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(
+                            'Ladies First',
+                            style: TextStyle(
+                              color: plum,
+                              fontSize: 29,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 18),
+                          CircularProgressIndicator(color: plum),
+                          SizedBox(height: 18),
+                          Text(
+                            'جارٍ فتح المتجر...',
+                            textDirection: TextDirection.rtl,
+                            style: TextStyle(color: plum, fontSize: 15),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (_loading && _loadIssue == _StoreLoadIssue.none)
                 Positioned(
                   top: 0,
                   left: 0,
@@ -341,25 +453,26 @@ class _StoreScreenState extends State<StoreScreen> {
                     backgroundColor: cream,
                   ),
                 ),
-              if (_hasMainFrameError)
+              if (_loadIssue != _StoreLoadIssue.none)
                 Positioned.fill(
                   child: ColoredBox(
                     color: cream,
                     child: Center(
-                      child: Padding(
+                      child: SingleChildScrollView(
                         padding: const EdgeInsets.all(24),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
                             const Icon(
-                              Icons.wifi_off_rounded,
+                              Icons.cloud_off_rounded,
                               size: 54,
                               color: plum,
                             ),
                             const SizedBox(height: 20),
                             const Text(
-                              'تعذّر الاتصال بالمتجر',
+                              'المتجر ما فتح بالشكل الصحيح',
                               textDirection: TextDirection.rtl,
+                              textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
@@ -367,8 +480,12 @@ class _StoreScreenState extends State<StoreScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'تأكدي من الإنترنت وحاولي مرة ثانية.',
+                            Text(
+                              _loadIssue == _StoreLoadIssue.timeout
+                                  ? 'التحميل أخذ وقت أطول من المعتاد. جرّب إعادة المحاولة.'
+                                  : _loadIssue == _StoreLoadIssue.blank
+                                      ? 'الصفحة ما ظهرت. جرّب تحديثها أو افتح المتجر بالمتصفح.'
+                                      : 'تحقّق من اتصال الإنترنت ثم أعد المحاولة.',
                               textDirection: TextDirection.rtl,
                               textAlign: TextAlign.center,
                             ),
@@ -377,6 +494,12 @@ class _StoreScreenState extends State<StoreScreen> {
                               onPressed: _reload,
                               icon: const Icon(Icons.refresh_rounded),
                               label: const Text('إعادة المحاولة'),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              onPressed: _openStoreInBrowser,
+                              icon: const Icon(Icons.open_in_browser),
+                              label: const Text('فتح المتجر في المتصفح'),
                             ),
                           ],
                         ),
