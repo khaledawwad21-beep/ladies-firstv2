@@ -1,16 +1,14 @@
 name: Ladies First Android Play bundle
-
 on:
   push:
     branches: [codex/admin-companion-app]
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/flutter-android-play-build.yml'
+    paths: ['mobile/**', '.github/workflows/flutter-android-play-build.yml']
+  pull_request:
+    branches: [feature/flutter-mobile-app]
+    paths: ['mobile/**', '.github/workflows/flutter-android-play-build.yml']
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
   store-app-bundle:
     runs-on: ubuntu-latest
@@ -42,10 +40,10 @@ jobs:
           text=text.replace('android:label="ladies_first"', 'android:label="Ladies First"')
           permission='<uses-permission android:name="android.permission.INTERNET" />'
           if permission not in text:
-              text=text.replace('<application', permission+'\n    <application', 1)
+              text=text.replace('<application', permission+'\\n    <application', 1)
           microphone='<uses-permission android:name="android.permission.RECORD_AUDIO" />'
           if microphone not in text:
-              text=text.replace('<application', microphone+'\n    <application', 1)
+              text=text.replace('<application', microphone+'\\n    <application', 1)
           p.write_text(text)
           PY
           python3 scripts/configure_android_flavors.py
@@ -68,7 +66,7 @@ jobs:
           if not p.exists():
               p=Path('android/app/build.gradle')
           text=p.read_text()
-          text, count = re.subn(r'(?m)^\s*signingConfig\s*(?:=\s*)?signingConfigs(?:\.getByName\(["\']debug["\']\)|\.debug)\s*\n?', '', text)
+          text, count = re.subn(r'(?m)^\\s*signingConfig\\s*(?:=\\s*)?signingConfigs(?:\\.getByName\\(["\\']debug["\\']\\)|\\.debug)\\s*\\n?', '', text)
           if count == 0:
               raise SystemExit('Expected Flutter debug-key release signing config was not found')
           p.write_text(text)
