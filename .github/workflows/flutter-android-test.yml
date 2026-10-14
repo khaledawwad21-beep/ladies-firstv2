@@ -93,6 +93,30 @@ jobs:
         run: |
           flutter test --dart-define=APP_MODE=store
           flutter test --dart-define=APP_MODE=admin
+      - name: Remove debug-key signing from release build
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('android/app/build.gradle.kts')
+          if not p.exists():
+              p=Path('android/app/build.gradle')
+          text=p.read_text()
+          text, count = re.subn(r"(?m)^\\s*signingConfig.*debug.*\\n?", "", text)
+          if count == 0:
+              raise SystemExit('Expected Flutter debug-key release signing config was not found')
+          p.write_text(text)
+          print(f'Removed {count} debug-key signing assignment(s); AAB will be unsigned for secure upload-key signing')
+          PY
+      - name: Build customer Play app bundle
+        run: flutter build appbundle --release --flavor store --dart-define=APP_MODE=store
+      - name: Upload unsigned Play bundle for final upload-key signing
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladies-first-android-play-aab-unsigned
+          path: mobile/build/app/outputs/bundle/storeRelease/app-store-release.aab
+          if-no-files-found: error
+          retention-days: 14
       - name: Build installable customer app APK
         run: flutter build apk --debug --flavor store --dart-define=APP_MODE=store
       - name: Upload customer app APK
