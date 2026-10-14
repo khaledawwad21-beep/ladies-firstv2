@@ -93,47 +93,7 @@ jobs:
         run: |
           flutter test --dart-define=APP_MODE=store
           flutter test --dart-define=APP_MODE=admin
-      - name: Remove debug-key signing from release build
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p=Path('android/app/build.gradle.kts')
-          if not p.exists():
-              p=Path('android/app/build.gradle')
-          text=p.read_text()
-          text, count = re.subn(r"(?m)^\\s*signingConfig.*debug.*\\n?", "", text)
-          p.write_text(text)
-          if count:
-              print(f'Removed {count} debug-key signing assignment(s)')
-          else:
-              print('No explicit signing assignment exists; release bundle will use the generated configuration')
-          PY
-      - name: Build customer Play app bundle
-        run: flutter build appbundle --release --flavor store --dart-define=APP_MODE=store
-      - name: Generate private Play upload key
-        shell: bash
-        run: |
-          set -euo pipefail
-          UPLOAD_KEY_PASSWORD="$(openssl rand -hex 24)"
-          echo "::add-mask::$UPLOAD_KEY_PASSWORD"
-          echo "UPLOAD_KEY_PASSWORD=$UPLOAD_KEY_PASSWORD" >> "$GITHUB_ENV"
-          mkdir -p build/play-release
-          printf '%s\\n' "$UPLOAD_KEY_PASSWORD" > build/play-release/UPLOAD_KEY_PASSWORD.txt
-          printf '%s\\n' 'ladiesfirstupload' > build/play-release/KEY_ALIAS.txt
-          keytool -genkeypair -noprompt -v \\
-            -keystore build/play-release/Ladies-First-Play-Upload-Key.jks \\
-            -storetype JKS -alias ladiesfirstupload -keyalg RSA -keysize 2048 -validity 10000 \\
-            -dname 'CN=Ladies First, OU=Mobile Apps, O=Ladies First, L=Palestine, C=PS' \\
-            -storepass:env UPLOAD_KEY_PASSWORD -keypass:env UPLOAD_KEY_PASSWORD
-      - name: Sign and verify the Play app bundle
-        run: |
-          jarsigner -keystore build/play-release/Ladies-First-Play-Upload-Key.jks \\
-            -storepass:env UPLOAD_KEY_PASSWORD -keypass:env UPLOAD_KEY_PASSWORD \\
-            -signedjar build/play-release/Ladies-First.aab \\
-            build/app/outputs/bundle/storeRelease/app-store-release.aab ladiesfirstupload
-          jarsigner -verify build/play-release/Ladies-First.aab
-          unzip -Z -1 build/play-release/Ladies-First.aab | grep -E '^META-INF/.*\\.(RSA|DSA|EC)      - name: Build installable customer app APK
+      - name: Build installable customer app APK
         run: flutter build apk --debug --flavor store --dart-define=APP_MODE=store
       - name: Upload customer app APK
         uses: actions/upload-artifact@v4
