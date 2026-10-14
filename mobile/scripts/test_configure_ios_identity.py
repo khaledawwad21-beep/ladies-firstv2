@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.configure_ios_identity import ADMIN_ID, STORE_ID, configure
+from scripts.configure_ios_identity import ADMIN_ID, GENERATED_ID, STORE_ID, configure
 
 
 class ConfigureIosIdentityTest(unittest.TestCase):
@@ -15,8 +15,8 @@ class ConfigureIosIdentityTest(unittest.TestCase):
         self.project.write_text(
             "\n".join(
                 [
-                    f"PRODUCT_BUNDLE_IDENTIFIER = {STORE_ID};",
-                    f"PRODUCT_BUNDLE_IDENTIFIER = {STORE_ID}.RunnerTests;",
+                    f"PRODUCT_BUNDLE_IDENTIFIER = {GENERATED_ID};",
+                    f"PRODUCT_BUNDLE_IDENTIFIER = {GENERATED_ID}.RunnerTests;",
                     "PRODUCT_BUNDLE_IDENTIFIER = unrelated.bundle;",
                 ]
             )
@@ -33,6 +33,7 @@ class ConfigureIosIdentityTest(unittest.TestCase):
         self.assertIn(f"PRODUCT_BUNDLE_IDENTIFIER = {ADMIN_ID};", project)
         self.assertIn(f"PRODUCT_BUNDLE_IDENTIFIER = {ADMIN_ID}.RunnerTests;", project)
         self.assertIn("PRODUCT_BUNDLE_IDENTIFIER = unrelated.bundle;", project)
+        self.assertNotIn("PRODUCT_BUNDLE_IDENTIFIER = com.ladiesfirst.ladies_first", project)
         with self.plist.open("rb") as source:
             settings = plistlib.load(source)
         self.assertEqual(settings["CFBundleDisplayName"], "Ladies First إدارة")
@@ -44,6 +45,11 @@ class ConfigureIosIdentityTest(unittest.TestCase):
         project = self.project.read_text()
         self.assertIn(f"PRODUCT_BUNDLE_IDENTIFIER = {STORE_ID};", project)
         self.assertIn(f"PRODUCT_BUNDLE_IDENTIFIER = {STORE_ID}.RunnerTests;", project)
+
+    def test_apple_bundle_ids_use_only_supported_characters(self):
+        for bundle_id in (STORE_ID, ADMIN_ID):
+            self.assertRegex(bundle_id, r"^[A-Za-z0-9.-]+$")
+            self.assertNotIn("_", bundle_id)
 
     def test_rejects_unknown_mode_without_editing_project(self):
         original = self.project.read_text()

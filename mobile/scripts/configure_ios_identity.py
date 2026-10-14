@@ -9,8 +9,9 @@ import sys
 from pathlib import Path
 
 
-STORE_ID = "com.ladiesfirst.ladies_first"
-ADMIN_ID = f"{STORE_ID}.admin"
+GENERATED_ID = "com.ladiesfirst.ladies_first"
+STORE_ID = "com.ladiesfirst.store"
+ADMIN_ID = "com.ladiesfirst.admin"
 PROJECT = Path("ios/Runner.xcodeproj/project.pbxproj")
 INFO_PLIST = Path("ios/Runner/Info.plist")
 
@@ -29,7 +30,7 @@ def configure(mode: str, project: Path = PROJECT, info_plist: Path = INFO_PLIST)
         current = match.group(2).strip()
         test_target = current.endswith(".RunnerTests")
         app_id = current.removesuffix(".RunnerTests")
-        if app_id not in {STORE_ID, ADMIN_ID}:
+        if app_id not in {GENERATED_ID, STORE_ID, ADMIN_ID}:
             return match.group(0)
         changed += 1
         return f"{match.group(1)}{bundle_id}{'.RunnerTests' if test_target else ''}{match.group(3)}"

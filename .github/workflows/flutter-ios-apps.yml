@@ -72,8 +72,8 @@ jobs:
           ADMIN_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/ios-artifacts/admin/LadiesFirstAdmin.app/Info.plist)
           STORE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' build/ios-artifacts/store/LadiesFirst.app/Info.plist)
           ADMIN_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' build/ios-artifacts/admin/LadiesFirstAdmin.app/Info.plist)
-          test "$STORE_ID" = 'com.ladiesfirst.ladies_first'
-          test "$ADMIN_ID" = 'com.ladiesfirst.ladies_first.admin'
+          test "$STORE_ID" = 'com.ladiesfirst.store'
+          test "$ADMIN_ID" = 'com.ladiesfirst.admin'
           test "$STORE_NAME" = 'Ladies First'
           test "$ADMIN_NAME" = 'Ladies First إدارة'
           printf 'Store app: %s (%s)\nAdmin app: %s (%s)\n' "$STORE_NAME" "$STORE_ID" "$ADMIN_NAME" "$ADMIN_ID"
