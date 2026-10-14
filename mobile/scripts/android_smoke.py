@@ -138,6 +138,22 @@ def ensure_sidebar(timeout=60):
     raise AssertionError('Sidebar login option did not become visible after dismissing offers')
 
 
+def ensure_naya(timeout=60):
+    """Open Naia even when the timed offer appears over the page."""
+    until = time.monotonic() + timeout
+    tapped = False
+    while time.monotonic() < until:
+        if dismiss_offer():
+            tapped = False
+        if is_visible(['مساعدتكِ داخل Ladies First', 'نايا 🌸']):
+            return
+        if not tapped:
+            tapped = tap_visible(['نايا'])
+        time.sleep(1)
+    snapshot('failure')
+    raise AssertionError('Naia panel did not become visible after dismissing offers')
+
+
 def passed(name):
     checks.append(name)
     (out / 'results.json').write_text(json.dumps(checks, ensure_ascii=False, indent=2))
@@ -233,9 +249,9 @@ try:
     snapshot('11-whatsapp-support')
     passed('WhatsApp support entry is visible without opening the external app')
     tap(['إغلاق'])
-    # Naia opens without requesting any paid AI response.
-    tap(['نايا'])
-    find(['مساعدتكِ داخل Ladies First', 'نايا 🌸'], timeout=20)
+    # Naia opens without requesting any paid AI response. The timed offer can
+    # return after relaunch, so dismiss it before tapping the launcher.
+    ensure_naya()
     snapshot('12-naya-open')
     passed('Naia opens within the store on Android')
 
