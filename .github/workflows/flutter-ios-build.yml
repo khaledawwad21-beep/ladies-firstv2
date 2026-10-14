@@ -1,0 +1,111 @@
+name: Flutter iOS Build (unsigned)
+
+on:
+  push:
+    branches: [feature/flutter-mobile-app]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/flutter-ios-build.yml'
+  pull_request:
+    branches: [feature/flutter-mobile-app]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/flutter-ios-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios-release-build:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Check out application source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - name: Set up Python for native icon generation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Inspect Apple build tools
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Generate Android and iOS runner projects
+        run: flutter create --org com.ladiesfirst --project-name ladies_first --platforms android,ios --no-pub .
+
+      - name: Generate approved native branding
+        run: |
+          python3 -m pip install --quiet cairosvg
+          python3 scripts/generate_branding.py
+
+      - name: Set iOS display name, bundle identifier, and microphone disclosure
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import plistlib
+
+          project = Path('ios/Runner.xcodeproj/project.pbxproj')
+          text = project.read_text()
+          text = text.replace('com.ladiesfirst.ladies_first', 'com.ladiesfirst.store')
+          project.write_text(text)
+
+          info = Path('ios/Runner/Info.plist')
+          data = plistlib.loads(info.read_bytes())
+          data['CFBundleDisplayName'] = 'Ladies First'
+          data['NSMicrophoneUsageDescription'] = (
+              'Ladies First uses the microphone only when you choose to send a voice message.'
+          )
+          info.write_bytes(plistlib.dumps(data, sort_keys=False))
+
+          assert 'com.ladiesfirst.store' in project.read_text()
+          assert plistlib.loads(info.read_bytes())['CFBundleDisplayName'] == 'Ladies First'
+          print('Configured iOS app name, valid bundle identifier, and microphone disclosure.')
+          PY
+
+      - name: Verify the approved iOS icon catalog
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          icon_set = Path('ios/Runner/Assets.xcassets/AppIcon.appiconset')
+          catalog = json.loads((icon_set / 'Contents.json').read_text())
+          assert any(
+              image.get('idiom') == 'ios-marketing' and image.get('size') == '1024x1024'
+              for image in catalog['images']
+          ), 'Missing 1024x1024 App Store icon'
+          for image in catalog['images']:
+              icon = icon_set / image['filename']
+              assert icon.is_file(), f'Missing icon: {icon}'
+              assert icon.read_bytes()[:8] == bytes.fromhex('89504e470d0a1a0a')
+          print(f"Verified {len(catalog['images'])} iOS icon renditions.")
+          PY
+
+      - name: Fetch Flutter packages
+        run: flutter pub get
+
+      - name: Analyze Dart code
+        run: flutter analyze
+
+      - name: Test Flutter code
+        run: flutter test
+
+      - name: Build unsigned iOS release
+        run: flutter build ios --release --no-codesign
+
+      - name: Verify iOS app bundle was produced
+        run: test -d build/ios/iphoneos/Runner.app
