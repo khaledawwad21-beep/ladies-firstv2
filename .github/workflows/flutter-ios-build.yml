@@ -52,6 +52,7 @@ jobs:
 
       - name: Generate approved native branding
         run: |
+          export DYLD_LIBRARY_PATH="$(brew --prefix cairo)/lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
           python3 -m pip install --quiet cairosvg
           python3 scripts/generate_branding.py
 
