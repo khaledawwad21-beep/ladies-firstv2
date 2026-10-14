@@ -108,6 +108,35 @@ def dismiss_offer():
     return False
 
 
+def tap_visible(names, exact=False):
+    for node in nodes():
+        value = label(node)
+        if any(value == name if exact else name in value for name in names):
+            bounds = list(map(int, re.findall(r'\\d+', node.get('bounds', ''))))
+            if len(bounds) == 4 and bounds[2] > bounds[0] and bounds[3] > bounds[1]:
+                adb('shell', 'input', 'tap', str((bounds[0]+bounds[2])//2),
+                    str((bounds[1]+bounds[3])//2))
+                time.sleep(0.8)
+                return True
+    return False
+
+
+def ensure_sidebar(timeout=60):
+    """Wait for the sidebar, dismissing the timed offer if it appears over it."""
+    until = time.monotonic() + timeout
+    menu_tapped = False
+    while time.monotonic() < until:
+        if is_visible(['تسجيل الدخول الاختياري']):
+            return
+        if dismiss_offer():
+            menu_tapped = False
+        if not menu_tapped:
+            menu_tapped = tap_visible(['فتح القائمة'])
+        time.sleep(1)
+    snapshot('failure')
+    raise AssertionError('Sidebar login option did not become visible after dismissing offers')
+
+
 def passed(name):
     checks.append(name)
     (out / 'results.json').write_text(json.dumps(checks, ensure_ascii=False, indent=2))
@@ -124,13 +153,10 @@ try:
     find(['فتح القائمة'], timeout=90)
     snapshot('02-storefront')
     passed('Storefront became visible after launch')
-    tap(['فتح القائمة'])
     # A time-limited offer can appear over the page shortly after launch.
-    # Its covered page nodes remain in the accessibility tree, so dismiss it
-    # before treating those nodes as proof that the sidebar opened.
-    if dismiss_offer():
-        if not is_visible(['تسجيل الدخول الاختياري']):
-            tap(['فتح القائمة'])
+    # Its covered page nodes remain in the accessibility tree, so wait for the
+    # actual sidebar option and dismiss the offer if it appears during the wait.
+    ensure_sidebar()
     find(['تسجيل الدخول الاختياري'])
     snapshot('03-sidebar')
     passed('Sidebar opens with optional account login')
