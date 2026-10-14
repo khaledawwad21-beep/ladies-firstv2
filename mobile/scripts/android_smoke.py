@@ -85,7 +85,7 @@ def is_visible(names, exact=False):
     for node in nodes():
         value = label(node)
         if any(value == name if exact else name in value for name in names):
-            bounds = list(map(int, re.findall(r'\\d+', node.get('bounds', ''))))
+            bounds = list(map(int, re.findall(r'\d+', node.get('bounds', ''))))
             if len(bounds) == 4 and bounds[2] > bounds[0] and bounds[3] > bounds[1]:
                 return True
     return False
@@ -99,7 +99,7 @@ def dismiss_offer():
     for node in current:
         if label(node) != 'إغلاق':
             continue
-        bounds = list(map(int, re.findall(r'\\d+', node.get('bounds', ''))))
+        bounds = list(map(int, re.findall(r'\d+', node.get('bounds', ''))))
         if len(bounds) == 4 and bounds[2] > bounds[0] and bounds[3] > bounds[1]:
             adb('shell', 'input', 'tap', str((bounds[0]+bounds[2])//2),
                 str((bounds[1]+bounds[3])//2))
@@ -112,7 +112,7 @@ def tap_visible(names, exact=False):
     for node in nodes():
         value = label(node)
         if any(value == name if exact else name in value for name in names):
-            bounds = list(map(int, re.findall(r'\\d+', node.get('bounds', ''))))
+            bounds = list(map(int, re.findall(r'\d+', node.get('bounds', ''))))
             if len(bounds) == 4 and bounds[2] > bounds[0] and bounds[3] > bounds[1]:
                 adb('shell', 'input', 'tap', str((bounds[0]+bounds[2])//2),
                     str((bounds[1]+bounds[3])//2))
