@@ -9,7 +9,8 @@ import sys
 from pathlib import Path
 
 
-GENERATED_ID = "com.ladiesfirst.ladies_first"
+# Flutter camel-cases `ladies_first` when it creates the default iOS identifier.
+GENERATED_ID = "com.ladiesfirst.ladiesFirst"
 STORE_ID = "com.ladiesfirst.store"
 ADMIN_ID = "com.ladiesfirst.admin"
 PROJECT = Path("ios/Runner.xcodeproj/project.pbxproj")
