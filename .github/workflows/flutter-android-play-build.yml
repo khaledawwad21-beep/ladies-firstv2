@@ -66,7 +66,7 @@ jobs:
           if not p.exists():
               p=Path('android/app/build.gradle')
           text=p.read_text()
-          text, count = re.subn(r'(?m)^\\s*signingConfig\\s*(?:=\\s*)?signingConfigs(?:\\.getByName\\(["\\']debug["\\']\\)|\\.debug)\\s*\\n?', '', text)
+          text, count = re.subn(r"(?m)^\\s*signingConfig.*debug.*\\n?", "", text)
           if count == 0:
               raise SystemExit('Expected Flutter debug-key release signing config was not found')
           p.write_text(text)
