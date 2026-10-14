@@ -71,7 +71,7 @@ jobs:
               return match.group(1) + 'com.ladiesfirst.store' + suffix + ';'
 
           text, replacements = re.subn(
-              r'(PRODUCT_BUNDLE_IDENTIFIER\\s*=\\s*)[^;]+;',
+              r'(PRODUCT_BUNDLE_IDENTIFIER\s*=\s*)[^;]+;',
               set_bundle_identifier,
               text,
           )
@@ -86,7 +86,7 @@ jobs:
           )
           info.write_bytes(plistlib.dumps(data, sort_keys=False))
 
-          assert re.search(r'PRODUCT_BUNDLE_IDENTIFIER\\s*=\\s*com\\.ladiesfirst\\.store;', project.read_text())
+          assert re.search(r'PRODUCT_BUNDLE_IDENTIFIER\s*=\s*com\.ladiesfirst\.store;', project.read_text())
           assert plistlib.loads(info.read_bytes())['CFBundleDisplayName'] == 'Ladies First'
           print('Configured iOS app name, valid bundle identifier, and microphone disclosure.')
           PY
