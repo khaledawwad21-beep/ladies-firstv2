@@ -135,4 +135,4 @@ if ios_icon_set.parent.exists():
     (ios_icon_set / 'Contents.json').write_text(json.dumps({
         'images': images,
         'info': {'author': 'xcode', 'version': 1},
-    }, indent=2) + '\\n')
+    }, indent=2) + '\n')
