@@ -1,0 +1,85 @@
+name: Ladies First Android Play bundle
+
+on:
+  push:
+    branches: [codex/admin-companion-app]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/flutter-android-play-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  store-app-bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Check out application source
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - name: Generate Android project and configure flavors
+        run: |
+          flutter create --org com.ladiesfirst --project-name ladies_first --platforms android --no-pub .
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/AndroidManifest.xml')
+          text=p.read_text()
+          text=text.replace('android:label="ladies_first"', 'android:label="Ladies First"')
+          permission='<uses-permission android:name="android.permission.INTERNET" />'
+          if permission not in text:
+              text=text.replace('<application', permission+'\n    <application', 1)
+          microphone='<uses-permission android:name="android.permission.RECORD_AUDIO" />'
+          if microphone not in text:
+              text=text.replace('<application', microphone+'\n    <application', 1)
+          p.write_text(text)
+          PY
+          python3 scripts/configure_android_flavors.py
+      - name: Generate official launcher icons
+        run: |
+          python3 -m pip install --quiet cairosvg
+          python3 scripts/generate_branding.py
+      - name: Fetch Flutter packages
+        run: flutter pub get
+      - name: Analyze and test customer app
+        run: |
+          flutter analyze
+          flutter test --dart-define=APP_MODE=store
+      - name: Remove debug-key signing from release build
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('android/app/build.gradle.kts')
+          if not p.exists():
+              p=Path('android/app/build.gradle')
+          text=p.read_text()
+          text, count = re.subn(r'(?m)^\s*signingConfig\s*(?:=\s*)?signingConfigs(?:\.getByName\(["\']debug["\']\)|\.debug)\s*\n?', '', text)
+          if count == 0:
+              raise SystemExit('Expected Flutter debug-key release signing config was not found')
+          p.write_text(text)
+          print(f'Removed {count} debug-key signing assignment(s); AAB will be unsigned for secure upload-key signing')
+          PY
+      - name: Build customer Play app bundle
+        run: flutter build appbundle --release --flavor store --dart-define=APP_MODE=store
+      - name: Upload unsigned Play bundle for final upload-key signing
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladies-first-android-play-aab-unsigned
+          path: mobile/build/app/outputs/bundle/storeRelease/app-store-release.aab
+          if-no-files-found: error
+          retention-days: 14
