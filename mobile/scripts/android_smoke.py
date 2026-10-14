@@ -126,10 +126,11 @@ def ensure_sidebar(timeout=60):
     until = time.monotonic() + timeout
     menu_tapped = False
     while time.monotonic() < until:
-        if is_visible(['تسجيل الدخول الاختياري']):
-            return
+        # Check for the overlay before accepting controls behind it as visible.
         if dismiss_offer():
             menu_tapped = False
+        if is_visible(['تسجيل الدخول الاختياري']):
+            return
         if not menu_tapped:
             menu_tapped = tap_visible(['فتح القائمة'])
         time.sleep(1)
