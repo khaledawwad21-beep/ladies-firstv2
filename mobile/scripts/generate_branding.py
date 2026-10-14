@@ -90,3 +90,49 @@ for folder in ['values-v31', 'values-night-v31']:
 </resources>
 ''')
 print('Approved icon and native startup branding generated.')
+
+
+// Generate the complete iOS app icon catalog from the same approved artwork.
+// Keeping the artwork source shared prevents the iPhone and Android icons from
+// drifting apart.
+import json
+
+ios_icon_set = root / 'ios/Runner/Assets.xcassets/AppIcon.appiconset'
+if ios_icon_set.parent.exists():
+    ios_icon_set.mkdir(parents=True, exist_ok=True)
+    images = []
+    icon_slots = [
+        ('iphone', '20x20', 2), ('iphone', '20x20', 3),
+        ('iphone', '29x29', 2), ('iphone', '29x29', 3),
+        ('iphone', '40x40', 2), ('iphone', '40x40', 3),
+        ('iphone', '60x60', 2), ('iphone', '60x60', 3),
+        ('ipad', '20x20', 1), ('ipad', '20x20', 2),
+        ('ipad', '29x29', 1), ('ipad', '29x29', 2),
+        ('ipad', '40x40', 1), ('ipad', '40x40', 2),
+        ('ipad', '76x76', 1), ('ipad', '76x76', 2),
+        ('ipad', '83.5x83.5', 2),
+        ('ios-marketing', '1024x1024', 1),
+    ]
+    for idiom, size, scale in icon_slots:
+        points = float(size.split('x')[0])
+        pixels = round(points * scale)
+        filename = f'AppIcon-{idiom}-{size}-{scale}x.png'
+        cairosvg.svg2png(
+            url=str(source),
+            write_to=str(ios_icon_set / filename),
+            output_width=pixels,
+            output_height=pixels,
+        )
+        image = {
+            'filename': filename,
+            'idiom': idiom,
+            'scale': f'{scale}x',
+            'size': size,
+        }
+        if idiom == 'ios-marketing':
+            image['platform'] = 'ios'
+        images.append(image)
+    (ios_icon_set / 'Contents.json').write_text(json.dumps({
+        'images': images,
+        'info': {'author': 'xcode', 'version': 1},
+    }, indent=2) + '\\n')
