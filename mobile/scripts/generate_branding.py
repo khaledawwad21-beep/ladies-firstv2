@@ -92,9 +92,9 @@ for folder in ['values-v31', 'values-night-v31']:
 print('Approved icon and native startup branding generated.')
 
 
-// Generate the complete iOS app icon catalog from the same approved artwork.
-// Keeping the artwork source shared prevents the iPhone and Android icons from
-// drifting apart.
+# Generate the complete iOS app icon catalog from the same approved artwork.
+# Keeping the artwork source shared prevents the iPhone and Android icons from
+# drifting apart.
 import json
 
 ios_icon_set = root / 'ios/Runner/Assets.xcassets/AppIcon.appiconset'
