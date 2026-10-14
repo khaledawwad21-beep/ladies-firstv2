@@ -227,12 +227,11 @@ try:
     snapshot('10-recovered')
     passed('Storefront returns after connectivity is restored')
 
-    # WhatsApp support opens a reason picker, not an immediate outgoing message.
-    # Do not select a reason or invoke WhatsApp: this is a read-only device check.
-    tap(['WhatsApp', 'واتساب'])
-    find(['كيف فينا نساعدك؟'], timeout=20)
-    snapshot('11-whatsapp-reasons')
-    passed('WhatsApp entry opens the contact-reason chooser')
+    # The storefront support link launches WhatsApp directly with a prefilled
+    # message. Verify that the entry is present without opening an external app.
+    find(['WhatsApp', 'واتساب'])
+    snapshot('11-whatsapp-support')
+    passed('WhatsApp support entry is visible without opening the external app')
     tap(['إغلاق'])
     # Naia opens without requesting any paid AI response.
     tap(['نايا'])
