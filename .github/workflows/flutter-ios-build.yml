@@ -61,10 +61,21 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import plistlib
+          import re
 
           project = Path('ios/Runner.xcodeproj/project.pbxproj')
           text = project.read_text()
-          text = text.replace('com.ladiesfirst.ladies_first', 'com.ladiesfirst.store')
+
+          def set_bundle_identifier(match):
+              suffix = '.RunnerTests' if 'RunnerTests' in match.group(0) else ''
+              return match.group(1) + 'com.ladiesfirst.store' + suffix + ';'
+
+          text, replacements = re.subn(
+              r'(PRODUCT_BUNDLE_IDENTIFIER\\s*=\\s*)[^;]+;',
+              set_bundle_identifier,
+              text,
+          )
+          assert replacements >= 4, f'Expected app and test bundle identifiers, updated {replacements}'
           project.write_text(text)
 
           info = Path('ios/Runner/Info.plist')
@@ -75,7 +86,7 @@ jobs:
           )
           info.write_bytes(plistlib.dumps(data, sort_keys=False))
 
-          assert 'com.ladiesfirst.store' in project.read_text()
+          assert re.search(r'PRODUCT_BUNDLE_IDENTIFIER\\s*=\\s*com\\.ladiesfirst\\.store;', project.read_text())
           assert plistlib.loads(info.read_bytes())['CFBundleDisplayName'] == 'Ladies First'
           print('Configured iOS app name, valid bundle identifier, and microphone disclosure.')
           PY
