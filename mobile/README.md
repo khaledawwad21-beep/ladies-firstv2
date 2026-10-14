@@ -48,3 +48,8 @@ any existing Android and iOS project files, resolve conflicts carefully, and
 build/test before release.
 
 CI note: Android SDK comes preinstalled on the GitHub Ubuntu runner.
+
+
+## Google Play release output
+
+The Android workflow builds and signs the customer storefront as a Google Play App Bundle (.aab) using a generated upload key. The signed bundle and matching upload key credentials are uploaded as separate private GitHub Actions artifacts. Keep the key and its password safely; future app updates must use the same upload key.
