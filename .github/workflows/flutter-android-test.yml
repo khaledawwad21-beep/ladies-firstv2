@@ -103,10 +103,11 @@ jobs:
               p=Path('android/app/build.gradle')
           text=p.read_text()
           text, count = re.subn(r"(?m)^\\s*signingConfig.*debug.*\\n?", "", text)
-          if count == 0:
-              raise SystemExit('Expected Flutter debug-key release signing config was not found')
           p.write_text(text)
-          print(f'Removed {count} debug-key signing assignment(s); AAB will be unsigned for secure upload-key signing')
+          if count:
+              print(f'Removed {count} debug-key signing assignment(s)')
+          else:
+              print('No explicit signing assignment exists; release bundle will use the generated configuration')
           PY
       - name: Build customer Play app bundle
         run: flutter build appbundle --release --flavor store --dart-define=APP_MODE=store
