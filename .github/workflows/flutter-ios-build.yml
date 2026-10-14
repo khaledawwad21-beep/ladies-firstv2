@@ -34,6 +34,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install native Cairo library for SVG rendering
+        run: brew install cairo
+
       - name: Set up Python for native icon generation
         uses: actions/setup-python@v5
         with:
