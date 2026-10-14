@@ -26,8 +26,17 @@ generates the Android project and builds two debug APK artifacts:
 Both builds are analyzed and tested. The emulator smoke test installs both apps
 side by side and verifies that the admin package opens the admin login page.
 
-**Known limitations:** These are debug APKs for device testing, not signed
-Google Play releases (AAB) or Apple App Store builds. Admin screens use the
+The GitHub Actions workflow `.github/workflows/flutter-ios-apps.yml` builds
+separate iOS simulator apps for the storefront and admin companion. It gives
+the admin app its own bundle ID and Arabic display name `Ladies First إدارة`,
+then verifies both identities before uploading the
+`ladies-first-ios-simulator-apps` artifact. Simulator apps validate iPhone
+compatibility but cannot be installed on a physical iPhone or sent to TestFlight.
+
+**Known limitations:** The Android outputs are debug APKs for device testing,
+not signed Google Play releases (AAB). iOS outputs are unsigned simulator apps,
+not signed iPhone or App Store builds. Physical iPhone and TestFlight
+distribution require Apple signing and App Store Connect setup. Admin screens use the
 existing web dashboard inside the installed Flutter app, so all dashboard
 functions remain in sync with the site. Voice/microphone, file-picker behavior,
 third-party sign-in, payment redirects, push notifications and native service

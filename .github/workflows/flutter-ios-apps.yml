@@ -1,0 +1,87 @@
+name: Flutter iOS apps (test)
+
+on:
+  push:
+    branches: [codex/admin-companion-app, feature/flutter-mobile-app]
+    paths: ['mobile/**', '.github/workflows/flutter-ios-apps.yml']
+  pull_request:
+    branches: [feature/flutter-mobile-app]
+    paths: ['mobile/**', '.github/workflows/flutter-ios-apps.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios-simulator-apps:
+    runs-on: macos-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Check out Flutter app source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - name: Generate the iOS runner project
+        run: flutter create --org com.ladiesfirst --project-name ladies_first --platforms ios --no-pub .
+
+      - name: Fetch Flutter packages
+        run: flutter pub get
+
+      - name: Analyze Dart code
+        run: flutter analyze
+
+      - name: Test iOS app identity configuration
+        run: python3 -m unittest scripts.test_configure_ios_identity
+
+      - name: Test storefront mode
+        run: flutter test --dart-define=APP_MODE=store
+
+      - name: Test admin mode
+        run: flutter test --dart-define=APP_MODE=admin
+
+      - name: Configure storefront identity
+        run: python3 scripts/configure_ios_identity.py store
+
+      - name: Build storefront iOS simulator app
+        run: flutter build ios --simulator --debug --no-codesign --dart-define=APP_MODE=store
+
+      - name: Save storefront simulator app
+        run: mkdir -p build/ios-artifacts/store && cp -R build/ios/iphonesimulator/Runner.app build/ios-artifacts/store/LadiesFirst.app
+
+      - name: Configure admin identity
+        run: python3 scripts/configure_ios_identity.py admin
+
+      - name: Build admin iOS simulator app
+        run: flutter build ios --simulator --debug --no-codesign --dart-define=APP_MODE=admin
+
+      - name: Save admin simulator app
+        run: mkdir -p build/ios-artifacts/admin && cp -R build/ios/iphonesimulator/Runner.app build/ios-artifacts/admin/LadiesFirstAdmin.app
+
+      - name: Verify app identities
+        run: |
+          STORE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/ios-artifacts/store/LadiesFirst.app/Info.plist)
+          ADMIN_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/ios-artifacts/admin/LadiesFirstAdmin.app/Info.plist)
+          STORE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' build/ios-artifacts/store/LadiesFirst.app/Info.plist)
+          ADMIN_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' build/ios-artifacts/admin/LadiesFirstAdmin.app/Info.plist)
+          test "$STORE_ID" = 'com.ladiesfirst.ladies_first'
+          test "$ADMIN_ID" = 'com.ladiesfirst.ladies_first.admin'
+          test "$STORE_NAME" = 'Ladies First'
+          test "$ADMIN_NAME" = 'Ladies First إدارة'
+          printf 'Store app: %s (%s)\nAdmin app: %s (%s)\n' "$STORE_NAME" "$STORE_ID" "$ADMIN_NAME" "$ADMIN_ID"
+
+      - name: Upload iOS simulator apps
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladies-first-ios-simulator-apps
+          path: mobile/build/ios-artifacts/
+          if-no-files-found: error
+          retention-days: 14
