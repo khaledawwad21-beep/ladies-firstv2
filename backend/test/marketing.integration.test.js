@@ -153,3 +153,10 @@ test('delivered margin uses historical item costs, discounts and shipping suppor
  assert.equal(r.data.economics.sample,5);assert.equal(Number(r.data.economics.contribution),200);assert.equal(r.data.budget.breakEven,40);assert.equal(r.data.budget.targetCPA,28);assert.equal(r.data.budget.testBudget,280);
  await database.query('DELETE FROM orders WHERE id=ANY($1)',[ids]);
 });
+
+test('offer lab requires live marketing permission on every route',async()=>{
+ for(const [token,status] of [[undefined,401],[staffToken,403],[createToken({id:3,role:'customer'}),403]]){
+  for(const [path,method,body] of [['catalog','GET'],['drafts','GET'],['quote','POST',{}],['drafts','POST',{}],['drafts/1','PUT',{}],['drafts/1/creative','POST',{}]])assert.equal((await json('/api/admin/marketing/offer-lab/'+path,{token,method,body})).response.status,status,path);
+ }
+ assert.equal((await json('/api/admin/marketing/offer-lab/catalog',{token:ownerToken})).response.status,200);
+});

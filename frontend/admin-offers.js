@@ -22,6 +22,7 @@ window.offers=async function offers(){
     welcomeConfig={enabled:false,scope:'all',productIds:[],categoryName:'',offerText:'',startAt:'',endAt:'',couponCode:'',headline:'',...(settings.settings?.welcome_offer||{})};
     welcomeCoupons=(couponData.coupons||[]).filter(c=>c.is_active!==false);
     $('#sections').innerHTML=`<div class="card"><h2>Top 5 والعروض السريعة</h2>
+      ${canAdminSection('marketing')?'<button type="button" class="btn" onclick="marketingOfferLab()">احسب ربح العرض وجهز حملته</button>':''}
       <p>ابحثي عن المنتج مباشرة، ثم عدّلي سعر العرض والسعر الأصلي ومكان ظهوره وتاريخ انتهاء العرض.</p>
       <div class="offer-search-box">
         <input id="offerSearch" class="field" placeholder="بحث مباشر باسم المنتج أو البراند" autocomplete="off" oninput="offerRenderSearch()">
