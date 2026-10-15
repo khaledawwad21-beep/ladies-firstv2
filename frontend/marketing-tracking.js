@@ -12,13 +12,13 @@
  function track(event,product_id){
   if(!allowed)return;
   const at=epoch;
-  queue=queue.catch(()=>{}).then(async()=>{if(!allowed||at!==epoch)return;try{await fetch('/api/marketing/events',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...context,consent:true,event,product_id:product_id||null}),keepalive:true})}catch{}});
+  queue=queue.catch(()=>{}).then(async()=>{if(!allowed||at!==epoch)return;try{await fetch('/api/marketing/events',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...context,consent:true,event,product_id:product_id||null})})}catch{}});
  }
  function choose(yes){
   allowed=yes;epoch++;try{sessionStorage.setItem(key,yes?'yes':'no')}catch{}
   document.getElementById('lfMeasurementChoice')?.remove();
   if(yes){track('visit');const m=location.hash.match(/^#product-(\d+)$/);if(m)track('product_view',Number(m[1]))}
-  else{queue=queue.catch(()=>{}).then(()=>fetch('/api/marketing/consent',{method:'DELETE',credentials:'same-origin',keepalive:true})).catch(()=>{})}
+  else{queue=queue.catch(()=>{}).then(()=>fetch('/api/marketing/consent',{method:'DELETE',credentials:'same-origin'})).catch(()=>{})}
  }
  function preferences(){
   document.getElementById('lfMeasurementChoice')?.remove();
