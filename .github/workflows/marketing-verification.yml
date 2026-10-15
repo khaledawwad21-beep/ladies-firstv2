@@ -24,6 +24,8 @@ jobs:
         working-directory: backend
       - run: node scripts/marketing-mobile-smoke.cjs
         working-directory: backend
+      - run: node scripts/lama-mobile-smoke.cjs
+        working-directory: backend
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -33,4 +35,5 @@ jobs:
             offer-lab-mobile.png
             solo-marketing-mobile.png
             solo-marketing-desktop.png
+            lama-mobile.png
           if-no-files-found: warn
