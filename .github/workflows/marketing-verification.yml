@@ -28,5 +28,7 @@ jobs:
         if: always()
         with:
           name: marketing-mobile-preview
-          path: marketing-mobile.png
+          path: |
+            marketing-mobile.png
+            offer-lab-mobile.png
           if-no-files-found: warn

@@ -94,6 +94,7 @@ app.use(
 require('./staff-activity').registerStaffActivity(app,{db,transaction,requireAdmin});
 require('./marketing').registerMarketing(app,{db});
 require('./marketing-insights').registerMarketingAdminInsights(app,{db});
+require('./marketing-offer-lab').registerOfferLab(app,{db});
 
 /* =========================================================
    HELPERS
@@ -1231,6 +1232,7 @@ async function initDatabase() {
   `);
 
   await require("./marketing-insights").initMarketingInsights(db);
+  await require("./marketing-offer-lab").initOfferLab(db);
 
   console.log(
     "[DB] Database initialized successfully."

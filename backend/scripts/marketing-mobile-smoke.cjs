@@ -12,7 +12,7 @@ const {createToken}=require(path.join(root,'backend/src/auth'));
  await initDatabase();
  await require(path.join(root,"backend/src/database-migrations")).migrateDatabase();
  await database.query("INSERT INTO users(id,name,email,password_hash,role,is_active) VALUES(1,'Owner','visual@example.test','fixture','owner',TRUE)");
- await database.query("INSERT INTO products(name,price,stock) VALUES('عطر الورد',49,10)");
+ await database.query("INSERT INTO products(name,price,cost_price,stock) VALUES('عطر الورد',49,20,10)");
  const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
  let browser;
  try{
@@ -64,6 +64,28 @@ const {createToken}=require(path.join(root,'backend/src/auth'));
    await page.waitForTimeout(150);
    assert.equal(await page.locator('#title').textContent()==='',false);
  }
+ // Offer draft math and persistence must not activate catalog discounts.
+ await page.getByRole('button',{name:'استوديو العروض وحساب الربح',exact:true}).click();
+ await page.locator('[data-ol-add]').first().click();
+ await page.locator('[data-ol="title"]').fill('عرض تجريبي للموبايل');
+ await page.locator('[data-ol="discount_mode"]').selectOption('percent');
+ await page.locator('[data-ol="discount_value"]').fill('10');
+ await page.locator('[data-ol="ad_cost"]').fill('5');
+ await page.locator('[data-ol="target_profit"]').fill('10');
+ await page.locator('#olCalculate').click();
+ await page.waitForFunction(()=>document.querySelector('#olResult')?.textContent.includes('44.10'));
+ assert.match(await page.locator('#olResult').textContent(),/19.10/);
+ await Promise.all([page.waitForResponse(r=>r.url().endsWith('/offer-lab/drafts')&&r.status()===201),page.locator('#olSave').click()]);
+ await page.waitForFunction(()=>!document.querySelector('#olFields').disabled);
+ await page.locator('#olConsent').scrollIntoViewIfNeeded();
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await page.locator('#modal').screenshot({path:path.join(root,'offer-lab-mobile.png')});
+ assert.equal(Number((await database.query('SELECT price FROM products LIMIT 1')).rows[0].price),49);
+ await page.locator('#olSaved').click();
+ await page.locator('[data-ol-open]').first().click();
+ assert.equal(await page.locator('[data-ol="title"]').inputValue(),'عرض تجريبي للموبايل');
+ assert.match(await page.locator('#olResult').textContent(),/19.10/);
+ await page.locator('.modal-close').click();
  // Storefront refusal must not create a session or interfere with product/cart actions.
  const store=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
  store.on('pageerror',e=>{errors.push(e.message);console.log('STORE_ERROR',e.message)});
