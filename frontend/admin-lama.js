@@ -23,7 +23,7 @@ async function openLama(row=null){
  s.root=$('#lama');s.variants=(data.fields.variants||[]).map(v=>({...v}));
  s.root.querySelector('#lamaList').onclick=()=>{if(!s.busy)lamaDraftList()};
  s.root.querySelector('#lamaAddVariant').onclick=()=>{s.variants=lamaRead(s).fields.variants;s.variants.push({name:'',stock:null});lamaRenderVariants(s);lamaChanged(s)};
- for(const key of ['lamaFiles','lamaCamera'])s.root.querySelector('#'+key).onchange=e=>lamaUpload(s,[...e.target.files]);
+ for(const key of ['lamaFiles','lamaCamera'])s.root.querySelector('#'+key).onchange=e=>{const files=[...e.target.files];e.target.value='';lamaUpload(s,files)};
  s.root.querySelector('#lamaAudio').onchange=e=>{const file=e.target.files[0];if(file)lamaTranscribe(s,file)};
  s.root.querySelector('#lamaRecord').onclick=()=>lamaRecord(s);
  s.root.querySelector('#lamaSave').onclick=()=>lamaSave(s);
@@ -36,7 +36,7 @@ async function openLama(row=null){
  if(row?.product_id){lamaBusy(s,false);lamaMessage(s,'تم إنشاء الصنف #'+row.product_id+' من هذه المسودة. عدّل الصنف من قائمة المنتجات.')}else if(row)lamaCheckDuplicates(s);
  const observer=new MutationObserver(()=>{if(!lamaAlive(s)){observer.disconnect();clearTimeout(s.timer);if(s.dirty&&!s.busy)lamaSave(s,true);lamaStopRecording(s,false);for(const url of s.urls.values())URL.revokeObjectURL(url)}});observer.observe($('#modal'),{attributes:true,childList:true,subtree:true,attributeFilter:['class']});
 }
-function lamaRead(s){const fields={};for(const input of s.root.querySelectorAll('[data-lf]')){const k=input.dataset.lf;fields[k]=['price','cost_price','stock','category_id','brand_id'].includes(k)?(input.value===''?null:Number(input.value)):input.value}fields.variants=[...s.root.querySelectorAll('[data-lama-variant]')].map(row=>({name:row.querySelector('[data-lama-name]').value.trim(),stock:row.querySelector('[data-lama-stock]').value===''?null:Number(row.querySelector('[data-lama-stock]').value)})).filter(v=>v.name||v.stock!==null);return {title:s.root.querySelector('#lamaTitle').value,notes:s.root.querySelector('#lamaNotes').value,asset_ids:s.assets,fields,provenance:s.provenance}}
+function lamaRead(s){const fields={};for(const input of s.root.querySelectorAll('[data-lf]')){const k=input.dataset.lf;fields[k]=['price','cost_price','stock','category_id','brand_id'].includes(k)?(input.value===''?null:Number(input.value)):input.value}fields.variants=[...s.root.querySelectorAll('[data-lama-variant]')].map(row=>({name:row.querySelector('[data-lama-name]').value.trim(),stock:row.querySelector('[data-lama-stock]').value===''?null:Number(row.querySelector('[data-lama-stock]').value)}));return {title:s.root.querySelector('#lamaTitle').value,notes:s.root.querySelector('#lamaNotes').value,asset_ids:s.assets,fields,provenance:s.provenance}}
 function lamaChanged(s){s.dirty=true;s.root.querySelector('#lamaReviewed').checked=false;clearTimeout(s.timer);s.timer=setTimeout(()=>{if(lamaAlive(s)&&!s.busy&&!s.recorder)lamaSave(s,true)},1400)}
 function lamaRenderSaved(s){if(!lamaAlive(s))return;s.root.querySelector('#lamaSaved').textContent=s.row?'محفوظة · نسخة '+s.row.version:'مسودة جديدة — تُحفظ بعد الإدخال';}
 function lamaRenderSources(s){if(!lamaAlive(s))return;for(const el of s.root.querySelectorAll('[data-lama-source]')){const p=s.provenance[el.dataset.lamaSource];el.textContent=p?(lamaSources[p.source]||'راجع المعلومة')+(p.evidence?' · «'+p.evidence+'»':''):'غير موثق بعد'}}
