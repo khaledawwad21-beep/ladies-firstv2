@@ -74,6 +74,8 @@ app.use(
   })
 );
 
+require("./marketing-insights").registerMarketingInsights(app,{db});
+
 require("./naya-ai").registerNayaAi(app, { db, optionalAuth: require("./auth").optionalAuth });
 app.use("/api/ai/outfit", require("./naya-outfit").createOutfitRouter({ db, transaction, requireAuth }));
 
@@ -91,6 +93,7 @@ app.use(
 
 require('./staff-activity').registerStaffActivity(app,{db,transaction,requireAdmin});
 require('./marketing').registerMarketing(app,{db});
+require('./marketing-insights').registerMarketingAdminInsights(app,{db});
 
 /* =========================================================
    HELPERS
@@ -1226,6 +1229,8 @@ async function initDatabase() {
                 '00972562499924', '0562499924')
       )
   `);
+
+  await require("./marketing-insights").initMarketingInsights(db);
 
   console.log(
     "[DB] Database initialized successfully."

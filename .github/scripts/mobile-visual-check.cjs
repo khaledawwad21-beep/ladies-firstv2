@@ -41,6 +41,8 @@ async function run() {
     await page.waitForTimeout(1800);
     const welcomeClose = page.locator('#lfWelcomeOffer .lf-welcome-offer__close');
     if (await welcomeClose.isVisible()) await welcomeClose.click();
+    const measurementDecline=page.locator('#lfMeasurementChoice [data-measure="no"]');
+    if(await measurementDecline.isVisible())await measurementDecline.click();
     const headerLogo = page.locator('#logo');
     await headerLogo.waitFor({ state: 'visible' });
     await headerLogo.evaluate(img => img.decode().catch(() => null));

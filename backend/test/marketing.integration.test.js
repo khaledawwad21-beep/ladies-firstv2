@@ -23,6 +23,7 @@ const staffToken=createToken({id:2,role:"staff"});
 
 test.before(async()=>{
   await initDatabase();
+  await require("../src/database-migrations").migrateDatabase();
   await database.query(`
     INSERT INTO users(id,name,email,password_hash,role,is_active,permissions)
     VALUES
@@ -44,12 +45,13 @@ test.after(async()=>{
   await database.close();
 });
 
-async function json(path,{method="GET",token,body}={}){
+async function json(path,{method="GET",token,body,cookie}={}){
   const response=await fetch(base+path,{
     method,
     headers:{
       ...(body!==undefined?{"Content-Type":"application/json"}:{}),
-      ...(token?{Authorization:"Bearer "+token}:{})
+      ...(token?{Authorization:"Bearer "+token}:{}),
+      ...(cookie?{Cookie:cookie}:{})
     },
     ...(body!==undefined?{body:JSON.stringify(body)}:{})
   });
@@ -95,4 +97,59 @@ test('product picker exposes only needed catalog fields to marketing staff',asyn
   const r=await json('/api/admin/marketing/products?q=Marketing',{token:createToken({id:4,role:'staff'})});
   assert.equal(r.response.status,200);assert.equal(r.data.products.length,1);
   assert.equal(r.data.products[0].cost_price,undefined);assert.equal(Number(r.data.products[0].price),30);
+});
+
+const {budgetPlan}=require('../src/marketing-insights');
+test('budget needs real margin samples and respects the risk ceiling without promising sales',()=>{
+  assert.equal(budgetPlan({economics:{sample:4,contribution:100},channels:[]}).ready,false);
+  const p=budgetPlan({economics:{sample:5,contribution:250},channels:[{source:'instagram',spend:140,paid_delivered:7}],goal:10,days:7,extra:10,reserve:30,cap:100});
+  assert.equal(p.breakEven,40);assert.equal(p.targetCPA,28);assert.equal(p.testBudget,280);assert.equal(p.withinCap,false);assert.equal(p.affordableGoal,3);assert.equal(p.best.cpa,20);
+  assert.equal(budgetPlan({economics:{sample:5,contribution:-10},channels:[]}).ready,false);
+});
+test('measurement requires explicit consent, deduplicates and discards identifying body fields',async()=>{
+  assert.equal((await json('/api/marketing/events',{method:'POST',body:{event:'visit'}})).response.status,400);
+  assert.equal((await json('/api/marketing/events',{method:'POST',body:{consent:true,event:'purchase'}})).response.status,400);
+  const p=(await database.query("SELECT id FROM products WHERE name='Marketing product'")).rows[0];
+  let r=await json('/api/marketing/events',{method:'POST',body:{consent:true,event:'product_view',product_id:Number(p.id),source:'instagram',medium:'paid',phone:'DO-NOT-STORE',name:'PRIVATE'}});
+  assert.equal(r.response.status,200,JSON.stringify(r.data));
+  const cookie=r.response.headers.get('set-cookie').split(';')[0];
+  for(let i=0;i<2;i++)assert.equal((await json('/api/marketing/events',{method:'POST',cookie,body:{consent:true,event:'product_view',product_id:Number(p.id)}})).response.status,200);
+  assert.equal((await database.query('SELECT COUNT(*)::int AS n FROM marketing_events')).rows[0].n,2);
+  const session=(await database.query('SELECT * FROM marketing_sessions')).rows[0];assert.equal(session.source,'instagram');assert.equal(session.medium,'paid');assert.ok(!JSON.stringify(session).includes('DO-NOT-STORE'));
+  const insight=await json('/api/admin/marketing/insights',{token:ownerToken});assert.equal(insight.response.status,200,JSON.stringify(insight.data));assert.equal(insight.data.funnel.sessions,1);assert.equal(insight.data.funnel.viewed,1);
+  assert.equal((await json('/api/admin/marketing/insights',{token:staffToken})).response.status,403);
+  await json('/api/marketing/consent',{method:'DELETE',cookie});assert.equal((await database.query('SELECT COUNT(*)::int AS n FROM marketing_sessions')).rows[0].n,0);assert.equal((await database.query('SELECT COUNT(*)::int AS n FROM marketing_events')).rows[0].n,0);
+});
+test('spend is dated, replaces rather than doubles, and insights reject invalid ranges',async()=>{
+  const day=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jerusalem'});
+  for(const amount of [50,75])assert.equal((await json('/api/admin/marketing/spend',{method:'PUT',token:ownerToken,body:{day,source:'instagram',amount}})).response.status,200);
+  const r=await json('/api/admin/marketing/insights',{token:ownerToken});assert.equal(r.response.status,200,JSON.stringify(r.data));assert.equal(r.data.channels.find(x=>x.source==='instagram').spend,75);assert.equal(r.data.budget.ready,false);
+  for(const suffix of ['?from=2026-02-30&to=2026-03-01','?from=2020-01-01&to=2020-01-02','?goal=NaN'])assert.equal((await json('/api/admin/marketing/insights'+suffix,{token:ownerToken})).response.status,400);
+});
+test('only server-created successful orders are attributed; rejection cannot affect checkout',async()=>{
+  const p=(await database.query("SELECT id FROM products WHERE name='Marketing product'")).rows[0];
+  const visit=await json('/api/marketing/events',{method:'POST',body:{consent:true,event:'checkout_start',source:'facebook',medium:'paid'}}),cookie=visit.response.headers.get('set-cookie').split(';')[0];
+  const order=await json('/api/orders',{method:'POST',cookie,body:{customerName:'Guest',customerPhone:'+970599888776',shippingAddress:'Test address',shippingRegion:'westbank',paymentMethod:'cod',items:[{productId:Number(p.id),quantity:1}]}});
+  assert.equal(order.response.status,201,JSON.stringify(order.data));
+  for(let attempt=0;attempt<20;attempt++){
+    const count=await database.query('SELECT COUNT(*)::int AS n FROM marketing_order_attribution');if(count.rows[0].n)break;
+    await new Promise(r=>setTimeout(r,10));
+  }
+  assert.equal((await database.query('SELECT COUNT(*)::int AS n FROM marketing_order_attribution')).rows[0].n,1);
+  const r=await json('/api/admin/marketing/insights',{token:ownerToken});assert.equal(r.data.channels.find(x=>x.source==='facebook').orders,1);assert.equal(r.data.funnel.ordered,1);
+  await database.query("UPDATE orders SET status='cancelled' WHERE id=$1",[order.data.order.id]);
+  const cancelled=await json('/api/admin/marketing/insights',{token:ownerToken});assert.equal(cancelled.data.channels.find(x=>x.source==='facebook').orders,0);assert.equal(cancelled.data.funnel.ordered,0);
+  await json('/api/marketing/consent',{method:'DELETE',cookie});assert.equal((await database.query('SELECT COUNT(*)::int AS n FROM marketing_order_attribution')).rows[0].n,0);assert.equal((await database.query('SELECT COUNT(*)::int AS n FROM orders')).rows[0].n,1);
+});
+test('delivered margin uses historical item costs, discounts and shipping support; unknown costs and returns are excluded',async()=>{
+ const product=(await database.query("SELECT id FROM products WHERE name='Marketing product'")).rows[0];
+ const ids=[];
+ for(let i=0;i<7;i++){
+  const o=(await database.query("INSERT INTO orders(status,subtotal,coupon_discount,visa_discount,loyalty_discount,shipping_cost,shipping_base_cost,total,shipping_region) VALUES('delivered',100,10,5,5,10,20,90,'westbank') RETURNING id")).rows[0];ids.push(o.id);
+  const item=(await database.query('INSERT INTO order_items(order_id,product_id,product_name,quantity,unit_price,total_price,purchase_price) VALUES($1,$2,$3,1,100,100,$4) RETURNING id',[o.id,product.id,'Fixture',i===5?null:30])).rows[0];
+  if(i===6)await database.query("INSERT INTO return_requests(order_id,order_item_id,user_id,request_type,quantity,reason) VALUES($1,$2,3,'return',1,'fixture')",[o.id,item.id]);
+ }
+ const r=await json('/api/admin/marketing/insights',{token:ownerToken});assert.equal(r.response.status,200,JSON.stringify(r.data));
+ assert.equal(r.data.economics.sample,5);assert.equal(Number(r.data.economics.contribution),200);assert.equal(r.data.budget.breakEven,40);assert.equal(r.data.budget.targetCPA,28);assert.equal(r.data.budget.testBudget,280);
+ await database.query('DELETE FROM orders WHERE id=ANY($1)',[ids]);
 });
