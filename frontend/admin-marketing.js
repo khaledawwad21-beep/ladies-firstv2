@@ -4,12 +4,12 @@ const marketingRegions={west_bank:'الضفة',jerusalem:'القدس',interior:'
 const marketingStatuses={draft:'مسودة',planned:'ضمن الخطة',published:'نُشر يدويًا',archived:'مؤرشفة'};
 let marketingRows=[],marketingProductRows=[],marketingRequest=0;
 async function marketing(){
-  $('#sections').innerHTML=marketingInsightShell()+'<section id="marketingWorkspace" class="card"><h2>التسويق والإعلانات</h2><p>خطط المحتوى والحملات محفوظة على السيرفر. المواعيد للتذكير ضمن الخطة فقط؛ النشر والتمويل غير متصلين بالمنصات حاليًا.</p><div class="actions"><button class="btn" type="button" onclick="marketingOfferLab()">استوديو العروض وحساب الربح</button><button class="btn primary" id="marketingNew">حملة جديدة</button><button class="btn" id="marketingGuide">خطة البداية</button></div><label>بحث مباشر بالحملة أو النص<input class="field" type="search" id="marketingSearch" maxlength="160"></label><label>الحالة<select class="field" id="marketingStatus"><option value="">كل الحالات</option>'+Object.entries(marketingStatuses).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('')+'</select></label><div id="marketingSummary" aria-live="polite"></div><div id="marketingList" aria-live="polite"></div></section>';
+  $('#sections').innerHTML=soloMarketingShell()+'<details id="marketingAnalysis"><summary>التحليل التفصيلي وحاسبة الإعلان</summary>'+marketingInsightShell()+'</details><details id="marketingCampaigns"><summary>كل الحملات وروابط القياس</summary>'+'<section id="marketingWorkspace" class="card"><h2>التسويق والإعلانات</h2><p>خطط المحتوى والحملات محفوظة على السيرفر. المواعيد للتذكير ضمن الخطة فقط؛ النشر والتمويل غير متصلين بالمنصات حاليًا.</p><div class="actions"><button class="btn" type="button" onclick="marketingOfferLab()">استوديو العروض وحساب الربح</button><button class="btn primary" id="marketingNew">حملة جديدة</button><button class="btn" id="marketingGuide">خطة البداية</button></div><label>بحث مباشر بالحملة أو النص<input class="field" type="search" id="marketingSearch" maxlength="160"></label><label>الحالة<select class="field" id="marketingStatus"><option value="">كل الحالات</option>'+Object.entries(marketingStatuses).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('')+'</select></label><div id="marketingSummary" aria-live="polite"></div><div id="marketingList" aria-live="polite"></div></section></details>';
   $('#marketingNew').onclick=()=>marketingEdit();
   $('#marketingGuide').onclick=()=>modal('خطة البداية — أسبوع تجريبي','<ol><li>يوم 1: تعريف بالمتجر وطريقة الطلب والتوصيل.</li><li>يوم 2: فيديو قصير لمنتج متوفر مع تفاصيله.</li><li>يوم 3: أسئلة وأجوبة عبر القصص.</li><li>يوم 4: تنسيق منتجات أو فكرة هدية.</li><li>يوم 5: تجربة زبون بعد إذنه، أو عرض تفاصيل التغليف.</li><li>يوم 6: عرض فعلي مطابق لسعر المتجر.</li><li>يوم 7: مراجعة الطلبات والمصروف وتحديد محتوى الأسبوع التالي.</li></ol><p>قبل التمويل: نحدد ميزانية التجربة والمنتجات والمناطق، ونجهز الربط الرسمي وقياس الطلبات. هذه خطة أولية قابلة للتعديل.</p>');
   $('#marketingSearch').oninput=()=>liveDebounce('marketing',marketingRefresh,220);
   $('#marketingStatus').onchange=marketingRender;
-  await Promise.all([marketingRefresh(),marketingInsightsRefresh()]);
+  await Promise.all([marketingRefresh(),marketingInsightsRefresh(),soloRefresh()]);
 }
 async function marketingRefresh(){
   const root=$('#marketingWorkspace');if(!root)return;
@@ -60,7 +60,7 @@ function marketingEdit(row,seed=null){
       for(const key of ['budget','spend','revenue','clicks','orders'])b[key]=Number($('#mk_'+key).value);
       if(row)b.version=row.version;
       await api('/api/admin/marketing/campaigns'+(row?'/'+row.id:''),{method:row?'PUT':'POST',body:JSON.stringify(b)});
-      if(form.isConnected)closeModal();toast('تم حفظ الحملة');await marketingRefresh();
+      if(form.isConnected)closeModal();toast('تم حفظ الحملة');await Promise.all([marketingRefresh(),soloRefresh()]);
     }catch(e){if(form.isConnected)error.textContent=e.message}finally{if(form.isConnected)button.disabled=false}
   };
 }

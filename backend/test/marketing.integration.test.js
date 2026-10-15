@@ -160,3 +160,16 @@ test('offer lab requires live marketing permission on every route',async()=>{
  }
  assert.equal((await json('/api/admin/marketing/offer-lab/catalog',{token:ownerToken})).response.status,200);
 });
+
+test('solo desk protects routes and isolates daily tasks and settings by account',async()=>{
+ for(const [token,status] of [[undefined,401],[staffToken,403],[createToken({id:3,role:'customer'}),403]])for(const [path,method,body] of [['','GET'],['/settings','PUT',{}],['/tasks','PUT',{}]])assert.equal((await json('/api/admin/marketing/solo'+path,{token,method,body})).response.status,status);
+ const day=require('../src/marketing-solo').today(),settings={risk_cap:50,extra_cost:5,goal:3,days:7,reserve:30,version:0},endpoint='/api/admin/marketing/solo';
+ const before=await json(endpoint,{token:ownerToken});assert.equal(before.response.status,200,JSON.stringify(before.data));assert.equal(before.data.version,0);assert.ok(before.data.tasks.every(t=>!t.done));
+ assert.equal((await json(endpoint+'/settings',{method:'PUT',token:ownerToken,body:settings})).response.status,200);
+ assert.equal((await json(endpoint+'/settings',{method:'PUT',token:ownerToken,body:settings})).response.status,409);
+ assert.equal((await json(endpoint+'/tasks',{method:'PUT',token:ownerToken,body:{day,key:'offer',done:true}})).response.status,200);
+ for(const body of [{day:'2020-01-01',key:'offer',done:true},{day,key:'other',done:true}])assert.equal((await json(endpoint+'/tasks',{method:'PUT',token:ownerToken,body})).response.status,400);
+ const saved=await json(endpoint,{token:ownerToken});assert.equal(saved.data.tasks[0].done,true);assert.equal(saved.data.settings.risk_cap,50);assert.ok(saved.data.candidates.every(c=>!c.trial.ready||c.trial.amount<=50));
+ const other=await json(endpoint,{token:createToken({id:4,role:'staff'})});assert.equal(other.response.status,200);assert.equal(other.data.version,0);assert.ok(other.data.tasks.every(t=>!t.done));
+ await database.query("UPDATE users SET permissions='[]'::jsonb WHERE id=4");assert.equal((await json(endpoint,{token:createToken({id:4,role:'staff'})})).response.status,403);
+});
