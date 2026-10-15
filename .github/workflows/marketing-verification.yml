@@ -31,4 +31,6 @@ jobs:
           path: |
             marketing-mobile.png
             offer-lab-mobile.png
+            solo-marketing-mobile.png
+            solo-marketing-desktop.png
           if-no-files-found: warn
