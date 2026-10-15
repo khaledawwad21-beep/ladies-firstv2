@@ -12,7 +12,7 @@ function str(x,max=1000){if(typeof x!=='string'||x.length>max)fail('نص غير 
 function id(x){if(!Number.isSafeInteger(Number(x))||Number(x)<1)fail('رقم غير صالح');return Number(x)}
 function validImage(bytes,mime){return Buffer.isBuffer(bytes)&&bytes.length>12&&(mime==='image/png'?bytes.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')):mime==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:mime==='image/webp'&&bytes.toString('ascii',0,4)==='RIFF'&&bytes.toString('ascii',8,12)==='WEBP')}
 function decodeImage(value,max){const match=/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(value||'');if(!match)fail('نسخة الصورة غير صالحة');const data=Buffer.from(match[2],'base64');if(data.length>max||!validImage(data,match[1]))fail('حجم أو صيغة الصورة غير صالح');return {data,mime:match[1]}}
-function imageIds(raw){if(!Array.isArray(raw)||raw.length>8||raw.some(x=>!String(x).match(/^[a-f0-9]{64}$/)))fail('اختر حتى 8 صور للقطعة الواحدة');return [...new Set(raw)]}
+function imageIds(raw){if(!Array.isArray(raw)||raw.length>8||raw.some(x=>typeof x!=='string'||!x.match(/^[a-f0-9]{64}$/)))fail('اختر حتى 8 صور للقطعة الواحدة');return [...new Set(raw)]}
 function fields(raw={}){
  if(!raw||typeof raw!=='object'||Array.isArray(raw))fail('بيانات الصنف غير صالحة');const f={};
  for(const key of FIELD_KEYS){const v=raw[key];if(NUMBERS.has(key)){if(v==null||v===''){f[key]=null;continue}if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>10000000||(['stock','category_id','brand_id'].includes(key)&&!Number.isSafeInteger(v)))fail('تحقق من '+key);f[key]=v}else f[key]=str(v??'',key.includes('description')?6000:key==='keywords'?1000:200)}

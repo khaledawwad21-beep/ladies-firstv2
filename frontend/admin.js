@@ -1229,7 +1229,7 @@ async function sendWaitlistWhatsApp(id){
   }catch(e){alert(e.message||'تعذر إرسال رسالة التوفر')}
 }
 async function setWaitlistStatus(id,status){await api('/api/admin/waitlist/'+id,{method:'PATCH',body:JSON.stringify({status})});toast(status==='notified'?'تم تسجيل الإشعار':'تم تحديث طلب التوفر');waitlist()}
-function modal(t,b){$('#mt').textContent=adminGenderText(t);$('#mb').innerHTML=b;$('#modal').classList.add('open');initDateInputs($('#modal'));applyAdminGenderCopy($('#modal'))}function closeModal(){$('#modal').classList.remove('open')}
+function modal(t,b){$('#mt').textContent=adminGenderText(t);$('#mb').innerHTML=b;$('#modal').classList.add('open');$('#modal').setAttribute('aria-hidden','false');initDateInputs($('#modal'));applyAdminGenderCopy($('#modal'))}function closeModal(){$('#modal').classList.remove('open');$('#modal').setAttribute('aria-hidden','true')}
 (async()=>{const token=localStorage.getItem('lf_admin_token');if(token){await showApp()}else{showLogin()}})()
 
 
