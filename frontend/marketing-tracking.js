@@ -12,7 +12,7 @@
  function track(event,product_id){
   if(!allowed)return;
   const at=epoch;
-  queue=queue.catch(()=>{}).then(async()=>{if(!allowed||at!==epoch)return;try{await fetch('/api/marketing/events',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...context,consent:true,event,product_id:product_id||null})})}catch{}});
+  queue=queue.catch(()=>{}).then(async()=>{if(!allowed||at!==epoch)return;try{await fetch('/api/marketing/events',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...context,consent:true,event,product_id:product_id||null})})}catch(error){console.warn("[STORE MEASUREMENT]",error.message)}});
  }
  function choose(yes){
   allowed=yes;epoch++;try{sessionStorage.setItem(key,yes?'yes':'no')}catch{}
