@@ -26,6 +26,8 @@ const {createToken}=require(path.join(root,'backend/src/auth'));
  await page.locator('#app').waitFor({state:'visible'});
  await page.locator('[data-s="marketing"]').click();
  await page.waitForFunction(()=>document.querySelector('#mkInsightResults')?.textContent.includes('لا توجد بيانات سلوك'));
+ await page.screenshot({path:path.join(root,'marketing-mobile.png'),fullPage:true});
+ console.log('LAYOUT',await page.evaluate(()=>['marketingIntelligence','marketingWorkspace','marketingNew','mkInsightResults'].map(id=>{const el=document.getElementById(id);return {id,rect:el.getBoundingClientRect().toJSON(),display:getComputedStyle(el).display,position:getComputedStyle(el).position}})));
  await page.locator('#marketingNew').click();
  await page.locator('#mk_title').fill('حملة عطر الورد');
  await page.locator('#mk_productSearch').fill('عطر');
