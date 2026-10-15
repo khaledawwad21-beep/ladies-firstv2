@@ -8,7 +8,7 @@ function invalid(message,status=400){const e=new Error(message);e.status=status;
 function validateSettings(b){
  if(!b||typeof b!=='object')throw invalid('إعدادات غير صالحة');
  const out={};
- for(const [key,min,max,integer] of [['risk_cap',0,10000000,false],['extra_cost',0,10000000,false],['goal',1,10000,true],['days',1,30,true],['reserve',10,90,false]]){
+ for(const [key,min,max,integer] of [['risk_cap',0,10000000,false],['extra_cost',0,100000,false],['goal',1,10000,true],['days',1,30,true],['reserve',10,90,false]]){
   const n=b[key];if(n===null&&['risk_cap','extra_cost'].includes(key)){out[key]=null;continue}
   if(typeof n!=='number'||!Number.isFinite(n)||n<min||n>max||(integer&&!Number.isInteger(n)))throw invalid('تحقق من '+key);
   out[key]=round(n);

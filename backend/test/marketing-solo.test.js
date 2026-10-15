@@ -7,7 +7,7 @@ test('solo trial needs costs and cap; budget respects risk, stock and goal',()=>
  const q=trialFor(c,s);assert.equal(q.target_cpa,35);assert.equal(q.amount,70);assert.equal(q.reserved_profit,15);assert.equal(q.limited_by,'stock');
  assert.equal(trialFor(c,{...s,risk_cap:10}).amount,10);assert.equal(trialFor(c,{...s,goal:1}).amount,35);
  assert.equal(trialFor(c,{...s,extra_cost:61}).ready,false);assert.equal(trialFor(c,{...s,risk_cap:0}).ready,false);
- for(const patch of [{risk_cap:-1},{extra_cost:'0'},{reserve:100},{goal:1.5},{days:31}])assert.throws(()=>validateSettings({...s,...patch}));
+ for(const patch of [{risk_cap:-1},{extra_cost:'0'},{extra_cost:100001},{reserve:100},{goal:1.5},{days:31}])assert.throws(()=>validateSettings({...s,...patch}));
  assert.equal(today(new Date('2026-10-15T22:30:00Z')),'2026-10-16');
 });
 test('candidate choice respects variants, actual prices, known costs and available stock',()=>{
