@@ -90,6 +90,7 @@ app.use(
 );
 
 require('./staff-activity').registerStaffActivity(app,{db,transaction,requireAdmin});
+require('./marketing').registerMarketing(app,{db});
 
 /* =========================================================
    HELPERS
@@ -488,6 +489,7 @@ async function initDatabase() {
 
   await require("./order-block-history").initOrderBlockHistory(db);
   await initAdminPermissions(db);
+  await require("./marketing").initMarketing(db);
   await require("./auth").initSessionSecurity(db);
 
   await db(`
