@@ -66,7 +66,10 @@ const {createToken}=require(path.join(root,'backend/src/auth'));
  }
  // Storefront refusal must not create a session or interfere with product/cart actions.
  const store=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
- store.on('pageerror',e=>errors.push(e.message));
+ store.on('pageerror',e=>{errors.push(e.message);console.log('STORE_ERROR',e.message)});
+ store.on('response',async r=>{if(r.url().includes('/api/marketing/'))console.log('MEASUREMENT_RESPONSE',r.request().method(),r.status(),r.url(),await r.text())});
+ store.on('requestfailed',r=>console.log('STORE_REQUEST_FAILED',r.url(),r.failure()?.errorText));
+ store.on('console',m=>{if(m.type()==='error')console.log('STORE_CONSOLE',m.text())});
  await store.route('https://**/*',r=>r.abort());
  await store.goto(base+'/?utm_source=instagram&utm_medium=paid_social&utm_campaign=lf-1');
  await store.locator('#lfMeasurementChoice [data-measure="no"]').click();
