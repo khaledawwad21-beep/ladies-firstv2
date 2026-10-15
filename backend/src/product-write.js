@@ -94,6 +94,13 @@ function registerProductWrites(app, getProducts) {
       const productId = await transaction(async client => {
         const existing = id ? (await client.query('SELECT * FROM products WHERE id = $1 FOR UPDATE', [id])).rows[0] : null;
         if (id && !existing) { const error = new Error('المنتج غير موجود'); error.status = 404; throw error; }
+        let lamaDraft=null;
+        if (!id && metadata.lamaDraftId) {
+          const draftId=Number(metadata.lamaDraftId);
+          if(!Number.isSafeInteger(draftId)||draftId<1)invalid('مسودة لمى غير صالحة');
+          lamaDraft=(await client.query('SELECT * FROM lama_drafts WHERE id=$1 AND user_id=$2 FOR UPDATE',[draftId,req.user.id])).rows[0];
+          if(!lamaDraft||lamaDraft.product_id||lamaDraft.version!==metadata.lamaDraftVersion){const e=new Error('مسودة لمى تغيرت أو أنشئ المنتج منها بالفعل؛ راجعي قائمة المسودات');e.status=409;throw e;}
+        }
         const mergedMetadata = {...(existing?.metadata || {}), ...metadata};
         const saleStart = mergedMetadata.saleStartsAt || '';
         const saleEnd = mergedMetadata.saleEndsAt || '';
@@ -163,6 +170,7 @@ function registerProductWrites(app, getProducts) {
             else await client.query('INSERT INTO product_variants (product_id, color, stock) VALUES ($1,$2,$3)', [savedId, label, Number(variant.stock)]);
           }
         }
+        if(lamaDraft)await client.query('UPDATE lama_drafts SET product_id=$1,version=version+1,updated_at=NOW() WHERE id=$2',[savedId,lamaDraft.id]);
         return savedId;
       });
       const products = await getProducts('AND p.id = $1', [productId], "p.created_at DESC", true);

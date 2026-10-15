@@ -402,7 +402,7 @@ window.productForm = async function productForm(p={}) {
   const currentBrand=String(p.brand||'').trim();
   const currentBarcode=String(p.barcode||'').trim();
   const currentProductNumber=String(p.productNumber||p.product_number||'').trim();
-  const active=p.id?((p.isActive!==false)&&(p.is_active!==false)):true;
+  const active=(p.isActive!==false)&&(p.is_active!==false)&&(p.active!==false);
   adminProductPendingImages={main:[],sub:[]};
   adminProductPrimaryFile=null;
   adminProductDraft={
