@@ -76,6 +76,7 @@ const {createToken}=require(path.join(root,'backend/src/auth'));
  await store.locator('#lfMeasurementChoice [data-measure="no"]').click();
  assert.equal((await database.query('SELECT COUNT(*)::int AS n FROM marketing_sessions')).rows[0].n,0);
  await store.evaluate(()=>window.LFMarketing.preferences());
+ await store.locator('#lfMeasurementChoice [data-measure="yes"]').click({trial:true});
  await Promise.all([store.waitForResponse(r=>r.url().endsWith('/api/marketing/events')&&r.status()===200),store.locator('#lfMeasurementChoice [data-measure="yes"]').click().then(async()=>console.log('CONSENT_VALUE',await store.evaluate(()=>sessionStorage.getItem('lf_marketing_consent_v1'))))]);
  await store.waitForFunction(()=>typeof products!=='undefined'&&products.length>0);
  await Promise.all([store.waitForResponse(r=>r.url().endsWith('/api/marketing/events')&&r.request().postDataJSON()?.event==='checkout_start'),store.evaluate(async()=>{const id=products[0].id;openProduct(id);addSingleToCart(id);await openCart();openCheckoutForm()})]);

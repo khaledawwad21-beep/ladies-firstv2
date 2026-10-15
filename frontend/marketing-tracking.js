@@ -23,7 +23,7 @@
  function preferences(){
   document.getElementById('lfMeasurementChoice')?.remove();
   const box=document.createElement('section');box.id='lfMeasurementChoice';box.setAttribute('aria-label','خصوصية قياس الزيارات');box.setAttribute('role','region');
-  box.style.cssText='position:fixed;bottom:78px;left:10px;right:10px;max-width:360px;margin:auto;z-index:900;background:#fffaf6;color:#44233f;padding:14px;border:1px solid #d8bdcf;border-radius:16px;box-shadow:0 6px 25px #44233f26;font:14px/1.6 sans-serif;direction:rtl';
+  box.style.cssText='position:fixed;bottom:78px;left:10px;right:10px;max-width:360px;margin:auto;z-index:100500;background:#fffaf6;color:#44233f;padding:14px;border:1px solid #d8bdcf;border-radius:16px;box-shadow:0 6px 25px #44233f26;font:14px/1.6 sans-serif;direction:rtl';
   box.innerHTML='<strong>خصوصية الزيارات</strong><p style="margin:6px 0">هل تسمحين بقياس مشاهدة المنتجات والسلة ومصدر الزيارة لتحسين المتجر والإعلانات؟ القياس داخل المتجر فقط، بلا بيانات تواصل أو إرسال للمنصات. بيانات القياس تُحذف بعد 90 يومًا، والرفض لا يؤثر على الشراء.</p><div style="display:flex;gap:8px"><button type="button" data-measure="yes">أوافق</button><button type="button" data-measure="no">لا، شكرًا</button></div>';
   box.querySelectorAll('button').forEach(b=>{b.style.cssText='border:1px solid #63345e;border-radius:9px;padding:9px 14px;background:#fff;color:#63345e;cursor:pointer';b.onclick=()=>choose(b.dataset.measure==='yes')});document.body.appendChild(box);
  }
