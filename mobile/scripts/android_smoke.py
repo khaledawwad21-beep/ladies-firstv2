@@ -161,8 +161,9 @@ def passed(name):
 
 
 try:
-    adb('install', '-r', 'apk/app-debug.apk', timeout=120)
-    passed('APK installed on Android 35')
+    adb('install', '-r', 'apk/app-store-debug.apk', timeout=120)
+    adb('install', '-r', 'admin-apk/app-admin-debug.apk', timeout=120)
+    passed('Store and admin APKs installed side by side on Android 35')
     adb('shell', 'input', 'keyevent', 'KEYCODE_WAKEUP')
     adb('shell', 'wm', 'dismiss-keyguard')
     adb('shell', 'am', 'start', '-W', '-n', package + '/.MainActivity')
@@ -258,8 +259,20 @@ try:
     adb('shell', 'am', 'start', '-a', 'android.settings.APPLICATION_DETAILS_SETTINGS', '-d', 'package:' + package)
     find(['Ladies First'])
     snapshot('13-installed-app-icon')
+    admin_package = package + '.admin'
+    adb('shell', 'monkey', '-p', admin_package,
+        '-c', 'android.intent.category.LAUNCHER', '1')
+    find(['تسجيل الدخول'], timeout=90)
+    find(['Ladies First'])
+    snapshot('14-admin-login')
+    passed('Separate admin app opens the secured management login page')
+    adb('shell', 'am', 'start', '-a', 'android.settings.APPLICATION_DETAILS_SETTINGS', '-d', 'package:' + admin_package)
+    find(['Ladies First إدارة'])
+    snapshot('15-installed-admin-app')
+    passed('Admin app has a distinct install name')
 except Exception:
     snapshot('failure')
     raise
 finally:
     (out / 'logcat.txt').write_bytes(adb('logcat', '-d', '-t', '500'))
+

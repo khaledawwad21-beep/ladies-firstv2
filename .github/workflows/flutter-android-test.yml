@@ -52,8 +52,13 @@ jobs:
           microphone='<uses-permission android:name="android.permission.RECORD_AUDIO" />'
           if microphone not in text:
               text=text.replace('<application', microphone+'\n    <application', 1)
+          audio_settings='<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />'
+          if audio_settings not in text:
+              text=text.replace('<application', audio_settings+'\n    <application', 1)
           p.write_text(text)
           PY
+      - name: Configure separate store and admin app identities
+        run: python3 scripts/configure_android_flavors.py
       - name: Generate official Ladies First launcher icons
         run: |
           python3 -m pip install --quiet cairosvg
@@ -70,7 +75,7 @@ jobs:
           application = manifest.find('application')
           assert application is not None
           assert application.get(android + 'icon') == '@mipmap/ic_launcher'
-          assert application.get(android + 'label') == 'Ladies First'
+          assert application.get(android + 'label') == '${appName}'
           icon = base/'res/mipmap-anydpi-v26/ic_launcher.xml'
           assert icon.exists(), 'Android 8+ adaptive launcher icon missing'
           root = ET.parse(icon).getroot()
@@ -88,14 +93,25 @@ jobs:
       - name: Analyze Dart code
         run: flutter analyze
       - name: Test Flutter code
-        run: flutter test
-      - name: Build installable Android debug APK
-        run: flutter build apk --debug
-      - name: Upload debug APK
+        run: |
+          flutter test --dart-define=APP_MODE=store
+          flutter test --dart-define=APP_MODE=admin
+      - name: Build installable customer app APK
+        run: flutter build apk --debug --flavor store --dart-define=APP_MODE=store
+      - name: Upload customer app APK
         uses: actions/upload-artifact@v4
         with:
           name: ladies-first-android-debug-apk
-          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          path: mobile/build/app/outputs/flutter-apk/app-store-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Build installable admin app APK
+        run: flutter build apk --debug --flavor admin --dart-define=APP_MODE=admin
+      - name: Upload admin app APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladies-first-admin-android-debug-apk
+          path: mobile/build/app/outputs/flutter-apk/app-admin-debug.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -114,6 +130,16 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Download customer app APK
+        uses: actions/download-artifact@v4
+        with:
+          name: ladies-first-android-debug-apk
+          path: apk
+      - name: Download admin app APK
+        uses: actions/download-artifact@v4
+        with:
+          name: ladies-first-admin-android-debug-apk
+          path: admin-apk
       - name: Install and exercise the APK on Android 35
         uses: reactivecircus/android-emulator-runner@v2
         with:

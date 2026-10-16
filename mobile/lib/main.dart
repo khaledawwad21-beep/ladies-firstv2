@@ -6,12 +6,22 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+
+import 'file_upload.dart';
 
 /// Canonical production URL from the Ladies First storefront.
 const String storeUrl = String.fromEnvironment(
   'STORE_URL',
   defaultValue: 'https://ladies-firstv2.onrender.com/',
 );
+const String adminUrl = String.fromEnvironment(
+  'ADMIN_URL',
+  defaultValue: 'https://ladies-firstv2.onrender.com/admin-login.html',
+);
+const String appMode = String.fromEnvironment('APP_MODE', defaultValue: 'store');
+const bool isAdminMode = appMode == 'admin';
+const String appStartUrl = isAdminMode ? adminUrl : storeUrl;
 
 const Color plum = Color(0xFF5B3154);
 const Color cream = Color(0xFFFBF4EC);
@@ -184,7 +194,7 @@ class LadiesFirstApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Ladies First',
+      title: isAdminMode ? 'Ladies First إدارة' : 'Ladies First',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -286,7 +296,8 @@ class _StoreScreenState extends State<StoreScreen> {
           onPageFinished: (String url) {
             if (!mounted || _loadIssue == _StoreLoadIssue.network) return;
             final uri = Uri.tryParse(url);
-            if (uri != null && uri.host == Uri.parse(storeUrl).host &&
+            if (!isAdminMode && uri != null &&
+                uri.host == Uri.parse(storeUrl).host &&
                 (uri.path == '/' || uri.path == '/index.html' || uri.path.isEmpty)) {
               unawaited(_checkStorePage(_navigationId));
             } else {
@@ -337,7 +348,7 @@ class _StoreScreenState extends State<StoreScreen> {
       );
     _webContent = WebViewWidget(controller: _webView);
     _armLoadTimeout();
-    unawaited(_webView.loadRequest(Uri.parse(storeUrl)).catchError((Object _) {
+    unawaited(_configureAndLoad().catchError((Object _) {
       if (!mounted) return;
       _loadTimeout?.cancel();
       setState(() {
@@ -345,6 +356,24 @@ class _StoreScreenState extends State<StoreScreen> {
         _loading = false;
       });
     }));
+  }
+
+  Future<void> _configureAndLoad() async {
+    final platform = _webView.platform;
+    if (platform is AndroidWebViewController) {
+      final uploads = NativeFileUpload(
+        currentUrl: _webView.currentUrl,
+        allowedOrigin: Uri.parse(storeUrl).origin,
+        isActive: () => mounted,
+        onError: (message) {
+          if (mounted) { ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          ); }
+        },
+      );
+      await platform.setOnShowFileSelector(uploads.select);
+    }
+    if (mounted) await _webView.loadRequest(Uri.parse(appStartUrl));
   }
 
   Future<void> _requestMicrophone(WebViewPermissionRequest request) async {
@@ -422,7 +451,7 @@ class _StoreScreenState extends State<StoreScreen> {
   Future<void> _openStoreInBrowser() async {
     try {
       final opened = await launchUrl(
-        Uri.parse(storeUrl),
+        Uri.parse(appStartUrl),
         mode: LaunchMode.externalApplication,
       );
       if (opened) return;
@@ -431,7 +460,9 @@ class _StoreScreenState extends State<StoreScreen> {
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تعذّر فتح المتجر في المتصفح')),
+      SnackBar(content: Text(isAdminMode
+          ? 'تعذّر فتح لوحة التحكم في المتصفح'
+          : 'تعذّر فتح المتجر في المتصفح')),
     );
   }
 
@@ -464,7 +495,7 @@ class _StoreScreenState extends State<StoreScreen> {
                           Image(image: AssetImage('assets/brand-mark.png'), width: 144, height: 144, semanticLabel: 'Ladies First'),
                           SizedBox(height: 16),
                           Text(
-                            'Ladies First',
+                            isAdminMode ? 'Ladies First إدارة' : 'Ladies First',
                             style: TextStyle(
                               color: plum,
                               fontSize: 29,
@@ -475,7 +506,7 @@ class _StoreScreenState extends State<StoreScreen> {
                           CircularProgressIndicator(color: plum),
                           SizedBox(height: 18),
                           Text(
-                            'جارٍ فتح المتجر...',
+                            isAdminMode ? 'جارٍ فتح لوحة التحكم...' : 'جارٍ فتح المتجر...',
                             textDirection: TextDirection.rtl,
                             style: TextStyle(color: plum, fontSize: 15),
                           ),
@@ -513,7 +544,9 @@ class _StoreScreenState extends State<StoreScreen> {
                             ),
                             const SizedBox(height: 20),
                             const Text(
-                              'المتجر ما فتح بالشكل الصحيح',
+                              isAdminMode
+                                  ? 'لوحة التحكم ما فتحت بالشكل الصحيح'
+                                  : 'المتجر ما فتح بالشكل الصحيح',
                               textDirection: TextDirection.rtl,
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -540,7 +573,9 @@ class _StoreScreenState extends State<StoreScreen> {
                             OutlinedButton.icon(
                               onPressed: _openStoreInBrowser,
                               icon: const Icon(Icons.open_in_browser),
-                              label: const Text('فتح المتجر في المتصفح'),
+                              label: Text(isAdminMode
+                                  ? 'فتح لوحة التحكم في المتصفح'
+                                  : 'فتح المتجر في المتصفح'),
                             ),
                           ],
                         ),
