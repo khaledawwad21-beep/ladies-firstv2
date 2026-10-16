@@ -2160,6 +2160,7 @@ app.get(
 
 require('./product-media').registerMedia(app);
 require('./product-write').registerProductWrites(app, getProducts);
+require('./product-bulk-import').registerProductBulkImport(app);
 require('./product-offers').registerProductOffers(app);
 
 /* =========================================================

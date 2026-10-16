@@ -99,6 +99,20 @@ test('actual admin product bundle uploads media before saving JSON product paylo
   assert.doesNotMatch(js,/new FormData\(/);
 });
 
+test('admin exposes the Excel template and review-before-import flow', () => {
+  const root=require('node:path').join(__dirname,'../..');
+  const html=fs.readFileSync(require('node:path').join(root,'frontend/admin.html'),'utf8');
+  const admin=fs.readFileSync(require('node:path').join(root,'frontend/admin.js'),'utf8');
+  const importer=fs.readFileSync(require('node:path').join(root,'frontend/admin-product-bulk-import.js'),'utf8');
+  const template=fs.readFileSync(require('node:path').join(root,'frontend/assets/product-import-template.xlsx'));
+  assert.equal(template.subarray(0,2).toString(),'PK');
+  assert.match(html,/vendor\/jszip\.min\.js/);assert.match(admin,/تنزيل قالب Excel/);assert.match(admin,/استيراد Excel/);
+  assert.match(importer,/productBulkImportOpen/);assert.match(importer,/معاينة الملف/);assert.match(importer,/مرجع الملف/);
+  assert.match(importer,/bulk-import/);assert.match(importer,/productNumber/);
+  const bulk=fs.readFileSync(require('node:path').join(root,'backend/src/product-bulk-import.js'),'utf8');
+  assert.match(bulk,/product_category_sequences/);assert.match(bulk,/product_number/);assert.match(bulk,/transaction\(/);
+});
+
  test('offer updates persist flags and dates without rewriting stock, media or taxonomy', async () => {
   const before=(await query('SELECT * FROM products WHERE id=$1',[product.id])).rows[0];
   for(const role of [null,'customer']) assert.equal((await request('/api/admin/products/'+product.id+'/offers','PATCH',{top5:true},role)).status,role?403:401);
@@ -162,6 +176,24 @@ test('product video metadata rejects unsafe URLs and storefront renders supporte
   assert.match(app,/youtube\.com\/embed/);
   assert.match(app,/productVideos/);
   assert.match(app,/u\.pathname\.startsWith\('\/api\/videos\/'\)/);
+});
+
+test('bulk Excel import maps variants and generates category serials transactionally', async () => {
+  const payload={products:[
+    {ref:'bag-1',name:'حقيبة دفعة أولى',category:'اختبار استيراد',brand:'ماركة اختبار',price:'40',oldPrice:'55',costPrice:'20',stock:'2',supplier:'مورد',active:false,mainImage:image,subImages:'',description:'وصف',videos:'',scentTags:'',styleTags:'ذهبي|ناعم',occasionTags:'هدية',exclusiveLaunch:false,saleStartsAt:'',saleEndsAt:''},
+    {ref:'bag-2',name:'حقيبة دفعة ثانية',category:'اختبار استيراد',price:'٤٥',stock:'١',active:false,mainImage:image,description:'وصف ثاني'}
+  ],options:[{ref:'bag-1',name:'أسود',stock:'2'},{ref:'bag-2',name:'أحمر',stock:'1'}]};
+  const response=await request('/api/admin/products/bulk-import','POST',payload);
+  const data=await response.json();assert.equal(response.status,201,JSON.stringify(data));assert.equal(data.imported,2);
+  assert.match(data.products[0].productNumber,/^\d+-1$/);assert.match(data.products[1].productNumber,/^\d+-2$/);
+  const dbRows=(await query("SELECT p.id,p.stock,p.product_number,p.metadata,(SELECT COUNT(*) FROM product_variants v WHERE v.product_id=p.id AND v.is_active=TRUE) AS variants FROM products p WHERE p.id=ANY($1::bigint[]) ORDER BY p.id",[data.products.map(p=>p.id)])).rows;
+  assert.equal(Number(dbRows[0].stock),2);assert.equal(Number(dbRows[1].stock),1);assert.equal(Number(dbRows[0].variants),1);assert.deepEqual(dbRows[0].metadata.styleTags,['ذهبي','ناعم']);
+  assert.equal((await query('SELECT COUNT(*) AS n FROM product_images WHERE product_id=ANY($1::bigint[])',[data.products.map(p=>p.id)])).rows[0].n,2);
+  const countBefore=Number((await query('SELECT COUNT(*) AS n FROM products')).rows[0].n);
+  const bad=await request('/api/admin/products/bulk-import','POST',{products:[{name:'صالح',category:'جديدة',price:1,active:false},{name:'ناقص سعر',category:'جديدة',price:'',active:false}]});
+  assert.equal(bad.status,400);assert.equal(Number((await query('SELECT COUNT(*) AS n FROM products')).rows[0].n),countBefore);
+  const noImage=await request('/api/admin/products/bulk-import','POST',{products:[{name:'منتج نشط',category:'جديدة',price:1,active:true}]});assert.equal(noImage.status,400);
+  const forbidden=await request('/api/admin/products/bulk-import','POST',{products:payload.products},'customer');assert.equal(forbidden.status,403);
 });
 
 test('admin can upload and range-stream a product video', async () => {
