@@ -6,6 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+
+import 'file_upload.dart';
 
 /// Canonical production URL from the Ladies First storefront.
 const String storeUrl = String.fromEnvironment(
@@ -345,7 +348,7 @@ class _StoreScreenState extends State<StoreScreen> {
       );
     _webContent = WebViewWidget(controller: _webView);
     _armLoadTimeout();
-    unawaited(_webView.loadRequest(Uri.parse(appStartUrl)).catchError((Object _) {
+    unawaited(_configureAndLoad().catchError((Object _) {
       if (!mounted) return;
       _loadTimeout?.cancel();
       setState(() {
@@ -353,6 +356,24 @@ class _StoreScreenState extends State<StoreScreen> {
         _loading = false;
       });
     }));
+  }
+
+  Future<void> _configureAndLoad() async {
+    final platform = _webView.platform;
+    if (platform is AndroidWebViewController) {
+      final uploads = NativeFileUpload(
+        currentUrl: _webView.currentUrl,
+        allowedOrigin: Uri.parse(storeUrl).origin,
+        isActive: () => mounted,
+        onError: (message) {
+          if (mounted) { ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          ); }
+        },
+      );
+      await platform.setOnShowFileSelector(uploads.select);
+    }
+    if (mounted) await _webView.loadRequest(Uri.parse(appStartUrl));
   }
 
   Future<void> _requestMicrophone(WebViewPermissionRequest request) async {
