@@ -52,6 +52,9 @@ jobs:
           microphone='<uses-permission android:name="android.permission.RECORD_AUDIO" />'
           if microphone not in text:
               text=text.replace('<application', microphone+'\n    <application', 1)
+          audio_settings='<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />'
+          if audio_settings not in text:
+              text=text.replace('<application', audio_settings+'\n    <application', 1)
           p.write_text(text)
           PY
       - name: Configure separate store and admin app identities

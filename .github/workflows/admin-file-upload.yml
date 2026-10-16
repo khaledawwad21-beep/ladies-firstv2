@@ -32,7 +32,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p=Path('android/app/src/main/AndroidManifest.xml')
-          s=p.read_text().replace('<application', '<uses-permission android:name="android.permission.INTERNET"/><uses-permission android:name="android.permission.RECORD_AUDIO"/><application',1)
+          s=p.read_text().replace('<application', '<uses-permission android:name="android.permission.INTERNET"/><uses-permission android:name="android.permission.RECORD_AUDIO"/><uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/><application',1)
           p.write_text(s)
           PY
       - run: flutter pub get
