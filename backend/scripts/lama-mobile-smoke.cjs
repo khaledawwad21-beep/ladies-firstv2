@@ -11,7 +11,25 @@ const {app,initDatabase}=require('../src/server'),{createToken}=require('../src/
  await page.goto('http://127.0.0.1:'+server.address().port+'/admin.html');await page.locator('#app').waitFor({state:'visible'});await page.locator('[data-s="products"]').click();await page.getByRole('button',{name:'جهّز الصنف مع لمى',exact:true}).click();
  await page.locator('#lamaTitle').fill('قطعة من الهاتف');await page.locator('#lamaNotes').fill('التكلفة 40 والبيع 85 والكمية 5، أسود 3 وبيج 2');await page.locator('[data-lf="name"]').fill('اسم يدوي');
  const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=600;c.height=700;const x=c.getContext('2d');x.fillStyle='#f3eadf';x.fillRect(0,0,600,700);x.fillStyle='#302b30';x.fillRect(120,230,360,320);x.strokeStyle='#302b30';x.lineWidth=24;x.beginPath();x.arc(300,230,90,Math.PI,0);x.stroke();return c.toDataURL('image/png').split(',')[1]});
- await page.locator('#lamaFiles').setInputFiles({name:'bag.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});await page.waitForFunction(()=>lamaState?.row?.data.asset_ids.length===1&&!lamaState.busy&&!lamaState.saving);
+ // Click real controls: direct setInputFiles previously skipped chooser usability.
+ const picker=page.waitForEvent('filechooser');await page.locator('#lamaFiles').click();await (await picker).setFiles({name:'bag.png',mimeType:'application/octet-stream',buffer:Buffer.from(png,'base64')});await page.waitForFunction(()=>lamaState?.row?.data.asset_ids.length===1&&!lamaState.busy&&!lamaState.saving);
+
+ // Camera picker uses the same pipeline; repeat selection must remain usable.
+ const camera=page.waitForEvent('filechooser');await page.locator('#lamaCamera').click();await (await camera).setFiles({name:'camera.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});
+ await page.waitForFunction(()=>!lamaState.busy&&!lamaState.saving&&document.querySelector('.lama-upload-status').textContent.includes('موجودة مسبقًا'));
+ assert.equal(await page.locator('#lamaCamera').getAttribute('capture'),'environment');
+ // Simulate Safari's PNG fallback on a detailed photograph that exceeds 350 KB.
+ const fallback=await page.evaluate(async()=>{
+  const c=document.createElement('canvas');c.width=1200;c.height=1200;const x=c.getContext('2d'),pixels=x.createImageData(1200,1200);let seed=7;
+  for(let i=0;i<pixels.data.length;i+=4){seed=(Math.imul(seed,1664525)+1013904223)>>>0;pixels.data[i]=seed&255;pixels.data[i+1]=(seed>>>8)&255;pixels.data[i+2]=(seed>>>16)&255;pixels.data[i+3]=255}x.putImageData(pixels,0,0);
+  const file=new File([await adminCanvasBlob(c,'image/png')],'photo.png',{type:'image/png'}),encode=adminCanvasBlob;
+  adminCanvasBlob=(canvas,type,q)=>encode(canvas,type==='image/webp'?'image/png':type,q);
+  try{const data=await lamaSmallImage(file);return {size:atob(data.split(',')[1]).length,jpeg:data.startsWith('data:image/jpeg;')}}finally{adminCanvasBlob=encode}
+ });assert.equal(fallback.jpeg,true);assert.ok(fallback.size<=350*1024);
+ // One bad file must not silently stop the rest; error stays beside upload controls.
+ await page.locator('#lamaFiles').setInputFiles([{name:'unsupported.heic',mimeType:'image/heic',buffer:Buffer.from('unsupported fixture')},{name:'bag-again.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')}]);
+ await page.waitForFunction(()=>!lamaState.busy&&!lamaState.saving&&document.querySelector('.lama-upload-status').textContent.includes('موجودة مسبقًا'));
+ assert.match(await page.locator('.lama-upload-status').textContent(),/HEIC/);
  assert.equal(paidCalls,0);await page.locator('.modal-close').click();await page.getByRole('button',{name:'مسودات لمى',exact:true}).click();await page.locator('[data-lama-open]').first().click();await page.locator('[data-lf="name"]').waitFor();assert.equal(await page.locator('[data-lf="name"]').inputValue(),'اسم يدوي');await page.locator('#lamaImages img').waitFor();
  await page.locator('#lamaConsent').check();await page.locator('#lamaAnalyze').click();await page.locator('#lamaApply').waitFor();assert.equal(paidCalls,1);await page.locator('#lamaApply').click();assert.equal(await page.locator('[data-lf="name"]').inputValue(),'اسم يدوي');assert.equal(await page.locator('[data-lf="price"]').inputValue(),'85');await page.waitForFunction(()=>!lamaState.dirty&&!lamaState.saving);
  await page.locator('#lamaReviewed').check();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.locator('#modal .modal-card').evaluate(el=>el.scrollTop=0);await page.locator('#modal').screenshot({path:path.join(root,'lama-mobile.png')});
