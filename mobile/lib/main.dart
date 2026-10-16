@@ -366,9 +366,9 @@ class _StoreScreenState extends State<StoreScreen> {
         allowedOrigin: Uri.parse(storeUrl).origin,
         isActive: () => mounted,
         onError: (message) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          if (mounted) { ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(message)),
-          );
+          ); }
         },
       );
       await platform.setOnShowFileSelector(uploads.select);

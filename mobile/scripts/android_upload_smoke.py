@@ -85,6 +85,14 @@ try:
     shot('camera-open')
     activity=adb('shell','dumpsys','activity','activities').decode(errors='replace')
     assert 'camera' in activity.lower(), 'Camera activity did not open'
+    tap(['shutter_button','Shutter','Take picture'])
+    tap(['done_button','Done','OK'])
+    deadline=time.monotonic()+20
+    while len(results)<2 and time.monotonic()<deadline: time.sleep(.5)
+    assert len(results)>=2 and results[-1]['source']=='camera', results
+    assert results[-1]['size']>100 and results[-1]['signature'][:3]==[255,216,255], results
+    shot('camera-photo-returned-to-webview')
+    tap(['Take photo']);time.sleep(2)
     # Cancel native capture and confirm the WebView can open the file picker again.
     adb('shell','input','keyevent','4');tap(['Choose photo']);shot('picker-after-camera-cancel')
     adb('shell','input','keyevent','4')

@@ -26,7 +26,7 @@ class NativeFileUpload {
     try {
       final start = await currentUrl();
       if (Uri.tryParse(start ?? '')?.origin != allowedOrigin ||
-          params.mode == FileSelectorMode.save) return [];
+          params.mode == FileSelectorMode.save) { return []; }
       final paths = await _chooseFiles(params);
       // Never pass a selection to a different page after navigation.
       if (!isActive() || await currentUrl() != start) return [];
