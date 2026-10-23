@@ -153,7 +153,7 @@ test('offer editor can change sale and original prices atomically', async () => 
 
  test('storefront respects selected Top 5, expiry, stock and quick-offer expiry',()=>{
   const source=fs.readFileSync(require('node:path').join(__dirname,'../../frontend/app.js'),'utf8');
-  const context=vm.createContext({products:[{id:1,top5:true,stock:2,price:20,old:20},{id:2,onSale:true,stock:2,price:10,old:20},{id:3,top5:true,stock:2,price:5,old:20,offerExpiry:'2000-01-01'},{id:4,top5:true,stock:0,price:5,old:20}],totalStock:p=>p.stock});
+  const context=vm.createContext({LFCommerce:require('../../frontend/commerce-pricing'),productPriceAvailable:p=>Number(p.price)>0,products:[{id:1,top5:true,stock:2,price:20,old:20},{id:2,onSale:true,stock:2,price:10,old:20},{id:3,top5:true,stock:2,price:5,old:20,offerExpiry:'2000-01-01'},{id:4,top5:true,stock:0,price:5,old:20}],totalStock:p=>p.stock});
   vm.runInContext(source.slice(source.indexOf('function isOfferActive('),source.indexOf('function getBestSellers(')),context);
   assert.deepEqual(Array.from(context.getTop5(),x=>x.id),[1]);context.products[0].top5=false;
   assert.deepEqual(Array.from(context.getTop5(),x=>x.id),[2]);context.products[1].onSale=false;

@@ -56,7 +56,7 @@ test('empty history yields no invented products and ranking is capped at five',a
 test('storefront uses the public ranking, preserves Top 5 offers, handles failed loads and ignores late responses',async()=>{
   const source=fs.readFileSync(path.join(__dirname,'../../frontend/app.js'),'utf8');
   const pending=[];
-  const context=vm.createContext({window:{},currentLang:'ar',products:[{id:1,stock:4,price:10,old:20,onSale:true,top5:true},{id:2,stock:2,price:15}],totalStock:p=>p.stock,load:()=>{throw Error('Personal order history must not determine store rankings');},renderFeatureSections:()=>{},console:{warn:()=>{}},lfFetch:url=>{assert.equal(url,'/api/store/best-sellers');return new Promise((resolve,reject)=>pending.push({resolve,reject}));}});
+  const context=vm.createContext({LFCommerce:require('../../frontend/commerce-pricing'),productPriceAvailable:p=>Number(p.price)>0,window:{},currentLang:'ar',products:[{id:1,stock:4,price:10,old:20,onSale:true,top5:true},{id:2,stock:2,price:15}],totalStock:p=>p.stock,load:()=>{throw Error('Personal order history must not determine store rankings');},renderFeatureSections:()=>{},console:{warn:()=>{}},lfFetch:url=>{assert.equal(url,'/api/store/best-sellers');return new Promise((resolve,reject)=>pending.push({resolve,reject}));}});
   vm.runInContext(source.slice(source.indexOf('function isOfferActive('),source.indexOf('function scrollFeature(')),context);
   vm.runInContext(source.slice(source.indexOf('let lfFeaturedRequest='),source.indexOf('async function lfSyncMe(')),context);
   assert.equal(context.getBestSellers().length,0);
