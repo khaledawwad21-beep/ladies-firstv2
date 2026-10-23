@@ -9,25 +9,32 @@ const BRAND_ADVANCE = 13485;
 // This is intentionally burned into pixels, rather than a CSS overlay.
 async function watermarkProductImage(input) {
   const metadata = await sharp(input, { failOn: 'error', limitInputPixels: 40_000_000 }).metadata();
-  const width = metadata.width || 0;
-  const height = metadata.height || 0;
+  const sideways = [5, 6, 7, 8].includes(metadata.orientation);
+  const width = (sideways ? metadata.height : metadata.width) || 0;
+  const height = (sideways ? metadata.width : metadata.height) || 0;
   if (width < 1 || height < 1) throw new Error('Invalid product image');
   // Placeholder-sized images cannot contain a legible mark.
   if (width < 40 || height < 40) return sharp(input).rotate().webp({ quality: 88 }).toBuffer();
 
-  const labelWidth = Math.max(62, Math.round(width * 0.19));
-  const fontSize = Math.max(10, Math.round(labelWidth * 0.135));
-  const labelHeight = Math.round(fontSize * 2.2);
-  const brandScale = labelWidth * .82 / BRAND_ADVANCE;
-  const brandLeft = (labelWidth - BRAND_ADVANCE * brandScale) / 2;
-  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${labelWidth}" height="${labelHeight}" viewBox="0 0 ${labelWidth} ${labelHeight}">
-    <rect x="1" y="1" width="${labelWidth - 2}" height="${labelHeight - 2}" rx="${Math.max(4, Math.round(labelHeight * .24))}" fill="#f7eef2" fill-opacity=".55" stroke="#482b4d" stroke-opacity=".25"/>
-    <path d="${BRAND_PATH}" transform="translate(${brandLeft} ${labelHeight * .72}) scale(${brandScale} -${brandScale})" fill="#492f52" fill-opacity=".88"/>
+  // Deliberately keep the product logo and the centre of the picture unobstructed.
+  // The lettering is longer and more delicate, without the former pill/background.
+  const wordWidth = Math.max(65, Math.round(width * .205));
+  const wordHeight = Math.max(8, Math.round(width * .019));
+  const overlayWidth = Math.min(width, Math.ceil(wordWidth * 1.07));
+  const overlayHeight = Math.min(height, Math.ceil(wordHeight * 1.8));
+  const scaleX = wordWidth / BRAND_ADVANCE;
+  const scaleY = wordHeight / 1556;
+  const leftWithinOverlay = (overlayWidth - wordWidth) / 2;
+  const baseline = (overlayHeight + wordHeight) / 2;
+  const left = Math.max(0, Math.min(width - overlayWidth, Math.round(width * .77 - overlayWidth / 2)));
+  const top = Math.max(0, Math.min(height - overlayHeight, Math.round(height * .80 - overlayHeight / 2)));
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${overlayWidth}" height="${overlayHeight}" viewBox="0 0 ${overlayWidth} ${overlayHeight}">
+    <path d="${BRAND_PATH}" transform="translate(${leftWithinOverlay} ${baseline}) scale(${scaleX} -${scaleY})" fill="#492f52" fill-opacity=".66"/>
   </svg>`);
 
   return sharp(input, { failOn: 'error', limitInputPixels: 40_000_000 })
     .rotate()
-    .composite([{ input: svg, gravity: 'centre' }])
+    .composite([{ input: svg, left, top }])
     .webp({ quality: 88, effort: 3 })
     .toBuffer();
 }

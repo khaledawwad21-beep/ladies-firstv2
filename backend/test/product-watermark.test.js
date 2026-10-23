@@ -13,14 +13,14 @@ test('product watermark is embedded in image pixels without changing size', asyn
   assert.equal(metadata.format, 'webp');
   assert.equal(metadata.width, 800);
   assert.equal(metadata.height, 600);
-  const sourceCentre = await sharp(original).extract({ left: 350, top: 280, width: 100, height: 40 }).raw().toBuffer();
   const outputCentre = await sharp(output).extract({ left: 350, top: 280, width: 100, height: 40 }).raw().toBuffer();
-  assert.notDeepEqual(sourceCentre, outputCentre);
+  const watermarkRegion = await sharp(output).extract({ left: 515, top: 455, width: 205, height: 55 }).raw().toBuffer();
   let darkPixels = 0;
-  for (let i = 0; i < outputCentre.length; i += 3) {
-    if (outputCentre[i] < 150 && outputCentre[i + 1] < 150 && outputCentre[i + 2] < 150) darkPixels++;
+  for (let i = 0; i < watermarkRegion.length; i += 3) {
+    if (watermarkRegion[i] < 160 && watermarkRegion[i + 1] < 160 && watermarkRegion[i + 2] < 160) darkPixels++;
   }
-  assert.ok(darkPixels > 30, 'vector brand letters must visibly render without installed fonts');
+  assert.ok(darkPixels > 30, 'lower-right vector letters must render without installed fonts');
+  assert.ok([...outputCentre].every(value => value > 200), 'centre of product must remain unobstructed');
 });
 
 test('invalid images are rejected', async () => {
