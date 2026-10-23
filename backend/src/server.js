@@ -1237,6 +1237,7 @@ async function initDatabase() {
   await require("./marketing-offer-lab").initOfferLab(db);
   await require("./marketing-solo").initSoloMarketing(db);
   await require("./lama").initLama(db);
+  await require("./community-commerce").initCommunity(db);
 
   console.log(
     "[DB] Database initialized successfully."
@@ -2639,9 +2640,12 @@ app.delete(
    ORDERS
    ========================================================= */
 
+const community = require("./community-commerce").createCommunity({db,transaction,getProducts});
+
 app.post(
   "/api/orders",
   optionalAuth,
+  community.prepareRequest,
   async (req, res) => {
     const userId = req.user?.id || null;
 
@@ -3336,6 +3340,11 @@ app.post(
             );
           }
 
+          const communityReferral = await community.referralDiscount(client, {
+            code:req.body.referralCode,userId,phone:customerPhone,subtotal,couponCode
+          });
+          if (communityReferral) couponDiscount += communityReferral.discount;
+
           /*
            * Visa discount
            */
@@ -3696,6 +3705,8 @@ app.post(
             );
           }
 
+          await community.attachOrder(client,order,normalizedItems,req.body,userId,communityReferral);
+
           return {
             order,
             items:
@@ -3713,7 +3724,7 @@ app.post(
         ok: true,
         message:
           "تم إنشاء الطلب بنجاح",
-        order: result.order,
+        order: community.redactOrder(result.order),
         items: result.items,
         subtotal:
           Number(
@@ -3837,7 +3848,7 @@ app.get(
       return res.json({
         ok: true,
         orders:
-          ordersResult.rows
+          ordersResult.rows.map(community.redactOrder)
       });
     } catch (error) {
       console.error(
@@ -4179,6 +4190,7 @@ app.patch("/api/admin/returns/:id",requireAdmin,async(req,res)=>{
             [rr.order_id]
           );
           const cumulativeReturned=Number(returnedTotals.rows[0]?.value||0)+returnedMerchandiseValue;
+          if(cumulativeReturned>=subtotal)await community.onStatus(client,rr.order_id,"returned");
           if(rr.coupon_code && !rr.coupon_released && cumulativeReturned>=subtotal){
             await client.query("UPDATE coupons SET used_count=GREATEST(0,COALESCE(used_count,0)-1) WHERE UPPER(code)=UPPER($1)",[rr.coupon_code]);
             rr.coupon_released=true;
@@ -4855,6 +4867,7 @@ app.patch(
               );
             }
 
+            await community.onStatus(client,orderId,newStatus);
             return {order:updated.rows[0],autoBlockedCustomer,isNewDelivery:oldStatus!=="delivered"&&newStatus==="delivered"};
           }
         );
@@ -9698,6 +9711,8 @@ app.get(
 /* =========================================================
    WAITLIST
 ========================================================= */
+
+community.register(app,{requireAuth,optionalAuth,requireAdmin});
 
 require("./waitlist").registerWaitlistRoutes(app, {
   db,
