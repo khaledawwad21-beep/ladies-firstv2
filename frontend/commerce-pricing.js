@@ -26,7 +26,7 @@
     const day=localDay(now);
     const inWindow=scheduled?validDay(start)&&validDay(end)&&start<=end&&day>=start&&day<=end:!expiry||validDay(expiry)&&day<=expiry;
     const enabled=(m.onSale??p.onSale)!==false;
-    const active=hasDiscount&&enabled&&inWindow;
+    const active=hasDiscount&&sale>0&&enabled&&inWindow;
     // Unscheduled legacy products keep their configured current price.
     const base=hasDiscount&&(scheduled||expiry)&&!active?original:sale;
     const variantPrice=variant?.price;

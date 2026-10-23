@@ -17,5 +17,6 @@ test('legacy expiry restores the original price while explicit variant prices an
  assert.equal(pricing({price:100},{price:125}).price,125);
  assert.equal(pricing({price:100},{price:0}).purchasable,false);
  assert.equal(pricing({price:0}).purchasable,false);
+ assert.equal(pricing({price:0,old_price:120}).active,false);
  assert.equal(pricing({price:100,old_price:150,metadata:{onSale:false}}).active,false);
 });
