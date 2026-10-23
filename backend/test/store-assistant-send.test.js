@@ -27,3 +27,31 @@ test('shopping assistant sends the transcribed voice question to chat',async()=>
  assert.equal(s.requests[1].url,'https://store.test/api/ai/store-chat');
  assert.equal(JSON.parse(s.requests[1].options.body).message,'بدي هدية');
 });
+
+function productReturnSetup(){
+ const classes=()=>({add(){},remove(){}}),originalMessages={transcript:'original conversation',scrollTop:147};
+ const body={style:{position:'relative',top:'3px',width:'95%'},classList:classes()};
+ const html={style:{overflow:'auto'}};
+ const dialog={hidden:true},modal={hidden:false,style:{display:'none'}},input={value:'لسه عندي سؤال',focus(){}};
+ const observers=[],document={readyState:'loading',body,documentElement:html,addEventListener(){},querySelector:s=>({'#lfStoreAiDialog':dialog,'#modal':modal,'#lfStoreAiInput':input,'#lfStoreAiMessages':originalMessages}[s])};
+ const window={scrollY:250,scrollTo(x,y){this.restoredScroll=y},openProduct(){modal.style.display='flex'}};
+ class Observer{constructor(cb){this.callback=cb;observers.push(this)}observe(){this.active=true}disconnect(){this.active=false}}
+ const exposed=source.replace('window.openStoreAIAssistant=open;','window.testOpenRecommendedProduct=openRecommendedProduct;window.openStoreAIAssistant=open;');
+ vm.runInNewContext(exposed,{window,document,location:{origin:'https://store.test'},URL,MutationObserver:Observer,getComputedStyle:el=>el.style});
+ return {window,dialog,modal,input,messages:originalMessages,body,html,observers};
+}
+test('closing a recommended product restores the same Naya conversation, draft, reading position and page lock',()=>{
+ const s=productReturnSetup(),trigger={isConnected:true,focus(){this.focused=true}};
+ s.window.openStoreAIAssistant();s.window.openStoreAIAssistant();
+ s.window.testOpenRecommendedProduct(7,trigger);assert.equal(s.dialog.hidden,true);assert.equal(s.modal.style.display,'flex');
+ s.modal.style.display='none';s.observers[0].callback();
+ assert.equal(s.dialog.hidden,false);assert.equal(s.input.value,'لسه عندي سؤال');assert.equal(s.messages.transcript,'original conversation');assert.equal(s.messages.scrollTop,147);assert.equal(trigger.focused,true);assert.equal(s.body.style.position,'fixed');assert.equal(s.observers[0].active,false);
+ s.window.closeStoreAIAssistant();assert.equal(s.body.style.position,'relative');assert.equal(s.body.style.top,'3px');assert.equal(s.body.style.width,'95%');assert.equal(s.html.style.overflow,'auto');assert.equal(s.window.restoredScroll,250);
+});
+test('explicitly leaving Naya while a product is open cancels the automatic return',()=>{
+ const s=productReturnSetup();s.window.openStoreAIAssistant();s.window.testOpenRecommendedProduct(7,null);s.window.closeStoreAIAssistant();s.modal.style.display='none';s.observers[0].callback();assert.equal(s.dialog.hidden,true);assert.equal(s.observers[0].active,false);
+});
+test('invalid or unavailable product navigation keeps Naya visible',()=>{
+ const s=productReturnSetup();s.window.openStoreAIAssistant();s.window.testOpenRecommendedProduct(NaN,null);assert.equal(s.dialog.hidden,false);assert.equal(s.observers.length,0);
+ s.window.openProduct=()=>{};s.window.testOpenRecommendedProduct(7,null);assert.equal(s.dialog.hidden,false);assert.equal(s.observers[0].active,false);
+});
