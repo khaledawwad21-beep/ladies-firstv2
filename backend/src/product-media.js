@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const express = require('express');
 const { db } = require('./db');
 const { requireAdmin } = require('./auth');
+const { watermarkProductImage } = require('./product-watermark');
 
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
@@ -79,17 +80,40 @@ function registerMedia(app) {
     }
   );
 
+  app.get('/api/admin/images/:id/original', requireAdmin, async (req, res, next) => {
+    try {
+      if (!/^[a-f0-9]{64}$/.test(req.params.id)) return res.sendStatus(404);
+      const result = await db('SELECT mime_type, data FROM uploaded_images WHERE id = $1', [req.params.id]);
+      const row = result.rows[0];
+      if (!row) return res.sendStatus(404);
+      return res.set({
+        'Content-Type': row.mime_type,
+        'Cache-Control': 'private, no-store',
+        'Content-Disposition': 'attachment; filename="ladies-first-original-' + req.params.id + '"',
+        'X-Content-Type-Options': 'nosniff'
+      }).send(Buffer.from(row.data));
+    } catch (error) { next(error); }
+  });
+
   app.get('/api/images/:id', async (req, res, next) => {
     try {
       if (!/^[a-f0-9]{64}$/.test(req.params.id)) return res.sendStatus(404);
       const result = await db('SELECT mime_type, data FROM uploaded_images WHERE id = $1', [req.params.id]);
       const row = result.rows[0];
       if (!row) return res.sendStatus(404);
+      const source = Buffer.from(row.data);
+      const productUse = await db(`SELECT EXISTS (
+        SELECT 1 FROM products WHERE RIGHT(image_url, LENGTH($1)) = $1
+        UNION ALL
+        SELECT 1 FROM product_images WHERE RIGHT(image_url, LENGTH($1)) = $1
+      ) AS is_product`, ['/api/images/' + req.params.id]);
+      const isProduct = Boolean(productUse.rows[0]?.is_product);
+      const bytes = isProduct ? await watermarkProductImage(source) : source;
       res.set({
-        'Content-Type': row.mime_type,
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Content-Type': isProduct ? 'image/webp' : row.mime_type,
+        'Cache-Control': isProduct ? 'public, max-age=300' : 'public, max-age=31536000, immutable',
         'X-Content-Type-Options': 'nosniff'
-      }).send(Buffer.from(row.data));
+      }).send(bytes);
     } catch (error) {
       next(error);
     }

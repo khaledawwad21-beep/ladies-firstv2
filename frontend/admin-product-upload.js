@@ -233,14 +233,31 @@ function adminProductImages(p) {
 
 function adminImageControls(kind,index,isPrimary=false){
   const items=kind==="main"?adminProductDraft.mainImages:adminProductDraft.subImages;
+  const imageId=String(items[index]||'').match(/(?:^|\/)api\/images\/([a-f0-9]{64})$/)?.[1]||'';
+  const canDownload=typeof currentAdminUser!=='undefined' && (['owner','admin'].includes(currentAdminUser?.role)||currentAdminUser?.permissions?.includes('original_images'));
   return `<div class="admin-media-actions">
     <button type="button" class="btn" onclick="adminMoveExistingImage('${kind}',${index},-1)" ${index<=0?'disabled':''}>↑</button>
     <button type="button" class="btn" onclick="adminMoveExistingImage('${kind}',${index},1)" ${index>=items.length-1?'disabled':''}>↓</button>
     ${isPrimary?'<span class="admin-media-primary">الصورة الرئيسية</span>':`<button type="button" class="btn" onclick="adminSetPrimaryExistingImage('${kind}',${index})">اجعليها الرئيسية</button>`}
     <button type="button" class="btn" onclick="adminSwitchExistingImage('${kind}',${index})">${kind==='main'?'نقل للإضافية':'نقل للرئيسية'}</button>
+    ${imageId&&canDownload?`<button type="button" class="btn" onclick="adminDownloadOriginalImage('${imageId}')">تنزيل الأصل</button>`:''}
     <button type="button" class="btn danger" onclick="adminRemoveExistingImage('${kind}',${index})">حذف</button>
   </div>`;
 }
+
+window.adminDownloadOriginalImage=async function(id){
+  if(!/^[a-f0-9]{64}$/.test(id))return;
+  try{
+    const response=await fetch('/api/admin/images/'+id+'/original',{headers:{Authorization:'Bearer '+(localStorage.getItem('lf_admin_token')||'')}});
+    if(!response.ok)throw new Error(response.status===403?'ليس لديك صلاحية تنزيل الصورة الأصلية':'تعذر تنزيل الصورة الأصلية');
+    const blob=await response.blob();
+    const link=document.createElement('a');
+    const url=URL.createObjectURL(blob);
+    link.href=url;link.download='ladies-first-original-'+id+(blob.type==='image/png'?'.png':blob.type==='image/webp'?'.webp':'.jpg');
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }catch(error){if(typeof toast==='function')toast(error.message);else alert(error.message)}
+};
 
 function adminRenderExistingImages() {
   const box = $("#productExistingImages");
