@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:share_plus/share_plus.dart';
+import 'share_payload.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -214,6 +216,7 @@ class _StoreScreenState extends State<StoreScreen> {
   bool _loadedOnce = false;
   _StoreLoadIssue _loadIssue = _StoreLoadIssue.none;
   int _progress = 0;
+  bool _sharing = false;
 
   void _armLoadTimeout() {
     _loadTimeout?.cancel();
@@ -267,6 +270,10 @@ class _StoreScreenState extends State<StoreScreen> {
       onPermissionRequest: (request) => unawaited(_requestMicrophone(request)),
     )
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel(
+        'LFNativeShare',
+        onMessageReceived: (message) => unawaited(_shareFromStore(message.message)),
+      )
       ..setBackgroundColor(cream)
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -345,6 +352,39 @@ class _StoreScreenState extends State<StoreScreen> {
         _loading = false;
       });
     }));
+  }
+
+  Future<void> _shareFromStore(String message) async {
+    if (_sharing || !mounted) return;
+    _sharing = true;
+    try {
+      final current = Uri.tryParse(await _webView.currentUrl() ?? '');
+      final expected = Uri.parse(storeUrl);
+      if (current?.origin != expected.origin) return;
+      final payload = StoreSharePayload.parse(message, expected);
+      if (!mounted) return;
+      final box = context.findRenderObject() as RenderBox?;
+      final origin = box != null && box.hasSize
+          ? box.localToGlobal(Offset.zero) & box.size
+          : null;
+      await SharePlus.instance.share(ShareParams(
+        title: 'Ladies First',
+        text: '${payload.text}\n${payload.url}',
+        files: payload.image == null
+            ? null
+            : [XFile.fromData(payload.image!, mimeType: 'image/png')],
+        fileNameOverrides: payload.image == null ? null : ['Ladies-First-Story.png'],
+        sharePositionOrigin: origin,
+      ));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذّرت المشاركة. جرّبي نسخ الرابط من المتجر.')),
+        );
+      }
+    } finally {
+      _sharing = false;
+    }
   }
 
   Future<void> _requestMicrophone(WebViewPermissionRequest request) async {
