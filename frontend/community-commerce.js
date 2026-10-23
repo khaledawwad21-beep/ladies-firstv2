@@ -110,7 +110,7 @@
   if(cart.length&&!confirm(t('نستبدل السلة الحالية باختيارات هذه القائمة؟','Replace your current basket with these picks?')))return;
   const merged=new Map();for(const line of normalized){const key=line.id+':'+line.variant+':'+line.packagingId;if(merged.has(key))merged.get(key).qty+=line.qty;else merged.set(key,line);}cart=[...merged.values()];save('lf_cart',cart);checkout=context;persist('lf_community_checkout',checkout);
   if(gift){setGiftCardDraft(gift);}else setGiftCardDraft(null);
-  close();renderCart();updateCount();await openCart();openCheckoutForm();decorateCart();
+  close();if(typeof closeModal==='function')closeModal();renderCart();updateCount();await openCart();openCheckoutForm();decorateCart();
   const region=$('#shippingRegion');if(region&&context?.region){region.value=context.region;if(context.privateDelivery)region.disabled=true;updateCheckoutTotal();}
  }
  async function buyList(){const l=viewList,ids=$$('.lfCItemCheck:checked').map(x=>x.value),items=l.items.filter(i=>ids.includes(i.id)&&i.available&&!i.claimed);if(!items.length)throw Error(t('اختاري قطعة متوفرة','Choose an available item'));const privateDelivery=$('#lfPrivateGift')?.checked===true;await installCart(items,{token:l.token,itemIds:items.map(i=>i.id),privateDelivery,title:l.title,region:privateDelivery?l.deliveryRegion:null});}

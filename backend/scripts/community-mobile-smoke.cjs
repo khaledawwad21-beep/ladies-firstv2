@@ -39,7 +39,7 @@ async function main(){try{
  await page.locator('#lfNewKind').selectOption('look');await page.locator('#lfNewTitle').fill('تنسيقتي للعيد');await act(page,'pick-for-list').click();await page.locator('#lfPickerSearch').fill('عطر');await act(page,'choose-product').first().click();await act(page,'confirm-product').click();assert.equal(await page.locator('#lfNewTitle').inputValue(),'تنسيقتي للعيد');await act(page,'save-list').click();await page.getByRole('heading',{name:'تنسيقتي للعيد'}).waitFor();
  await page.screenshot({path:path.join(evidence,'02-saved-look-mobile.png'),fullPage:true});
  await act(page,'share-list').click();assert.ok((await page.evaluate(()=>window.__shared)).at(-1).url.includes('/share/list/'));
- await act(page,'close').click();await page.locator('#modal .close').click();
+ page.once('dialog',dialog=>dialog.accept());await act(page,'buy-list').click();await page.locator('#drawer').waitFor({state:'visible'});assert.equal(await page.locator('#modal').isVisible(),false);await page.locator('#drawer > .panel > .close').click();
  await page.locator('#lfCommunityHome [data-tab="compare"]').click();for(const name of ['حقيبة','عطر']){await act(page,'pick-compare').click();await page.locator('#lfPickerSearch').fill(name);await act(page,'choose-product').first().click();await act(page,'confirm-product').click();}
  await act(page,'compare-advice').click();await page.locator('#lfCompareAdvice').getByText(/نايا/).waitFor();await act(page,'new-poll').click();await page.locator('#lfNewTitle').fill('شو أختار؟');await act(page,'save-list').click();await page.getByRole('heading',{name:'شو أختار؟'}).waitFor();
  const poll=(await api('/api/community/lists','GET',null,alice)).lists.find(x=>x.kind==='poll');assert.ok(poll);
