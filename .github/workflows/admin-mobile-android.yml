@@ -1,0 +1,84 @@
+name: Native admin Android build (test)
+
+on:
+  push:
+    branches: [codex/native-admin-mobile-phase1, feature/flutter-mobile-app]
+    paths: ['admin_mobile/**', '.github/workflows/admin-mobile-android.yml']
+  pull_request:
+    branches: [feature/flutter-mobile-app]
+    paths: ['admin_mobile/**', '.github/workflows/admin-mobile-android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  admin-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: admin_mobile
+    steps:
+      - uses: actions/checkout@v4
+        name: Check out application source
+
+      - uses: actions/setup-java@v4
+        name: Set up Java
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        name: Set up Flutter
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - name: Generate native Android project
+        run: flutter create --org com.ladiesfirst --project-name ladies_first_admin --platforms android --no-pub .
+
+      - name: Set app label and Android 6 minimum for secure storage
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          text = manifest.read_text()
+          text = re.sub(r'android:label="[^"]+"', 'android:label="Ladies First Admin"', text, count=1)
+          permission = '<uses-permission android:name="android.permission.INTERNET" />'
+          if permission not in text:
+              text = text.replace('<application', permission + '\n    <application', 1)
+          manifest.write_text(text)
+
+          gradle = Path('android/app/build.gradle.kts')
+          if not gradle.exists():
+              gradle = Path('android/app/build.gradle')
+          text = gradle.read_text()
+          text = text.replace('minSdk = flutter.minSdkVersion', 'minSdk = 23')
+          text = text.replace('minSdkVersion flutter.minSdkVersion', 'minSdkVersion 23')
+          if 'minSdk = 23' not in text and 'minSdkVersion 23' not in text:
+              raise SystemExit('Could not set Android minimum SDK to 23')
+          gradle.write_text(text)
+          PY
+
+      - name: Fetch dependencies
+        run: flutter pub get
+
+      - name: Analyze Dart code
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload admin debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladies-first-admin-android-debug-apk
+          path: admin_mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
