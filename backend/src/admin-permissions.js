@@ -30,6 +30,8 @@ function normalizePermissions(value) {
 function permissionForAdminRequest(req) {
   const path = String(req.originalUrl || req.url || "").split("?")[0];
 
+  if (/\/api\/admin\/community\/settings(?:\/|$)/.test(path)) return "settings";
+  if (/\/api\/admin\/community(?:\/|$)/.test(path)) return "marketing";
   if (/\/api\/admin\/marketing(?:\/|$)/.test(path)) return "marketing";
   if (/\/api\/admin\/(whatsapp-|cart-reminders)/.test(path)) return "offers";
   if (/\/api\/admin\/products\/[^/]+\/offers(?:\/|$)/.test(path)) return "offers";
