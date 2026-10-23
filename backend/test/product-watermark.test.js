@@ -16,6 +16,11 @@ test('product watermark is embedded in image pixels without changing size', asyn
   const sourceCentre = await sharp(original).extract({ left: 350, top: 280, width: 100, height: 40 }).raw().toBuffer();
   const outputCentre = await sharp(output).extract({ left: 350, top: 280, width: 100, height: 40 }).raw().toBuffer();
   assert.notDeepEqual(sourceCentre, outputCentre);
+  let darkPixels = 0;
+  for (let i = 0; i < outputCentre.length; i += 3) {
+    if (outputCentre[i] < 150 && outputCentre[i + 1] < 150 && outputCentre[i + 2] < 150) darkPixels++;
+  }
+  assert.ok(darkPixels > 30, 'vector brand letters must visibly render without installed fonts');
 });
 
 test('invalid images are rejected', async () => {
