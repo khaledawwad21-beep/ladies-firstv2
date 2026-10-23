@@ -26,7 +26,7 @@ async function context(user,mobile=true){const c=await browser.newContext({viewp
 const act=(page,action)=>page.locator('[data-c-act="'+action+'"]');
 async function checkNayaProductReturn(page,label){
  await page.route('**/api/ai/store-chat',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,reply:'اختيارات متوفرة من المتجر. '.repeat(35),recommendations:[{id:watch.id,name:watch.name,price:110},{id:perfume.id,name:perfume.name,price:50}]})}));
- await page.locator('.lf-store-ai-card .lf-store-ai-open').click();
+ await page.locator('.lf-store-ai-card .lf-store-ai-open[aria-haspopup=dialog]').click();
  await page.locator('#lfStoreAiInput').fill('شو عندك ساعات؟');await page.locator('.lf-store-ai-form button[type=submit]').click();
  const recommendation=page.locator('#lfStoreAiMessages [data-product-id]').first();await recommendation.waitFor();
  await page.locator('#lfStoreAiInput').fill('نكمل من هون');const transcript=await page.locator('#lfStoreAiMessages').innerText();
