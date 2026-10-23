@@ -195,12 +195,16 @@ if (process.env.RUN_DB_E2E !== "1") {
       return { id: "ci-waitlist-message-" + calls.length };
     };
 
+    await api('/api/admin/settings', {method:'PUT',headers:ownerHeaders,body:JSON.stringify({waitlist_whatsapp_auto_enabled:true})});
     const beforeRestock = await runWhatsAppAutomation(db, { sendTemplate: fakeSender });
     assert.equal(beforeRestock.configured, true);
     assert.equal(beforeRestock.sent, 0);
     assert.equal(beforeRestock.failed, 0);
     assert.equal(calls.length, 0);
 
+    // Product writes trigger notifications in production. Disable that hook while
+    // the test prepares stock, then exercise the sender through its injected fake.
+    await api('/api/admin/settings', {method:'PUT',headers:ownerHeaders,body:JSON.stringify({waitlist_whatsapp_auto_enabled:false})});
     const restocked = await api(`/api/admin/products/${productId}`, {
       method: "PUT",
       headers: ownerHeaders,
@@ -221,6 +225,7 @@ if (process.env.RUN_DB_E2E !== "1") {
     });
     assert.equal(Number(restocked.body.product.stock), 5);
 
+    await api('/api/admin/settings', {method:'PUT',headers:ownerHeaders,body:JSON.stringify({waitlist_whatsapp_auto_enabled:true})});
     const afterRestock = await runWhatsAppAutomation(db, { sendTemplate: fakeSender });
     assert.equal(afterRestock.sent, 1);
     assert.equal(afterRestock.failed, 0);

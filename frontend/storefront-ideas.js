@@ -138,7 +138,7 @@
     }).sort((a, b) => b.score - a.score || Number(b.product.id) - Number(a.product.id));
     const matches = scored.filter(x => x.score > 0);
     const chosen = (matches.length ? matches : scored).slice(0, 8).map(x => x.product);
-    setStatus(matches.length ? "إكسسوارات تشترك مع الساعة في: " + [...new Set(scored.flatMap(x => x.shared))].slice(0, 4).join("، ") : "اختيارات إكسسوارات متوفرة لتكمّلي تنسيق ساعتك.");
+    setStatus(matches.length ? (lang() ? "Accessories matching your watch: " : "إكسسوارات تشترك مع الساعة في: ") + [...new Set(scored.flatMap(x => x.shared))].slice(0, 4).join("، ") : "اختيارات إكسسوارات متوفرة لتكمّلي تنسيق ساعتك.");
     const tools = document.getElementById("lfIdeaTools");
     tools.innerHTML = '<button type="button" class="lf-idea-chip" data-idea-action="watch">‹ اختيار ساعة أخرى</button>';
     showCards(chosen, "لا توجد إكسسوارات متاحة حاليًا.");
@@ -147,7 +147,7 @@
     const tools = document.getElementById("lfIdeaTools");
     tools.innerHTML = occasions.map(x => '<button type="button" class="lf-idea-chip ' + (tag === x ? "active" : "") + '" data-idea-action="occasion" data-tag="' + escapeHtml(x) + '">' + escapeHtml(x) + "</button>").join("");
     const items = available(allProducts().filter(p => !tag || productTags(p, "occasionTags").some(t => t.includes(tag.toLowerCase()))));
-    setStatus(tag ? "اختيارات مناسبة لـ" + tag : "اختاري مناسبة لعرض المنتجات المرتبطة بها.");
+    setStatus(tag ? (lang() ? "Picks for " : "اختيارات مناسبة لـ") + tag : "اختاري مناسبة لعرض المنتجات المرتبطة بها.");
     showCards(items.slice(0, 12), tag ? "ما في اختيارات متاحة لهذه المناسبة حاليًا." : "لا توجد منتجات متاحة حاليًا.");
   }
   function showLaunches() {

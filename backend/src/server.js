@@ -1929,6 +1929,8 @@ app.get(
    PRODUCT QUERY
 ========================================================= */
 
+const { pricing: productPricing } = require('../../frontend/commerce-pricing');
+
 async function getProducts(
   where = "",
   params = [],
@@ -2018,7 +2020,11 @@ async function getProducts(
       params
     );
 
-  return result.rows;
+  return includeInactive ? result.rows : result.rows.map(product => {
+    const effective = productPricing(product);
+    return {...product, price: typeof product.price === 'string' ? effective.price.toFixed(2) : effective.price, salePrice: effective.salePrice,
+      offerActive: effective.active, priceAvailable: effective.purchasable};
+  });
 }
 
 /* =========================================================
@@ -2781,7 +2787,7 @@ app.post(
               item.variant_id ??
               null;
 
-            const variantId =
+            let variantId =
               rawVariantId !== null &&
               rawVariantId !== undefined &&
               rawVariantId !== ""
@@ -2816,19 +2822,6 @@ app.post(
              * separate cart lines. Otherwise two stock deductions can
              * bypass the user's intended single-line quantity guard.
              */
-            const cartLineKey =
-              `${productId}:${variantId === null ? "product" : variantId}`;
-
-            if (seenCartLines.has(cartLineKey)) {
-              throw createHttpError(
-                400,
-                "DUPLICATE_CART_LINE",
-                "يوجد منتج مكرر في السلة، يرجى تحديث السلة والمحاولة مرة أخرى"
-              );
-            }
-
-            seenCartLines.add(cartLineKey);
-
             if (
               quantity <= 0 ||
               quantity > 100000
@@ -2879,9 +2872,38 @@ app.post(
               );
             }
 
+            // Resolve names for older clients; never charge aggregate stock
+            // when the product requires a specific active option.
+            if (variantId === null) {
+              const options = await client.query(
+                'SELECT id,color,size FROM product_variants WHERE product_id=$1 AND is_active=TRUE', [productId]
+              );
+              const label = String(item.variantName ?? item.variant_name ?? item.variant ?? '').trim();
+              if (!options.rows.length && label) throw createHttpError(400, 'INVALID_VARIANT', 'الخيار المحدد غير متوفر لهذا المنتج');
+              if (options.rows.length) {
+                const matches = options.rows.filter(v => [v.color, v.size, [v.color,v.size].filter(Boolean).join(' / ')].includes(label));
+                if (!label || matches.length !== 1) {
+                  throw createHttpError(400, label ? 'INVALID_VARIANT' : 'VARIANT_REQUIRED', 'يرجى اختيار اللون أو الخيار المتوفر لهذا المنتج');
+                }
+                variantId = Number(matches[0].id);
+              }
+            }
+
+            const cartLineKey =
+              `${productId}:${variantId === null ? "product" : variantId}`;
+
+            if (seenCartLines.has(cartLineKey)) {
+              throw createHttpError(
+                400,
+                "DUPLICATE_CART_LINE",
+                "يوجد منتج مكرر في السلة، يرجى تحديث السلة والمحاولة مرة أخرى"
+              );
+            }
+
+            seenCartLines.add(cartLineKey);
+
             let variant = null;
-            let currentPrice =
-              Number(product.price || 0);
+            let currentPrice = productPricing(product).price;
 
             let stockSource =
               "product";
@@ -2928,15 +2950,7 @@ app.post(
                 );
               }
 
-              if (
-                variant.price !== null &&
-                variant.price !== undefined
-              ) {
-                currentPrice =
-                  Number(
-                    variant.price
-                  );
-              }
+              currentPrice = productPricing(product, variant).price;
 
               stockSource =
                 "variant";
@@ -2956,6 +2970,10 @@ app.post(
                 "INVALID_PRICE",
                 "سعر المنتج غير صالح"
               );
+            }
+
+            if (currentPrice <= 0) {
+              throw createHttpError(409, 'PRICE_UNAVAILABLE', 'سعر هذا المنتج قيد التحديث، يرجى اختيار منتج آخر أو التواصل مع المتجر');
             }
 
             /*
