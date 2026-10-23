@@ -43,6 +43,7 @@ test('private wishlist delivery is never disclosed to visitors or purchasers and
  const purchased=await ok('/api/orders','POST',payload,bob,201);const id=purchased.order.id;
  assert.equal(JSON.stringify(purchased).includes('SECRET DELIVERY'),false);assert.equal(purchased.order.customer_phone,'محمي');assert.equal(purchased.shipping,35);
  const history=await ok('/api/orders','GET',null,bob);assert.equal(JSON.stringify(history).includes('SECRET DELIVERY'),false);
+ const detail=await ok('/api/orders/'+id,'GET',null,bob);assert.equal(JSON.stringify(detail).includes('SECRET DELIVERY'),false);assert.equal(detail.order.customer_phone,'محمي');
  const admin=await ok('/api/admin/orders/'+id,'GET',null,owner);assert.equal(admin.order.shipping_address,'SECRET DELIVERY ADDRESS');
  assert.equal((await ok('/api/community/shared/'+l.token,'GET',null,null)).list.items.length,0);
  const before=(await db('SELECT stock FROM product_variants WHERE id=$1',[rose])).rows[0].stock;

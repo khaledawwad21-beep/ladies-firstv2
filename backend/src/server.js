@@ -3993,7 +3993,7 @@ app.get(
       return res.json({
         ok: true,
         order:
-          orderResult.rows[0],
+          community.redactOrder(orderResult.rows[0]),
         items:
           itemsResult.rows,
         returns:
