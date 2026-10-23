@@ -94,6 +94,8 @@ def is_visible(names, exact=False):
 def dismiss_offer():
     """Dismiss the timed promotion if it covers the storefront during the test."""
     current = nodes()
+    if any('خصوصية الزيارات' in label(node) for node in current):
+        return tap_visible(['لا، شكرًا'], exact=True)
     if not any(label(node) in ('عروض لفترة محدودة', 'إغلاق العرض') for node in current):
         return False
     for node in current:
