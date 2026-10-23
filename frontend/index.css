@@ -1,0 +1,10 @@
+/* Ladies First storefront CSS entrypoint.
+   Legacy visual rules are preserved as a frozen baseline; interaction-critical
+   rules are centralized in store-stability.css and loaded last.
+   Naya/account styles are loaded last so the storefront can use the isolated
+   stability layer without changing the large legacy index.html document. */
+@import url("./index-legacy.css");
+@import url("./store-stability.css");
+@import url("./account-naya-stability.css?v=20261012-naya-voice-filter-fix4");
+
+.naya-message.naya-pending{opacity:.78;font-style:italic;animation:nayaReplyPulse 1.1s ease-in-out infinite alternate}@keyframes nayaReplyPulse{to{opacity:.48}}

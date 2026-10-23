@@ -1,0 +1,41 @@
+name: Encrypted Production Backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '43 1 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Scheduled runs use main; manual runs use the selected branch.
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Create and verify encrypted backup
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: node backend/scripts/database-backup.js create "$RUNNER_TEMP/ladies-first.pgdump.enc"
+      - name: Save encrypted backup only
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladies-first-encrypted-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/ladies-first.pgdump.enc
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove temporary encrypted archive
+        if: always()
+        run: rm -f "$RUNNER_TEMP/ladies-first.pgdump.enc"

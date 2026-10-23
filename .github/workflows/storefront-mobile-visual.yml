@@ -1,0 +1,59 @@
+name: Storefront Mobile Visual Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/scripts/mobile-visual-check.cjs'
+      - '.github/workflows/storefront-mobile-visual.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshot-mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Wait for the deployed storefront stylesheet revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$(grep -o 'store-assistant.css?v=[^"]*' frontend/index.html | head -n 1)"
+          test -n "$target"
+          echo "Waiting for Render to serve: $target"
+          for attempt in $(seq 1 72); do
+            html="$(curl --silent --show-error --fail --location --max-time 25 \
+              --header 'Cache-Control: no-cache' \
+              "https://ladies-firstv2.onrender.com/?_ci=${GITHUB_SHA}&attempt=${attempt}" || true)"
+            if grep -Fq "$target" <<< "$html"; then
+              echo "Render is serving the tested revision."
+              exit 0
+            fi
+            echo "Render has not served the expected revision yet (attempt $attempt/72)."
+            sleep 10
+          done
+          echo "::error::Render did not deploy the tested storefront revision."
+          exit 1
+      - name: Install isolated headless Chromium
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Check deployed mobile storefront and capture actual screenshots
+        env:
+          STORE_URL: https://ladies-firstv2.onrender.com/
+        run: node .github/scripts/mobile-visual-check.cjs
+      - name: Upload screenshot and diagnostics artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ladies-first-actual-mobile-screenshots
+          path: mobile-visual-evidence/
+          if-no-files-found: warn
+          retention-days: 14

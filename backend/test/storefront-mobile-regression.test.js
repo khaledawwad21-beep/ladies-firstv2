@@ -1,0 +1,93 @@
+"use strict";
+
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const index = fs.readFileSync(path.join(__dirname, "../../frontend/index.html"), "utf8");
+const indexCss = fs.readFileSync(path.join(__dirname, "../../frontend/index.css"), "utf8");
+const stability = fs.readFileSync(path.join(__dirname, "../../frontend/store-stability.css"), "utf8");
+const app = fs.readFileSync(path.join(__dirname, "../../frontend/app.js"), "utf8");
+
+test("storefront stability CSS is loaded through the real index.css chain", () => {
+  assert.match(index, /<link rel="stylesheet" href="index\.css(?:\?[^"]*)?">/);
+  assert.match(indexCss, /@import\s+(?:url\()?["']\.\/store-stability\.css["']\)?/);
+});
+
+test("language switch persists Arabic or English and updates document direction", () => {
+  assert.match(app, /const LANG_KEY='lf_lang'/);
+  assert.match(app, /localStorage\.getItem\(LANG_KEY\)\|\|'ar'/);
+  assert.match(app, /currentLang=currentLang==='ar'\?'en':'ar'/);
+  assert.match(app, /localStorage\.setItem\(LANG_KEY,currentLang\)/);
+  assert.match(app, /document\.documentElement\.lang=currentLang/);
+  assert.match(app, /document\.documentElement\.dir=currentLang==='ar'\?'rtl':'ltr'/);
+  assert.match(app, /renderStaticLang\(\);renderNewUiLang\(\);renderCats\(\);renderProducts\(\);renderFeatureSections\(\);renderCart\(\)/);
+  assert.match(app, /Top 5 Offers/);
+  assert.match(app, /Best Sellers/);
+  assert.match(app, /أقوى 5 عروض/);
+  assert.match(app, /الأكثر مبيعًا/);
+});
+
+test("Top 5 and best sellers keep arrows, native touch scrolling and autoplay", () => {
+  assert.match(index, /moveFeatureCarousel\('top5Grid',-1\)/);
+  assert.match(index, /moveFeatureCarousel\('top5Grid',1\)/);
+  assert.match(index, /moveFeatureCarousel\('bestSellersGrid',-1\)/);
+  assert.match(index, /moveFeatureCarousel\('bestSellersGrid',1\)/);
+
+  assert.match(app, /function bindFeatureCarousel\(/);
+  assert.match(app, /el\.style\.touchAction='auto'/);
+  assert.match(index, /#top5Grid,#bestSellersGrid\{display:flex!important;flex-flow:row nowrap!important/);
+  assert.match(index, /overflow-x:auto!important/);
+  assert.match(app, /function moveFeatureCarousel\(/);
+  assert.match(app, /function autoFeatureCarousels\(/);
+  assert.match(app, /setInterval\(autoFeatureCarousels,250\)/);
+});
+
+
+test("storefront search controls are independent and reject saved email autofill", () => {
+  assert.match(index, /class="tools storeSearchPanel"/);
+  assert.match(index, /class="storeSearchOptions"/);
+  assert.match(index, /onclick="openQuickSearch\('header'\)"/);
+  assert.match(index, /onclick="toggleSideMenu\(\);openQuickSearch\('side'\)"/);
+  assert.match(index, /id="quickSearchInput"/);
+  assert.match(index, /autocomplete="off"/);
+  assert.match(index, /readonly data-form-type="other"/);
+  assert.match(index, /\.quickSearchOverlay\.open\{display:flex!important/);
+  assert.match(index, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+  assert.match(app, /function openQuickSearch\(/);
+  assert.match(app, /function renderQuickSearchResults\(/);
+  assert.match(app, /case 'search':closeLayers\(\);openQuickSearch\('bottom'\)/);
+  assert.match(app, /function isSearchEmail\(/);
+  assert.match(app, /function activateStoreSearch\(/);
+  assert.match(app, /function handleQuickSearchInput\(/);
+  assert.doesNotMatch(app, /focusSearch\(\)/);
+});
+
+test("mobile rails remain horizontally scrollable without blocking page scroll", () => {
+  assert.match(stability, /\.product-slider,\.offers-slider,\.mini-slider-track,\.bestSellersGrid,\.featureGrid\s*\{/);
+  assert.match(stability, /overflow-x:auto!important/);
+  assert.match(stability, /overflow-y:hidden!important/);
+  assert.match(stability, /touch-action:pan-x pan-y!important/);
+  assert.match(stability, /-webkit-overflow-scrolling:touch!important/);
+  assert.match(stability, /scroll-snap-type:x proximity!important/);
+  assert.match(stability, /body:not\(\.modal-open\):not\(\.drawer-open\)\{overflow-y:auto!important/);
+});
+
+test("closed menu and overlays cannot intercept storefront touches", () => {
+  assert.match(stability, /\.mobile-menu\[hidden\],\.page-overlay\[hidden\],\.drawer\[hidden\],\.modal\[hidden\],\.galleryModal\[hidden\]/);
+  assert.match(stability, /\.mobile-menu:not\(\.open\),\.page-overlay:not\(\.open\)\{pointer-events:none!important\}/);
+  assert.match(stability, /\.mobile-menu\.open,\.page-overlay\.open\{pointer-events:auto!important\}/);
+});
+
+const server = fs.readFileSync(path.join(__dirname, "../src/server.js"), "utf8");
+
+test("category photos survive failed image URLs and server restarts", () => {
+  assert.match(app, /const CATEGORY_IMAGE_FALLBACKS=Object\.freeze\(/);
+  assert.match(app, /'شنط':'\/category-images\/bags\.jpg'/);
+  assert.match(app, /'ساعات ستاتي':'\/category-images\/womens-watches\.jpg'/);
+  assert.match(app, /function categoryImageError\(/);
+  assert.match(app, /categoryImage\(c,k\)/);
+  assert.match(app, /categoryImageError\(this,\$\{jsAttr\(k\)\}\)/);
+  assert.match(server, /image_url = COALESCE\(NULLIF\(BTRIM\(image_url\), ''\), \$3\)/);
+});

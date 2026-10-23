@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 100" fill="none">
+<path d="M107 10a25 25 0 1 0 24 40 28 28 0 1 1-24-40Z" fill="#E6BC70" stroke="#77516A" stroke-width="2"/>
+<path d="m139 19 2.5 6 6.5.6-5 4.2 1.4 6.5-5.4-3.3-5.5 3.3 1.4-6.5-5-4.2 6.5-.6 2.6-6Z" fill="#BD899C"/>
+<!-- graceful festive arch -->
+<path d="M52 88V46a68 68 0 0 1 136 0v42" stroke="#A78264" stroke-width="4"/>
+<path d="M63 88V48a57 57 0 0 1 114 0v40" stroke="#D5B47E" stroke-width="2"/>
+<!-- hanging lanterns -->
+<path d="M78 30v9m-9 2h18l-2 23H71l-2-23Zm1 7h16M72 62l-3 7h19l-3-7m-6-20v18" stroke="#77516A" stroke-width="2" stroke-linejoin="round"/>
+<path d="M160 30v9m-9 2h18l-2 23h-14l-2-23Zm1 7h16m-15 17-3 7h19l-3-7m-6-20v18" stroke="#77516A" stroke-width="2" stroke-linejoin="round"/>
+<path d="M78 46v11m-7-5h14m75-6v11m-7-5h14" stroke="#E6BC70" stroke-width="2" stroke-linecap="round"/>
+<!-- gift boxes -->
+<path d="M79 69h34v21H79z" fill="#D79AA6" stroke="#77516A" stroke-width="2"/><path d="M96 69v21M79 77h34" stroke="#FFF3DF" stroke-width="3"/>
+<path d="M96 69c-12 0-11-10-5-10 4 0 5 5 5 10Zm0 0c12 0 11-10 5-10-4 0-5 5-5 10Z" fill="#E6BC70" stroke="#77516A" stroke-width="1.5"/>
+<path d="M126 74h37v16h-37z" fill="#799E8A" stroke="#4E665D" stroke-width="2"/><path d="M144 74v16m-18-7h37" stroke="#FFF3DF" stroke-width="3"/>
+<path d="M144 74c-11 0-10-9-4-9 3 0 4 5 4 9Zm0 0c11 0 10-9 4-9-3 0-4 5-4 9Z" fill="#D79AA6" stroke="#4E665D" stroke-width="1.5"/>
+</svg>

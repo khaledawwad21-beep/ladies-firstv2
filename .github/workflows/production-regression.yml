@@ -1,0 +1,156 @@
+name: Production Regression
+
+on:
+  push:
+    branches: [cleanup-production, main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ladies
+          POSTGRES_DB: ladies_ci
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ladies -d ladies_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Run regression suite
+        env:
+          JWT_SECRET: ci-regression-secret-12345678901234567890
+        run: npm test
+      - name: Run isolated order lifecycle E2E
+        env:
+          RUN_DB_E2E: "1"
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          DB_SSL: "false"
+          JWT_SECRET: ci-e2e-secret-123456789012345678901234
+        run: node --test test/order-e2e.integration.test.js
+      - name: Run isolated guest checkout E2E
+        env:
+          RUN_DB_E2E: "1"
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          DB_SSL: "false"
+          JWT_SECRET: ci-e2e-secret-123456789012345678901234
+        run: node --test test/guest-checkout-e2e.integration.test.js
+      - name: Run isolated shipping and checkout rollback E2E
+        env:
+          RUN_DB_E2E: "1"
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          DB_SSL: "false"
+          JWT_SECRET: ci-e2e-secret-123456789012345678901234
+        run: node --test test/checkout-shipping-atomicity.integration.test.js
+      - name: Run isolated password recovery E2E
+        env:
+          RUN_DB_E2E: "1"
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          DB_SSL: "false"
+          JWT_SECRET: ci-e2e-secret-123456789012345678901234
+        run: node --test test/password-recovery-e2e.integration.test.js
+      - name: Run isolated WhatsApp automation E2E
+        env:
+          RUN_DB_E2E: "1"
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          DB_SSL: "false"
+          JWT_SECRET: ci-e2e-secret-123456789012345678901234
+        run: node --test test/whatsapp-automation-e2e.integration.test.js
+      - name: Run isolated waitlist restock E2E
+        env:
+          RUN_DB_E2E: "1"
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          DB_SSL: "false"
+          JWT_SECRET: ci-e2e-secret-123456789012345678901234
+        run: node --test test/waitlist-e2e.integration.test.js
+      - name: Run isolated variant inventory E2E
+        env:
+          RUN_DB_E2E: "1"
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          DB_SSL: "false"
+          JWT_SECRET: ci-e2e-secret-123456789012345678901234
+        run: node --test test/variant-inventory-e2e.integration.test.js
+      - name: Run isolated staff permissions E2E
+        env:
+          RUN_ADMIN_PERMISSIONS_E2E: "1"
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          DB_SSL: "false"
+          JWT_SECRET: ci-e2e-secret-123456789012345678901234
+        run: node --test test/admin-permissions.e2e.test.js
+
+      - name: Verify PostgreSQL backup and full restore in isolated CI
+        env:
+          DATABASE_URL: postgresql://ladies@127.0.0.1:5432/ladies_ci
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node scripts/database-fingerprint.js "$RUNNER_TEMP/before.json"
+          docker exec "$POSTGRES_CONTAINER" pg_dump -U ladies -d ladies_ci --format=custom --no-owner --no-acl > "$RUNNER_TEMP/restore-drill.dump"
+          docker exec "$POSTGRES_CONTAINER" createdb -U ladies ladies_restore
+          docker exec -i "$POSTGRES_CONTAINER" pg_restore -U ladies -d ladies_restore --exit-on-error --no-owner --no-acl < "$RUNNER_TEMP/restore-drill.dump"
+          DATABASE_URL=postgresql://ladies@127.0.0.1:5432/ladies_restore node scripts/database-fingerprint.js "$RUNNER_TEMP/after.json"
+          cmp "$RUNNER_TEMP/before.json" "$RUNNER_TEMP/after.json"
+          rm -f "$RUNNER_TEMP/restore-drill.dump" "$RUNNER_TEMP/before.json" "$RUNNER_TEMP/after.json"
+          echo "All table rows and sequence values survived PostgreSQL backup and restore."
+
+
+  live-render-smoke:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: backend-regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wait for Render to deploy this commit
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          HEALTH_URL: https://ladies-firstv2.onrender.com/api/health
+        run: |
+          for attempt in $(seq 1 30); do
+            echo "Live deploy check $attempt/30"
+            body="$(curl --fail --silent --show-error --max-time 20 "$HEALTH_URL" || true)"
+            if [ -n "$body" ]; then
+              echo "$body"
+              live_sha="$(printf '%s' "$body" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("gitCommit") or "").strip())' 2>/dev/null || true)"
+              ok="$(printf '%s' "$body" | python3 -c 'import json,sys; print(str(bool(json.load(sys.stdin).get("ok"))).lower())' 2>/dev/null || true)"
+              if [ "$ok" = "true" ] && [ "$live_sha" = "$EXPECTED_SHA" ]; then
+                echo "Render is live on expected commit $EXPECTED_SHA"
+                exit 0
+              fi
+              echo "Render currently reports commit: ${live_sha:-unknown}"
+            fi
+            sleep 20
+          done
+          echo "Render did not expose the expected commit within the smoke-check window."
+          exit 1
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify live storefront and public APIs
+        env:
+          BASE_URL: https://ladies-firstv2.onrender.com
+          EXPECTED_SHA: ${{ github.sha }}
+        run: node backend/scripts/live-smoke.js
