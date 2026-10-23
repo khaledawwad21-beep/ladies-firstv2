@@ -24,6 +24,16 @@ async function context(user,mobile=true){const c=await browser.newContext({viewp
  await page.goto(base+'/',{waitUntil:'domcontentloaded'});await page.locator('#lfCommunityHome').waitFor();
  const decline=page.getByRole('button',{name:'لا، شكرًا',exact:true});if(await decline.isVisible())await decline.click();return {c,page};}
 const act=(page,action)=>page.locator('[data-c-act="'+action+'"]');
+async function captureCommunityArtwork(page,label){
+ const home=page.locator('#lfCommunityHome');await home.scrollIntoViewIfNeeded();
+ await page.locator('.lf-community-art').first().evaluate(async el=>{const url=getComputedStyle(el).backgroundImage.match(/url\(["']?(.*?)["']?\)/)?.[1];if(!url)throw Error('Community illustration missing');const image=new Image();image.src=url;await image.decode();});
+ await home.screenshot({path:path.join(evidence,'community-artwork-'+label+'.png')});
+ if(label==='mobile'){
+  await page.setViewportSize({width:320,height:740});await home.screenshot({path:path.join(evidence,'community-artwork-narrow.png')});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+  await page.setViewportSize({width:390,height:844});
+ }
+}
 async function checkNayaProductReturn(page,label){
  await page.route('**/api/ai/store-chat',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,reply:'اختيارات متوفرة من المتجر. '.repeat(35),recommendations:[{id:watch.id,name:watch.name,price:110},{id:perfume.id,name:perfume.name,price:50}]})}));
  await page.locator('.lf-store-ai-card .lf-store-ai-open[aria-haspopup=dialog]').click();
@@ -66,7 +76,7 @@ async function main(){try{
  const image=(await api('/api/admin/uploads/image','POST',{data:'data:image/jpeg;base64,'+fs.readFileSync(path.resolve('../frontend/category-images/bags.jpg')).toString('base64')})).url;
  async function create(name,price,category,variants){return (await api('/api/admin/products','POST',{name,price,stock:15,category,images:[image],metadata:{occasionTags:'هدية',styleTags:'ذهبي'},...(variants?{variants}:{})})).product;}
  bag=await create('حقيبة الاختبار',80,'شنط',[{name:'ذهبي',stock:15},{name:'أسود',stock:15}]);perfume=await create('عطر الاختبار',50,'عطور');watch=await create('ساعة الاختبار',110,'ساعات');
- const mobile=await context(alice);const page=mobile.page;await checkNotificationsRead(page,'mobile');await checkNayaProductReturn(page,'mobile');
+ const mobile=await context(alice);const page=mobile.page;await captureCommunityArtwork(page,'mobile');await checkNotificationsRead(page,'mobile');await checkNayaProductReturn(page,'mobile');
  await page.locator('#lfCommunityHome [data-tab="gifts"]').click();await page.locator('#lfGiftRecipient').fill('لينا');await page.locator('#lfGiftBudget').fill('250');await act(page,'gift-find').click();await act(page,'gift-buy').first().waitFor();
  await page.screenshot({path:path.join(evidence,'01-gifts-mobile.png'),fullPage:true});
  await act(page,'gift-swap').first().click();await act(page,'choose-product').filter({hasText:'اختاري'}).first().click();await act(page,'confirm-product').click();await act(page,'gift-buy').first().waitFor();
@@ -87,7 +97,7 @@ async function main(){try{
  await page.screenshot({path:path.join(evidence,'04-friends-basket-mobile.png'),fullPage:true});
  await act(page,'close').click();await page.locator('#grid .pic').first().click();await page.locator('#lfCommunityProductTools [data-c-act="story-product"]').click();await page.locator('#lfStoryCanvas').waitFor();await act(page,'share-story').click();await page.waitForFunction(()=>window.__shared.some(x=>x.files===1));
  await page.screenshot({path:path.join(evidence,'05-story-card-mobile.png'),fullPage:true});
- const desktop=await context(alice,false);await checkNotificationsRead(desktop.page,'desktop');await checkNayaProductReturn(desktop.page,'desktop');await desktop.page.locator('#lfCommunityHome [data-tab="referrals"]').click();await desktop.page.getByText(/نقطة بعد تسليم/).waitFor();await desktop.page.screenshot({path:path.join(evidence,'06-referrals-desktop.png'),fullPage:true});
+ const desktop=await context(alice,false);await captureCommunityArtwork(desktop.page,'desktop');await checkNotificationsRead(desktop.page,'desktop');await checkNayaProductReturn(desktop.page,'desktop');await desktop.page.locator('#lfCommunityHome [data-tab="referrals"]').click();await desktop.page.getByText(/نقطة بعد تسليم/).waitFor();await desktop.page.screenshot({path:path.join(evidence,'06-referrals-desktop.png'),fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
  await desktop.page.goto(base+'/admin.html');await desktop.page.locator('#login').waitFor({state:'visible'});
  const admin=await context(owner,false);await admin.page.goto(base+'/admin.html');await admin.page.locator('#app').waitFor({state:'visible'});await admin.page.locator('[data-s=community]').click();await admin.page.locator('#cmSettings').waitFor();await admin.page.screenshot({path:path.join(evidence,'07-admin-community.png'),fullPage:true});
