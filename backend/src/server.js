@@ -45,6 +45,7 @@ const PORT = Number(process.env.PORT || 10000);
 const ROOT_DIR = path.join(__dirname, "..", "..");
 const FRONTEND_DIR = path.join(ROOT_DIR, "frontend");
 const UPLOADS_DIR = path.join(FRONTEND_DIR, "uploads");
+const { publicProductImageUrls, registerProtectedProductImages } = require('./protected-product-images');
 
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, {
@@ -79,6 +80,7 @@ require("./marketing-insights").registerMarketingInsights(app,{db});
 require("./naya-ai").registerNayaAi(app, { db, optionalAuth: require("./auth").optionalAuth });
 app.use("/api/ai/outfit", require("./naya-outfit").createOutfitRouter({ db, transaction, requireAuth }));
 
+registerProtectedProductImages(app, { db, uploadsDir: UPLOADS_DIR });
 app.use(
   "/uploads",
   express.static(UPLOADS_DIR)
@@ -2023,8 +2025,8 @@ async function getProducts(
 
   return includeInactive ? result.rows : result.rows.map(product => {
     const effective = productPricing(product);
-    return {...product, price: typeof product.price === 'string' ? effective.price.toFixed(2) : effective.price, salePrice: effective.salePrice,
-      offerActive: effective.active, priceAvailable: effective.purchasable};
+    return publicProductImageUrls({...product, price: typeof product.price === 'string' ? effective.price.toFixed(2) : effective.price, salePrice: effective.salePrice,
+      offerActive: effective.active, priceAvailable: effective.purchasable});
   });
 }
 

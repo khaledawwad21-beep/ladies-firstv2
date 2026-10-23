@@ -3,7 +3,7 @@
 const crypto = require('node:crypto');
 const express = require('express');
 const { db } = require('./db');
-const { requireAdmin, requireOwner } = require('./auth');
+const { requireAdmin } = require('./auth');
 const { watermarkProductImage } = require('./product-watermark');
 
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
@@ -80,7 +80,7 @@ function registerMedia(app) {
     }
   );
 
-  app.get('/api/admin/images/:id/original', requireOwner, async (req, res, next) => {
+  app.get('/api/admin/images/:id/original', requireAdmin, async (req, res, next) => {
     try {
       if (!/^[a-f0-9]{64}$/.test(req.params.id)) return res.sendStatus(404);
       const result = await db('SELECT mime_type, data FROM uploaded_images WHERE id = $1', [req.params.id]);
@@ -103,9 +103,9 @@ function registerMedia(app) {
       if (!row) return res.sendStatus(404);
       const source = Buffer.from(row.data);
       const productUse = await db(`SELECT EXISTS (
-        SELECT 1 FROM products WHERE image_url = $1
+        SELECT 1 FROM products WHERE RIGHT(image_url, LENGTH($1)) = $1
         UNION ALL
-        SELECT 1 FROM product_images WHERE image_url = $1
+        SELECT 1 FROM product_images WHERE RIGHT(image_url, LENGTH($1)) = $1
       ) AS is_product`, ['/api/images/' + req.params.id]);
       const isProduct = Boolean(productUse.rows[0]?.is_product);
       const bytes = isProduct ? await watermarkProductImage(source) : source;

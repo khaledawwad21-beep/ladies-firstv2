@@ -8,6 +8,8 @@ async function watermarkProductImage(input) {
   const width = metadata.width || 0;
   const height = metadata.height || 0;
   if (width < 1 || height < 1) throw new Error('Invalid product image');
+  // Placeholder-sized images cannot contain a legible mark.
+  if (width < 40 || height < 40) return sharp(input).rotate().webp({ quality: 88 }).toBuffer();
 
   const labelWidth = Math.max(62, Math.round(width * 0.19));
   const fontSize = Math.max(10, Math.round(labelWidth * 0.135));

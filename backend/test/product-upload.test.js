@@ -16,14 +16,14 @@ const { createToken } = require('../src/auth');
 let server, base, image, product;
 const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3XcAAAAASUVORK5CYII=';
 before(async () => {
-  await initDatabase(); await database.query("INSERT INTO users(id,name,password_hash,role) VALUES(1,'Owner','fixture','owner'),(2,'Customer','fixture','customer')");
+  await initDatabase(); await database.query("INSERT INTO users(id,name,password_hash,role) VALUES(1,'Owner','fixture','owner'),(2,'Customer','fixture','customer'),(3,'Employee','fixture','staff')");
   server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
 after(async () => { if(server) await new Promise(resolve => server.close(resolve)); await database.close(); });
 async function request(path, method = 'GET', body, role = 'owner') {
-  return fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(role ? { Authorization: 'Bearer ' + createToken({ id: role === 'customer' ? 2 : 1, role }) } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  return fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(role ? { Authorization: 'Bearer ' + createToken({ id: role === 'customer' ? 2 : role === 'staff' ? 3 : 1, role }) } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
 }
 test('upload requires admin, validates content, deduplicates and survives app recreation', async () => {
   for (const role of [null, 'customer']) assert.equal((await request('/api/admin/uploads/image','POST',{data:png},role)).status, role ? 403 : 401);
@@ -40,7 +40,14 @@ test('create and reload retains multiple main/sub images, stock by color and off
   const body={name:'اختبار منتج',price:25,old_price:30,cost_price:10,supplierName:'Supplier One',category:'عطور',brand:'Test Brand',mainImages:[image,image],subImages:[image],variants:[{name:'أحمر',stock:3},{name:'أزرق',stock:2}],metadata:{en:'Test product',top5:true,quickOffer:true,offerLabel:true,offerExpiry:'2026-12-01',videos:['https://www.youtube.com/watch?v=abc1234']}};
   const response=await request('/api/admin/products','POST',body); const data=await response.json(); assert.equal(response.status,201,JSON.stringify(data)); product=data.product;
   assert.equal(product.stock,5);assert.equal(product.mainImages.length,2);assert.equal(product.subImages.length,1);assert.equal(product.category,'عطور');assert.equal(product.brand,'Test Brand');assert.equal(product.metadata.quickOffer,true);assert.deepEqual(product.metadata.videos,['https://www.youtube.com/watch?v=abc1234']);assert.equal(Number(product.cost_price),10);assert.equal(product.supplierName,'Supplier One');assert.equal(product.variants[0].name,'أحمر');
-  const list=await (await request('/api/products')).json();assert.equal(list.products.length,1);assert.deepEqual(list.products[0].images,[image,image,image]);
+  const list=await (await request('/api/products')).json();assert.equal(list.products.length,1);
+  assert.deepEqual(list.products[0].images,[0,1,2].map(i=>`/api/product-images/${product.id}/all/${i}`));
+  const marked=await fetch(base+list.products[0].images[0]);assert.equal(marked.status,200);assert.equal(marked.headers.get('content-type'),'image/webp');
+  assert.equal((await (await request('/api/admin/images/'+image.split('/').pop()+'/original')).arrayBuffer()).byteLength,Buffer.from(png.split(',')[1],'base64').length);
+  assert.equal((await request('/api/admin/images/'+image.split('/').pop()+'/original','GET',null,'customer')).status,403);
+  assert.equal((await request('/api/admin/images/'+image.split('/').pop()+'/original','GET',null,'staff')).status,403);
+  await query("UPDATE users SET permissions='[\"original_images\"]'::jsonb WHERE id=3");
+  assert.equal((await request('/api/admin/images/'+image.split('/').pop()+'/original','GET',null,'staff')).status,200);
 });
 test('editing updates the same product and retains variant IDs; invalid save is atomic', async () => {
   const variantId=product.variants[0].id;
