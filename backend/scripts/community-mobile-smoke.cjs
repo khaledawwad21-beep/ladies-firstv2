@@ -34,7 +34,7 @@ async function main(){try{
  await page.locator('#lfCommunityHome [data-tab="gifts"]').click();await page.locator('#lfGiftRecipient').fill('لينا');await page.locator('#lfGiftBudget').fill('250');await act(page,'gift-find').click();await act(page,'gift-buy').first().waitFor();
  await page.screenshot({path:path.join(evidence,'01-gifts-mobile.png'),fullPage:true});
  await act(page,'gift-swap').first().click();await act(page,'choose-product').filter({hasText:'اختاري'}).first().click();await act(page,'confirm-product').click();await act(page,'gift-buy').first().waitFor();
- await act(page,'close').click();
+ await act(page,'gift-buy').first().click();await page.locator('#shippingRegion').waitFor();assert.equal(await page.locator('#shippingRegion').inputValue(),'westbank');assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('lf_gift_card_draft')).file),'card-13.jpg');await page.locator('#drawer > .panel > .close').click();
  await page.locator('#grid .pic').first().click();await page.locator('#lfCommunityProductTools').waitFor();await page.locator('#lfCommunityProductTools [data-c-act="save-product"]').click();
  await page.locator('#lfNewKind').selectOption('look');await page.locator('#lfNewTitle').fill('تنسيقتي للعيد');await act(page,'pick-for-list').click();await page.locator('#lfPickerSearch').fill('عطر');await act(page,'choose-product').first().click();await act(page,'confirm-product').click();assert.equal(await page.locator('#lfNewTitle').inputValue(),'تنسيقتي للعيد');await act(page,'save-list').click();await page.getByRole('heading',{name:'تنسيقتي للعيد'}).waitFor();
  await page.screenshot({path:path.join(evidence,'02-saved-look-mobile.png'),fullPage:true});
