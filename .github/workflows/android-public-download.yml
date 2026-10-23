@@ -1,0 +1,63 @@
+name: Publish tested Android download
+
+on:
+  push:
+    branches: [feature/flutter-mobile-app]
+    paths: ['.github/workflows/android-public-download.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: android-v0.1.6-test-download
+  cancel-in-progress: false
+
+jobs:
+  publish-tested-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download the already tested Android build
+        uses: actions/download-artifact@v4
+        with:
+          name: ladies-first-android-debug-apk
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 39888852676
+          path: dist
+      - name: Verify exact tested bytes and prepare downloads
+        run: |
+          cd dist
+          echo 'fd3a7fc7ca0764a9c08897ac26871dcbaa6e12ae987fd644914f5729d9c2863f  app-debug.apk' | sha256sum --check
+          mv app-debug.apk Ladies-First-Android-0.1.6.apk
+          sha256sum Ladies-First-Android-0.1.6.apk > SHA256SUMS.txt
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+          apk=Path('Ladies-First-Android-0.1.6.apk')
+          with zipfile.ZipFile('Ladies-First-Android-0.1.6.zip','w',zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
+              archive.write(apk,apk.name)
+          PY
+      - name: Publish direct public installation downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cat > release-notes.md <<'EOF'
+          Android test build 0.1.6+7 with native product, gift-hint and PNG story sharing.
+
+          This is the exact APK that passed Flutter analysis, tests and the Android 35 emulator smoke checks in run 39888852676. The APK is a debug-signed test build for direct installation.
+
+          Download the APK directly on Android, or download the ZIP and extract the APK first. SHA256SUMS.txt verifies the APK bytes.
+          EOF
+          gh release create android-v0.1.6-test \
+            --repo "$GH_REPO" \
+            --target f401645dccde7998bac914956f35fd3410e663ff \
+            --prerelease \
+            --title 'Ladies First Android 0.1.6 — test download' \
+            --notes-file release-notes.md \
+            dist/Ladies-First-Android-0.1.6.apk \
+            dist/Ladies-First-Android-0.1.6.zip \
+            dist/SHA256SUMS.txt
