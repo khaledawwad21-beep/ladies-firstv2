@@ -94,6 +94,8 @@ def is_visible(names, exact=False):
 def dismiss_offer():
     """Dismiss the timed promotion if it covers the storefront during the test."""
     current = nodes()
+    if any('خصوصية الزيارات' in label(node) for node in current):
+        return tap_visible(['لا، شكرًا'], exact=True)
     if not any(label(node) in ('عروض لفترة محدودة', 'إغلاق العرض') for node in current):
         return False
     for node in current:
@@ -248,7 +250,7 @@ try:
     find(['WhatsApp', 'واتساب'])
     snapshot('11-whatsapp-support')
     passed('WhatsApp support entry is visible without opening the external app')
-    tap(['إغلاق'])
+    # No support overlay was opened: there is no close control to tap.
     # Naia opens without requesting any paid AI response. The timed offer can
     # return after relaunch, so dismiss it before tapping the launcher.
     ensure_naya()
