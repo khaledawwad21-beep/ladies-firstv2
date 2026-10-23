@@ -248,7 +248,7 @@ try:
     find(['WhatsApp', 'واتساب'])
     snapshot('11-whatsapp-support')
     passed('WhatsApp support entry is visible without opening the external app')
-    tap(['إغلاق'])
+    # No support overlay was opened: there is no close control to tap.
     # Naia opens without requesting any paid AI response. The timed offer can
     # return after relaunch, so dismiss it before tapping the launcher.
     ensure_naya()
