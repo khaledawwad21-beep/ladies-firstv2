@@ -35,7 +35,7 @@ async function main(){try{
  await page.screenshot({path:path.join(evidence,'01-gifts-mobile.png'),fullPage:true});
  await act(page,'gift-swap').first().click();await act(page,'choose-product').filter({hasText:'اختاري'}).first().click();await act(page,'confirm-product').click();await act(page,'gift-buy').first().waitFor();
  await act(page,'close').click();
- await page.locator('#grid .add').first().click();await page.locator('#lfCommunityProductTools').waitFor();await page.locator('#lfCommunityProductTools [data-c-act="save-product"]').click();
+ await page.locator('#grid .pic').first().click();await page.locator('#lfCommunityProductTools').waitFor();await page.locator('#lfCommunityProductTools [data-c-act="save-product"]').click();
  await page.locator('#lfNewKind').selectOption('look');await page.locator('#lfNewTitle').fill('تنسيقتي للعيد');await act(page,'pick-for-list').click();await page.locator('#lfPickerSearch').fill('عطر');await act(page,'choose-product').first().click();await act(page,'confirm-product').click();assert.equal(await page.locator('#lfNewTitle').inputValue(),'تنسيقتي للعيد');await act(page,'save-list').click();await page.getByRole('heading',{name:'تنسيقتي للعيد'}).waitFor();
  await page.screenshot({path:path.join(evidence,'02-saved-look-mobile.png'),fullPage:true});
  await act(page,'share-list').click();assert.ok((await page.evaluate(()=>window.__shared)).at(-1).url.includes('/share/list/'));
@@ -49,7 +49,7 @@ async function main(){try{
  await guest.page.goto(base+'/?list='+group.token);await act(guest.page,'add-group').waitFor();await act(guest.page,'add-group').click();await guest.page.locator('#lfPickerSearch').fill('عطر');await act(guest.page,'choose-product').first().click();await guest.page.locator('#lfContributor').fill('سارة');await act(guest.page,'confirm-product').click();await guest.page.getByText('اختيار: سارة',{exact:true}).waitFor();
  await page.goto(base+'/?list='+group.token);await act(page,'group-split').waitFor();await act(page,'group-split').click();await page.locator('#lfGroupSplit').getByText(/20.00/).waitFor();
  await page.screenshot({path:path.join(evidence,'04-friends-basket-mobile.png'),fullPage:true});
- await act(page,'close').click();await page.locator('#grid .add').first().click();await page.locator('#lfCommunityProductTools [data-c-act="story-product"]').click();await page.locator('#lfStoryCanvas').waitFor();await act(page,'share-story').click();await page.waitForFunction(()=>window.__shared.some(x=>x.files===1));
+ await act(page,'close').click();await page.locator('#grid .pic').first().click();await page.locator('#lfCommunityProductTools [data-c-act="story-product"]').click();await page.locator('#lfStoryCanvas').waitFor();await act(page,'share-story').click();await page.waitForFunction(()=>window.__shared.some(x=>x.files===1));
  await page.screenshot({path:path.join(evidence,'05-story-card-mobile.png'),fullPage:true});
  const desktop=await context(alice,false);await desktop.page.locator('#lfCommunityHome [data-tab="referrals"]').click();await desktop.page.getByText(/نقطة بعد تسليم/).waitFor();await desktop.page.screenshot({path:path.join(evidence,'06-referrals-desktop.png'),fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);

@@ -164,7 +164,7 @@ function createCommunity({db,transaction,getProducts}){
  async function attachOrder(client,order,items,body,userId,referral){
   if(referral){await client.query(`INSERT INTO community_referrals(buyer_id,referrer_id,order_id,discount,points) VALUES($1,$2,$3,$4,$5) ON CONFLICT(buyer_id) DO UPDATE SET referrer_id=EXCLUDED.referrer_id,order_id=EXCLUDED.order_id,discount=EXCLUDED.discount,points=EXCLUDED.points,state='pending' WHERE community_referrals.state='cancelled'`,[userId,referral.referrerId,order.id,referral.discount,referral.points]);await client.query('UPDATE orders SET referral_discount=$1 WHERE id=$2',[referral.discount,order.id]);order.referral_discount=referral.discount;}
   const ctx=body.community;if(!ctx?.token)return;
-  const list=await listByToken(ctx.token,client);await client.query('SELECT id FROM community_lists WHERE id=$1 FOR UPDATE',[list.id]);
+  const list=await listByToken(ctx.token,client);const locked=(await client.query('SELECT revoked FROM community_lists WHERE id=$1 FOR UPDATE',[list.id])).rows[0];if(!locked||locked.revoked)fail(404,'القائمة غير متاحة');
   if(list.kind==='poll')fail(400,'اختاري القطعة من صفحة المنتج');
   if(list.kind==='group'&&(Number(userId)!==Number(list.owner_id)||await groupLocked(list,client)))fail(409,'إتمام الطلبية لصاحبتها فقط ولمرة واحدة');
   const ids=Array.isArray(ctx.itemIds)?[...new Set(ctx.itemIds)]:[];

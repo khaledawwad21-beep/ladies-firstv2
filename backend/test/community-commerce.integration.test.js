@@ -69,6 +69,8 @@ test('anonymous polls update one browser vote, reject cross-list options and esc
  const changed=await ok('/api/community/shared/'+l.token+'/vote','POST',{visitorKey:visitorA,itemId:l.items[1].id,comment:'Changed my vote'},null);
  assert.deepEqual(changed.list.items.map(i=>i.votes).sort(),[0,1]);assert.deepEqual(changed.list.comments,['Changed my vote']);
  assert.equal((await api('/api/community/shared/'+l.token+'/vote','POST',{visitorKey:visitorB,itemId:other.items[0].id},null)).status,400);
+ await ok('/api/community/lists/'+l.id+'/items','POST',item(bag,rose),alice,201);
+ assert.equal((await api('/api/community/lists/'+l.id+'/items','POST',item(perfume),alice)).status,400);
 });
 test('referral discounts use first-order eligibility and delivery rewards are idempotent and reversible',async()=>{
  const ref=await ok('/api/community/referral');
@@ -109,4 +111,15 @@ test('marketing staff may moderate but cannot change financial referral settings
  assert.equal((await api('/api/admin/community/summary','GET',null,staff)).status,200);
  assert.equal((await api('/api/admin/community/settings','GET',null,staff)).status,403);
  assert.equal((await api('/api/admin/community/reviews','GET',null,bob)).status,403);
+});
+
+test('full merchandise return reverses referral points once through the actual return workflow',async()=>{
+ const buyer=await user('ReturnBuyer'),ref=await ok('/api/community/referral');
+ const balance=()=>db('SELECT loyalty_points FROM users WHERE id=$1',[alice.id]).then(r=>Number(r.rows[0].loyalty_points));const before=await balance();
+ const purchase=await ok('/api/orders','POST',order([item(watch,null,2)],{referralCode:ref.code}),buyer,201),id=purchase.order.id;
+ await ok('/api/admin/orders/'+id+'/status','PATCH',{status:'delivered'},owner);assert.equal(await balance(),before+20);
+ const line=(await ok('/api/admin/orders/'+id,'GET',null,owner)).items[0];
+ const request=(await ok('/api/returns','POST',{orderId:id,orderItemId:line.id,quantity:2,requestType:'return',reasonCode:'store_wrong_item',reason:'Wrong item'},buyer,201)).request;
+ await ok('/api/admin/returns/'+request.id,'PATCH',{status:'completed',feePayer:'store',serviceFee:0},owner);assert.equal(await balance(),before);
+ await ok('/api/admin/returns/'+request.id,'PATCH',{status:'completed',feePayer:'store',serviceFee:0},owner);assert.equal(await balance(),before);
 });
