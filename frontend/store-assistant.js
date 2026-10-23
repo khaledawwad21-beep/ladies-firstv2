@@ -4,6 +4,7 @@
  let playing=null,playingStopButton=null,playingPlayButton=null,activeRecorder=null,microphoneStream=null,recordingTimer=null,recordingChunks=[],cancelRecording=false;
  const MIC_ICON='<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="2.5" width="6" height="12" rx="3"></rect><path d="M5 11.5a7 7 0 0 0 14 0M12 18.5v3m-4 0h8"></path></svg>';
  const STOP_ICON='<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"></rect></svg>';
+ let productReturn=null;
  let sending=false,scrollY=0,oldBody={position:'',top:'',width:''},oldHtmlOverflow='';
  function shell(){
   if($('#lfStoreAiDialog'))return;
@@ -22,8 +23,8 @@
   document.body.appendChild(dialog);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!dialog.hidden)close()});
  }
- function open(){shell();const welcome=$('.lf-store-ai-welcome');if(welcome)welcome.textContent=window.getAccount?.()?.gender==='male'?'يا أهلا فيك 🌸 أنا نايا، شو بقدر ساعدك اليوم؟':'يا أهلا فيكي حبيبتي 🌸 أنا نايا، شو بقدر ساعدك اليوم؟';const d=$('#lfStoreAiDialog');if(!d)return;scrollY=window.scrollY||0;oldBody={position:document.body.style.position,top:document.body.style.top,width:document.body.style.width};oldHtmlOverflow=document.documentElement.style.overflow;document.body.style.position='fixed';document.body.style.top='-'+scrollY+'px';document.body.style.width='100%';document.documentElement.style.overflow='hidden';d.hidden=false;document.body.classList.add('lf-store-ai-open');$('#lfStoreAiInput')?.focus()}
- function close(){stopAudio(playing);if(activeRecorder){cancelRecording=true;activeRecorder.stop()}const d=$('#lfStoreAiDialog');if(!d)return;d.hidden=true;document.body.classList.remove('lf-store-ai-open');document.body.style.position=oldBody.position;document.body.style.top=oldBody.top;document.body.style.width=oldBody.width;document.documentElement.style.overflow=oldHtmlOverflow;window.scrollTo(0,scrollY)}
+ function open(){shell();const welcome=$('.lf-store-ai-welcome');if(welcome)welcome.textContent=window.getAccount?.()?.gender==='male'?'يا أهلا فيك 🌸 أنا نايا، شو بقدر ساعدك اليوم؟':'يا أهلا فيكي حبيبتي 🌸 أنا نايا، شو بقدر ساعدك اليوم؟';const d=$('#lfStoreAiDialog');if(!d||!d.hidden)return;scrollY=window.scrollY||0;oldBody={position:document.body.style.position,top:document.body.style.top,width:document.body.style.width};oldHtmlOverflow=document.documentElement.style.overflow;document.body.style.position='fixed';document.body.style.top='-'+scrollY+'px';document.body.style.width='100%';document.documentElement.style.overflow='hidden';d.hidden=false;document.body.classList.add('lf-store-ai-open');$('#lfStoreAiInput')?.focus()}
+ function close(){if(productReturn){productReturn.observer.disconnect();productReturn=null}stopAudio(playing);if(activeRecorder){cancelRecording=true;activeRecorder.stop()}const d=$('#lfStoreAiDialog');if(!d||d.hidden)return;d.hidden=true;document.body.classList.remove('lf-store-ai-open');document.body.style.position=oldBody.position;document.body.style.top=oldBody.top;document.body.style.width=oldBody.width;document.documentElement.style.overflow=oldHtmlOverflow;window.scrollTo(0,scrollY)}
  function appendReplyText(row,text){
   const chunks=String(text||'').split(/(https?:\/\/(?:www\.)?wa\.me\/[^\s]+)/gi);
   chunks.forEach(chunk=>{
@@ -110,7 +111,23 @@
   stopButton.onclick=()=>stopAudio(audio);
   window.addEventListener('pagehide',()=>{if(audio)audio.pause();if(url)URL.revokeObjectURL(url)},{once:true});
  }
- function addRecommendations(items){if(!Array.isArray(items)||!items.length)return;const box=$('#lfStoreAiMessages'),wrap=document.createElement('div');wrap.className='lf-store-ai-recommendations';items.slice(0,3).forEach(item=>{const b=document.createElement('button');b.type='button';b.dataset.productId=String(item.id);b.textContent=(item.name||'منتج من المتجر')+(Number.isFinite(Number(item.price))?' — '+Number(item.price)+' ₪':'');wrap.appendChild(b)});wrap.addEventListener('click',e=>{const b=e.target.closest('[data-product-id]');if(!b)return;const id=Number(b.dataset.productId);close();if(typeof window.openProduct==='function')window.openProduct(id)});box.appendChild(wrap);box.scrollTop=box.scrollHeight}
+ function resumeAfterProduct(){
+  const state=productReturn;if(!state||(!state.modal.hidden&&getComputedStyle(state.modal).display!=='none'))return;
+  state.observer.disconnect();productReturn=null;open();
+  const messages=$('#lfStoreAiMessages');if(messages)messages.scrollTop=state.scrollTop;
+  if(state.trigger?.isConnected)state.trigger.focus({preventScroll:true});
+ }
+ function openRecommendedProduct(id,trigger){
+  const modal=$('#modal');if(!Number.isSafeInteger(id)||id<1||!modal||typeof window.openProduct!=='function')return;
+  const messages=$('#lfStoreAiMessages'),messageScroll=messages?.scrollTop||0;
+  close();
+  const observer=new MutationObserver(resumeAfterProduct);
+  productReturn={modal,observer,scrollTop:messageScroll,trigger};
+  observer.observe(modal,{attributes:true,attributeFilter:['style','class','hidden']});
+  try{window.openProduct(id)}catch(error){modal.style.display='none';resumeAfterProduct();throw error}
+  resumeAfterProduct();
+ }
+ function addRecommendations(items){if(!Array.isArray(items)||!items.length)return;const box=$('#lfStoreAiMessages'),wrap=document.createElement('div');wrap.className='lf-store-ai-recommendations';items.slice(0,3).forEach(item=>{const b=document.createElement('button');b.type='button';b.dataset.productId=String(item.id);b.textContent=(item.name||'منتج من المتجر')+(Number.isFinite(Number(item.price))?' — '+Number(item.price)+' ₪':'');wrap.appendChild(b)});wrap.addEventListener('click',e=>{const b=e.target.closest('[data-product-id]');if(!b)return;openRecommendedProduct(Number(b.dataset.productId),b)});box.appendChild(wrap);box.scrollTop=box.scrollHeight}
  function setRecordingStatus(message){const status=$('#lfStoreAiRecordingStatus');if(status)status.textContent=message}
  function recordingButton(){return $('.lf-store-ai-mic')}
  function setRecordingButton(button,recording){
