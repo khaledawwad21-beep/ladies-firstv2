@@ -6,7 +6,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 Uri? pushTarget(String path, Uri store) {
   if (!path.startsWith('/') || path.startsWith('//') || path.contains('\\') ||
-      RegExp(r'[\x00-\x20]').hasMatch(path)) return null;
+      RegExp(r'[\x00-\x20]').hasMatch(path)) {
+    return null;
+  }
   try {
     final target = store.resolve(path);
     return target.origin == store.origin && target.scheme == 'https' ? target : null;
@@ -53,13 +55,17 @@ class StorePushNotifications {
       final messaging = FirebaseMessaging.instance;
       _messaging = messaging;
       await messaging.setAutoInitEnabled(false);
+      // The server currently uses the supported HTTP v1 registration-token transport.
+      // ignore: deprecated_member_use
       _subscriptions.add(messaging.onTokenRefresh.listen((value) {
         if (!_disposed) unawaited(_deliver(value));
       }));
       _subscriptions.add(FirebaseMessaging.onMessageOpenedApp.listen(_open));
       _subscriptions.add(FirebaseMessaging.onMessage.listen((message) {
-        if (!_disposed) onForeground(message.notification?.title ?? 'Ladies First',
-          pushTarget(message.data['path'] ?? '/', store));
+        if (!_disposed) {
+          onForeground(message.notification?.title ?? 'Ladies First',
+            pushTarget(message.data['path'] ?? '/', store));
+        }
       }));
       final initial = await messaging.getInitialMessage();
       if (initial != null && !_disposed) _open(initial);
@@ -73,8 +79,10 @@ class StorePushNotifications {
     if (target != null && !_disposed) onOpen(target);
   }
   Future<void> _deliver(String token) async {
-    if (!_disposed) await onDevice({'token': token, 'platform': _platform,
-      'permission': 'authorized'});
+    if (!_disposed) {
+      await onDevice({'token': token, 'platform': _platform,
+        'permission': 'authorized'});
+    }
   }
   Future<void> handle(String raw) async {
     if (_disposed) return;
@@ -96,11 +104,15 @@ class StorePushNotifications {
         await onDevice({'platform': _platform, 'permission': 'denied'});return;
       }
       await messaging.setAutoInitEnabled(true);
+      // Keep registration tokens until the server explicitly adopts FID transport.
+      // ignore: deprecated_member_use
       final token = await messaging.getToken();
       if (token != null) await _deliver(token);
     } catch (_) {
-      if (!_disposed) await onDevice({'platform': _platform,
-        'error': 'تعذر تفعيل الإشعارات؛ أعد المحاولة من إعدادات الحساب.'});
+      if (!_disposed) {
+        await onDevice({'platform': _platform,
+          'error': 'تعذر تفعيل الإشعارات؛ أعد المحاولة من إعدادات الحساب.'});
+      }
     }
   }
   void dispose() {
