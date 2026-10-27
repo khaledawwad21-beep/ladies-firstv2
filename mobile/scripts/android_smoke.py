@@ -59,6 +59,7 @@ def label(node):
 def find(names, timeout=30, exact=False):
     until = time.monotonic() + timeout
     while time.monotonic() < until:
+        dismiss_offer()
         for node in nodes():
             value = label(node)
             if any(value == name if exact else name in value for name in names):
@@ -92,11 +93,14 @@ def is_visible(names, exact=False):
 
 
 def dismiss_offer():
-    """Dismiss the timed promotion if it covers the storefront during the test."""
+    """Dismiss public promotional overlays without spinning or claiming rewards."""
     current = nodes()
     if any('خصوصية الزيارات' in label(node) for node in current):
         return tap_visible(['لا، شكرًا'], exact=True)
-    if not any(label(node) in ('عروض لفترة محدودة', 'إغلاق العرض') for node in current):
+    if any('شوف' in label(node) and 'هدول قبل' in label(node) for node in current):
+        return tap_visible(['مش هلأ'], exact=True)
+    wheel = any('شروط الحملة وفرص الفوز' in label(node) for node in current)
+    if not wheel and not any(label(node) in ('عروض لفترة محدودة', 'إغلاق العرض') for node in current):
         return False
     for node in current:
         if label(node) != 'إغلاق':
