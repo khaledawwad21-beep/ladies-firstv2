@@ -17,7 +17,7 @@ const tripoRouter = require("./tripo");
 const { app: storeApp, initDatabase } = require("./server");
 const { createRequestPolicyRouter } = require("./request-policy");
 const { migrateDatabase } = require("./database-migrations");
-const { db, getDatabaseStatus } = require("./db");
+const { db, transaction, getDatabaseStatus } = require("./db");
 const { startWhatsAppAutomation } = require("./whatsapp-automation");
 
 const PORT = Number(process.env.PORT || 10000);
@@ -87,6 +87,7 @@ async function start() {
     await initDatabase();
     await migrateDatabase();
     startWhatsAppAutomation(db);
+    require("./push-notifications").createPushNotifications({db,transaction}).start();
 
     gateway.listen(PORT, "0.0.0.0", () => {
       console.log(`Ladies First production server running on port ${PORT}`);

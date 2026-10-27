@@ -17,8 +17,8 @@ const {createToken} = require('../src/auth');
 let server, base;
 before(async () => {
   await database.exec(`SET TIME ZONE 'UTC';
-    CREATE TABLE users (id BIGINT PRIMARY KEY, role TEXT, is_active BOOLEAN, permissions JSONB, session_version INTEGER);
-    INSERT INTO users VALUES(1,'owner',TRUE,'[]',0),(2,'customer',TRUE,'[]',0);
+    CREATE TABLE users (id BIGINT PRIMARY KEY, role TEXT, is_active BOOLEAN, permissions JSONB, session_version INTEGER, gender TEXT);
+    INSERT INTO users VALUES(1,'owner',TRUE,'[]',0,'male'),(2,'customer',TRUE,'[]',0,'female');
     CREATE TABLE products (id BIGINT PRIMARY KEY, name TEXT);
     CREATE TABLE product_variants (id BIGINT PRIMARY KEY, color TEXT, size TEXT, sku TEXT);
     CREATE TABLE inventory_movements (id BIGINT PRIMARY KEY, product_id BIGINT, variant_id BIGINT, quantity_change INT, reason TEXT, order_id BIGINT, created_at TIMESTAMPTZ);

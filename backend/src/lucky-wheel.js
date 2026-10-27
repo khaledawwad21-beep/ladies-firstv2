@@ -6,6 +6,7 @@ const number=(v,min,max,integer=false)=>{const n=Number(v);if(!Number.isFinite(n
 function prizeLabel(p,productName=''){
  if(p.type==='percent')return `خصم ${Number(p.value)}%`;
  if(p.type==='fixed')return `خصم ${Number(p.value)} ₪`;
+ if(p.type==='points')return `ربح ${Number(p.value)} نقطة`;
  if(p.type==='shipping')return 'توصيل مجاني';
  if(p.type==='none')return 'حظ أوفر';
  return productName?text(`هدية: ${productName}`,70):'هدية منتج';
@@ -18,8 +19,8 @@ function normalizeCampaign(b){
  const ids=new Set();
  const prizes=b.prizes.map(p=>{
   const id=text(p.id||randomUUID(),50),type=text(p.type);
-  if(!/^[a-zA-Z0-9-]{1,50}$/.test(id)||ids.has(id)||!['percent','fixed','gift','shipping','none'].includes(type))fail(400,'بيانات خيارات الدولاب غير صالحة');ids.add(id);
-  const value=['percent','fixed'].includes(type)?number(p.value,0.01,type==='percent'?100:100000):0;
+  if(!/^[a-zA-Z0-9-]{1,50}$/.test(id)||ids.has(id)||!['percent','fixed','points','gift','shipping','none'].includes(type))fail(400,'بيانات خيارات الدولاب غير صالحة');ids.add(id);
+  const value=['percent','fixed','points'].includes(type)?number(p.value,type==='points'?1:0.01,type==='percent'?100:type==='points'?10000:100000,type==='points'):0;
   const productId=type==='gift'?number(p.productId,1,Number.MAX_SAFE_INTEGER,true):null;
   const variantId=type==='gift'&&p.variantId?number(p.variantId,1,Number.MAX_SAFE_INTEGER,true):null;
   return {id,label:prizeLabel({type,value}),type,value,productId,variantId,weight:number(p.weight,1,100000,true),limit:number(p.limit??0,0,1000000,true)};
@@ -31,6 +32,7 @@ async function initLuckyWheel(db){
  await db(`CREATE TABLE IF NOT EXISTS lucky_campaigns(id BIGSERIAL PRIMARY KEY,config JSONB NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
  await db(`CREATE TABLE IF NOT EXISTS lucky_spins(id BIGSERIAL PRIMARY KEY,campaign_id BIGINT NOT NULL REFERENCES lucky_campaigns(id),user_id BIGINT NOT NULL REFERENCES users(id),period TEXT NOT NULL,prize_id TEXT NOT NULL,prize JSONB NOT NULL,coupon_code TEXT UNIQUE,expires_at TIMESTAMPTZ NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(campaign_id,user_id,period))`);
  await db(`CREATE INDEX IF NOT EXISTS lucky_spins_customer ON lucky_spins(user_id,created_at DESC)`);
+ await db("CREATE UNIQUE INDEX IF NOT EXISTS wheel_points_award_once ON loyalty_points_transactions(note) WHERE transaction_type='wheel_points'");
  await db(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS wheel_reward JSONB`);
 }
 function createLuckyWheel({db,transaction}){
@@ -119,10 +121,14 @@ function createLuckyWheel({db,transaction}){
      }
      eligible.push({...p,label:prizeLabel(p,productName)});
     }
-    const p=choosePrize(eligible),code=p.type==='none'?null:'LF-W-'+randomBytes(12).toString('hex').toUpperCase();
+    const p=choosePrize(eligible),code=['none','points'].includes(p.type)?null:'LF-W-'+randomBytes(12).toString('hex').toUpperCase();
     const expiresAt=new Date(new Date(now).getTime()+c.validDays*86400000).toISOString();
     const snapshot={...p,minimum:c.minimum,stackable:c.stackable,campaign:c.name};
     const spin=(await q(`INSERT INTO lucky_spins(campaign_id,user_id,period,prize_id,prize,coupon_code,expires_at) VALUES($1,$2,$3,$4,$5::jsonb,$6,$7) RETURNING *`,[row.id,req.user.id,day,p.id,JSON.stringify(snapshot),code,expiresAt])).rows[0];
+    if(p.type==='points'){
+     await q('UPDATE users SET loyalty_points=COALESCE(loyalty_points,0)+$1,updated_at=NOW() WHERE id=$2',[p.value,req.user.id]);
+     await q("INSERT INTO loyalty_points_transactions(user_id,points,transaction_type,note) VALUES($1,$2,'wheel_points',$3)",[req.user.id,p.value,'جائزة دولاب الحظ #'+spin.id]);
+    }
     if(code)await q(`INSERT INTO coupons(code,discount_type,discount_value,min_order,minimum_amount,max_uses,max_uses_per_customer,expires_at,is_active) VALUES($1,$2,$3,$4,$4,1,1,$5,TRUE)`,[code,p.type==='percent'?'percent':'fixed',p.value,c.minimum,expiresAt]);
     return {spin,replayed:false};
    });

@@ -30,7 +30,7 @@
       status(t('هذه نتيجتك السابقة؛ لم تُحتسب محاولة جديدة.','This is your saved result; no new spin was made.')+' '+r.spin.prize.label);
       const latest=await api('/mine');renderRewards(latest.rewards);return;
      }
-     mine.played=true;
+     mine.played=true;if(r.spin.prize.type==='points'&&typeof lfLoadLoyalty==='function'){await lfLoadLoyalty();await lfSyncMe();}
      const matching=campaign.prizes.map((p,i)=>p.id===r.spin.prize_id?i:-1).filter(i=>i>=0);const index=matching[Math.floor(Math.random()*matching.length)]??0;
      const disc=content.querySelector('.lf-wheel-disc');turn+=1800;const angle=turn-(index+.5)*360/campaign.prizes.length;disc.style.setProperty('--wheel-rotation',angle+'deg');disc.style.transform='rotate('+angle+'deg)';
      if(!matchMedia('(prefers-reduced-motion: reduce)').matches)await new Promise(resolve=>setTimeout(resolve,4100));
@@ -43,7 +43,7 @@
  }
  function renderRewards(rows){
   const box=dialog?.querySelector('[data-wheel-rewards]');if(!box)return;
-  box.innerHTML=rows.map(r=>'<article class="lf-wheel-reward"><b>'+E(r.prize.label)+'</b><small>'+E(r.prize.campaign)+'</small>'+(r.code?'<code>'+E(r.code)+'</code><small>'+t('صالحة حتى: ','Valid until: ')+E(new Date(r.expiresAt).toLocaleString())+'</small><p>'+t('الحد الأدنى: ','Minimum: ')+Number(r.prize.minimum).toFixed(2)+' ₪</p>'+(r.available?'<button class="lf-wheel-action" data-use-wheel="'+Number(r.id)+'">'+t('استخدميها بالسلة','Use in cart')+'</button>':'<small>'+t(r.used?'استُخدمت':'منتهية أو غير متاحة',r.used?'Used':'Expired or unavailable')+'</small>'):'<small>'+t('محاولة مسجلة','Recorded spin')+'</small>')+'</article>').join('')||'<p>'+t('جائزتك بتظهر هون بعد أول محاولة.','Your reward appears here after your first spin.')+'</p>';
+  box.innerHTML=rows.map(r=>'<article class="lf-wheel-reward"><b>'+E(r.prize.label)+'</b><small>'+E(r.prize.campaign)+'</small>'+(r.code?'<code>'+E(r.code)+'</code><small>'+t('صالحة حتى: ','Valid until: ')+E(new Date(r.expiresAt).toLocaleString())+'</small><p>'+t('الحد الأدنى: ','Minimum: ')+Number(r.prize.minimum).toFixed(2)+' ₪</p>'+(r.available?'<button class="lf-wheel-action" data-use-wheel="'+Number(r.id)+'">'+t('استخدميها بالسلة','Use in cart')+'</button>':'<small>'+t(r.used?'استُخدمت':'منتهية أو غير متاحة',r.used?'Used':'Expired or unavailable')+'</small>'):'<small>'+(r.prize.type==='points'?t('أُضيفت النقاط إلى رصيدك','Points added to your balance'):t('محاولة مسجلة','Recorded spin'))+'</small>')+'</article>').join('')||'<p>'+t('جائزتك بتظهر هون بعد أول محاولة.','Your reward appears here after your first spin.')+'</p>';
   box.querySelectorAll('[data-use-wheel]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{
    const r=rows.find(x=>String(x.id)===b.dataset.useWheel);if(!cart.length)throw Error(t('أضيفي منتجات للسلة أولًا. جائزتك محفوظة هون.','Add products to your cart first. Your reward is saved here.'));
    activeCoupon=await validateCouponFromServer(r.code);couponCode=activeCoupon.code;localStorage.setItem('lf_coupon',couponCode);renderCart();close();openCart();
