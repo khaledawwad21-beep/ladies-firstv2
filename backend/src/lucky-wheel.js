@@ -7,7 +7,7 @@ function normalizeCampaign(b){
  b=b||{};
  const name=text(b.name),start=Date.parse(b.startsAt),end=Date.parse(b.endsAt);
  if(!name||!Number.isFinite(start)||!Number.isFinite(end)||end<=start)fail(400,'أدخلي اسم الحملة وتاريخ بداية ونهاية صحيحين');
- if(!Array.isArray(b.prizes)||b.prizes.length<2||b.prizes.length>12)fail(400,'الدولاب يحتاج من 2 إلى 12 خيارًا');
+ if(!Array.isArray(b.prizes)||b.prizes.length!==8)fail(400,'الدولاب يتكون من 8 خانات بالضبط؛ يمكن تكرار نفس الخيار في عدة خانات');
  const ids=new Set();
  const prizes=b.prizes.map(p=>{
   const id=text(p.id||randomUUID(),50),label=text(p.label,70),type=text(p.type);
@@ -28,7 +28,22 @@ async function initLuckyWheel(db){
 }
 function createLuckyWheel({db,transaction}){
  const active=async query=>(await query(`SELECT * FROM lucky_campaigns WHERE config->>'enabled'='true' AND (config->>'startsAt')::timestamptz<=NOW() AND (config->>'endsAt')::timestamptz>NOW() ORDER BY id DESC LIMIT 1`)).rows[0];
- const publicCampaign=row=>row?{id:row.id,name:row.config.name,startsAt:row.config.startsAt,endsAt:row.config.endsAt,frequency:row.config.frequency,minimum:row.config.minimum,validDays:row.config.validDays,stackable:row.config.stackable,prizes:row.config.prizes.map(p=>({id:p.id,label:p.label,type:p.type})),oddsNotice:'فرص الفوز تختلف بين الخيارات؛ حجم الخانة لا يمثل الاحتمال. الجوائز حسب الكمية المتاحة.'}:null;
+ async function publicCampaign(row){
+  if(!row)return null;
+  const ids=[...new Set(row.config.prizes.filter(p=>p.type==='gift').map(p=>p.productId))];
+  const products=ids.length?(await db(`SELECT p.id,p.image_url,
+   (SELECT image_url FROM product_images WHERE product_id=p.id ORDER BY sort_order,id LIMIT 1) AS first_image
+   FROM products p WHERE p.id=ANY($1::bigint[]) AND p.is_active=TRUE`,[ids])).rows:[];
+  const prizes=row.config.prizes.map(p=>{
+   const product=products.find(x=>String(x.id)===String(p.productId));
+   const image=product?.image_url?`/api/product-images/${product.id}/hero/0`:product?.first_image?`/api/product-images/${product.id}/all/0`:null;
+   return {id:p.id,label:p.label,type:p.type,image};
+  });
+  // Older campaigns keep their stored odds, quantities and earned rewards.
+  // Repeated visible sectors do not create extra server-side prizes.
+  const visible=prizes.length<8?Array.from({length:8},(_,i)=>prizes[i%prizes.length]):prizes;
+  return {id:row.id,name:row.config.name,startsAt:row.config.startsAt,endsAt:row.config.endsAt,frequency:row.config.frequency,minimum:row.config.minimum,validDays:row.config.validDays,stackable:row.config.stackable,prizes:visible,oddsNotice:'فرص الفوز تختلف بين الخيارات؛ حجم الخانة لا يمثل الاحتمال. الجوائز حسب الكمية المتاحة.'};
+ }
  const period=async(q,c)=>(await q(`SELECT CASE WHEN $1='daily' THEN to_char(NOW() AT TIME ZONE 'Asia/Hebron','YYYY-MM-DD') ELSE 'campaign' END AS period`,[c.frequency])).rows[0].period;
  async function reward(query,code,userId,lock=false){
   const r=(await query(`SELECT * FROM lucky_spins WHERE coupon_code=$1${lock?' FOR UPDATE':''}`,[code])).rows[0];
@@ -56,7 +71,7 @@ function createLuckyWheel({db,transaction}){
  }
  function register(app,{requireAuth,requireAdmin}){
   const route=fn=>async(req,res,next)=>{try{await fn(req,res);}catch(e){if(e.status)return res.status(e.status).json({ok:false,message:e.message});next(e);}};
-  app.get('/api/wheel',route(async(req,res)=>res.json({ok:true,campaign:publicCampaign(await active(db))})));
+  app.get('/api/wheel',route(async(req,res)=>res.json({ok:true,campaign:await publicCampaign(await active(db))})));
   app.get('/api/wheel/mine',requireAuth,route(async(req,res)=>{
    const c=await active(db);let played=false;if(c){const day=await period(db,c.config);played=(await db('SELECT id FROM lucky_spins WHERE campaign_id=$1 AND user_id=$2 AND period=$3',[c.id,req.user.id,day])).rows.length>0;}
    const rewards=(await db(`SELECT s.*,c.used_count,c.is_active FROM lucky_spins s LEFT JOIN coupons c ON c.code=s.coupon_code WHERE s.user_id=$1 ORDER BY s.id DESC LIMIT 100`,[req.user.id])).rows;
@@ -100,17 +115,20 @@ function createLuckyWheel({db,transaction}){
    res.json({ok:true,campaigns,spins});
   }));
   app.put('/api/admin/wheel',requireAdmin,route(async(req,res)=>{
-   const config=normalizeCampaign(req.body),id=Number(req.body.id)||0;
+   const id=Number(req.body?.id)||0;
    const saved=await transaction(async client=>{
     const q=client.query.bind(client);
     // Serialize activation across different campaigns, including new campaigns.
     await q('LOCK TABLE lucky_campaigns IN EXCLUSIVE MODE');
     const old=id?(await q('SELECT * FROM lucky_campaigns WHERE id=$1 FOR UPDATE',[id])).rows[0]:null;
     if(id&&!old)fail(404,'الحملة غير موجودة');
-    if(old&&(await q('SELECT id FROM lucky_spins WHERE campaign_id=$1 LIMIT 1',[id])).rows.length){
-     const a={...old.config},b={...config};delete a.enabled;delete b.enabled;
+    const locked=old&&(await q('SELECT id FROM lucky_spins WHERE campaign_id=$1 LIMIT 1',[id])).rows.length>0;
+    let config;
+    if(locked){
+     const a={...old.config},b={...req.body};delete a.enabled;delete b.enabled;delete b.id;
      if(!require('node:util').isDeepStrictEqual(a,b))fail(409,'بعد أول محاولة يمكن إيقاف أو تفعيل الحملة فقط؛ أنشئي حملة جديدة لتغيير الجوائز والشروط');
-    }
+     config={...old.config,enabled:req.body.enabled===true};
+    }else config=normalizeCampaign(req.body);
     for(const p of config.prizes.filter(p=>config.enabled&&p.type==='gift')){
      const product=(await q('SELECT id,is_active FROM products WHERE id=$1',[p.productId])).rows[0];
      if(!product||product.is_active===false)fail(400,'منتج الهدية غير موجود أو غير فعال');
