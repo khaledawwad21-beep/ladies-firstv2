@@ -111,7 +111,7 @@ function createLuckyWheel({db,transaction}){
      const a={...old.config},b={...config};delete a.enabled;delete b.enabled;
      if(!require('node:util').isDeepStrictEqual(a,b))fail(409,'بعد أول محاولة يمكن إيقاف أو تفعيل الحملة فقط؛ أنشئي حملة جديدة لتغيير الجوائز والشروط');
     }
-    for(const p of config.prizes.filter(p=>p.type==='gift')){
+    for(const p of config.prizes.filter(p=>config.enabled&&p.type==='gift')){
      const product=(await q('SELECT id,is_active FROM products WHERE id=$1',[p.productId])).rows[0];
      if(!product||product.is_active===false)fail(400,'منتج الهدية غير موجود أو غير فعال');
      const vs=(await q('SELECT id FROM product_variants WHERE product_id=$1 AND is_active=TRUE',[p.productId])).rows;
