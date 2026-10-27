@@ -43,7 +43,7 @@
  async function init(){try{
   const r=await api('');campaign=r.campaign;
   // Keep the rewards entry accessible after the campaign ends for signed-in customers.
-  if(!campaign&&!lfToken())return;
+  if(!campaign){if(!lfToken())return;const mine=await api('/mine');if(!mine.rewards.length)return;}
   entry=document.createElement('button');entry.type='button';entry.className='lf-wheel-entry';entry.textContent=campaign?t('جرّبي حظّك 🎁','Spin & win 🎁'):t('جوائز دولاب الحظ','My wheel rewards');entry.onclick=show;
   const target=document.querySelector('#storeDiscoveryIdeas');if(target)target.after(entry);else{const footer=document.querySelector('footer');if(footer)footer.before(entry);else document.body.append(entry);}
  }catch{}}
