@@ -56,16 +56,46 @@
   'منتجات أُدرجت كإطلاق حصري من لوحة التحكم.':'Products selected by the store as exclusive launches.',
   'ما في إطلاقات حصرية متاحة حاليًا.':'No exclusive launches are available right now.'
  };
- const roots='#storeDiscoveryIdeas,#lfStoreAiCard,#lfStoreAiDialog,#lfIdeaModal,#noEntry';
+ const masculineWords=[
+  ['تختاري','تختار'],['بتحبّي','بتحب'],['بتحبيهم','بتحبهم'],['بتحبي','بتحب'],
+  ['تحبينها','تحبها'],['اختاري','اختر'],['اكتشفي','اكتشف'],['نسّقي','نسّق'],['أكملي','أكمل'],
+  ['تعرّفي','تعرّف'],['اسألي','اسأل'],['ابدئي','ابدأ'],['جهّزي','جهّز'],['اكتبي','اكتب'],['ابحثي','ابحث'],
+  ['احكي','احكِ'],['اضغطي','اضغط'],['تحدثي','تحدث'],['استمعي','استمع'],['تواصلي','تواصل'],
+  ['جرّبي','جرّب'],['سجّلي','سجّل'],['أضيفي','أضف'],['شوفي','شوف'],['استخدميها','استخدمها'],
+  ['سيدتي','سيدي'],['تسوقي','تسوّق'],['تسوقكِ','تسوقك'],['تحتاجينه','تحتاجه'],
+  ['تستحقين','تستحق'],['لم تضيفي','لم تضف'],['بتقدري','بتقدر'],['تكمّلي','تكمّل']
+ ];
+ const additional={
+  'ابحثي عن قطعة مميزة':'Find something special','ابحثي عن منتج':'Search products','ابحثي عن منتج...':'Search products…',
+  'تسوقي الآن':'Shop now','تسوقي حسب الفئة':'Shop by category','اختاري اللون / الخيار':'Choose options',
+  'أضيفي للسلة':'Add to cart','🔔 سجّلي في قائمة التوفر':'Join availability list','🌸 شوفي أشياء بتشبهها':'See similar items',
+  'جرّبي حظّك':'Spin & win','لفّي الدولاب':'Spin the wheel','سجّلي دخولك وجرّبي حظك':'Sign in and spin',
+  'استخدميها بالسلة':'Use in cart','إلك وللي بتحبيهم':'For you and your loved ones','قوائمي والصحبات':'My lists and friends',
+  'ساعديني أختار':'Help me choose','إلك ولصاحبتك':'For you and your friend','لأجلك سيدتي':'Just for you',
+  'لم تضيفي منتجات للمفضلة بعد.':'You have no favorites yet.','كل ما تحتاجينه.. في مكان واحد':'Everything you need in one place',
+  'تواصلي معنا عبر واتساب':'Contact us on WhatsApp','📞 تواصلي معنا':'Contact us',
+  'لأنك تستحقين ،،،':'Because you deserve it'
+ };
+ Object.assign(translations,additional);
+ const maleExact={'لفّي الدولاب':'لفّ الدولاب','ساعديني أختار':'ساعديني أختار',
+  'يا أهلا فيكي حبيبتي 🌸 أنا نايا، شو بقدر ساعدك اليوم؟':'يا أهلا فيك 🌸 أنا نايا، شو بقدر ساعدك اليوم؟'};
+ function isMale(){return ['male','m','ذكر'].includes(String(window.getAccount?.()?.gender||'').trim().toLowerCase())}
+ function addressed(value){
+  if(!isMale())return value;
+  if(Object.hasOwn(maleExact,value))return maleExact[value];
+  let result=value;for(const [female,male] of masculineWords)result=result.split(female).join(male);
+  return result;
+ }
+ const roots='#storeDiscoveryIdeas,#lfStoreAiCard,#lfStoreAiDialog,#lfIdeaModal,#noEntry,button,input[placeholder],textarea[placeholder],.sectionTitle,.offerText,#brandTagline,footer,#sideAccountGreeting,.accountGreeting';
  const seen=new WeakMap();
  function english(){return document.documentElement.lang==='en'}
- function text(value){return english()?(translations[value]||value):value}
+ function text(value){return english()?(translations[value]||value):addressed(value)}
  function translate(){
   document.querySelectorAll(roots).forEach(root=>{
    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
    let node;
    while((node=walker.nextNode())){
-    if(node.parentElement.closest('.lf-store-ai-message:not(.lf-store-ai-welcome),.lf-idea-product strong,.lf-idea-product span'))continue;
+    if(node.parentElement.closest('.lf-store-ai-message:not(.lf-store-ai-welcome),.lf-idea-product strong,.lf-idea-product span,[data-product-id],[data-key],.lf-wheel-slot,.lf-wheel-reward b'))continue;
     const current=node.nodeValue,known=seen.get(node);
     const original=known&&current===known.last?known.original:current;
     const trimmed=original.trim();
@@ -88,6 +118,7 @@
  let queued=false;
  const schedule=()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;translate()})};
  document.addEventListener('lf:languagechange',schedule);
+ document.addEventListener('lf:accountchange',schedule);
  new MutationObserver(records=>{
   if(records.some(r=>(r.target.nodeType===1?r.target:r.target.parentElement)?.closest?.(roots)||[...r.addedNodes].some(n=>n.nodeType===1&&(n.matches(roots)||n.querySelector(roots)))))schedule();
  }).observe(document.body,{childList:true,subtree:true,characterData:true});

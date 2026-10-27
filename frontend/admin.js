@@ -41,7 +41,7 @@ function applyAdminGenderCopy(root=document){
     if(greeting){
       const name=currentAdminUser?.name||currentAdminUser?.email||currentAdminUser?.phone||'';
       const welcome=adminGender()==='male'?'أهلًا بك في فريق Ladies First، ':adminGender()==='female'?'أهلًا بكِ في فريق Ladies First، ':'مرحبًا بك في فريق Ladies First، ';
-      greeting.textContent=name?welcome+name+' ✨':'';
+      const next=name?welcome+name+' ✨':'';if(greeting.textContent!==next)greeting.textContent=next;
     }
   }finally{adminGenderCopyBusy=false}
 }

@@ -53,6 +53,15 @@ function createLuckyWheel({db,transaction}){
   return {id:row.id,name:row.config.name,startsAt:row.config.startsAt,endsAt:row.config.endsAt,frequency:row.config.frequency,minimum:row.config.minimum,validDays:row.config.validDays,stackable:row.config.stackable,prizes:visible,oddsNotice:'فرص الفوز تختلف بين الخيارات؛ حجم الخانة لا يمثل الاحتمال. الجوائز حسب الكمية المتاحة.'};
  }
  const period=async(q,c)=>(await q(`SELECT CASE WHEN $1='daily' THEN to_char(NOW() AT TIME ZONE 'Asia/Hebron','YYYY-MM-DD') ELSE 'campaign' END AS period`,[c.frequency])).rows[0].period;
+ async function previousSpin(query,campaignId,userId,frequency,day){
+  // Campaign-wide attempts remain consumed after legacy frequency changes.
+  // For daily campaigns, created_at is authoritative even for old period keys.
+  return (await query(`SELECT * FROM lucky_spins
+   WHERE campaign_id=$1 AND user_id=$2 AND
+    ($3='campaign' OR period='campaign' OR period=$4 OR
+     to_char(created_at AT TIME ZONE 'Asia/Hebron','YYYY-MM-DD')=$4)
+   ORDER BY id DESC LIMIT 1`,[campaignId,userId,frequency,day])).rows[0];
+ }
  async function reward(query,code,userId,lock=false){
   const r=(await query(`SELECT * FROM lucky_spins WHERE coupon_code=$1${lock?' FOR UPDATE':''}`,[code])).rows[0];
   if(!r)return null;
@@ -81,7 +90,7 @@ function createLuckyWheel({db,transaction}){
   const route=fn=>async(req,res,next)=>{try{await fn(req,res);}catch(e){if(e.status)return res.status(e.status).json({ok:false,message:e.message});next(e);}};
   app.get('/api/wheel',route(async(req,res)=>res.json({ok:true,campaign:await publicCampaign(await active(db))})));
   app.get('/api/wheel/mine',requireAuth,route(async(req,res)=>{
-   const c=await active(db);let played=false;if(c){const day=await period(db,c.config);played=(await db('SELECT id FROM lucky_spins WHERE campaign_id=$1 AND user_id=$2 AND period=$3',[c.id,req.user.id,day])).rows.length>0;}
+   const c=await active(db);let played=false;if(c){const day=await period(db,c.config);played=!!(await previousSpin(db,c.id,req.user.id,c.config.frequency,day));}
    const rewards=(await db(`SELECT s.*,c.used_count,c.is_active FROM lucky_spins s LEFT JOIN coupons c ON c.code=s.coupon_code WHERE s.user_id=$1 ORDER BY s.id DESC LIMIT 100`,[req.user.id])).rows;
    res.json({ok:true,played,rewards:rewards.map(r=>({id:r.id,campaignId:r.campaign_id,prize:r.prize,code:r.coupon_code,expiresAt:r.expires_at,createdAt:r.created_at,used:Number(r.used_count)>0,available:!!r.coupon_code&&r.is_active===true&&!Number(r.used_count)&&new Date(r.expires_at)>new Date()}))});
   }));
@@ -94,7 +103,7 @@ function createLuckyWheel({db,transaction}){
     const now=(await q('SELECT NOW() AS now')).rows[0].now,c=row.config;
     if(new Date(now)<new Date(c.startsAt)||new Date(now)>=new Date(c.endsAt))fail(409,'الحملة غير متاحة الآن');
     const day=await period(q,c);
-    const existing=(await q('SELECT * FROM lucky_spins WHERE campaign_id=$1 AND user_id=$2 AND period=$3',[row.id,req.user.id,day])).rows[0];
+    const existing=await previousSpin(q,row.id,req.user.id,c.frequency,day);
     if(existing)return {spin:existing,replayed:true};
     const counts=(await q('SELECT prize_id,COUNT(*)::int AS n FROM lucky_spins WHERE campaign_id=$1 GROUP BY prize_id',[row.id])).rows;
     const eligible=[];
@@ -140,6 +149,7 @@ function createLuckyWheel({db,transaction}){
     // Spins carry immutable prize snapshots. Editing future choices must not
     // mint extra attempts or rewrite previously awarded discounts and gifts.
     config=toggleOnly?{...old.config,enabled:req.body.enabled===true}:normalizeCampaign(req.body);
+    if(old&&config.frequency!==old.config.frequency&&(await q('SELECT id FROM lucky_spins WHERE campaign_id=$1 LIMIT 1',[id])).rows.length)fail(409,'لا يمكن تغيير تكرار المحاولات بعد أول مشاركة؛ أنشئ حملة جديدة لتغيير التكرار');
     for(const p of config.prizes.filter(p=>p.type==='gift'&&(!toggleOnly||config.enabled))){
      const product=(await q('SELECT id,name,is_active FROM products WHERE id=$1',[p.productId])).rows[0];
      if(!config.enabled&&(!product||product.is_active===false))continue;

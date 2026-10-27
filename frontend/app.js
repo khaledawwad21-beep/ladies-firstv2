@@ -172,17 +172,8 @@ function bestSellersEmptyMessage(){
 function scrollFeature(id,dir){const el=document.getElementById(id);if(!el)return;const amount=Math.max(180,Math.round(el.clientWidth*.72));const before=el.scrollLeft;el.scrollBy({left:dir==='left'?-amount:amount,behavior:'smooth'});setTimeout(()=>{if(Math.abs(el.scrollLeft-before)<2){const max=Math.max(0,el.scrollWidth-el.clientWidth);if(max>8)el.scrollLeft=dir==='left'?Math.max(0,before-amount):Math.min(max,before+amount)}},450);}
 const ACCOUNT_KEY='lf_account', FAV_KEY='lf_favorites';
 function getAccount(){
-  const account=load(ACCOUNT_KEY,null);
-  if(!account)return null;
-  const users=load('lf_users',[]);
-  if(!Array.isArray(users)||!users.length)return account;
-  let user=null;
-  if(account.id!=null) user=users.find(u=>String(u.id||'')===String(account.id));
-  if(!user) user=users.find(u=>u.type===account.type&&String(u.contact||'').trim().toLowerCase()===String(account.contact||'').trim().toLowerCase());
-  if(!user)return account;
-  const synced={...account,...user,password:account.password||user.password};
-  if(JSON.stringify(synced)!==JSON.stringify(account)) save(ACCOUNT_KEY,synced);
-  return synced;
+  // The active profile is authoritative; the legacy local users list can be stale.
+  return load(ACCOUNT_KEY,null);
 }
 function getFavorites(){return load(FAV_KEY,[]).map(Number).filter(id=>products.some(p=>Number(p.id)===id))}
 function saveFavorites(v){const normalized=[...new Set((Array.isArray(v)?v:[]).map(Number).filter(Number.isInteger))];save(FAV_KEY,normalized);updateAccountBadge();if(lfToken())lfPersistFavorites(normalized).catch(e=>console.warn('Favorites save unavailable',e.message))}
@@ -398,7 +389,7 @@ function setAccountActionMode(mode){
   if(hint)hint.textContent=accountActionMode==='register'?'أنشئ حسابًا لحفظ الطلبات والمفضلة بين الزيارات.':'أدخل رقم واتساب أو البريد وكلمة المرور لتسجيل الدخول.';
   if(password)password.autocomplete=accountActionMode==='register'?'new-password':'current-password';
 }
-function greetingForAccount(a){return a?.gender==='male'?'نورتنا':'نورتينا'}
+function greetingForAccount(a){return ['male','m','ذكر'].includes(String(a?.gender||'').trim().toLowerCase())?'نورتنا':'نورتينا'}
 function registerUserRecord(account){let users=load('lf_users',[]);const key=(account.type||'')+':'+String(account.contact||'').trim().toLowerCase();const i=users.findIndex(u=>((u.type||'')+':'+String(u.contact||'').trim().toLowerCase())===key);const rec={...account,id:i>=0?users[i].id:Date.now(),updatedAt:Date.now()};if(i>=0)users[i]=rec;else users.unshift(rec);save('lf_users',users)}
 function saveAccount(){alert('جاري تجهيز تسجيل الدخول…')}
 function customerAuthContact(){
@@ -511,6 +502,7 @@ async function customerPasskeyLogin(){
     };
     save(ACCOUNT_KEY,safe);
     registerUserRecord(safe);
+    document.dispatchEvent(new CustomEvent('lf:accountchange'));
     await lfSyncMyOrders();
     await lfLoadLoyalty();
     await lfSyncAccountState();
@@ -534,7 +526,7 @@ async function changeAccountPassword(){
     alert('تم تغيير كلمة المرور بنجاح 🌸');
   }catch(e){alert(e.message||'تعذر تغيير كلمة المرور')}
 }
-function logoutAccount(){localStorage.removeItem(ACCOUNT_KEY);renderAccountContent();updateAccountBadge()}
+function logoutAccount(){localStorage.removeItem(ACCOUNT_KEY);renderAccountContent();updateAccountBadge();document.dispatchEvent(new CustomEvent('lf:accountchange'))}
 
 
 function updateAccountBadge(){const a=getAccount(),b=document.getElementById('accountBtn');if(b){b.innerHTML=a?'👤<i class="accountBadge">✓</i>':'👤';b.title=a?`${greetingForAccount(a)}، ${a.name||'سيدتي'} 🩷`:'حسابي';b.setAttribute('aria-label',b.title)}}
@@ -979,7 +971,7 @@ async function lfSyncFeatured(){
   }catch(e){if(request!==lfFeaturedRequest)return;window.LF_BEST_SELLERS_STATUS='error';console.warn('Best sellers unavailable',e.message)}
   renderFeatureSections();
 }
-async function lfSyncMe(){if(!lfToken())return null;try{const d=await lfFetch('/api/auth/me');if(d.user){const old=load(ACCOUNT_KEY,null)||{},serverOptIn=d.user.whatsapp_opt_in??d.user.whatsappOptIn,whatsappOptIn=serverOptIn!==undefined?serverOptIn===true||serverOptIn===1||serverOptIn==='1'||serverOptIn==='true':old.whatsapp_opt_in===true||old.whatsapp_opt_in===1||old.whatsapp_opt_in==='1'||old.whatsapp_opt_in==='true';const a={...old,...d.user,type:old.type||(d.user.email?'email':'whatsapp'),whatsapp_opt_in:whatsappOptIn};save(ACCOUNT_KEY,a);registerUserRecord(a);return a}}catch(e){if(e.status===401){localStorage.removeItem(LF_TOKEN_KEY);localStorage.removeItem(ACCOUNT_KEY)}}return null}
+async function lfSyncMe(){if(!lfToken())return null;try{const d=await lfFetch('/api/auth/me');if(d.user){const old=load(ACCOUNT_KEY,null)||{},serverOptIn=d.user.whatsapp_opt_in??d.user.whatsappOptIn,whatsappOptIn=serverOptIn!==undefined?serverOptIn===true||serverOptIn===1||serverOptIn==='1'||serverOptIn==='true':old.whatsapp_opt_in===true||old.whatsapp_opt_in===1||old.whatsapp_opt_in==='1'||old.whatsapp_opt_in==='true';const a={...old,...d.user,type:old.type||(d.user.email?'email':'whatsapp'),whatsapp_opt_in:whatsappOptIn};save(ACCOUNT_KEY,a);registerUserRecord(a);updateAccountBadge();renderSideAccountGreeting();document.dispatchEvent(new CustomEvent('lf:accountchange'));return a}localStorage.removeItem(LF_TOKEN_KEY);localStorage.removeItem(ACCOUNT_KEY)}catch(e){if(e.status===401){localStorage.removeItem(LF_TOKEN_KEY);localStorage.removeItem(ACCOUNT_KEY)}}updateAccountBadge();document.dispatchEvent(new CustomEvent('lf:accountchange'));return null}
 async function lfSyncMyOrders(){if(!lfToken())return;try{const d=await lfFetch('/api/orders');if(Array.isArray(d.orders))save('lf_orders',d.orders.map(o=>({id:o.id,createdAt:o.created_at,date:new Date(o.created_at).toLocaleString('ar-PS'),name:o.customer_name,phone:o.customer_phone||o.customer_contact,user_id:o.user_id,accountRef:getAccount()?.contact||'',statusHistory:o.status_history||o.statusHistory||[],address:o.shipping_address||o.customer_address,total:o.total,subtotal:o.subtotal,couponDiscount:o.coupon_discount??o.discount??0,loyaltyDiscount:o.loyalty_discount||0,pointsRedeemed:o.points_redeemed||0,shippingFee:o.shipping_cost??o.shipping??0,shippingBaseCost:o.shipping_base_cost??o.shipping_cost??o.shipping??0,shippingAutoDiscountPercent:o.shipping_discount_percent||0,shippingAutoDiscountAmount:o.shipping_discount_amount||0,shippingManualDiscountPercent:o.shipping_manual_discount_percent||0,shippingManualDiscountAmount:o.shipping_manual_discount_amount||0,shippingRegion:o.shipping_region||'',shippingWaived:o.shipping_waived===true,packagingTotal:o.packaging_cost??o.packaging??0,status:o.status,inventoryState:o.inventory_state,giftCard:o.gift_card||null,giftCardCost:o.gift_card_cost||0,items:(o.items||[]).map(i=>({orderItemId:i.id,productId:i.productId??i.product_id,variant:i.variantName??i.variant_name??'',qty:i.quantity,name:i.productName??i.product_name??i.name_snapshot??'منتج',price:i.unitPrice??i.unit_price??i.price_snapshot??0,image:i.image||'',isGift:i.isGift===true||i.is_gift===true}))})))}catch(e){console.warn('API orders unavailable',e.message)}}
 async function saveWhatsAppOptIn(){const v=!!document.getElementById('waOptIn')?.checked;let a={...load(ACCOUNT_KEY,{}),whatsapp_opt_in:v,whatsapp_opt_in_updated_at:Date.now()};try{if(lfToken()){const d=await lfFetch('/api/users/me',{method:'PATCH',body:JSON.stringify({whatsapp_opt_in:v})});a={...a,...(d.user||{}),whatsapp_opt_in:v}}save(ACCOUNT_KEY,a);registerUserRecord(a);renderAccountContent();if(v)await lfCartHeartbeat();alert(v?'تم حفظ تفضيلات واتساب 🌸':'تم حفظ إيقاف رسائل واتساب.')}catch(e){alert('تعذر حفظ تفضيلات واتساب: '+e.message)}}
 async function updateAccountWhatsAppNumber(){let a=load(ACCOUNT_KEY,null);if(!a||a.type!=='whatsapp')return;const iso=document.getElementById('accountCountryEdit')?.value||a.countryIso||'PS';const raw=document.getElementById('accountContactEdit')?.value.trim()||'';if(!raw)return alert('أدخلي رقم واتساب.');if(!validMobile(raw,iso))return alert('أدخلي رقم واتساب صحيحًا مع اختيار الدولة.');const contact=normalizePhone(raw,iso);try{if(lfToken()){const d=await lfFetch('/api/users/me',{method:'PATCH',body:JSON.stringify({phone:contact})});a={...a,...(d.user||{})}}a.contact=contact;a.countryIso=iso;a.countryName=countryName(iso);save(ACCOUNT_KEY,a);registerUserRecord(a);renderAccountContent();updateAccountBadge();alert('تم تحديث الدولة والمفتاح ورقم واتساب 🌍💬')}catch(e){alert('تعذر تحديث رقم واتساب: '+e.message)}} 
@@ -1098,6 +1090,7 @@ saveAccount=async function(){
     };
     save(ACCOUNT_KEY,safe);
     registerUserRecord(safe);
+    document.dispatchEvent(new CustomEvent('lf:accountchange'));
     await lfSyncMyOrders();
     await lfLoadLoyalty();
     await lfSyncAccountState();
@@ -1478,7 +1471,7 @@ async function refreshStorefrontAnnouncement(){
     }
   }catch{}
 }
-window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings();if(!storefrontAnnouncementPoll)storefrontAnnouncementPoll=window.setInterval(refreshStorefrontAnnouncement,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshStorefrontAnnouncement()});await lfSyncMe();await lfLoadLoyalty();await lfSyncProducts();await lfSyncAccountState();await lfSyncCatalog();await lfSyncMyOrders();renderAccountContent();initCountrySelectors();updateAccountBadge();restartFeatureAuto();await openPublicOrderFromUrl()});
+window.addEventListener('DOMContentLoaded',async()=>{await lfSyncStoreSettings();if(!storefrontAnnouncementPoll)storefrontAnnouncementPoll=window.setInterval(refreshStorefrontAnnouncement,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshStorefrontAnnouncement();lfSyncMe()}});await lfSyncMe();await lfLoadLoyalty();await lfSyncProducts();await lfSyncAccountState();await lfSyncCatalog();await lfSyncMyOrders();renderAccountContent();initCountrySelectors();updateAccountBadge();restartFeatureAuto();await openPublicOrderFromUrl()});
 
 
 /* Full-screen product image viewer with tap, pinch and drag zoom for mobile. */

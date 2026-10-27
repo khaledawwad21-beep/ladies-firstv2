@@ -14,19 +14,19 @@ test("Naya assistant stays focused on store shopping",()=>{
 test("store AI uses authenticated customer quota and catalog-backed recommendations",async t=>{
  let captured,quotaArgs;
  const app=express();app.use(express.json());
- app.use("/api/ai",createNayaAiRouter({rateLimiter:allowRateLimit,db:async(q,p)=>{if(/INSERT INTO store_ai_daily_usage/.test(q)){quotaArgs=p;return{rows:[{message_count:1}]}}if(/SELECT p.id/.test(q))return{rows:[{id:10,name:"عطر ورد",price:95,stock:2,variants:[]},{id:11,name:"ساعة",price:120,stock:0,variants:[]}]};return{rows:[]}},optionalAuth:(req,_res,next)=>{req.user={id:27};next()},env:{OPENAI_API_KEY:"secret",STORE_AI_DAILY_LIMIT:"12"},fetchImpl:async(url,o)=>{captured={url,o};return{ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:"هذا العطر متوفر",recommendationIds:[10,11]})}}]})}}}));
+ app.use("/api/ai",createNayaAiRouter({rateLimiter:allowRateLimit,db:async(q,p)=>{if(/INSERT INTO store_ai_daily_usage/.test(q)){quotaArgs=p;return{rows:[{message_count:1}]}}if(/SELECT p.id/.test(q))return{rows:[{id:10,name:"عطر ورد",price:95,stock:2,variants:[]},{id:11,name:"ساعة",price:120,stock:0,variants:[]}]};return{rows:[]}},optionalAuth:(req,_res,next)=>{req.user={id:27,gender:"male"};next()},env:{OPENAI_API_KEY:"secret",STORE_AI_DAILY_LIMIT:"12"},fetchImpl:async(url,o)=>{captured={url,o};return{ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({reply:"هذا العطر متوفر",recommendationIds:[10,11]})}}]})}}}));
  const s=app.listen(0);t.after(()=>s.close());await new Promise(r=>s.once("listening",r));
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/store-chat`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"اقترحي عطرًا"})});
  const body=await res.json();
  assert.equal(res.status,200);assert.deepEqual(body.recommendations.map(x=>x.id),[10]);
  assert.equal(quotaArgs[0],"user:27");assert.equal(quotaArgs[2],12);
  assert.equal(captured.url,"https://api.openai.com/v1/chat/completions");
- const request=JSON.parse(captured.o.body);assert.equal(request.model,"gpt-6-luna");assert.match(request.messages[0].content,/لا تخترع منتجات/);
+ const request=JSON.parse(captured.o.body);assert.match(request.messages.filter(x=>x.role==="system").map(x=>x.content).join(" "),/المتحدث رجل: خاطبيه بالمذكر فقط/);assert.equal(request.model,"gpt-6-luna");assert.match(request.messages[0].content,/لا تخترع منتجات/);
 });
 test("store AI blocks a customer after the configured daily message limit",async t=>{
  let upstreamCalled=false;
  const app=express();app.use(express.json());
- app.use("/api/ai",createNayaAiRouter({rateLimiter:allowRateLimit,db:async q=>/INSERT INTO store_ai_daily_usage/.test(q)?{rows:[]}:{rows:[]},optionalAuth:(req,_res,next)=>{req.user={id:27};next()},env:{OPENAI_API_KEY:"secret",STORE_AI_DAILY_LIMIT:"1"},fetchImpl:async()=>{upstreamCalled=true;return{ok:true,json:async()=>({})}}}));
+ app.use("/api/ai",createNayaAiRouter({rateLimiter:allowRateLimit,db:async q=>/INSERT INTO store_ai_daily_usage/.test(q)?{rows:[]}:{rows:[]},optionalAuth:(req,_res,next)=>{req.user={id:27,gender:"male"};next()},env:{OPENAI_API_KEY:"secret",STORE_AI_DAILY_LIMIT:"1"},fetchImpl:async()=>{upstreamCalled=true;return{ok:true,json:async()=>({})}}}));
  const s=app.listen(0);t.after(()=>s.close());await new Promise(r=>s.once("listening",r));
  const res=await fetch(`http://127.0.0.1:${s.address().port}/api/ai/store-chat`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"اختاري لي هدية"})});
  assert.equal(res.status,429);assert.equal((await res.json()).code,"STORE_AI_DAILY_LIMIT");assert.equal(upstreamCalled,false);
@@ -49,4 +49,13 @@ test("store AI performs catalog search and works without paid API calls",async t
  assert.equal(response.status,200);assert.equal(result.ok,true);assert.match(result.reply,/عطر الورد/);
  assert.deepEqual(result.recommendations.map(x=>x.id),[41]);assert.equal(upstreamCalled,false);
  assert.ok(sqlCalls.some(x=>/ILIKE/.test(x.q)&&x.p?.includes("%عطر%")));
+});
+
+test("both assistants keep masculine address when buying a gift for a woman",()=>{
+ const {buildNayaMessages}=require('../src/naya-ai');
+ for(const build of [buildNayaMessages,buildStoreAssistantMessages]){
+  const messages=build({message:'بدي هدية لزوجتي',addressingGender:'male',customerProfile:{gender:'female'},catalog:[],history:[{role:'assistant',content:'تكرمي حبيبتي'}]});
+  const finalStyle=messages.filter(m=>m.role==='system').at(-1).content;
+  assert.match(finalStyle,/المتحدث رجل: خاطبيه بالمذكر فقط/);
+ }
 });

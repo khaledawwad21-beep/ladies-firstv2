@@ -59,10 +59,10 @@ async function authenticatedUser(req) {
   const payload = verifyToken(getTokenFromRequest(req));
   if (!payload || !Number.isSafeInteger(Number(payload.id)) || Number(payload.id) <= 0) return null;
   const { db } = require("./db");
-  const result = await db("SELECT id, role, is_active, permissions, session_version FROM users WHERE id=$1 LIMIT 1", [payload.id]);
+  const result = await db("SELECT id, role, is_active, permissions, session_version, gender FROM users WHERE id=$1 LIMIT 1", [payload.id]);
   const user = result.rows[0];
   if (!user || user.is_active !== true || Number(payload.sv || 0) !== Number(user.session_version || 0)) return null;
-  return { ...payload, role: user.role, permissions: user.permissions || [] };
+  return { ...payload, role: user.role, permissions: user.permissions || [], gender: user.gender || null };
 }
 async function optionalAuth(req, res, next) {
   try { req.user = await authenticatedUser(req); return next(); }

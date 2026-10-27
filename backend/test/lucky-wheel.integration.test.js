@@ -34,3 +34,40 @@ test('option names always follow the type, amount and actual product',async()=>{
 test('editing future choices preserves issued prizes and cannot grant another spin',async()=>{const c=await create(campaign());const award=await forceWin(c);const updated={...c.config,prizes:c.config.prizes.map(p=>({...p,type:'fixed',value:45,label:'اسم غير معتمد'}))};await ok('/api/admin/wheel','PUT',{...updated,id:c.id},owner);assert.ok((await ok('/api/wheel')).campaign.prizes.every(p=>p.label==='خصم 45 ₪'));const replay=await ok('/api/wheel/spin','POST',{campaignId:c.id});assert.equal(replay.spin.id,award.id);assert.equal(replay.spin.prize.value,20);assert.equal(replay.spin.prize.label,'خصم 20 ₪');assert.equal((await ok('/api/coupons/validate','POST',{code:award.coupon_code,subtotal:100})).coupon.discountValue,20);});
 test('wheel photos expose protected fallbacks backed by real uploaded bytes',async()=>{const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3XcAAAAASUVORK5CYII=';const uploaded=await ok('/api/admin/uploads/image','POST',{data:png},owner,201);await db('UPDATE product_images SET image_url=$1 WHERE product_id=$2',[uploaded.url,product.id]);await db('UPDATE products SET image_url=$1 WHERE id=$2',['/api/images/'+'f'.repeat(64),product.id]);await create(campaign('gift'));const gift=(await ok('/api/wheel')).campaign.prizes.find(p=>p.type==='gift');assert.ok(gift.imageSources.length>=2);const photo=await fetch(base+gift.imageSources.find(x=>x.includes('/main/')));assert.equal(photo.status,200);assert.match(photo.headers.get('content-type'),/image\/webp/);assert.ok((await photo.arrayBuffer()).byteLength>0);});
 test('wheel photos use the configured API origin in app contexts and reject foreign URLs',()=>{const vm=require('node:vm'),fs=require('node:fs'),path=require('node:path'),context={URL,window:{LF_API_URL:'https://shop.example'},location:{origin:'file://'}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../frontend/wheel-view.js'),'utf8'),context);const sources=context.window.LFWheelView.sources({type:'gift',image:'/api/product-images/1/hero/0',imageSources:['/api/product-images/1/main/0','https://untrusted.test/api/product-images/1/all/0','javascript:alert(1)','/api/product-images/1/all/0?raw=1']});assert.deepEqual(Array.from(sources),['https://shop.example/api/product-images/1/hero/0','https://shop.example/api/product-images/1/main/0']);});
+
+
+test('owner attempts use the same durable limit as customer attempts',async()=>{
+ const c=await create(campaign('fixed',{prizes:[{id:'owner-win',type:'fixed',value:5,weight:1,limit:0}]}));
+ const first=await ok('/api/wheel/spin','POST',{campaignId:c.id},owner);
+ assert.equal((await ok('/api/wheel/mine','GET',null,owner)).played,true);
+ const again=await ok('/api/wheel/spin','POST',{campaignId:c.id},owner);
+ assert.equal(again.replayed,true);assert.equal(again.spin.id,first.spin.id);
+ await ok('/api/admin/wheel','PUT',{...c.config,id:c.id,enabled:false},owner);
+ await ok('/api/admin/wheel','PUT',{...c.config,id:c.id,enabled:true},owner);
+ assert.equal((await ok('/api/wheel/mine','GET',null,owner)).played,true);
+ assert.equal((await db('SELECT COUNT(*)::int AS n FROM lucky_spins WHERE campaign_id=$1 AND user_id=$2',[c.id,owner.id])).rows[0].n,1);
+});
+
+test('frequency edits after participation are rejected without modifying the campaign',async()=>{
+ const c=await create(campaign());await ok('/api/wheel/spin','POST',{campaignId:c.id},owner);
+ assert.equal((await api('/api/admin/wheel','PUT',{...c.config,id:c.id,frequency:'daily'},owner)).status,409);
+ assert.equal((await db('SELECT config FROM lucky_campaigns WHERE id=$1',[c.id])).rows[0].config.frequency,'campaign');
+});
+
+test('legacy period changes never renew a consumed campaign attempt',async()=>{
+ const c=await create(campaign('fixed',{prizes:[{id:'legacy',type:'fixed',value:5,weight:1,limit:0}]}));
+ const first=await ok('/api/wheel/spin','POST',{campaignId:c.id},owner);
+ await db("UPDATE lucky_campaigns SET config=jsonb_set(config,'{frequency}','\"daily\"') WHERE id=$1",[c.id]);
+ assert.equal((await ok('/api/wheel/mine','GET',null,owner)).played,true);
+ assert.equal((await ok('/api/wheel/spin','POST',{campaignId:c.id},owner)).spin.id,first.spin.id);
+});
+
+test('a daily owner attempt renews on a new Palestine day only',async()=>{
+ const c=await create(campaign('fixed',{frequency:'daily',prizes:[{id:'daily-owner',type:'fixed',value:5,weight:1,limit:0}]}));
+ const first=await ok('/api/wheel/spin','POST',{campaignId:c.id},owner);
+ await db("UPDATE lucky_spins SET created_at=NOW()-interval '1 day',period=to_char((NOW()-interval '1 day') AT TIME ZONE 'Asia/Hebron','YYYY-MM-DD') WHERE id=$1",[first.spin.id]);
+ assert.equal((await ok('/api/wheel/mine','GET',null,owner)).played,false);
+ const second=await ok('/api/wheel/spin','POST',{campaignId:c.id},owner);
+ assert.equal(second.replayed,false);assert.notEqual(second.spin.id,first.spin.id);
+ assert.equal((await ok('/api/wheel/mine','GET',null,owner)).played,true);
+});
