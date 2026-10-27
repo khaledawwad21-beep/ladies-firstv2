@@ -4,6 +4,7 @@ const { transaction } = require("./db");
 
 async function migrateDatabase() {
   await transaction(async (client) => {
+    await require("./owner-profile-migration").migrateOwnerGender(client);
     const column = await client.query(`
       SELECT data_type FROM information_schema.columns
       WHERE table_schema = 'public' AND table_name = 'orders'
