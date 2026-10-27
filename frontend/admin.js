@@ -183,9 +183,9 @@ if(typeof MutationObserver!=='undefined'&&document?.documentElement){
   adminDateObserver.observe(document.documentElement,{childList:true,subtree:true});
 }
 initDateInputs();
-const titles={community:'الهدايا والمشاركة',marketing:'التسويق والإعلانات',dashboard:'الرئيسية',users:'المستخدمون',products:'المنتجات',inventory:'المخزون',orders:'الطلبات والفواتير',returns:'الإرجاع والاستبدال',waitlist:'قائمة التوفر',finance:'الحسابات',offers:'العروض والحملات',catalog:'التصنيفات والعلامات',coupons:'الكوبونات',reports:'التقارير',homepage:'الصفحة الرئيسية',seasons:'الثيمات الموسمية',social:'مواقع التواصل',settings:'الإعدادات',staff:'الموظفون والصلاحيات',messages:'المحادثات الداخلية'};
+const titles={wheel:'دولاب الحظ',community:'الهدايا والمشاركة',marketing:'التسويق والإعلانات',dashboard:'الرئيسية',users:'المستخدمون',products:'المنتجات',inventory:'المخزون',orders:'الطلبات والفواتير',returns:'الإرجاع والاستبدال',waitlist:'قائمة التوفر',finance:'الحسابات',offers:'العروض والحملات',catalog:'التصنيفات والعلامات',coupons:'الكوبونات',reports:'التقارير',homepage:'الصفحة الرئيسية',seasons:'الثيمات الموسمية',social:'مواقع التواصل',settings:'الإعدادات',staff:'الموظفون والصلاحيات',messages:'المحادثات الداخلية'};
 const permissionLabels={marketing:'التسويق والإعلانات',dashboard:'الرئيسية',products:'المنتجات',original_images:'تنزيل الصور الأصلية للمنتجات',inventory:'المخزون',orders:'الطلبات وقائمة التوفر',users:'المستخدمون',catalog:'الفئات والبراندات',coupons:'أكواد الخصم',reports:'التقارير والحسابات',offers:'العروض وواتساب',settings:'الإعدادات والصفحة الرئيسية',staff:'عرض الموظفين'};
-const sectionPermissions={community:'marketing',marketing:'marketing',dashboard:'dashboard',products:'products',inventory:'inventory',orders:'orders',returns:'orders',waitlist:'orders',users:'users',finance:'reports',offers:'offers',catalog:'catalog',coupons:'coupons',reports:'reports',homepage:'settings',seasons:'settings',social:'settings',settings:'settings',staff:'staff',messages:'staff'};
+const sectionPermissions={wheel:'marketing',community:'marketing',marketing:'marketing',dashboard:'dashboard',products:'products',inventory:'inventory',orders:'orders',returns:'orders',waitlist:'orders',users:'users',finance:'reports',offers:'offers',catalog:'catalog',coupons:'coupons',reports:'reports',homepage:'settings',seasons:'settings',social:'settings',settings:'settings',staff:'staff',messages:'staff'};
 function canAdminSection(section){const role=String(currentAdminUser?.role||'').toLowerCase();if(role==='owner'||role==='admin')return true;if(section==='messages')return role==='staff';return Array.isArray(currentAdminUser?.permissions)&&currentAdminUser.permissions.includes(sectionPermissions[section])}
 function applyAdminPermissions(){navs.forEach(n=>n.hidden=!canAdminSection(n.dataset.s));document.querySelectorAll('[data-admin-permission]').forEach(el=>{const role=String(currentAdminUser?.role||'').toLowerCase(),p=el.dataset.adminPermission;el.hidden=!(role==='owner'||role==='admin'||(Array.isArray(currentAdminUser?.permissions)&&currentAdminUser.permissions.includes(p)))})}
 function permissionChecks(selected=[]){const set=new Set(Array.isArray(selected)?selected:[]);return Object.entries(permissionLabels).map(([key,label])=>`<label style="display:flex;gap:8px;align-items:center;padding:8px;border:1px solid #eadce3;border-radius:10px"><input type="checkbox" class="staffPerm" value="${key}" ${set.has(key)?'checked':''}> ${label}</label>`).join('')}
@@ -201,7 +201,7 @@ function openAdminSection(section){
   return load();
 }
 function table(h,rows){return rows.length?`<div class="tablewrap"><table class="table"><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`:'<p>لا توجد بيانات.</p>'}
-async function load(){try{if(sec==='community')return communityAdmin();if(sec==='marketing')return marketing();if(sec==='dashboard')return dash();if(sec==='users')return users();if(sec==='products')return products();if(sec==='inventory')return inventory();if(sec==='orders')return orders();if(sec==='returns')return returnsAdmin();if(sec==='waitlist')return waitlist();if(sec==='finance')return finance();if(sec==='catalog')return catalog();if(sec==='coupons')return coupons();if(sec==='reports')return reports();if(sec==='social')return social();if(sec==='settings')return settings();if(sec==='messages')return loadStaffConversations();if(sec==='staff')return staff();if(sec==='offers')return offers();if(sec==='homepage')return homepage();if(sec==='seasons')return seasons()}catch(e){toast(e.message)}}
+async function load(){try{if(sec==='wheel')return luckyWheelAdmin();if(sec==='community')return communityAdmin();if(sec==='marketing')return marketing();if(sec==='dashboard')return dash();if(sec==='users')return users();if(sec==='products')return products();if(sec==='inventory')return inventory();if(sec==='orders')return orders();if(sec==='returns')return returnsAdmin();if(sec==='waitlist')return waitlist();if(sec==='finance')return finance();if(sec==='catalog')return catalog();if(sec==='coupons')return coupons();if(sec==='reports')return reports();if(sec==='social')return social();if(sec==='settings')return settings();if(sec==='messages')return loadStaffConversations();if(sec==='staff')return staff();if(sec==='offers')return offers();if(sec==='homepage')return homepage();if(sec==='seasons')return seasons()}catch(e){toast(e.message)}}
 async function dash(){let d=await api('/api/admin/dashboard'),x=d.dashboard;const stats=[
   ['العملاء',x.customers,'users'],
   ['المنتجات',x.products,'products'],
@@ -515,6 +515,7 @@ async function openOrderDetails(id){
       <button class="btn" type="button" onclick="invoice(${Number(id)})">🧾 طباعة الفاتورة</button><button class="btn" type="button" onclick="openStaffChatFor('order',${Number(id)})">💬 ملاحظة داخلية</button>
     </div>
     ${lockedGift&&!cancelled?'<div class="full small-note">إضافة أو حذف الهدايا متاحة قبل شحن الطلب فقط.</div>':''}
+    ${o.wheel_reward?`<div class="full notice">جائزة دولاب الحظ: <b>${E(o.wheel_reward.label)}</b> — ${E(o.wheel_reward.campaign)}</div>`:''}
     ${o.gift_card?renderOrderGiftCardPreview(id,o.gift_card,o.gift_card_cost):''}
     ${cancelled?'<div class="full notice">الطلب ملغي نهائيًا: تم إرجاع المخزون وعكس نقاط الولاء، لذلك لا يمكن إعادته لحالة نشطة.</div>':''}
 
@@ -748,6 +749,7 @@ async function invoice(id){
     </div>
     <div class="invoiceCustomer">العميل: ${E(o.customer_name||o.user_name||'-')} — الهاتف: ${E(o.customer_phone||o.user_phone||'-')}<br>البريد: ${E(o.user_email||'-')} — منطقة التوصيل: ${E(region)} — طريقة الدفع: ${E(payment)}<br>العنوان: ${E(o.shipping_address||'-')}</div>
     ${table(['المنتج','الخيار','الكمية','السعر','الإجمالي'],items.map(i=>`<tr class="${i.is_gift?'gift-order-row':''}"><td>${i.is_gift?'🎁 هدية — ':''}${E(i.product_name||'-')}</td><td>${E(i.variant_name||'-')}</td><td>${i.quantity}</td><td>${i.is_gift?'0.00':M(i.unit_price)}</td><td>${i.is_gift?'0.00':M(i.total)}</td></tr>`))}
+    ${o.wheel_reward?`<p>جائزة دولاب الحظ: ${E(o.wheel_reward.label)} — ${E(o.wheel_reward.campaign)}</p>`:''}
     <div class="invoiceThankYou">${E(thankYouPhrase)}</div>
     <div class="invoiceTotals compact">
       <span>المجموع الفرعي: <b>${M(o.subtotal||0)} ₪</b></span>
