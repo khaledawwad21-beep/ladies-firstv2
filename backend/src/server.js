@@ -1240,6 +1240,7 @@ async function initDatabase() {
   await require("./marketing-solo").initSoloMarketing(db);
   await require("./lama").initLama(db);
   await require("./community-commerce").initCommunity(db);
+  await require("./lucky-wheel").initLuckyWheel(db);
 
   console.log(
     "[DB] Database initialized successfully."
@@ -2643,6 +2644,7 @@ app.delete(
    ========================================================= */
 
 const community = require("./community-commerce").createCommunity({db,transaction,getProducts});
+const luckyWheel = require("./lucky-wheel").createLuckyWheel({db,transaction});
 
 app.post(
   "/api/orders",
@@ -3135,6 +3137,7 @@ app.post(
               100
             ).toUpperCase();
 
+          const wheelReward = couponCode ? await luckyWheel.reward(client.query.bind(client),couponCode,userId,true) : null;
           if (couponCode) {
             const couponResult =
               await client.query(
@@ -3355,7 +3358,7 @@ app.post(
 
           if (
             paymentMethod ===
-            "visa"
+            "visa" && wheelReward?.prize.stackable !== false
           ) {
             visaDiscountPercent =
               Number(
@@ -3406,7 +3409,7 @@ app.post(
           const shippingDiscountPercent = Math.max(0,Math.min(100,Number(shippingDiscountsRaw?.[shippingRegion])||0));
           const shippingBaseCost = shippingFees[shippingRegion];
           const shippingDiscountAmount = money(shippingBaseCost * shippingDiscountPercent / 100);
-          const shippingWaived = req.body.shippingWaived === true && !!req.user && ["owner","admin"].includes(String(req.user.role||"").toLowerCase());
+          const shippingWaived = wheelReward?.prize.type === "shipping" || (req.body.shippingWaived === true && !!req.user && ["owner","admin"].includes(String(req.user.role||"").toLowerCase()));
           const shipping = shippingWaived ? 0 : money(Math.max(0,shippingBaseCost-shippingDiscountAmount));
 
           /* Packaging price is authoritative on the server. The browser only sends option ids per item. */
@@ -3429,7 +3432,7 @@ app.post(
           const pointValue = Math.max(0, Number(await getSetting("loyalty_point_value", 0.1, client)) || 0);
           let pointsRedeemed = 0;
           let loyaltyDiscount = 0;
-          if (userId && requestedPoints > 0 && loyaltyEnabled && redeemEnabled) {
+          if (userId && requestedPoints > 0 && loyaltyEnabled && redeemEnabled && wheelReward?.prize.stackable !== false) {
             const ur = await client.query("SELECT loyalty_points FROM users WHERE id=$1 FOR UPDATE",[userId]);
             const balance = Number(ur.rows[0]?.loyalty_points || 0);
             pointsRedeemed = Math.min(requestedPoints, balance);
@@ -3707,6 +3710,7 @@ app.post(
             );
           }
 
+          await luckyWheel.attach(client,order,wheelReward);
           await community.attachOrder(client,order,normalizedItems,req.body,userId,communityReferral);
 
           return {
@@ -7813,6 +7817,7 @@ app.post(
         });
       }
 
+      const wheelReward = await luckyWheel.reward(db,code,req.user?.id);
       const coupon =
         result.rows[0];
 
@@ -7988,6 +7993,7 @@ app.post(
       return res.json({
         ok: true,
         coupon: {
+          wheelReward: wheelReward ? {label:wheelReward.prize.label,type:wheelReward.prize.type,stackable:wheelReward.prize.stackable} : null,
           code:
             coupon.code,
           discountType,
@@ -8007,6 +8013,7 @@ app.post(
           money(discount)
       });
     } catch (error) {
+      if(error.status)return res.status(error.status).json({ok:false,message:error.message});
       console.error(
         "[COUPON VALIDATE]",
         error
@@ -9715,6 +9722,7 @@ app.get(
 ========================================================= */
 
 community.register(app,{requireAuth,optionalAuth,requireAdmin});
+luckyWheel.register(app,{requireAuth,requireAdmin});
 
 require("./waitlist").registerWaitlistRoutes(app, {
   db,
