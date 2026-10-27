@@ -44,6 +44,8 @@
   let campaignPromise;
   function loadCampaign(){if(!campaignPromise)campaignPromise=fetch('/api/store/welcome-offer',{cache:'no-store'}).then(r=>r.json()).then(d=>d?.offer||null).catch(()=>null);return campaignPromise}
   async function tryShow(){
+    if(document.querySelector('dialog[open]'))return false;
+    if(['accountModal','drawer'].some(id=>{const el=document.getElementById(id);return el?.style?.display&&el.style.display!=='none';}))return false;
     const config=await loadCampaign();
     if(!config||config.enabled!==true||!config.startAt||!config.endAt)return false;
     const now=Date.now(),start=Date.parse(config.startAt),end=Date.parse(config.endAt);if(!Number.isFinite(start)||!Number.isFinite(end)||now<start||now>=end)return false;
