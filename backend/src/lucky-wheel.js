@@ -3,6 +3,13 @@ const {randomInt,randomBytes,randomUUID}=require('node:crypto');
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status,code:'WHEEL_ERROR'});};
 const text=(v,n=100)=>String(v??'').trim().slice(0,n);
 const number=(v,min,max,integer=false)=>{const n=Number(v);if(!Number.isFinite(n)||n<min||n>max||(integer&&!Number.isInteger(n)))fail(400,'قيمة رقمية غير صالحة في الحملة');return n;};
+function prizeLabel(p,productName=''){
+ if(p.type==='percent')return `خصم ${Number(p.value)}%`;
+ if(p.type==='fixed')return `خصم ${Number(p.value)} ₪`;
+ if(p.type==='shipping')return 'توصيل مجاني';
+ if(p.type==='none')return 'حظ أوفر';
+ return productName?text(`هدية: ${productName}`,70):'هدية منتج';
+}
 function normalizeCampaign(b){
  b=b||{};
  const name=text(b.name),start=Date.parse(b.startsAt),end=Date.parse(b.endsAt);
@@ -10,12 +17,12 @@ function normalizeCampaign(b){
  if(!Array.isArray(b.prizes)||b.prizes.length!==8)fail(400,'الدولاب يتكون من 8 خانات بالضبط؛ يمكن تكرار نفس الخيار في عدة خانات');
  const ids=new Set();
  const prizes=b.prizes.map(p=>{
-  const id=text(p.id||randomUUID(),50),label=text(p.label,70),type=text(p.type);
-  if(!/^[a-zA-Z0-9-]{1,50}$/.test(id)||ids.has(id)||!label||!['percent','fixed','gift','shipping','none'].includes(type))fail(400,'بيانات خيارات الدولاب غير صالحة');ids.add(id);
+  const id=text(p.id||randomUUID(),50),type=text(p.type);
+  if(!/^[a-zA-Z0-9-]{1,50}$/.test(id)||ids.has(id)||!['percent','fixed','gift','shipping','none'].includes(type))fail(400,'بيانات خيارات الدولاب غير صالحة');ids.add(id);
   const value=['percent','fixed'].includes(type)?number(p.value,0.01,type==='percent'?100:100000):0;
   const productId=type==='gift'?number(p.productId,1,Number.MAX_SAFE_INTEGER,true):null;
   const variantId=type==='gift'&&p.variantId?number(p.variantId,1,Number.MAX_SAFE_INTEGER,true):null;
-  return {id,label,type,value,productId,variantId,weight:number(p.weight,1,100000,true),limit:number(p.limit??0,0,1000000,true)};
+  return {id,label:prizeLabel({type,value}),type,value,productId,variantId,weight:number(p.weight,1,100000,true),limit:number(p.limit??0,0,1000000,true)};
  });
  return {name,enabled:b.enabled===true,startsAt:new Date(start).toISOString(),endsAt:new Date(end).toISOString(),frequency:b.frequency==='daily'?'daily':'campaign',minimum:number(b.minimum??0,0,100000),validDays:number(b.validDays??7,1,365,true),stackable:b.stackable===true,prizes};
 }
@@ -31,13 +38,14 @@ function createLuckyWheel({db,transaction}){
  async function publicCampaign(row){
   if(!row)return null;
   const ids=[...new Set(row.config.prizes.filter(p=>p.type==='gift').map(p=>p.productId))];
-  const products=ids.length?(await db(`SELECT p.id,p.image_url,
-   (SELECT image_url FROM product_images WHERE product_id=p.id ORDER BY sort_order,id LIMIT 1) AS first_image
+  const products=ids.length?(await db(`SELECT p.id,p.name,p.image_url,
+   (SELECT COUNT(*)::int FROM product_images WHERE product_id=p.id) AS image_count,
+   (SELECT COUNT(*)::int FROM product_images WHERE product_id=p.id AND is_primary=TRUE) AS primary_count
    FROM products p WHERE p.id=ANY($1::bigint[]) AND p.is_active=TRUE`,[ids])).rows:[];
   const prizes=row.config.prizes.map(p=>{
    const product=products.find(x=>String(x.id)===String(p.productId));
-   const image=product?.image_url?`/api/product-images/${product.id}/hero/0`:product?.first_image?`/api/product-images/${product.id}/all/0`:null;
-   return {id:p.id,label:p.label,type:p.type,image};
+   const imageSources=product?[product.image_url?`/api/product-images/${product.id}/hero/0`:null,Number(product.primary_count)>0?`/api/product-images/${product.id}/main/0`:null,Number(product.image_count)>0?`/api/product-images/${product.id}/all/0`:null].filter(Boolean):[];
+   return {id:p.id,label:prizeLabel(p,product?.name),productName:product?.name||null,type:p.type,value:p.value,image:imageSources[0]||null,imageSources};
   });
   // Older campaigns keep their stored odds, quantities and earned rewards.
   // Repeated visible sectors do not create extra server-side prizes.
@@ -92,13 +100,15 @@ function createLuckyWheel({db,transaction}){
     const eligible=[];
     for(const p of c.prizes){
      if(p.limit&&Number(counts.find(x=>x.prize_id===p.id)?.n||0)>=p.limit)continue;
+     let productName='';
      if(p.type==='gift'){
-      const available=(await q(`SELECT p.id FROM products p WHERE p.id=$1 AND p.is_active=TRUE AND
+      const available=(await q(`SELECT p.id,p.name FROM products p WHERE p.id=$1 AND p.is_active=TRUE AND
        (($2::bigint IS NULL AND p.stock>0 AND NOT EXISTS(SELECT 1 FROM product_variants v WHERE v.product_id=p.id AND v.is_active=TRUE)) OR
-        EXISTS(SELECT 1 FROM product_variants v WHERE v.product_id=p.id AND v.id=$2 AND v.is_active=TRUE AND v.stock>0))`,[p.productId,p.variantId])).rows.length>0;
+        EXISTS(SELECT 1 FROM product_variants v WHERE v.product_id=p.id AND v.id=$2 AND v.is_active=TRUE AND v.stock>0))`,[p.productId,p.variantId])).rows[0];
       if(!available)continue;
+      productName=available.name;
      }
-     eligible.push(p);
+     eligible.push({...p,label:prizeLabel(p,productName)});
     }
     const p=choosePrize(eligible),code=p.type==='none'?null:'LF-W-'+randomBytes(12).toString('hex').toUpperCase();
     const expiresAt=new Date(new Date(now).getTime()+c.validDays*86400000).toISOString();
@@ -122,16 +132,19 @@ function createLuckyWheel({db,transaction}){
     await q('LOCK TABLE lucky_campaigns IN EXCLUSIVE MODE');
     const old=id?(await q('SELECT * FROM lucky_campaigns WHERE id=$1 FOR UPDATE',[id])).rows[0]:null;
     if(id&&!old)fail(404,'الحملة غير موجودة');
-    const locked=old&&(await q('SELECT id FROM lucky_spins WHERE campaign_id=$1 LIMIT 1',[id])).rows.length>0;
-    let config;
-    if(locked){
+    let config,toggleOnly=false;
+    if(old){
      const a={...old.config},b={...req.body};delete a.enabled;delete b.enabled;delete b.id;
-     if(!require('node:util').isDeepStrictEqual(a,b))fail(409,'بعد أول محاولة يمكن إيقاف أو تفعيل الحملة فقط؛ أنشئي حملة جديدة لتغيير الجوائز والشروط');
-     config={...old.config,enabled:req.body.enabled===true};
-    }else config=normalizeCampaign(req.body);
-    for(const p of config.prizes.filter(p=>config.enabled&&p.type==='gift')){
-     const product=(await q('SELECT id,is_active FROM products WHERE id=$1',[p.productId])).rows[0];
+     toggleOnly=require('node:util').isDeepStrictEqual(a,b);
+    }
+    // Spins carry immutable prize snapshots. Editing future choices must not
+    // mint extra attempts or rewrite previously awarded discounts and gifts.
+    config=toggleOnly?{...old.config,enabled:req.body.enabled===true}:normalizeCampaign(req.body);
+    for(const p of config.prizes.filter(p=>p.type==='gift'&&(!toggleOnly||config.enabled))){
+     const product=(await q('SELECT id,name,is_active FROM products WHERE id=$1',[p.productId])).rows[0];
+     if(!config.enabled&&(!product||product.is_active===false))continue;
      if(!product||product.is_active===false)fail(400,'منتج الهدية غير موجود أو غير فعال');
+     if(!toggleOnly)p.label=prizeLabel(p,product.name);
      const vs=(await q('SELECT id FROM product_variants WHERE product_id=$1 AND is_active=TRUE',[p.productId])).rows;
      if((vs.length&&!p.variantId)||(p.variantId&&!vs.some(v=>String(v.id)===String(p.variantId))))fail(400,'حددي خيارًا صالحًا لمنتج الهدية');
     }
@@ -142,4 +155,4 @@ function createLuckyWheel({db,transaction}){
  }
  return {register,reward,attach};
 }
-module.exports={initLuckyWheel,createLuckyWheel,normalizeCampaign,choosePrize};
+module.exports={initLuckyWheel,createLuckyWheel,normalizeCampaign,choosePrize,prizeLabel};
