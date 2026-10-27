@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'push_notifications.dart';
 import 'package:share_plus/share_plus.dart';
 import 'share_payload.dart';
 import 'dart:io';
@@ -217,6 +219,8 @@ class _StoreScreenState extends State<StoreScreen> {
   _StoreLoadIssue _loadIssue = _StoreLoadIssue.none;
   int _progress = 0;
   bool _sharing = false;
+  late final StorePushNotifications _push;
+  Uri? _pendingPushTarget;
 
   void _armLoadTimeout() {
     _loadTimeout?.cancel();
@@ -255,6 +259,9 @@ class _StoreScreenState extends State<StoreScreen> {
 
   void _finishLoad() {
     _loadTimeout?.cancel();
+    final target = _pendingPushTarget;
+    _pendingPushTarget = null;
+    if (target != null) unawaited(_webView.loadRequest(target));
     setState(() {
       _loading = false;
       _loadedOnce = true;
@@ -274,6 +281,10 @@ class _StoreScreenState extends State<StoreScreen> {
         'LFNativeShare',
         onMessageReceived: (message) => unawaited(_shareFromStore(message.message)),
       )
+      ..addJavaScriptChannel('LFNativePush', onMessageReceived: (message) async {
+        final uri = Uri.tryParse(await _webView.currentUrl() ?? '');
+        if (uri?.origin == Uri.parse(storeUrl).origin) await _push.handle(message.message);
+      })
       ..setBackgroundColor(cream)
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -344,6 +355,28 @@ class _StoreScreenState extends State<StoreScreen> {
       );
     _webContent = WebViewWidget(controller: _webView);
     _armLoadTimeout();
+    _push = StorePushNotifications(
+      store: Uri.parse(storeUrl),
+      onDevice: (data) async {
+        final current = Uri.tryParse(await _webView.currentUrl() ?? '');
+        if (mounted && current?.origin == Uri.parse(storeUrl).origin) {
+          await _webView.runJavaScript('window.LFPushClient?.onDevice(${jsonEncode(data)});');
+        }
+      },
+      onOpen: (target) {
+        if (!mounted) return;
+        if (_loadedOnce) { unawaited(_webView.loadRequest(target)); }
+        else { _pendingPushTarget = target; }
+      },
+      onForeground: (title, target) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(title),
+          action: target == null ? null : SnackBarAction(label: 'عرض', onPressed: () {
+            unawaited(_webView.loadRequest(target));
+          })));
+      },
+    );
+    unawaited(_push.start());
     unawaited(_webView.loadRequest(Uri.parse(storeUrl)).catchError((Object _) {
       if (!mounted) return;
       _loadTimeout?.cancel();
@@ -477,6 +510,7 @@ class _StoreScreenState extends State<StoreScreen> {
 
   @override
   void dispose() {
+    _push.dispose();
     _loadTimeout?.cancel();
     super.dispose();
   }

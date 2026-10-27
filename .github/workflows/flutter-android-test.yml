@@ -83,6 +83,9 @@ jobs:
               print(density, sha256(icon_png.read_bytes()).hexdigest()[:16])
           print('Verified native and adaptive Ladies First launcher icon resources')
           PY
+      - name: Configure optional native push notifications
+        run: python3 scripts/configure_push.py
+
       - name: Fetch Flutter packages
         run: flutter pub get
       - name: Analyze Dart code

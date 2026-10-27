@@ -110,6 +110,9 @@ jobs:
           print(f"Verified {len(catalog['images'])} iOS icon renditions.")
           PY
 
+      - name: Configure optional native push notifications
+        run: python3 scripts/configure_push.py
+
       - name: Fetch Flutter packages
         run: flutter pub get
 
