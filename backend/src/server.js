@@ -1241,6 +1241,8 @@ async function initDatabase() {
   await require("./lama").initLama(db);
   await require("./community-commerce").initCommunity(db);
   await require("./lucky-wheel").initLuckyWheel(db);
+  await require("./growth-tools").initGrowthTools(db);
+  await require("./push-notifications").initPushNotifications(db);
 
   console.log(
     "[DB] Database initialized successfully."
@@ -9723,6 +9725,10 @@ app.get(
 
 community.register(app,{requireAuth,optionalAuth,requireAdmin});
 luckyWheel.register(app,{requireAuth,requireAdmin});
+require("./growth-tools").createGrowthTools({db,transaction}).register(app,{requireAuth,requireOwner});
+require("./market-prices").registerMarketPrices(app,{db,requireOwner});
+const pushNotifications=require("./push-notifications").createPushNotifications({db,transaction});
+pushNotifications.register(app,{requireAuth,requireOwner});
 
 require("./waitlist").registerWaitlistRoutes(app, {
   db,

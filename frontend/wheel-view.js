@@ -1,8 +1,8 @@
 (()=>{'use strict';
  const E=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const colors=['#fcf6eb','#ead2df','#f5e8ce','#e3c2d2','#fcf6eb','#ead2df','#f5e8ce','#e3c2d2'];
- const glyph={gift:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h18v11H3zM2 6h20v4H2zM12 6v15M12 6C5 7 5 0 9 2c2 1 3 4 3 4Zm0 0c7 1 7-6 3-4-2 1-3 4-3 4Z"/></svg>',shipping:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5h12v13H2zM14 10h4l4 5v3h-8M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>',none:'✧',percent:'%',fixed:'₪'};
- function label(p){const value=Number(p.value)||0;if(p.type==='percent')return 'خصم '+value+'%';if(p.type==='fixed')return 'خصم '+value+' ₪';if(p.type==='shipping')return 'توصيل مجاني';if(p.type==='none')return 'حظ أوفر';return p.productName?'هدية: '+p.productName:p.label?.startsWith('هدية:')?p.label:'هدية منتج';}
+ const glyph={gift:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h18v11H3zM2 6h20v4H2zM12 6v15M12 6C5 7 5 0 9 2c2 1 3 4 3 4Zm0 0c7 1 7-6 3-4-2 1-3 4-3 4Z"/></svg>',shipping:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5h12v13H2zM14 10h4l4 5v3h-8M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>',none:'✧',percent:'%',fixed:'₪',points:'★'};
+ function label(p){const value=Number(p.value)||0;if(p.type==='percent')return 'خصم '+value+'%';if(p.type==='fixed')return 'خصم '+value+' ₪';if(p.type==='points')return 'ربح '+value+' نقطة';if(p.type==='shipping')return 'توصيل مجاني';if(p.type==='none')return 'حظ أوفر';return p.productName?'هدية: '+p.productName:p.label?.startsWith('هدية:')?p.label:'هدية منتج';}
  function sources(p){
   if(p.type!=='gift')return [];
   let base;try{base=new URL(window.LF_API_URL||location.origin);}catch{return [];}

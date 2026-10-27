@@ -1,0 +1,22 @@
+(()=>{'use strict';let token=null,platform='',pending=false,last='',busy=false;
+ const api=(path,options)=>window.lfFetch(path,options);
+ function read(k,f=null){try{return JSON.parse(localStorage.getItem(k)||'null')??f;}catch{return f;}}
+ function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+ function installation(){let id=read('lf_push_install');if(!/^\w{32,100}$/.test(id||'')){id=crypto.randomUUID().replace(/-/g,'')+crypto.randomUUID().replace(/-/g,'');save('lf_push_install',id);}return id;}
+ function status(text){const el=document.querySelector('#lfPushStatus');if(el)el.textContent=text;}
+ async function register(){if(!token||!read('lf_push_optin')||!window.lfToken?.()||busy)return;const interests=read('lf_push_interests',[]),key=window.getAccount?.()?.id+':'+token+':'+JSON.stringify(interests);if(key===last)return;busy=true;try{await api('/api/push/device',{method:'PUT',body:JSON.stringify({token,platform,installation:installation(),consent:true,interests})});last=key;status('تنبيهات العروض مفعّلة لهذا الحساب والجهاز.');}catch(e){status(e.message);}finally{busy=false;}}
+ async function disable(){save('lf_push_optin',false);last='';try{await api('/api/push/device',{method:'DELETE',body:JSON.stringify({installation:installation()})});status('تم إيقاف تنبيهات العروض لهذا الجهاز.');}catch(e){status('تعذر حفظ الإيقاف: '+e.message);throw e;}}
+ async function mount(){const root=document.querySelector('#accountContent');if(!root||!window.getAccount?.()||root.querySelector('#lfPushPreferences'))return;const section=document.createElement('section');section.id='lfPushPreferences';section.innerHTML='<h3>إشعارات التطبيق</h3><p id="lfPushStatus" role="status"></p><div data-push-interests></div><button type="button" data-push-enable>تفعيل إشعارات العروض والجديد</button><button type="button" data-push-disable>إيقاف إشعارات العروض</button>';root.append(section);
+  if(!window.LFNativePush){status('تحتاج نسخة التطبيق التي تدعم إشعارات الهاتف لتفعيلها.');section.querySelector('[data-push-enable]').disabled=true;return;}
+  status(read('lf_push_optin')?'إشعارات العروض مفعّلة بحسب إذن الهاتف.':'اختياري: فعّل التنبيهات لتصلك العروض والجديد حتى عندما لا يكون التطبيق مفتوحًا.');
+  section.querySelector('[data-push-enable]').onclick=()=>{pending=true;status('بانتظار إذن الإشعارات من الهاتف…');window.LFNativePush.postMessage(JSON.stringify({action:'enable'}));};
+  section.querySelector('[data-push-disable]').onclick=()=>disable().catch(()=>{});
+  try{const data=await (await fetch((window.LF_API_URL||'')+'/api/categories')).json(),chosen=new Set(read('lf_push_interests',[]));const holder=section.querySelector('[data-push-interests]');if(!holder.isConnected)return;const title=document.createElement('p');title.textContent='اهتماماتك للإشعارات المخصصة — اختياري:';holder.append(title);for(const c of data.categories||[]){const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=chosen.has(c.name);input.onchange=()=>{input.checked?chosen.add(c.name):chosen.delete(c.name);save('lf_push_interests',[...chosen]);last='';register();};label.append(input,document.createTextNode(c.name+' '));holder.append(label);}}
+  catch{}
+ }
+ window.LFPushClient={onDevice:async d=>{if(!d||!['android','ios'].includes(d.platform))return;if(d.error){status(d.error);pending=false;return;}if(d.permission!=='authorized'){status('إذن الإشعارات غير مفعّل. يمكنك تغييره من إعدادات الهاتف.');pending=false;return;}token=d.token;platform=d.platform;if(pending){save('lf_push_optin',true);pending=false;}await register();},restore:()=>window.LFNativePush?.postMessage(JSON.stringify({action:'restore'}))};
+ const logout=window.logoutAccount;if(typeof logout==='function')window.logoutAccount=async function(...args){if(read('lf_push_optin')){try{await disable();}catch{if(!confirm('تعذر إيقاف اشتراك الإشعارات على الخادم. هل تريد تسجيل الخروج رغم ذلك؟'))return;}}return logout.apply(this,args);};
+ document.addEventListener('lf:accountchange',()=>{mount();if(!window.getAccount?.()){if(read('lf_push_optin'))disable().catch(()=>{});}else{window.LFPushClient.restore();register();}});
+ let queued=false;new MutationObserver(rs=>{if(rs.some(r=>r.target.id==='accountContent'||[...r.addedNodes].some(n=>n.nodeType===1&&(n.id==='accountContent'||n.querySelector('#accountContent'))))&&!queued){queued=true;queueMicrotask(()=>{queued=false;mount();});}}).observe(document.body,{childList:true,subtree:true});
+ mount();if(read('lf_push_optin'))window.LFPushClient.restore();
+})();

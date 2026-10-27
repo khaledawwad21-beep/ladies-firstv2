@@ -15,7 +15,7 @@
   queue=queue.catch(()=>{}).then(async()=>{if(!allowed||at!==epoch)return;try{await fetch('/api/marketing/events',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({...context,consent:true,event,product_id:product_id||null})})}catch(error){console.warn("[STORE MEASUREMENT]",error.message)}});
  }
  function choose(yes){
-  allowed=yes;epoch++;try{sessionStorage.setItem(key,yes?'yes':'no')}catch{}
+  allowed=yes;epoch++;document.dispatchEvent(new CustomEvent('lf:measurementchange',{detail:{allowed:yes}}));try{sessionStorage.setItem(key,yes?'yes':'no')}catch{}
   document.getElementById('lfMeasurementChoice')?.remove();
   if(yes){track('visit');const m=location.hash.match(/^#product-(\d+)$/);if(m)track('product_view',Number(m[1]))}
   else{queue=queue.catch(()=>{}).then(()=>fetch('/api/marketing/consent',{method:'DELETE',credentials:'same-origin'})).catch(()=>{})}
