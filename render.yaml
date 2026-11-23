@@ -39,4 +39,6 @@ services:
 
 databases:
   - name: ladies-first-db
-    plan: free
+    plan: 0.1c-256mb
+    region: oregon
+    diskSizeGB: 1
