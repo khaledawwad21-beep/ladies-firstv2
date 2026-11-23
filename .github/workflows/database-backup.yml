@@ -36,6 +36,17 @@ jobs:
           path: ${{ runner.temp }}/ladies-first.pgdump.enc
           if-no-files-found: error
           retention-days: 14
+      - name: Save and verify encrypted copy in independent storage
+        env:
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          BACKUP_S3_ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
+          AWS_DEFAULT_REGION: ${{ vars.BACKUP_S3_REGION || 'us-east-1' }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          AWS_EC2_METADATA_DISABLED: 'true'
+          AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+          AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
+        run: bash backend/scripts/archive-encrypted-backup.sh "$RUNNER_TEMP/ladies-first.pgdump.enc"
       - name: Remove temporary encrypted archive
         if: always()
         run: rm -f "$RUNNER_TEMP/ladies-first.pgdump.enc"
